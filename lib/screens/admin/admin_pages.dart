@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 enum AdminModulo {
   painel,
@@ -26,6 +27,8 @@ class _AdminPageState extends State<AdminPage> {
   late Future<List<Map<String, dynamic>>> _future = _carregar(_modulo);
   String _tipo = '';
   String _termo = '';
+  String _buscaLocal = '';
+  bool _mutando = false;
 
   Future<List<Map<String, dynamic>>> _carregar(AdminModulo modulo) async {
     final service = AppServices.instance.admin;
@@ -64,6 +67,7 @@ class _AdminPageState extends State<AdminPage> {
 
   void _abrir(AdminModulo modulo) => setState(() {
     _modulo = modulo;
+    _buscaLocal = '';
     _future = _carregar(modulo);
   });
 
@@ -74,12 +78,44 @@ class _AdminPageState extends State<AdminPage> {
     if (tipoUsuario != 'administrador') {
       return Scaffold(
         appBar: const AppBarCustom(title: 'Área administrativa'),
-        body: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(28),
-            child: Text(
-              'Acesso restrito a uma conta administrativa autorizada.',
-              textAlign: TextAlign.center,
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: AppColors.verdeClaro,
+                      child: Icon(
+                        Icons.lock_outline_rounded,
+                        color: AppColors.verdeEscuro,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Acesso administrativo restrito',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Entre com uma conta administrativa autorizada para acessar estas ferramentas.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.maybePop(context),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                      label: const Text('Voltar'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -107,7 +143,12 @@ class _AdminPageState extends State<AdminPage> {
               ],
       ),
       backgroundColor: AppColors.fundo,
-      body: _modulo == AdminModulo.painel ? _painel() : _lista(),
+      body: Column(
+        children: [
+          if (_mutando) const LinearProgressIndicator(),
+          Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: switch (_modulo) {
           AdminModulo.painel => 0,
@@ -148,20 +189,15 @@ class _AdminPageState extends State<AdminPage> {
     future: AppServices.instance.admin.painel(),
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return const AsyncLoadingView(
+          label: 'Carregando painel administrativo.',
+        );
       }
       if (snapshot.hasError) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Não foi possível carregar o resumo administrativo.'),
-              TextButton(
-                onPressed: () => setState(() {}),
-                child: const Text('Tentar novamente'),
-              ),
-            ],
-          ),
+        return AsyncErrorView(
+          message: 'Não foi possível carregar o resumo administrativo.',
+          icon: Icons.dashboard_outlined,
+          onRetry: () => setState(() {}),
         );
       }
       final data = snapshot.data ?? const <String, dynamic>{};
@@ -175,54 +211,84 @@ class _AdminPageState extends State<AdminPage> {
         children: [
           Text('Visão geral', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 5),
-          const Text('Indicadores consolidados pela API administrativa.'),
+          const Text('Acompanhe os indicadores e acesse as áreas de gestão.'),
           const SizedBox(height: 16),
-          _Indicador(
-            label: 'Usuários ativos',
-            value: '${usuarios['ativos'] ?? '—'}',
-            icon: Icons.people_outline,
-          ),
-          _Indicador(
-            label: 'Profissionais ativos',
-            value: '${usuarios['profissionais'] ?? '—'}',
-            icon: Icons.work_outline,
-          ),
-          _Indicador(
-            label: 'Perfis profissionais',
-            value: '${profissionais['perfisAtivos'] ?? '—'}',
-            icon: Icons.badge_outlined,
-          ),
-          _Indicador(
-            label: 'Documentos em análise',
-            value: '${moderacao['documentosPendentes'] ?? '—'}',
-            icon: Icons.verified_user_outlined,
-          ),
-          _Indicador(
-            label: 'Denúncias abertas',
-            value: '${moderacao['denunciasAbertas'] ?? '—'}',
-            icon: Icons.report_outlined,
-          ),
-          _Indicador(
-            label: 'Avaliações em moderação',
-            value: '${moderacao['avaliacoesPendentes'] ?? '—'}',
-            icon: Icons.star_outline,
-          ),
-          _Indicador(
-            label: 'Categorias ativas',
-            value: '${catalogo['categoriasAtivas'] ?? '—'}',
-            icon: Icons.category_outlined,
-          ),
-          _Indicador(
-            label: 'Solicitações aguardando',
-            value: '${atendimentos['aguardandoResposta'] ?? '—'}',
-            icon: Icons.inbox_outlined,
-          ),
-          _Indicador(
-            label: 'Atendimentos agendados',
-            value: '${atendimentos['aceitaAgendada'] ?? '—'}',
-            icon: Icons.event_available_outlined,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final colunas = constraints.maxWidth < 300 ? 1 : 2;
+              final escala = MediaQuery.textScalerOf(
+                context,
+              ).scale(1).clamp(1.0, 2.0).toDouble();
+              final indicadores = [
+                _Indicador(
+                  label: 'Usuários ativos',
+                  value: '${usuarios['ativos'] ?? '—'}',
+                  icon: Icons.people_outline,
+                ),
+                _Indicador(
+                  label: 'Profissionais ativos',
+                  value: '${usuarios['profissionais'] ?? '—'}',
+                  icon: Icons.work_outline,
+                ),
+                _Indicador(
+                  label: 'Perfis profissionais',
+                  value: '${profissionais['perfisAtivos'] ?? '—'}',
+                  icon: Icons.badge_outlined,
+                ),
+                _Indicador(
+                  label: 'Documentos em análise',
+                  value: '${moderacao['documentosPendentes'] ?? '—'}',
+                  icon: Icons.verified_user_outlined,
+                ),
+                _Indicador(
+                  label: 'Denúncias abertas',
+                  value: '${moderacao['denunciasAbertas'] ?? '—'}',
+                  icon: Icons.report_outlined,
+                ),
+                _Indicador(
+                  label: 'Avaliações em moderação',
+                  value: '${moderacao['avaliacoesPendentes'] ?? '—'}',
+                  icon: Icons.star_outline,
+                ),
+                _Indicador(
+                  label: 'Categorias ativas',
+                  value: '${catalogo['categoriasAtivas'] ?? '—'}',
+                  icon: Icons.category_outlined,
+                ),
+                _Indicador(
+                  label: 'Solicitações aguardando',
+                  value: '${atendimentos['aguardandoResposta'] ?? '—'}',
+                  icon: Icons.inbox_outlined,
+                ),
+                _Indicador(
+                  label: 'Atendimentos agendados',
+                  value: '${atendimentos['aceitaAgendada'] ?? '—'}',
+                  icon: Icons.event_available_outlined,
+                ),
+              ];
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: indicadores.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: colunas,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 104 * escala,
+                ),
+                itemBuilder: (context, index) => indicadores[index],
+              );
+            },
           ),
           const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Acessos rápidos',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(height: 8),
           _AdminAtalho(
             icon: Icons.people_outline,
             title: 'Gerenciar usuários',
@@ -271,27 +337,65 @@ class _AdminPageState extends State<AdminPage> {
     future: _future,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return const AsyncLoadingView(
+          label: 'Carregando módulo administrativo.',
+        );
       }
       if (snapshot.hasError) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Não foi possível carregar este módulo. Confira sua sessão administrativa.',
-              ),
-              TextButton(
-                onPressed: () => setState(() => _future = _carregar(_modulo)),
-                child: const Text('Tentar novamente'),
-              ),
-            ],
-          ),
+        return AsyncErrorView(
+          message:
+              'Não foi possível carregar esta lista. Confira sua sessão administrativa.',
+          icon: Icons.admin_panel_settings_outlined,
+          onRetry: () => setState(() => _future = _carregar(_modulo)),
         );
       }
       final items = snapshot.data ?? const <Map<String, dynamic>>[];
+      final permiteBuscaLocal =
+          _modulo == AdminModulo.avaliacoes ||
+          _modulo == AdminModulo.categorias;
+      final itensVisiveis = !permiteBuscaLocal || _buscaLocal.trim().isEmpty
+          ? items
+          : items
+                .where(
+                  (item) => _textoIndexavel(
+                    item,
+                  ).contains(_buscaLocal.trim().toLowerCase()),
+                )
+                .toList(growable: false);
       return Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _descricaoModulo(_modulo),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
+              ),
+            ),
+          ),
+          if (permiteBuscaLocal)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: TextField(
+                onChanged: (value) => setState(() => _buscaLocal = value),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  labelText: _modulo == AdminModulo.categorias
+                      ? 'Buscar categoria'
+                      : 'Buscar avaliação',
+                  suffixIcon: _buscaLocal.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: 'Limpar busca',
+                          onPressed: () => setState(() => _buscaLocal = ''),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                ),
+              ),
+            ),
           if (_modulo == AdminModulo.usuarios)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
@@ -352,18 +456,22 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
           Expanded(
-            child: items.isEmpty
-                ? Center(
-                    child: Text(
-                      _modulo == AdminModulo.auditoria
-                          ? 'Nenhuma ação administrativa registrada.'
-                          : 'Nenhum item para revisar.',
-                    ),
+            child: itensVisiveis.isEmpty
+                ? EmptyStateView(
+                    title: items.isEmpty
+                        ? _tituloVazio(_modulo)
+                        : 'Nenhum resultado encontrado',
+                    message: items.isEmpty
+                        ? _mensagemVazia(_modulo)
+                        : 'Tente outro termo de busca.',
+                    icon: items.isEmpty
+                        ? _iconeModulo(_modulo)
+                        : Icons.search_off_rounded,
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => _item(items[i]),
+                    itemCount: itensVisiveis.length,
+                    itemBuilder: (context, i) => _item(itensVisiveis[i]),
                   ),
           ),
         ],
@@ -387,7 +495,7 @@ class _AdminPageState extends State<AdminPage> {
             onTap: () => _detalhesUsuario(item),
             trailing: Switch(
               value: ativo,
-              onChanged: (_) => _mudarStatus(item, ativo),
+              onChanged: _mutando ? null : (_) => _mudarStatus(item, ativo),
             ),
           ),
         );
@@ -403,7 +511,7 @@ class _AdminPageState extends State<AdminPage> {
               'Status: ${item['status']}\n${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}',
             ),
             isThreeLine: true,
-            onTap: () => _analisarDocumento(item),
+            onTap: _mutando ? null : () => _analisarDocumento(item),
           ),
         );
       case AdminModulo.denuncias:
@@ -419,7 +527,7 @@ class _AdminPageState extends State<AdminPage> {
               'Relato: ${item['descricao'] ?? ''}\nSolicitação #${item['solicitacaoId'] ?? ''}',
             ),
             isThreeLine: true,
-            onTap: () => _analisarDenuncia(item),
+            onTap: _mutando ? null : () => _analisarDenuncia(item),
           ),
         );
       case AdminModulo.avaliacoes:
@@ -434,7 +542,7 @@ class _AdminPageState extends State<AdminPage> {
               'Avaliação de ${item['avaliado']?['nome'] ?? 'usuário'}\n${item['comentario'] ?? 'Sem comentário'}',
             ),
             isThreeLine: true,
-            onTap: () => _analisarAvaliacao(item),
+            onTap: _mutando ? null : () => _analisarAvaliacao(item),
           ),
         );
       case AdminModulo.categorias:
@@ -446,7 +554,7 @@ class _AdminPageState extends State<AdminPage> {
             subtitle: Text(item['ativo'] == true ? 'Ativa' : 'Inativa'),
             trailing: IconButton(
               icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _editarCategoria(item),
+              onPressed: _mutando ? null : () => _editarCategoria(item),
             ),
           ),
         );
@@ -493,6 +601,7 @@ class _AdminPageState extends State<AdminPage> {
       await showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
+          scrollable: true,
           title: Text('${usuario['nome'] ?? 'Usuário'}'),
           content: Text(
             'Tipo: ${usuario['tipo']}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${usuario['criadoEm'] ?? '—'}',
@@ -511,10 +620,12 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Future<void> _mudarStatus(Map<String, dynamic> u, bool ativo) async {
+    if (_mutando) return;
     final motivo = TextEditingController();
     final confirma = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text(ativo ? 'Desativar conta?' : 'Reativar conta?'),
         content: TextField(
           controller: motivo,
@@ -533,25 +644,33 @@ class _AdminPageState extends State<AdminPage> {
       ),
     );
     if (confirma != true) return;
+    setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.atualizarStatus(
         int.parse('${u['id']}'),
         !ativo,
         motivo: motivo.text.trim(),
       );
-      if (mounted) setState(() => _future = _carregar(_modulo));
+      if (mounted) {
+        _avisar('Status da conta atualizado.');
+        setState(() => _future = _carregar(_modulo));
+      }
     } catch (_) {
       if (mounted) {
         _avisar('A API não permitiu atualizar o status desta conta.');
       }
+    } finally {
+      if (mounted) setState(() => _mutando = false);
     }
   }
 
   Future<void> _analisarDocumento(Map<String, dynamic> item) async {
+    if (_mutando) return;
     final motivo = TextEditingController();
     final acao = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: const Text('Análise documental'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -592,23 +711,31 @@ class _AdminPageState extends State<AdminPage> {
       _avisar('Informe o motivo para rejeitar.');
       return;
     }
+    setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.analisarDocumento(
         int.parse('${item['id']}'),
         acao,
         motivo: motivo.text.trim(),
       );
-      if (mounted) setState(() => _future = _carregar(_modulo));
+      if (mounted) {
+        _avisar('Análise documental registrada.');
+        setState(() => _future = _carregar(_modulo));
+      }
     } catch (_) {
       if (mounted) _avisar('Não foi possível registrar a análise documental.');
+    } finally {
+      if (mounted) setState(() => _mutando = false);
     }
   }
 
   Future<void> _analisarDenuncia(Map<String, dynamic> item) async {
+    if (_mutando) return;
     final decisao = TextEditingController(text: '${item['decisao'] ?? ''}');
     final acao = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text('Denúncia #${item['id']}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -652,22 +779,30 @@ class _AdminPageState extends State<AdminPage> {
       _avisar('Informe a decisão antes de concluir a análise.');
       return;
     }
+    setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.moderarDenuncia(
         int.parse('${item['id']}'),
         acao,
         decisao.text.trim(),
       );
-      if (mounted) setState(() => _future = _carregar(_modulo));
+      if (mounted) {
+        _avisar('Decisão registrada.');
+        setState(() => _future = _carregar(_modulo));
+      }
     } catch (_) {
       if (mounted) _avisar('Não foi possível registrar a decisão.');
+    } finally {
+      if (mounted) setState(() => _mutando = false);
     }
   }
 
   Future<void> _analisarAvaliacao(Map<String, dynamic> item) async {
+    if (_mutando) return;
     final status = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
+        scrollable: true,
         title: Text('Avaliação #${item['id']}'),
         content: Text(
           '“${item['comentario'] ?? 'Sem comentário'}”\n\nAção preserva o registro histórico.',
@@ -689,24 +824,32 @@ class _AdminPageState extends State<AdminPage> {
       ),
     );
     if (status == null) return;
+    setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.moderarAvaliacao(
         int.parse('${item['id']}'),
         status,
       );
-      if (mounted) setState(() => _future = _carregar(_modulo));
+      if (mounted) {
+        _avisar('Moderação da avaliação atualizada.');
+        setState(() => _future = _carregar(_modulo));
+      }
     } catch (_) {
       if (mounted) _avisar('Não foi possível atualizar a moderação.');
+    } finally {
+      if (mounted) setState(() => _mutando = false);
     }
   }
 
   Future<void> _editarCategoria([Map<String, dynamic>? categoria]) async {
+    if (_mutando) return;
     final nome = TextEditingController(text: '${categoria?['nome'] ?? ''}');
     var ativo = categoria?['ativo'] != false;
     final result = await showDialog<(String, bool)>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
+          scrollable: true,
           title: Text(
             categoria == null ? 'Nova categoria' : 'Editar categoria',
           ),
@@ -716,6 +859,7 @@ class _AdminPageState extends State<AdminPage> {
               TextField(
                 controller: nome,
                 decoration: const InputDecoration(labelText: 'Nome'),
+                onChanged: (_) => setDialog(() {}),
               ),
               SwitchListTile(
                 value: ativo,
@@ -730,9 +874,9 @@ class _AdminPageState extends State<AdminPage> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () => nome.text.trim().length < 2
+              onPressed: nome.text.trim().length < 2
                   ? null
-                  : Navigator.pop(context, (nome.text.trim(), ativo)),
+                  : () => Navigator.pop(context, (nome.text.trim(), ativo)),
               child: const Text('Salvar'),
             ),
           ],
@@ -740,19 +884,25 @@ class _AdminPageState extends State<AdminPage> {
       ),
     );
     if (result == null) return;
+    setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.salvarCategoria(
         id: categoria == null ? null : int.parse('${categoria['id']}'),
         nome: result.$1,
         ativo: result.$2,
       );
-      if (mounted) setState(() => _future = _carregar(_modulo));
+      if (mounted) {
+        _avisar('Categoria salva.');
+        setState(() => _future = _carregar(_modulo));
+      }
     } catch (_) {
       if (mounted) {
         _avisar(
           'Não foi possível salvar a categoria. O nome pode já estar em uso.',
         );
       }
+    } finally {
+      if (mounted) setState(() => _mutando = false);
     }
   }
 
@@ -782,6 +932,65 @@ String _dataAuditoria(Object? valor) {
   return '$dia/$mes/${data.year} às $hora:$minuto';
 }
 
+String _descricaoModulo(AdminModulo modulo) => switch (modulo) {
+  AdminModulo.usuarios => 'Consulte perfis e gerencie o acesso à plataforma.',
+  AdminModulo.documentos =>
+    'Revise os documentos enviados pelos profissionais.',
+  AdminModulo.denuncias => 'Acompanhe relatos e registre decisões de análise.',
+  AdminModulo.avaliacoes => 'Revise avaliações que aguardam moderação.',
+  AdminModulo.categorias => 'Organize as categorias disponíveis no catálogo.',
+  AdminModulo.auditoria => 'Consulte as ações administrativas recentes.',
+  AdminModulo.painel => 'Indicadores e ferramentas administrativas.',
+};
+
+String _tituloVazio(AdminModulo modulo) => switch (modulo) {
+  AdminModulo.usuarios => 'Nenhuma conta encontrada',
+  AdminModulo.documentos => 'Nenhum documento pendente',
+  AdminModulo.denuncias => 'Nenhuma denúncia para analisar',
+  AdminModulo.avaliacoes => 'Nenhuma avaliação pendente',
+  AdminModulo.categorias => 'Nenhuma categoria cadastrada',
+  AdminModulo.auditoria => 'Nenhuma ação registrada',
+  AdminModulo.painel => 'Sem informações para exibir',
+};
+
+String _mensagemVazia(AdminModulo modulo) => switch (modulo) {
+  AdminModulo.usuarios =>
+    'Tente outra busca ou altere o filtro de tipo de conta.',
+  AdminModulo.documentos => 'Novos envios aparecerão nesta lista.',
+  AdminModulo.denuncias => 'Novos relatos aparecerão nesta lista.',
+  AdminModulo.avaliacoes => 'Não há avaliações aguardando moderação agora.',
+  AdminModulo.categorias => 'Use “Nova categoria” para cadastrar uma.',
+  AdminModulo.auditoria => 'As ações administrativas aparecerão aqui.',
+  AdminModulo.painel => 'Tente carregar o painel novamente.',
+};
+
+String _textoIndexavel(Map<String, dynamic> item) {
+  final avaliador = item['avaliador'] is Map
+      ? (item['avaliador'] as Map)['nome']
+      : null;
+  final avaliado = item['avaliado'] is Map
+      ? (item['avaliado'] as Map)['nome']
+      : null;
+  return [
+    item['nome'],
+    item['categoria'],
+    item['status'],
+    item['comentario'],
+    avaliador,
+    avaliado,
+  ].whereType<Object>().join(' ').toLowerCase();
+}
+
+IconData _iconeModulo(AdminModulo modulo) => switch (modulo) {
+  AdminModulo.usuarios => Icons.people_outline_rounded,
+  AdminModulo.documentos => Icons.verified_user_outlined,
+  AdminModulo.denuncias => Icons.flag_outlined,
+  AdminModulo.avaliacoes => Icons.star_outline_rounded,
+  AdminModulo.categorias => Icons.category_outlined,
+  AdminModulo.auditoria => Icons.history_rounded,
+  AdminModulo.painel => Icons.dashboard_outlined,
+};
+
 class _Indicador extends StatelessWidget {
   const _Indicador({
     required this.label,
@@ -791,12 +1000,26 @@ class _Indicador extends StatelessWidget {
   final String label, value;
   final IconData icon;
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 8),
-    child: ListTile(
-      leading: Icon(icon, color: AppColors.verde),
-      title: Text(label),
-      trailing: Text(value, style: Theme.of(context).textTheme.titleLarge),
+  Widget build(BuildContext context) => Semantics(
+    label: '$label: $value',
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(icon, color: AppColors.verde),
+                Text(value, style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
     ),
   );
 }

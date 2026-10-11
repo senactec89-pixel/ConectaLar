@@ -2,10 +2,15 @@ import 'package:conectarlar_app/app/app.dart';
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/models/home_content.dart';
+import 'package:conectarlar_app/screens/admin/admin_pages.dart';
 import 'package:conectarlar_app/screens/auth/recuperacao_senha_page.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/screens/perfil/editar_dados_page.dart';
 import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
+import 'package:conectarlar_app/screens/profissional/area_profissional_page.dart';
+import 'package:conectarlar_app/screens/profissional/cadastro_profissional_page.dart';
+import 'package:conectarlar_app/screens/profissional/disponibilidade_page.dart';
+import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -353,6 +358,47 @@ void main() {
       );
     }
   });
+
+  testWidgets(
+    'telas profissionais e admin cabem em larguras mobile com texto ampliado',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final telas = [
+        const AreaProfissionalPage(initialTab: 2),
+        const CadastroProfissionalPage(),
+        const DisponibilidadePage(),
+        const DocumentosVerificacaoPage(),
+        const AdminPage(),
+      ];
+
+      for (final largura in [360.0, 390.0, 412.0]) {
+        tester.view.physicalSize = Size(largura, 844);
+        for (final tela in telas) {
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: AppTheme.light,
+              home: tela,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: const TextScaler.linear(1.4)),
+                child: child!,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${tela.runtimeType} em $largura px com texto ampliado',
+          );
+        }
+      }
+    },
+  );
 
   testWidgets('a Home mostra uma mensagem amigável se o carregamento falhar', (
     tester,
