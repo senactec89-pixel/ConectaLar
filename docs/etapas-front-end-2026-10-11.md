@@ -10,8 +10,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | 2 | Prévia isolada das telas sem API | Enviada: `1420819` |
 | 3 | Cadastro, leitura de termos e empresa | Enviada: `f5ddfc2` |
 | 4 | Chat: erro, nova tentativa e atualização | Enviada: `1cf1246` |
-| 5 | Notificações: envio, erros e retorno | Verificada |
-| 6 | Atualização de Meus serviços ao retornar | A executar |
+| 5 | Notificações: envio, erros e retorno | Enviada: `67a9ee8` |
+| 6 | Atualização de Meus serviços ao retornar | Verificada |
 | 7 | Encaminhamento após sessão expirada | A executar |
 | 8 | Filtros administrativos de documentos | A executar |
 | 9 | Textos e identidade da versão web | A executar |
@@ -102,3 +102,11 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Testes específicos de erro/repetição, bloqueio de cliques simultâneos e retorno dos detalhes.
 
 - Três testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 53 testes aprovados.
+
+## Etapa 6 — retorno a Meus serviços
+
+- A navegação para detalhes é aguardada; ao retornar, a lista consulta novamente a API. O filtro selecionado é preservado e a recarga só ocorre se a tela ainda estiver montada.
+- Mantidos os cinco estados oficiais e o carregamento/erro/retry já existentes.
+- Testes específicos: mudança para conclusão confirmada aparece após retorno sem perder filtro; erro de recarga oferece nova tentativa.
+
+- Dois testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 55 testes aprovados.
