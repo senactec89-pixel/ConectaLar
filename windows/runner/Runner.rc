@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "conectarlar_app" "\0"
+            VALUE "FileDescription", "ConectaLar" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "conectarlar_app" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
             VALUE "OriginalFilename", "conectarlar_app.exe" "\0"
-            VALUE "ProductName", "conectarlar_app" "\0"
+            VALUE "ProductName", "ConectaLar" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
