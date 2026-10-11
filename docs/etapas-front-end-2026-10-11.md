@@ -9,8 +9,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | 1 | Auditoria dos protótipos e responsividade | Enviada: `32bcfbc` |
 | 2 | Prévia isolada das telas sem API | Enviada: `1420819` |
 | 3 | Cadastro, leitura de termos e empresa | Enviada: `f5ddfc2` |
-| 4 | Chat: erro, nova tentativa e atualização | Verificada |
-| 5 | Notificações: envio, erros e retorno | A executar |
+| 4 | Chat: erro, nova tentativa e atualização | Enviada: `1cf1246` |
+| 5 | Notificações: envio, erros e retorno | Verificada |
 | 6 | Atualização de Meus serviços ao retornar | A executar |
 | 7 | Encaminhamento após sessão expirada | A executar |
 | 8 | Filtros administrativos de documentos | A executar |
@@ -93,3 +93,12 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Três testes específicos aprovados: erro/retry e nova mensagem recebida; envio com falha; vazio em 360/390/412 px com texto 1,4 e teclado.
 
 - `flutter analyze --no-pub`: sem problemas. Suíte completa: 50 testes aprovados.
+
+## Etapa 5 — notificações
+
+- Falhas ao marcar uma/todas como lidas mostram aviso e preservam a lista para nova tentativa.
+- Indicador de envio e ações desabilitadas enquanto há operação em andamento; a guarda no callback impede repetição antes da reconstrução do widget.
+- A abertura dos detalhes/documentos é aguardada; no retorno, a lista é consultada novamente. Nenhum estado de leitura é antecipado antes da resposta da API.
+- Testes específicos de erro/repetição, bloqueio de cliques simultâneos e retorno dos detalhes.
+
+- Três testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 53 testes aprovados.
