@@ -22,7 +22,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 
 The health check is `GET /health` and returns only `{ "status": "ok" }`. It does not report dependency, database, version, or environment details.
 
-The OpenAPI contract for the health, auth, categories, professional, request, agenda, audit, and document upload routes is in `openapi.yaml`; the chat and review routes are documented below and still need to be added to the OpenAPI file. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
+The OpenAPI contract in `openapi.yaml` covers the routes currently implemented by the API, including client profiles and addresses, professional availability and agenda, service requests, chat, reviews, reports, notifications, document moderation, administrative users, history, terms, and audit. It describes the current HTTP contract; it does not claim that every route has passed an integration or production test. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 
 ## Logging and errors
 
@@ -60,7 +60,7 @@ Authentication routes:
 - `PATCH /auth/senha` with `Authorization: Bearer <token>`
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
-Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. E-mail delivery is not configured yet, so production password recovery still needs a delivery provider. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
 
 Administrative user routes:
 

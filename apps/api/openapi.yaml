@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: ConectaLar API
   version: 0.1.0
-  description: Initial technical contract for health and authentication groundwork.
+  description: HTTP contract for the routes currently implemented by the ConectaLar API.
 paths:
   /health:
     get:
@@ -118,6 +118,100 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /auth/senha/recuperacao:
+    post:
+      operationId: postAuthRecuperarSenha
+      summary: Starts password recovery without revealing whether an account exists
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '201':
+          description: Generic success; devToken is returned only when explicitly enabled outside production
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+                    const: true
+                  devToken:
+                    type: string
+                    description: Development-only recovery token; never returned in production.
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/senha/recuperacao/confirmar:
+    post:
+      operationId: postAuthConfirmarRecuperacaoSenha
+      summary: Confirms password recovery with a valid one-time token
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [token, novaSenha]
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                novaSenha:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  writeOnly: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/senha:
+    patch:
+      operationId: patchAuthSenha
+      summary: Changes the authenticated account password and invalidates existing tokens
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [senhaAtual, novaSenha]
+              properties:
+                senhaAtual:
+                  type: string
+                  writeOnly: true
+                novaSenha:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  writeOnly: true
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /profissionais:
     get:
       operationId: getProfissionais
@@ -262,7 +356,7 @@ paths:
                   atendimentos:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Solicitacao'
+                      $ref: '#/components/schemas/AtendimentoAgenda'
         default:
           description: HTTP error with internal details omitted
           content:
@@ -270,6 +364,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiError'
   /profissionais/me/documentos:
+    get:
+      operationId: getMeusDocumentosVerificacao
+      summary: Lists verification documents owned by the authenticated professional
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Private verification document metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documentos]
+                properties:
+                  documentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentoVerificacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
     post:
       operationId: postMeuDocumentoVerificacao
       summary: Uploads or registers a private verification document reference
@@ -338,7 +453,8 @@ paths:
   /profissionais/{id}/verificacao:
     patch:
       operationId: patchProfissionalVerificacao
-      summary: Updates the verification seal through an administrative account
+      summary: Deprecated endpoint; use document analysis to update verification status
+      deprecated: true
       tags:
         - Profissionais
       security:
@@ -363,18 +479,12 @@ paths:
                 verificado:
                   type: boolean
       responses:
-        '200':
-          description: Updated professional profile
+        '400':
+          description: Legacy verification update is rejected; verification requires document review
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: false
-                required:
-                  - profissional
-                properties:
-                  profissional:
-                    $ref: '#/components/schemas/ProfissionalPublico'
+                $ref: '#/components/schemas/ApiError'
         default:
           description: HTTP error with internal details omitted
           content:
@@ -685,6 +795,1208 @@ paths:
                       $ref: '#/components/schemas/AdminAuditoriaEvento'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/painel:
+    get:
+      operationId: getMeuPainelProfissional
+      summary: Gets the authenticated professional dashboard summary
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Professional dashboard summary
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/servicos:
+    get:
+      operationId: getMeusServicos
+      summary: Lists the authenticated professional's service offers
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Professional service offers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [servicos]
+                properties:
+                  servicos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServicoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    put:
+      operationId: putMeusServicos
+      summary: Replaces the authenticated professional's service offers
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [servicos]
+              properties:
+                servicos:
+                  type: array
+                  maxItems: 12
+                  items:
+                    $ref: '#/components/schemas/ServicoProfissionalInput'
+      responses:
+        '200':
+          description: Saved service offers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [servicos]
+                properties:
+                  servicos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServicoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/{id}/disponibilidade:
+    get:
+      operationId: getDisponibilidadeProfissional
+      summary: Lists the public weekly availability of a professional
+      tags: [Profissionais]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Public availability intervals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disponibilidades]
+                properties:
+                  disponibilidades:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disponibilidade'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/disponibilidade:
+    get:
+      operationId: getMinhaDisponibilidade
+      summary: Lists the authenticated professional's availability
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Availability intervals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disponibilidades]
+                properties:
+                  disponibilidades:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disponibilidade'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    put:
+      operationId: putMinhaDisponibilidade
+      summary: Replaces the authenticated professional's weekly availability
+      tags: [Profissionais]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [disponibilidades]
+              properties:
+                disponibilidades:
+                  type: array
+                  maxItems: 42
+                  items:
+                    $ref: '#/components/schemas/DisponibilidadeInput'
+      responses:
+        '200':
+          description: Saved availability intervals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disponibilidades]
+                properties:
+                  disponibilidades:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disponibilidade'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /clientes/me:
+    get:
+      operationId: getMeuPerfilCliente
+      summary: Gets the authenticated client's profile
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cliente]
+                properties:
+                  cliente:
+                    $ref: '#/components/schemas/Cliente'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    put:
+      operationId: putMeuPerfilCliente
+      summary: Creates or updates the authenticated client's profile
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientePerfilInput'
+      responses:
+        '200':
+          description: Saved client profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cliente]
+                properties:
+                  cliente:
+                    $ref: '#/components/schemas/Cliente'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /clientes/me/enderecos:
+    get:
+      operationId: getMeusEnderecos
+      summary: Lists active addresses owned by the authenticated client
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Client addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enderecos]
+                properties:
+                  enderecos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EnderecoCliente'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    post:
+      operationId: postMeuEndereco
+      summary: Creates an address owned by the authenticated client
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnderecoClienteInput'
+      responses:
+        '201':
+          description: Created address
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [endereco]
+                properties:
+                  endereco:
+                    $ref: '#/components/schemas/EnderecoCliente'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /clientes/me/enderecos/{id}:
+    patch:
+      operationId: patchMeuEndereco
+      summary: Updates an address owned by the authenticated client
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnderecoClientePatchInput'
+      responses:
+        '200':
+          description: Updated address
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [endereco]
+                properties:
+                  endereco:
+                    $ref: '#/components/schemas/EnderecoCliente'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    delete:
+      operationId: deleteMeuEndereco
+      summary: Deactivates an address owned by the authenticated client
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /clientes/me/favoritos:
+    get:
+      operationId: getMeusFavoritos
+      summary: Lists active public profiles favorited by the authenticated client
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Favorite professionals
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [favoritos]
+                properties:
+                  favoritos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FavoritoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /clientes/me/favoritos/{profissionalId}:
+    post:
+      operationId: postMeuFavorito
+      summary: Adds an active professional to the authenticated client's favorites
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: profissionalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '201':
+          description: Favorite created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [favorito]
+                properties:
+                  favorito:
+                    $ref: '#/components/schemas/FavoritoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    delete:
+      operationId: deleteMeuFavorito
+      summary: Removes a professional from the authenticated client's favorites
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: profissionalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/usuarios:
+    get:
+      operationId: getAdminUsuarios
+      summary: Lists users for an administrator
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/UsuarioTipo'
+        - name: ativo
+          in: query
+          schema:
+            type: boolean
+        - name: termo
+          in: query
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        '200':
+          description: Matching user accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuarios]
+                properties:
+                  usuarios:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UsuarioAdministrativo'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/usuarios/{id}:
+    get:
+      operationId: getAdminUsuario
+      summary: Gets one user account for an administrator
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: User account without credential hashes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  usuario:
+                    $ref: '#/components/schemas/UsuarioAdministrativo'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/usuarios/administradores:
+    post:
+      operationId: postAdminCriarAdministrador
+      summary: Creates an administrator account from an authenticated administrator account
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome, email, senha]
+              properties:
+                nome:
+                  type: string
+                  minLength: 3
+                  maxLength: 140
+                email:
+                  type: string
+                  format: email
+                  maxLength: 180
+                telefone:
+                  type: [string, 'null']
+                  maxLength: 32
+                senha:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                  writeOnly: true
+      responses:
+        '201':
+          description: Administrator account created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  usuario:
+                    $ref: '#/components/schemas/UsuarioAdministrativo'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/usuarios/{id}/status:
+    patch:
+      operationId: patchAdminUsuarioStatus
+      summary: Activates or deactivates a user account and records the administrative action
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ativo]
+              properties:
+                ativo:
+                  type: boolean
+                motivo:
+                  type: [string, 'null']
+                  maxLength: 600
+      responses:
+        '200':
+          description: Updated account status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [usuario]
+                properties:
+                  usuario:
+                    $ref: '#/components/schemas/UsuarioAdministrativo'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/painel:
+    get:
+      operationId: getAdminPainel
+      summary: Gets administrative dashboard counters
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Counts for users, moderation, catalog and service requests
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [usuarios, profissionais, moderacao, catalogo, atendimentos]
+                properties:
+                  usuarios:
+                    type: object
+                    required: [ativos, clientes, profissionais, empresas, administradores]
+                    properties:
+                      ativos: {type: integer, minimum: 0}
+                      clientes: {type: integer, minimum: 0}
+                      profissionais: {type: integer, minimum: 0}
+                      empresas: {type: integer, minimum: 0}
+                      administradores: {type: integer, minimum: 0}
+                  profissionais:
+                    type: object
+                    required: [perfisAtivos]
+                    properties:
+                      perfisAtivos: {type: integer, minimum: 0}
+                  moderacao:
+                    type: object
+                    required: [documentosPendentes, denunciasAbertas, avaliacoesPendentes]
+                    properties:
+                      documentosPendentes: {type: integer, minimum: 0}
+                      denunciasAbertas: {type: integer, minimum: 0}
+                      avaliacoesPendentes: {type: integer, minimum: 0}
+                  catalogo:
+                    type: object
+                    required: [categoriasAtivas]
+                    properties:
+                      categoriasAtivas: {type: integer, minimum: 0}
+                  atendimentos:
+                    type: object
+                    required: [aguardandoResposta, aceitaAgendada, conclusaoConfirmada]
+                    properties:
+                      aguardandoResposta: {type: integer, minimum: 0}
+                      aceitaAgendada: {type: integer, minimum: 0}
+                      conclusaoConfirmada: {type: integer, minimum: 0}
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /documentos-verificacao:
+    get:
+      operationId: getDocumentosVerificacaoAdmin
+      summary: Lists verification documents for administrative review
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, aprovado, rejeitado]
+      responses:
+        '200':
+          description: Verification documents and professional summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documentos]
+                properties:
+                  documentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DocumentoVerificacaoAdmin'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /documentos-verificacao/{id}/analisar:
+    patch:
+      operationId: patchAnalisarDocumentoVerificacao
+      summary: Approves or rejects a verification document with an audit record
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [aprovado, rejeitado]
+                motivoRejeicao:
+                  type: [string, 'null']
+                  maxLength: 600
+      responses:
+        '200':
+          description: Moderated verification document
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [documento]
+                properties:
+                  documento:
+                    $ref: '#/components/schemas/DocumentoVerificacaoAdmin'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/mensagens:
+    get:
+      operationId: getMensagensSolicitacao
+      summary: Lists messages for an authorized service request participant
+      tags: [Mensagens]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Messages ordered from oldest to newest
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mensagens]
+                properties:
+                  mensagens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MensagemAtendimento'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    post:
+      operationId: postMensagemSolicitacao
+      summary: Sends a message while a request is pending or accepted
+      tags: [Mensagens]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [conteudo]
+              properties:
+                conteudo:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [mensagem]
+                properties:
+                  mensagem:
+                    $ref: '#/components/schemas/MensagemAtendimento'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes:
+    get:
+      operationId: getAvaliacoesSolicitacao
+      summary: Lists reviews for an authorized service request participant
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Reviews for the service request
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avaliacoes]
+                properties:
+                  avaliacoes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/profissional:
+    post:
+      operationId: postAvaliacaoProfissional
+      summary: Allows the client to review the professional after confirmed completion
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvaliacaoInput'
+      responses:
+        '201':
+          description: Review created with moderation status pending
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avaliacao]
+                properties:
+                  avaliacao:
+                    $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/cliente:
+    post:
+      operationId: postAvaliacaoCliente
+      summary: Allows the professional to review the client after confirmed completion
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvaliacaoInput'
+      responses:
+        '201':
+          description: Review created with moderation status pending
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avaliacao]
+                properties:
+                  avaliacao:
+                    $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /avaliacoes/moderacao:
+    get:
+      operationId: getAvaliacoesModeracao
+      summary: Lists reviews pending administrative moderation
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Reviews pending moderation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avaliacoes]
+                properties:
+                  avaliacoes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /avaliacoes/{id}/moderacao:
+    patch:
+      operationId: patchModeracaoAvaliacao
+      summary: Updates review moderation status and records an audit event
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [moderacaoStatus]
+              properties:
+                moderacaoStatus:
+                  type: string
+                  enum: [pendente, aprovada, rejeitada]
+      responses:
+        '200':
+          description: Moderated review
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [avaliacao]
+                properties:
+                  avaliacao:
+                    $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/denuncias:
+    post:
+      operationId: postDenunciaSolicitacao
+      summary: Creates a report about the other participant in a service request
+      tags: [Denuncias]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [denunciadoId, motivo, descricao]
+              properties:
+                denunciadoId:
+                  type: integer
+                  minimum: 1
+                motivo:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+                descricao:
+                  type: string
+                  minLength: 20
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Report registered for moderation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [denuncia]
+                properties:
+                  denuncia:
+                    $ref: '#/components/schemas/Denuncia'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /denuncias/me:
+    get:
+      operationId: getMinhasDenuncias
+      summary: Lists reports submitted by the authenticated user
+      tags: [Denuncias]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Reports submitted by the user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [denuncias]
+                properties:
+                  denuncias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Denuncia'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /denuncias/moderacao:
+    get:
+      operationId: getDenunciasModeracao
+      summary: Lists reports for administrative moderation
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, em_analise, resolvida, rejeitada]
+      responses:
+        '200':
+          description: Reports with participant summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [denuncias]
+                properties:
+                  denuncias:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DenunciaAdmin'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /denuncias/{id}/moderacao:
+    patch:
+      operationId: patchModeracaoDenuncia
+      summary: Records an administrative decision on a report
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [em_analise, resolvida, rejeitada]
+                decisao:
+                  type: [string, 'null']
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Moderated report
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [denuncia]
+                properties:
+                  denuncia:
+                    $ref: '#/components/schemas/DenunciaAdmin'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/me:
+    get:
+      operationId: getMinhasNotificacoes
+      summary: Lists up to 50 notifications for the authenticated user
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: lida
+          in: query
+          description: Set to false to return unread notifications only; true behaves like the default and returns all notifications.
+          schema:
+            type: string
+            enum: ['false']
+        - name: naoLidas
+          in: query
+          description: Set to true to return unread notifications only.
+          schema:
+            type: string
+            enum: ['true']
+      responses:
+        '200':
+          description: User notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notificacoes]
+                properties:
+                  notificacoes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notificacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/me/resumo:
+    get:
+      operationId: getResumoNotificacoes
+      summary: Counts unread notifications for the authenticated user
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Unread notification count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [naoLidas]
+                properties:
+                  naoLidas:
+                    type: integer
+                    minimum: 0
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/me/lidas:
+    patch:
+      operationId: patchTodasNotificacoesLidas
+      summary: Marks all notifications of the authenticated user as read
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/{id}/lida:
+    patch:
+      operationId: patchNotificacaoLida
+      summary: Marks one owned notification as read
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notificacao]
+                properties:
+                  notificacao:
+                    $ref: '#/components/schemas/Notificacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /historico/atendimentos/me:
+    get:
+      operationId: getMeuHistoricoAtendimentos
+      summary: Lists service history visible to the authenticated account
+      tags: [Historico]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SolicitacaoStatus'
+        - name: finalizados
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Service history records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [atendimentos]
+                properties:
+                  atendimentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AtendimentoHistorico'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /admin/historico/atendimentos:
+    get:
+      operationId: getAdminHistoricoAtendimentos
+      summary: Lists service history for administrative review
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: usuarioId
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SolicitacaoStatus'
+        - name: finalizados
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Administrative service history records
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [atendimentos]
+                properties:
+                  atendimentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AtendimentoHistoricoAdmin'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /termos/atuais:
+    get:
+      operationId: getTermosAtuais
+      summary: Gets the currently published terms and privacy notice
+      tags: [Termos]
+      responses:
+        '200':
+          description: Published terms
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [termos]
+                properties:
+                  termos:
+                    $ref: '#/components/schemas/Termos'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /termos/aceites/me:
+    get:
+      operationId: getMeusAceitesTermos
+      summary: Lists the authenticated user's terms acceptances
+      tags: [Termos]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Acceptance history and current acceptance status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [versaoAtual, aceitouVersaoAtual, aceites]
+                properties:
+                  versaoAtual:
+                    type: string
+                  aceitouVersaoAtual:
+                    type: boolean
+                  aceites:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AceiteTermos'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    post:
+      operationId: postAceitarTermos
+      summary: Records acceptance of the current terms version
+      tags: [Termos]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [versao]
+              properties:
+                versao:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+      responses:
+        '201':
+          description: Acceptance record and whether it existed already
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [aceite, jaAceito]
+                properties:
+                  aceite:
+                    $ref: '#/components/schemas/AceiteTermos'
+                  jaAceito:
+                    type: boolean
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -692,6 +2004,13 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     SolicitacaoId:
       name: id
       in: path
@@ -700,6 +2019,18 @@ components:
         type: integer
         minimum: 1
   responses:
+    OkResponse:
+      description: Operation completed successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [ok]
+            properties:
+              ok:
+                type: boolean
+                const: true
     SolicitacaoResponse:
       description: Service request
       content:
@@ -1265,6 +2596,592 @@ components:
             - string
             - 'null'
         criadoEm:
+          type: string
+          format: date-time
+    Cliente:
+      type: object
+      additionalProperties: false
+      required: [id, nome, email, telefone, tipo, bairroPrincipal, cidade, uf, observacoes]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        telefone:
+          type: [string, 'null']
+        tipo:
+          $ref: '#/components/schemas/UsuarioTipo'
+        bairroPrincipal:
+          type: [string, 'null']
+        cidade:
+          type: [string, 'null']
+        uf:
+          type: [string, 'null']
+        observacoes:
+          type: [string, 'null']
+    ClientePerfilInput:
+      type: object
+      additionalProperties: false
+      required: [nome]
+      properties:
+        nome:
+          type: string
+          minLength: 3
+          maxLength: 140
+        telefone:
+          type: [string, 'null']
+          maxLength: 32
+        bairroPrincipal:
+          type: [string, 'null']
+          maxLength: 120
+        cidade:
+          type: [string, 'null']
+          maxLength: 120
+        uf:
+          type: [string, 'null']
+          minLength: 2
+          maxLength: 2
+        observacoes:
+          type: [string, 'null']
+          maxLength: 280
+    EnderecoCliente:
+      type: object
+      additionalProperties: false
+      required: [id, apelido, cep, logradouro, numero, complemento, bairro, cidade, uf, principal]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        apelido:
+          type: string
+        cep:
+          type: [string, 'null']
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: [string, 'null']
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+          minLength: 2
+          maxLength: 2
+        principal:
+          type: boolean
+    EnderecoClienteInput:
+      type: object
+      additionalProperties: false
+      required: [apelido, logradouro, numero, bairro, cidade, uf]
+      properties:
+        apelido:
+          type: string
+          minLength: 2
+          maxLength: 80
+        cep:
+          type: [string, 'null']
+          maxLength: 12
+        logradouro:
+          type: string
+          minLength: 2
+          maxLength: 160
+        numero:
+          type: string
+          minLength: 1
+          maxLength: 24
+        complemento:
+          type: [string, 'null']
+          maxLength: 120
+        bairro:
+          type: string
+          minLength: 2
+          maxLength: 120
+        cidade:
+          type: string
+          minLength: 2
+          maxLength: 120
+        uf:
+          type: string
+          minLength: 2
+          maxLength: 2
+        principal:
+          type: boolean
+    EnderecoClientePatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        apelido:
+          type: string
+          minLength: 2
+          maxLength: 80
+        cep:
+          type: [string, 'null']
+          maxLength: 12
+        logradouro:
+          type: string
+          minLength: 2
+          maxLength: 160
+        numero:
+          type: string
+          minLength: 1
+          maxLength: 24
+        complemento:
+          type: [string, 'null']
+          maxLength: 120
+        bairro:
+          type: string
+          minLength: 2
+          maxLength: 120
+        cidade:
+          type: string
+          minLength: 2
+          maxLength: 120
+        uf:
+          type: string
+          minLength: 2
+          maxLength: 2
+        principal:
+          type: boolean
+    FavoritoProfissional:
+      type: object
+      additionalProperties: false
+      required: [id, criadoEm, profissional]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        criadoEm:
+          type: string
+          format: date-time
+        profissional:
+          $ref: '#/components/schemas/ProfissionalPublico'
+    ServicoProfissional:
+      type: object
+      additionalProperties: false
+      required: [id, nome, categoria, categoriaId, precoInicial, ativo]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        nome:
+          type: string
+        categoria:
+          anyOf:
+            - $ref: '#/components/schemas/CategoriaResumo'
+            - type: 'null'
+        categoriaId:
+          type: [integer, 'null']
+          minimum: 1
+        precoInicial:
+          type: [number, 'null']
+          minimum: 0
+        ativo:
+          type: boolean
+    ServicoProfissionalInput:
+      type: object
+      additionalProperties: false
+      required: [nome]
+      properties:
+        nome:
+          type: string
+          minLength: 2
+          maxLength: 90
+        categoriaId:
+          type: [integer, 'null']
+          minimum: 1
+        precoInicial:
+          type: [number, 'null']
+          minimum: 0
+    DisponibilidadeInput:
+      type: object
+      additionalProperties: false
+      required: [diaSemana, horaInicio, horaFim]
+      properties:
+        diaSemana:
+          type: integer
+          minimum: 0
+          maximum: 6
+        horaInicio:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        horaFim:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        ativo:
+          type: boolean
+    UsuarioAdministrativo:
+      type: object
+      additionalProperties: false
+      required: [id, nome, email, telefone, tipo, ativo, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        telefone:
+          type: [string, 'null']
+        tipo:
+          $ref: '#/components/schemas/UsuarioTipo'
+        ativo:
+          type: boolean
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    DocumentoVerificacao:
+      type: object
+      additionalProperties: true
+      required: [id, profissionalId, tipoDocumento, referenciaArquivo, nomeArquivo, observacao, status, motivoRejeicao, analisadoEm, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        profissionalId:
+          type: integer
+          minimum: 1
+        tipoDocumento:
+          type: string
+        referenciaArquivo:
+          type: string
+          description: Private storage reference. It is not a public URL and must not be exposed to other users.
+        nomeArquivo:
+          type: [string, 'null']
+        observacao:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [pendente, aprovado, rejeitado]
+        motivoRejeicao:
+          type: [string, 'null']
+        analisadoEm:
+          type: [string, 'null']
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    DocumentoVerificacaoAdmin:
+      allOf:
+        - $ref: '#/components/schemas/DocumentoVerificacao'
+        - type: object
+          required: [enviadoPorId, analisadoPorId, profissional]
+          properties:
+            enviadoPorId:
+              type: integer
+              minimum: 1
+            analisadoPorId:
+              type: [integer, 'null']
+              minimum: 1
+            profissional:
+              type: object
+              properties:
+                id:
+                  type: integer
+                usuarioId:
+                  type: integer
+                nome:
+                  type: string
+                verificado:
+                  type: boolean
+    MensagemAtendimento:
+      type: object
+      additionalProperties: false
+      required: [id, solicitacaoId, autor, conteudo, criadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        solicitacaoId:
+          type: integer
+          minimum: 1
+        autor:
+          type: object
+          additionalProperties: false
+          required: [id, nome, tipo]
+          properties:
+            id:
+              type: integer
+              minimum: 1
+            nome:
+              type: string
+            tipo:
+              $ref: '#/components/schemas/UsuarioTipo'
+        conteudo:
+          type: string
+          maxLength: 1000
+        criadoEm:
+          type: string
+          format: date-time
+    AvaliacaoInput:
+      type: object
+      additionalProperties: false
+      required: [nota]
+      properties:
+        nota:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comentario:
+          type: [string, 'null']
+          maxLength: 600
+    Avaliacao:
+      type: object
+      additionalProperties: false
+      required: [id, solicitacaoId, avaliador, avaliado, nota, comentario, moderacaoStatus, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        solicitacaoId:
+          type: integer
+          minimum: 1
+        avaliador:
+          $ref: '#/components/schemas/UsuarioResumo'
+        avaliado:
+          $ref: '#/components/schemas/UsuarioResumo'
+        nota:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comentario:
+          type: [string, 'null']
+        moderacaoStatus:
+          type: string
+          enum: [pendente, aprovada, rejeitada]
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    Denuncia:
+      type: object
+      additionalProperties: true
+      required: [id, solicitacaoId, denuncianteId, denunciadoId, motivo, descricao, status, decisao, analisadoEm, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        solicitacaoId:
+          type: integer
+          minimum: 1
+        denuncianteId:
+          type: integer
+          minimum: 1
+        denunciadoId:
+          type: integer
+          minimum: 1
+        motivo:
+          type: string
+        descricao:
+          type: string
+        status:
+          type: string
+          enum: [pendente, em_analise, resolvida, rejeitada]
+        decisao:
+          type: [string, 'null']
+        analisadoEm:
+          type: [string, 'null']
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    DenunciaAdmin:
+      allOf:
+        - $ref: '#/components/schemas/Denuncia'
+        - type: object
+          required: [analisadoPorId, denunciante, denunciado]
+          properties:
+            analisadoPorId:
+              type: [integer, 'null']
+            denunciante:
+              $ref: '#/components/schemas/UsuarioResumo'
+            denunciado:
+              $ref: '#/components/schemas/UsuarioResumo'
+    UsuarioResumo:
+      type: object
+      additionalProperties: false
+      required: [id, nome, tipo]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        nome:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/UsuarioTipo'
+    Notificacao:
+      type: object
+      additionalProperties: false
+      required: [id, tipo, titulo, mensagem, recursoTipo, recursoId, lida, lidaEm, criadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        tipo:
+          type: string
+          enum: [solicitacao_criada, solicitacao_aceita, solicitacao_recusada, solicitacao_cancelada, solicitacao_concluida, mensagem_recebida, avaliacao_recebida, documento_aprovado, documento_rejeitado]
+        titulo:
+          type: string
+          maxLength: 120
+        mensagem:
+          type: string
+          maxLength: 240
+        recursoTipo:
+          type: [string, 'null']
+        recursoId:
+          type: [integer, 'null']
+          minimum: 1
+        lida:
+          type: boolean
+        lidaEm:
+          type: [string, 'null']
+          format: date-time
+        criadoEm:
+          type: string
+          format: date-time
+    AtendimentoHistorico:
+      type: object
+      additionalProperties: true
+      required: [id, status, finalizado, descricao, bairroAtendimento, dataServico, horarioServico, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        status:
+          $ref: '#/components/schemas/SolicitacaoStatus'
+        finalizado:
+          type: boolean
+        descricao:
+          type: string
+        bairroAtendimento:
+          type: string
+        dataServico:
+          type: string
+          format: date
+        horarioServico:
+          type: string
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    AtendimentoHistoricoAdmin:
+      allOf:
+        - $ref: '#/components/schemas/AtendimentoHistorico'
+        - type: object
+          required: [clienteUsuarioId]
+          properties:
+            clienteUsuarioId:
+              type: integer
+              minimum: 1
+    AtendimentoAgenda:
+      type: object
+      additionalProperties: false
+      required: [id, status, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          const: aceita_agendada
+        descricao:
+          type: string
+        bairroAtendimento:
+          type: string
+        dataServico:
+          type: string
+          format: date
+        horarioServico:
+          type: string
+        precoInicial:
+          type: [number, 'null']
+        enderecoCompletoLiberado:
+          type: boolean
+          const: true
+        enderecoCompleto:
+          anyOf:
+            - $ref: '#/components/schemas/EnderecoAtendimento'
+            - type: 'null'
+        cliente:
+          type: object
+          additionalProperties: false
+          required: [id, nome]
+          properties:
+            id:
+              type: integer
+              minimum: 1
+            nome:
+              type: string
+        categoria:
+          anyOf:
+            - $ref: '#/components/schemas/CategoriaResumo'
+            - type: 'null'
+        criadoEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+    Termos:
+      type: object
+      additionalProperties: false
+      required: [versao, titulo, publicadoEm, resumo, secoes]
+      properties:
+        versao:
+          type: string
+        titulo:
+          type: string
+        publicadoEm:
+          type: string
+          format: date
+        resumo:
+          type: string
+        secoes:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [titulo, texto]
+            properties:
+              titulo:
+                type: string
+              texto:
+                type: string
+    AceiteTermos:
+      type: object
+      additionalProperties: false
+      required: [id, versao, canal, aceitoEm]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        versao:
+          type: string
+        canal:
+          type: string
+        aceitoEm:
           type: string
           format: date-time
     ApiError:
