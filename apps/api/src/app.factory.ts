@@ -1,10 +1,14 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { SafeExceptionFilter } from './common/filters/safe-exception.filter.js';
 
 export async function createApp() {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: false,
+    bodyParser: false,
+  });
   app.use(securityHeadersMiddleware);
   app.use(rateLimitMiddleware());
   app.enableCors({
@@ -12,6 +16,8 @@ export async function createApp() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
   });
+  app.useBodyParser('json', false, { limit: '8mb' });
+  app.useBodyParser('urlencoded', false, { extended: true, limit: '100kb' });
   app.useGlobalFilters(new SafeExceptionFilter());
   return app;
 }

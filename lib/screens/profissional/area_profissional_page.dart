@@ -438,7 +438,7 @@ class _DetalheSolicitacaoProfissionalPageState
                     ),
                     if (enderecoLiberado)
                       _InfoCard(
-                        title: 'EndereÃ§o completo liberado pela API',
+                        title: 'Endereço completo liberado pela API',
                         value: enderecoTexto,
                       ),
                     const SizedBox(height: 14),

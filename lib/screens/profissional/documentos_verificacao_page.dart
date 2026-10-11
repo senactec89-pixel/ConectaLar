@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
@@ -166,22 +169,90 @@ class _DocumentoForm extends StatefulWidget {
 }
 
 class _DocumentoFormState extends State<_DocumentoForm> {
+  static const _tamanhoMaximoArquivo = 5 * 1024 * 1024;
+
   final _formKey = GlobalKey<FormState>();
   String _tipo = 'documento_identidade';
-  final _referencia = TextEditingController();
-  final _arquivoBase64 = TextEditingController();
-  final _nomeArquivo = TextEditingController();
+  String? _arquivoBase64;
+  String? _nomeArquivo;
+  int? _tamanhoArquivo;
   final _observacao = TextEditingController();
   String _mimeType = 'application/pdf';
+  bool _selecionandoArquivo = false;
   bool _enviando = false;
 
   @override
   void dispose() {
-    _referencia.dispose();
-    _arquivoBase64.dispose();
-    _nomeArquivo.dispose();
     _observacao.dispose();
     super.dispose();
+  }
+
+  Future<void> _selecionarArquivo() async {
+    if (_selecionandoArquivo || _enviando) return;
+    setState(() => _selecionandoArquivo = true);
+
+    try {
+      final arquivo = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'PDF, JPEG ou PNG',
+            extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+            uniformTypeIdentifiers: [
+              'com.adobe.pdf',
+              'public.jpeg',
+              'public.png',
+            ],
+          ),
+        ],
+        confirmButtonText: 'Selecionar',
+      );
+      if (!mounted || arquivo == null) return;
+
+      final extensao = arquivo.name.split('.').last.toLowerCase();
+      final mimeType = switch (extensao) {
+        'pdf' => 'application/pdf',
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        _ => null,
+      };
+      if (mimeType == null) {
+        _mostrarMensagem('Selecione um arquivo PDF, JPEG ou PNG.');
+        return;
+      }
+
+      final tamanho = await arquivo.length();
+      if (tamanho > _tamanhoMaximoArquivo) {
+        _mostrarMensagem('O arquivo deve ter no máximo 5 MB.');
+        return;
+      }
+
+      final bytes = await arquivo.readAsBytes();
+      if (!mounted) return;
+      if (bytes.length > _tamanhoMaximoArquivo) {
+        _mostrarMensagem('O arquivo deve ter no máximo 5 MB.');
+        return;
+      }
+
+      setState(() {
+        _arquivoBase64 = base64Encode(bytes);
+        _nomeArquivo = arquivo.name;
+        _tamanhoArquivo = bytes.length;
+        _mimeType = mimeType;
+      });
+      _formKey.currentState?.validate();
+    } catch (_) {
+      if (mounted) {
+        _mostrarMensagem('Não foi possível abrir o arquivo selecionado.');
+      }
+    } finally {
+      if (mounted) setState(() => _selecionandoArquivo = false);
+    }
+  }
+
+  void _mostrarMensagem(String mensagem) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   Future<void> _enviar() async {
@@ -190,16 +261,9 @@ class _DocumentoFormState extends State<_DocumentoForm> {
     try {
       await AppServices.instance.verificacao.enviarDocumento(
         tipoDocumento: _tipo,
-        referenciaArquivo: _referencia.text.trim().isEmpty
-            ? null
-            : _referencia.text.trim(),
-        arquivoBase64: _arquivoBase64.text.trim().isEmpty
-            ? null
-            : _arquivoBase64.text.trim(),
-        mimeType: _arquivoBase64.text.trim().isEmpty ? null : _mimeType,
-        nomeArquivo: _nomeArquivo.text.trim().isEmpty
-            ? null
-            : _nomeArquivo.text.trim(),
+        arquivoBase64: _arquivoBase64,
+        mimeType: _mimeType,
+        nomeArquivo: _nomeArquivo,
         observacao: _observacao.text.trim().isEmpty
             ? null
             : _observacao.text.trim(),
@@ -258,56 +322,47 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                 onChanged: (value) => setState(() => _tipo = value ?? _tipo),
               ),
               const SizedBox(height: 10),
-              TextFormField(
-                controller: _referencia,
-                decoration: const InputDecoration(
-                  labelText: 'Referência interna do arquivo',
-                  hintText: 'Ex.: local/documentos/rg-frente.pdf',
-                ),
-                validator: (value) {
-                  if ((value ?? '').trim().isEmpty &&
-                      _arquivoBase64.text.trim().isEmpty) {
-                    return 'Informe uma referencia ou arquivo base64.';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: _mimeType,
-                decoration: const InputDecoration(labelText: 'Tipo do arquivo'),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'application/pdf',
-                    child: Text('PDF'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'image/jpeg',
-                    child: Text('Imagem JPEG'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'image/png',
-                    child: Text('Imagem PNG'),
-                  ),
-                ],
-                onChanged: (value) =>
-                    setState(() => _mimeType = value ?? _mimeType),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _arquivoBase64,
-                minLines: 2,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Arquivo em base64',
-                  hintText:
-                      'Cole o conteudo base64 quando nao houver referencia',
+              OutlinedButton.icon(
+                onPressed: _enviando || _selecionandoArquivo
+                    ? null
+                    : _selecionarArquivo,
+                icon: _selecionandoArquivo
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.attach_file),
+                label: Text(
+                  _selecionandoArquivo
+                      ? 'Abrindo arquivos...'
+                      : _nomeArquivo == null
+                      ? 'Selecionar arquivo'
+                      : 'Trocar arquivo',
                 ),
               ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _nomeArquivo,
-                decoration: const InputDecoration(labelText: 'Nome do arquivo'),
+              const SizedBox(height: 6),
+              Text(
+                _nomeArquivo == null
+                    ? 'PDF, JPEG ou PNG • até 5 MB'
+                    : '$_nomeArquivo • ${_formatarTamanho(_tamanhoArquivo ?? 0)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              FormField<String>(
+                validator: (_) => _arquivoBase64 == null
+                    ? 'Selecione um arquivo para enviar.'
+                    : null,
+                builder: (field) => field.hasError
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          field.errorText!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
               const SizedBox(height: 10),
               TextFormField(
@@ -329,3 +384,6 @@ class _DocumentoFormState extends State<_DocumentoForm> {
     );
   }
 }
+
+String _formatarTamanho(int bytes) =>
+    '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
