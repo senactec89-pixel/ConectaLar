@@ -31,6 +31,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/android/build/
 /coverage/
 
 # Symbolication related
@@ -59,6 +60,9 @@ backend/*.log
 **/.nestjs/
 **/coverage/
 apps/api/storage/
+
+# Local auxiliary clones
+/ConectaLar-git/
 
 # Flutter platform-local generated settings
 /android/local.properties
