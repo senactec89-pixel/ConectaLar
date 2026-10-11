@@ -16,8 +16,8 @@ export async function createApp() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
   });
-  app.useBodyParser('json', false, { limit: '8mb' });
-  app.useBodyParser('urlencoded', false, { extended: true, limit: '100kb' });
+  app.useBodyParser('json', { limit: '8mb' });
+  app.useBodyParser('urlencoded', { extended: true, limit: '100kb' });
   app.useGlobalFilters(new SafeExceptionFilter());
   return app;
 }
