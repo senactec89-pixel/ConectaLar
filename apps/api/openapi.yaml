@@ -269,6 +269,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /profissionais/me/documentos:
+    post:
+      operationId: postMeuDocumentoVerificacao
+      summary: Uploads or registers a private verification document reference
+      tags:
+        - Profissionais
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentoVerificacaoEnvioRequest'
+      responses:
+        '201':
+          description: Verification document registered
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - documento
+                properties:
+                  documento:
+                    type: object
+                    additionalProperties: true
+        default:
+          description: HTTP error with internal details omitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /profissionais/{id}:
     get:
       operationId: getProfissionalById
@@ -949,6 +983,46 @@ components:
           maxLength: 80
         ativo:
           type: boolean
+    DocumentoVerificacaoEnvioRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - tipoDocumento
+      properties:
+        tipoDocumento:
+          type: string
+          minLength: 3
+          maxLength: 60
+        referenciaArquivo:
+          type:
+            - string
+            - 'null'
+          description: Internal private reference, never a public URL.
+          maxLength: 180
+        arquivoBase64:
+          type:
+            - string
+            - 'null'
+          description: Base64 file content, limited to 5 MB after decoding.
+        mimeType:
+          type:
+            - string
+            - 'null'
+          enum:
+            - application/pdf
+            - image/jpeg
+            - image/png
+            - null
+        nomeArquivo:
+          type:
+            - string
+            - 'null'
+          maxLength: 180
+        observacao:
+          type:
+            - string
+            - 'null'
+          maxLength: 600
     SolicitacaoCreateRequest:
       type: object
       additionalProperties: false

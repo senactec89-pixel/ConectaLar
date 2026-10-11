@@ -58,6 +58,7 @@ backend/*.log
 **/dist/
 **/.nestjs/
 **/coverage/
+apps/api/storage/
 
 # Flutter platform-local generated settings
 /android/local.properties

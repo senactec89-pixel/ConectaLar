@@ -35,7 +35,19 @@ test('backend contract documents logout, agenda, protected address, and audit', 
 
   assert.match(openapi, /\/auth\/logout:/);
   assert.match(openapi, /\/profissionais\/me\/agenda:/);
+  assert.match(openapi, /\/profissionais\/me\/documentos:/);
   assert.match(openapi, /\/admin\/painel\/auditoria:/);
   assert.match(openapi, /enderecoProtegido/);
   assert.match(openapi, /enderecoAtendimento/);
+});
+
+test('verification upload keeps files private and validates size and type', async () => {
+  const verificacao = await source('dist/verificacao/verificacao.service.js');
+
+  assert.match(verificacao, /maxDocumentoBytes/);
+  assert.match(verificacao, /application\/pdf/);
+  assert.match(verificacao, /image\/jpeg/);
+  assert.match(verificacao, /image\/png/);
+  assert.match(verificacao, /storage/);
+  assert.doesNotMatch(verificacao, /http:\/\/|https:\/\//);
 });

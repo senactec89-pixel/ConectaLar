@@ -3,6 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
@@ -17,10 +20,14 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 
 interface EnviarDocumentoInput {
   readonly tipoDocumento: string;
-  readonly referenciaArquivo: string;
+  readonly referenciaArquivo: string | null;
+  readonly arquivoBase64: string | null;
+  readonly mimeType: string | null;
   readonly nomeArquivo: string | null;
   readonly observacao: string | null;
 }
+
+const maxDocumentoBytes = 5 * 1024 * 1024;
 
 interface AnaliseDocumentoInput {
   readonly status:
@@ -60,12 +67,13 @@ export class VerificacaoService {
       });
     }
 
+    const referenciaArquivo = await resolverReferenciaArquivo(perfil.id, input);
     const documento = await this.documentos.save(
       this.documentos.create({
         profissionalId: perfil.id,
         enviadoPorId: user.id,
         tipoDocumento: input.tipoDocumento,
-        referenciaArquivo: input.referenciaArquivo,
+        referenciaArquivo,
         nomeArquivo: input.nomeArquivo,
         observacao: input.observacao,
         status: DocumentoVerificacaoStatus.Pendente,
@@ -190,17 +198,67 @@ export class VerificacaoService {
 function parseEnvioDocumento(body: unknown): EnviarDocumentoInput {
   const value = objectBody(body);
   const tipoDocumento = textField(value, 'tipoDocumento', 3, 60);
-  const referenciaArquivo = textField(value, 'referenciaArquivo', 3, 180);
-  if (/^https?:\/\//i.test(referenciaArquivo)) {
+  const referenciaArquivo = optionalText(value.referenciaArquivo, 180);
+  const arquivoBase64 = optionalText(value.arquivoBase64, 8_000_000);
+  const mimeType = optionalText(value.mimeType, 80);
+
+  if (referenciaArquivo !== null && /^https?:\/\//i.test(referenciaArquivo)) {
     throw badRequest('REFERENCIA_ARQUIVO_INVALIDA');
+  }
+  if (referenciaArquivo === null && arquivoBase64 === null) {
+    throw badRequest('DOCUMENTO_OBRIGATORIO');
+  }
+  if (arquivoBase64 !== null && !mimePermitido(mimeType)) {
+    throw badRequest('TIPO_ARQUIVO_INVALIDO');
   }
 
   return {
     tipoDocumento,
     referenciaArquivo,
+    arquivoBase64,
+    mimeType,
     nomeArquivo: optionalText(value.nomeArquivo, 180),
     observacao: optionalText(value.observacao, 600),
   };
+}
+
+async function resolverReferenciaArquivo(
+  profissionalId: number,
+  input: EnviarDocumentoInput,
+): Promise<string> {
+  if (input.arquivoBase64 === null) {
+    if (input.referenciaArquivo === null) throw badRequest('DOCUMENTO_OBRIGATORIO');
+    return input.referenciaArquivo;
+  }
+
+  const conteudo = Buffer.from(input.arquivoBase64, 'base64');
+  if (
+    conteudo.length === 0 ||
+    conteudo.length > maxDocumentoBytes ||
+    conteudo.toString('base64').replace(/=+$/u, '') !==
+      input.arquivoBase64.replace(/\s/g, '').replace(/=+$/u, '')
+  ) {
+    throw badRequest('ARQUIVO_INVALIDO');
+  }
+
+  const extensao = extensaoMime(input.mimeType);
+  const pastaRelativa = join('storage', 'documentos-verificacao', String(profissionalId));
+  const nomeArquivo = `${randomUUID()}${extensao}`;
+  const pastaAbsoluta = join(process.cwd(), pastaRelativa);
+  await mkdir(pastaAbsoluta, { recursive: true });
+  await writeFile(join(pastaAbsoluta, nomeArquivo), conteudo, { flag: 'wx' });
+  return join(pastaRelativa, nomeArquivo).replace(/\\/g, '/');
+}
+
+function mimePermitido(value: string | null): boolean {
+  return extensaoMime(value) !== null;
+}
+
+function extensaoMime(value: string | null): string | null {
+  if (value === 'application/pdf') return '.pdf';
+  if (value === 'image/jpeg') return '.jpg';
+  if (value === 'image/png') return '.png';
+  return null;
 }
 
 function parseAnaliseDocumento(body: unknown): AnaliseDocumentoInput {

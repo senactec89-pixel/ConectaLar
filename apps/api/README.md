@@ -22,13 +22,13 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 
 The health check is `GET /health` and returns only `{ "status": "ok" }`. It does not report dependency, database, version, or environment details.
 
-The OpenAPI contract for the health, auth, categories, professional, and request routes is in `openapi.yaml`; the chat and review routes are documented below and still need to be added to the OpenAPI file. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
+The OpenAPI contract for the health, auth, categories, professional, request, agenda, audit, and document upload routes is in `openapi.yaml`; the chat and review routes are documented below and still need to be added to the OpenAPI file. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 
 ## Logging and errors
 
 Request bodies and headers are not logged. The global exception filter returns a generic response and emits only a structured event, HTTP status, and broad exception type; it omits exception messages, stacks, URLs, and request data. Add request logging only with an explicit redaction and retention policy.
 
-The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. It currently has no external upload, payment, push notification, or binary file modules. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
+The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. It currently has local private document storage for verification uploads, but no public file serving, external storage provider, payment, or push notification module. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
 
 ## Database foundation
 
@@ -102,6 +102,8 @@ Professional routes:
 - `PATCH /profissionais/:id/verificacao` with `Authorization: Bearer <token>` for `administrador`, kept only as a compatibility route that rejects direct seal changes
 
 Professional public responses do not expose e-mail, phone, address, documents, or password hashes. The `verificado` seal can only be changed through administrative document analysis; professionals cannot approve their own seal. Document registration stores an internal file reference only and must not expose public URLs or files in public profiles.
+
+`POST /profissionais/me/documentos` accepts either an existing internal `referenciaArquivo` or `arquivoBase64` with `mimeType` (`application/pdf`, `image/jpeg`, or `image/png`) and `nomeArquivo`. Uploaded files are limited to 5 MB, saved under private local storage, and responses expose only the internal reference for authorized professional/admin flows.
 
 Availability uses weekly recurring slots with `diaSemana` from `0` Sunday through `6` Saturday and `horaInicio`/`horaFim` in `HH:MM`. Service requests can be created and accepted only when the requested date/time falls inside an active slot. This is a minimal rule until final duration, capacity, exception, and concurrency policies are approved.
 
@@ -188,7 +190,7 @@ Document verification routes:
 - `GET /documentos-verificacao?status=pendente` with `Authorization: Bearer <token>` for `administrador`
 - `PATCH /documentos-verificacao/:id/analisar` with `Authorization: Bearer <token>` for `administrador`
 
-Document analysis accepts only `aprovado` or `rejeitado`; rejected documents require `motivoRejeicao`. Approval activates the professional verification seal, rejection removes it, and the professional receives an internal notification. This is metadata/reference handling only; binary upload, storage provider, file retention, and allowed formats remain pending under P10.
+Document analysis accepts only `aprovado` or `rejeitado`; rejected documents require `motivoRejeicao`. Approval activates the professional verification seal, rejection removes it, and the professional receives an internal notification. Binary uploads are stored privately in local storage for development; production still needs a managed storage provider, antivirus scanning, retention policy, and secure file retrieval flow under P10/P13.
 
 Terms and privacy notice routes:
 

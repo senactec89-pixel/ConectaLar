@@ -11,6 +11,7 @@ Este documento registra a base operacional atual do backend ConectaLar. Ele nao 
 - Tokens sao invalidados quando a senha muda ou quando o usuario faz logout.
 - Acoes administrativas sensiveis sao registradas em `admin_auditoria`.
 - Endereco completo do cliente fica protegido por regra de autorizacao no backend.
+- Upload de documento de verificacao aceita somente PDF, JPEG ou PNG ate 5 MB e grava em armazenamento local privado, sem URL publica.
 
 ## Backup e restauracao
 
@@ -33,4 +34,4 @@ Os logs atuais sao estruturados e minimizam dados pessoais. Em producao, conecta
 
 ## Limites pendentes
 
-O rate limit em memoria protege o ambiente local e uma instancia simples, mas nao substitui limite distribuido quando houver mais de uma instancia. Upload binario real, antivirus, retencao documental, MFA administrativo, pipeline de deploy e teste de carga completo seguem como pendencias de producao.
+O rate limit em memoria protege o ambiente local e uma instancia simples, mas nao substitui limite distribuido quando houver mais de uma instancia. Upload binario local nao substitui storage gerenciado, antivirus, politica de retencao documental e fluxo de download seguro. MFA administrativo, pipeline de deploy e teste de carga completo seguem como pendencias de producao.
