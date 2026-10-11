@@ -323,6 +323,17 @@ class _FiltrosBusca extends StatelessWidget {
                 ),
               ),
             ],
+            if (categoriaSelecionada != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Categoria: ${categoriaSelecionada!.nome}',
+                style: const TextStyle(
+                  color: AppColors.verdeEscuro,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,

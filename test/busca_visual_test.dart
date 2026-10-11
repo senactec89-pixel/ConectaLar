@@ -1,4 +1,5 @@
 import 'package:conectarlar_app/app/routes.dart';
+import 'package:conectarlar_app/screens/home/home_mock_data.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,6 +59,30 @@ void main() {
         200,
         scrollable: find.byType(Scrollable).first,
       );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('busca identifica categoria recebida da Home com texto 200%', (
+    tester,
+  ) async {
+    await configurarFrontend();
+    final categoria = HomeMockData.content.categories.last;
+    for (final width in [360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.busca,
+        arguments: categoria,
+        width: width,
+        textScale: 2,
+      );
+      final selecionada = find.text('Categoria: ${categoria.nome}');
+      expect(selecionada, findsOneWidget);
+      await tester.ensureVisible(selecionada);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(selecionada).left, greaterThanOrEqualTo(0));
+      expect(tester.getRect(selecionada).right, lessThanOrEqualTo(width));
       expect(tester.takeException(), isNull);
     }
   });
