@@ -21,6 +21,13 @@ const publicErrors: Readonly<Record<string, string>> = {
     'Este serviço não está mais disponível. Atualize o perfil do profissional.',
   OFERTA_INVALIDA:
     'Não foi possível atualizar esta oferta. Recarregue os serviços.',
+  DISPONIBILIDADE_NAO_CADASTRADA:
+    'O profissional ainda não cadastrou disponibilidade para receber solicitações.',
+  DATA_INVALIDA: 'Informe uma data válida para o atendimento.',
+  HORARIO_INVALIDO: 'Informe o horário no formato HH:MM.',
+  ENDERECO_INVALIDO: 'Selecione um endereço cadastrado válido.',
+  CATEGORIA_INVALIDA: 'Selecione uma categoria ativa.',
+  CAMPO_INVALIDO: 'Confira os campos preenchidos e tente novamente.',
   AVALIACAO_JA_REGISTRADA: 'Você já enviou uma avaliação deste atendimento.',
 };
 

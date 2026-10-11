@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -84,10 +85,21 @@ class ApiService {
     }
 
     final timeout = Duration(seconds: AppConstants.apiTimeoutSeconds);
-    final streamedResponse = await _client.send(request).timeout(timeout);
-    final response = await http.Response.fromStream(
-      streamedResponse,
-    ).timeout(timeout);
+    final http.Response response;
+    try {
+      final streamedResponse = await _client.send(request).timeout(timeout);
+      response = await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(timeout);
+    } on TimeoutException {
+      throw const ApiException(
+        'A API demorou para responder. Verifique se ela esta ligada e tente novamente.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Nao foi possivel conectar a API. Confira sua rede e o endereco configurado.',
+      );
+    }
 
     final path = endpoint.replaceFirst(RegExp(r'^/+'), '');
     if (response.statusCode == 401 &&
@@ -119,7 +131,9 @@ class ApiService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = decoded['message'];
       throw ApiException(
-        message is String ? message : 'Nao foi possivel concluir a requisicao.',
+        message is String
+            ? message
+            : _mensagemPadraoStatus(response.statusCode),
         statusCode: response.statusCode,
       );
     }
@@ -134,5 +148,21 @@ class ApiService {
     return queryParameters == null
         ? uri
         : uri.replace(queryParameters: queryParameters);
+  }
+
+  String _mensagemPadraoStatus(int statusCode) {
+    return switch (statusCode) {
+      400 => 'Confira os dados enviados e tente novamente.',
+      401 => 'Sua sessao expirou. Entre novamente.',
+      403 => 'Voce nao tem permissao para esta acao.',
+      404 => 'O recurso solicitado nao foi encontrado.',
+      409 =>
+        'Esta acao conflitou com uma atualizacao recente. Recarregue e tente novamente.',
+      429 =>
+        'Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.',
+      >= 500 =>
+        'A API encontrou um problema interno. Tente novamente em instantes.',
+      _ => 'Nao foi possivel concluir a requisicao.',
+    };
   }
 }

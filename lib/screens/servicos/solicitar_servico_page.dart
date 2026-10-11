@@ -43,6 +43,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   int? _enderecoSelecionadoId;
   Future<List<ClienteEndereco>>? _enderecosFuture;
   Future<List<Disponibilidade>>? _disponibilidadeFuture;
+  List<Disponibilidade> _disponibilidades = const [];
 
   @override
   void didChangeDependencies() {
@@ -94,7 +95,14 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     try {
       final response = await AppServices.instance.profissionais
           .disponibilidadePublica(profissionalId);
-      return listFromApi(response['disponibilidades'], disponibilidadeFromApi);
+      final disponibilidades = listFromApi(
+        response['disponibilidades'],
+        disponibilidadeFromApi,
+      );
+      if (mounted) {
+        setState(() => _disponibilidades = disponibilidades);
+      }
+      return disponibilidades;
     } catch (_) {
       return const [];
     }
@@ -115,6 +123,27 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
 
     final profissional = _profissional;
     if (profissional == null) return;
+    final data = _parseData(_dataController.text);
+    if (data == null) {
+      _mostrarErro('Informe uma data valida no formato DD/MM/AAAA.');
+      return;
+    }
+    final horario = _normalizarHorario(_horarioController.text);
+    if (horario == null) {
+      _mostrarErro('Informe um horario valido no formato HH:MM.');
+      return;
+    }
+    if (!_dataNaoPassou(data)) {
+      _mostrarErro('Escolha uma data de hoje em diante.');
+      return;
+    }
+    if (_disponibilidades.isNotEmpty &&
+        !_horarioDentroDaDisponibilidade(data, horario, _disponibilidades)) {
+      _mostrarErro(
+        'Escolha uma data e horario dentro da disponibilidade informada pelo profissional.',
+      );
+      return;
+    }
 
     if (AppServices.instance.emDemonstracao) {
       _criarSolicitacaoMock(profissional);
@@ -122,7 +151,6 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     }
     setState(() => _enviando = true);
     try {
-      final data = _parseData(_dataController.text);
       final response = await AppServices.instance.servicos.solicitar({
         'profissionalId': profissional.id,
         'categoriaId': _ofertaSelecionada?.categoriaId,
@@ -132,7 +160,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         'descricao': _descricaoController.text,
         'bairroAtendimento': _bairroController.text,
         'dataServico': _dataApi(data),
-        'horarioServico': _horarioController.text,
+        'horarioServico': horario,
       });
       if (!mounted) return;
       final solicitacao = response['solicitacao'];
@@ -145,7 +173,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     } on ApiException catch (error) {
       _mostrarErro(error.message);
     } catch (_) {
-      _mostrarErro('Não foi possível enviar a solicitação.');
+      _mostrarErro('Nao foi possivel enviar a solicitacao. Tente novamente.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -430,7 +458,18 @@ class _FormularioSolicitacao extends StatelessWidget {
                     if (itens.isEmpty) return const SizedBox.shrink();
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: _DisponibilidadeResumo(itens: itens),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _DisponibilidadeResumo(itens: itens),
+                          const SizedBox(height: 10),
+                          _SugestoesAgenda(
+                            itens: itens,
+                            dataController: dataController,
+                            horarioController: horarioController,
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -444,10 +483,12 @@ class _FormularioSolicitacao extends StatelessWidget {
                         labelText: 'Data desejada',
                         hintText: 'DD/MM/AAAA',
                         border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_month_outlined),
                       ),
                       keyboardType: TextInputType.datetime,
                       textInputAction: TextInputAction.next,
-                      validator: validarCampoObrigatorio,
+                      onTap: () => _selecionarData(context, dataController),
+                      validator: validarDataSolicitacao,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -459,10 +500,13 @@ class _FormularioSolicitacao extends StatelessWidget {
                         labelText: 'Horário',
                         hintText: 'HH:MM',
                         border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.schedule_rounded),
                       ),
                       keyboardType: TextInputType.datetime,
                       textInputAction: TextInputAction.next,
-                      validator: validarCampoObrigatorio,
+                      onTap: () =>
+                          _selecionarHorario(context, horarioController),
+                      validator: validarHorarioSolicitacao,
                     ),
                   ),
                 ],
@@ -575,6 +619,63 @@ class _DisponibilidadeResumo extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SugestoesAgenda extends StatelessWidget {
+  const _SugestoesAgenda({
+    required this.itens,
+    required this.dataController,
+    required this.horarioController,
+  });
+
+  final List<Disponibilidade> itens;
+  final TextEditingController dataController;
+  final TextEditingController horarioController;
+
+  @override
+  Widget build(BuildContext context) {
+    final sugestoes = _proximasSugestoes(itens);
+    if (sugestoes.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Horários sugeridos',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Toque em uma opção para preencher data e horário conforme a disponibilidade cadastrada.',
+          style: TextStyle(color: AppColors.textoSuave),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final sugestao in sugestoes)
+              ActionChip(
+                label: Text(
+                  '${_formatarDataCurta(sugestao.data)} ${sugestao.horario}',
+                ),
+                onPressed: () {
+                  dataController.text = _formatarDataCampo(sugestao.data);
+                  horarioController.text = sugestao.horario;
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SugestaoAgenda {
+  const _SugestaoAgenda({required this.data, required this.horario});
+
+  final DateTime data;
+  final String horario;
 }
 
 class _SolicitacaoEnviada extends StatelessWidget {
@@ -703,7 +804,9 @@ DateTime? _parseData(String valor) {
   final mes = int.tryParse(partes[1]);
   final ano = int.tryParse(partes[2]);
   if (dia == null || mes == null || ano == null) return null;
-  return DateTime(ano, mes, dia);
+  final data = DateTime(ano, mes, dia);
+  if (data.day != dia || data.month != mes || data.year != ano) return null;
+  return data;
 }
 
 String _dataApi(DateTime? data) {
@@ -711,6 +814,148 @@ String _dataApi(DateTime? data) {
   final mes = value.month.toString().padLeft(2, '0');
   final dia = value.day.toString().padLeft(2, '0');
   return '${value.year}-$mes-$dia';
+}
+
+String? validarDataSolicitacao(String? valor) {
+  final erroObrigatorio = validarCampoObrigatorio(valor);
+  if (erroObrigatorio != null) return erroObrigatorio;
+  final data = _parseData(valor!);
+  if (data == null) return 'Informe uma data valida no formato DD/MM/AAAA.';
+  if (!_dataNaoPassou(data)) return 'Escolha uma data de hoje em diante.';
+  return null;
+}
+
+String? validarHorarioSolicitacao(String? valor) {
+  final erroObrigatorio = validarCampoObrigatorio(valor);
+  if (erroObrigatorio != null) return erroObrigatorio;
+  return _normalizarHorario(valor!) == null
+      ? 'Informe um horario valido no formato HH:MM.'
+      : null;
+}
+
+String? _normalizarHorario(String valor) {
+  final texto = valor.trim();
+  final match = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(texto);
+  if (match == null) return null;
+  final hora = match.group(1)!.padLeft(2, '0');
+  final minuto = match.group(2)!;
+  return '$hora:$minuto';
+}
+
+bool _dataNaoPassou(DateTime data) {
+  final hoje = DateTime.now();
+  final hojeCivil = DateTime(hoje.year, hoje.month, hoje.day);
+  final dataCivil = DateTime(data.year, data.month, data.day);
+  return !dataCivil.isBefore(hojeCivil);
+}
+
+bool _horarioDentroDaDisponibilidade(
+  DateTime data,
+  String horario,
+  List<Disponibilidade> disponibilidades,
+) {
+  final diaApi = _diaSemanaApi(data);
+  return disponibilidades.any(
+    (item) =>
+        item.ativo &&
+        item.diaSemana == diaApi &&
+        item.horaInicio.compareTo(horario) <= 0 &&
+        horario.compareTo(item.horaFim) < 0,
+  );
+}
+
+int _diaSemanaApi(DateTime data) =>
+    data.weekday == DateTime.sunday ? 0 : data.weekday;
+
+List<_SugestaoAgenda> _proximasSugestoes(List<Disponibilidade> itens) {
+  final hoje = DateTime.now();
+  final sugestoes = <_SugestaoAgenda>[];
+  for (var offset = 0; offset < 21 && sugestoes.length < 8; offset++) {
+    final data = DateTime(hoje.year, hoje.month, hoje.day + offset);
+    final diaApi = _diaSemanaApi(data);
+    final intervalos = itens.where(
+      (item) => item.ativo && item.diaSemana == diaApi,
+    );
+    for (final intervalo in intervalos) {
+      final inicio = _minutos(intervalo.horaInicio);
+      final fim = _minutos(intervalo.horaFim);
+      if (inicio == null || fim == null || inicio >= fim) continue;
+      for (
+        var minuto = inicio;
+        minuto < fim && sugestoes.length < 8;
+        minuto += 60
+      ) {
+        final horario = _horarioTexto(minuto);
+        if (offset == 0 && !_horarioFuturoHoje(horario)) continue;
+        sugestoes.add(_SugestaoAgenda(data: data, horario: horario));
+      }
+    }
+  }
+  return sugestoes;
+}
+
+bool _horarioFuturoHoje(String horario) {
+  final agora = DateTime.now();
+  final minutos = _minutos(horario);
+  if (minutos == null) return false;
+  return minutos > (agora.hour * 60 + agora.minute);
+}
+
+int? _minutos(String horario) {
+  final normalizado = _normalizarHorario(horario);
+  if (normalizado == null) return null;
+  final partes = normalizado.split(':');
+  return int.parse(partes[0]) * 60 + int.parse(partes[1]);
+}
+
+String _horarioTexto(int minutos) {
+  final hora = (minutos ~/ 60).toString().padLeft(2, '0');
+  final minuto = (minutos % 60).toString().padLeft(2, '0');
+  return '$hora:$minuto';
+}
+
+String _formatarDataCampo(DateTime data) {
+  final dia = data.day.toString().padLeft(2, '0');
+  final mes = data.month.toString().padLeft(2, '0');
+  return '$dia/$mes/${data.year}';
+}
+
+String _formatarDataCurta(DateTime data) {
+  final dia = data.day.toString().padLeft(2, '0');
+  final mes = data.month.toString().padLeft(2, '0');
+  return '$dia/$mes';
+}
+
+Future<void> _selecionarData(
+  BuildContext context,
+  TextEditingController controller,
+) async {
+  final hoje = DateTime.now();
+  final inicial = _parseData(controller.text) ?? hoje;
+  final data = await showDatePicker(
+    context: context,
+    initialDate: _dataNaoPassou(inicial) ? inicial : hoje,
+    firstDate: DateTime(hoje.year, hoje.month, hoje.day),
+    lastDate: DateTime(hoje.year + 1, hoje.month, hoje.day),
+  );
+  if (data != null) controller.text = _formatarDataCampo(data);
+}
+
+Future<void> _selecionarHorario(
+  BuildContext context,
+  TextEditingController controller,
+) async {
+  final minutos = _minutos(controller.text);
+  final horario = await showTimePicker(
+    context: context,
+    initialTime: minutos == null
+        ? const TimeOfDay(hour: 9, minute: 0)
+        : TimeOfDay(hour: minutos ~/ 60, minute: minutos % 60),
+  );
+  if (horario != null) {
+    controller.text =
+        '${horario.hour.toString().padLeft(2, '0')}:${horario.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 String _diaSemana(int dia) {
