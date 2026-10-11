@@ -1,14 +1,92 @@
 {
   "disponibilidade": {
     "modo": "demonstracao",
+    "commit_fonte": "755813d",
     "larguras": [
       360,
       390,
       412
     ],
     "altura": 844,
+    "escala_dispositivo": 1,
     "excecoes_runtime": 0,
+    "erros_console": 0,
     "avisos": 5,
-    "observacao": "Avisos de viewport e GPU; nenhum erro de aplicação."
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real."
+  },
+  "disponibilidade-modal-viewport-reduzido": {
+    "modo": "demonstracao",
+    "commit_fonte": "755813d",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 484,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real. Campo Início focado em viewport reduzido; não representa teclado nativo."
+  },
+  "enderecos": {
+    "modo": "demonstracao",
+    "commit_fonte": "39b8d9a",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real."
+  },
+  "busca": {
+    "modo": "demonstracao",
+    "commit_fonte": "39b8d9a",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real."
+  },
+  "busca-categoria": {
+    "modo": "demonstracao",
+    "commit_fonte": "39b8d9a",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real."
+  },
+  "favoritos": {
+    "modo": "demonstracao",
+    "commit_fonte": "39b8d9a",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Capturas de demonstração; não validam a API real."
   }
 }
