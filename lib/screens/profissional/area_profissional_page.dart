@@ -28,7 +28,9 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
     if (!AppServices.instance.auth.autenticado) {
       return {'solicitacoes': <dynamic>[]};
     }
-    return AppServices.instance.servicos.minhas();
+    return _tab == 0
+        ? AppServices.instance.profissionais.meuPainel()
+        : AppServices.instance.servicos.minhas();
   }
 
   void _abrirTab(int tab) {
@@ -44,7 +46,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
       Navigator.pushNamed(context, AppRoutes.perfilProfissionalPrivado);
       return;
     }
-    setState(() => _tab = tab);
+    setState(() {
+      _tab = tab;
+      _future = _carregar();
+    });
   }
 
   Future<void> _decidir(int id, bool aceitar) async {
@@ -101,16 +106,20 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) return _erro(_carregar);
-          final raw = snapshot.data?['solicitacoes'];
+          final data = snapshot.data ?? const <String, dynamic>{};
+          final raw = _tab == 0
+              ? data['solicitacoesRecentes']
+              : data['solicitacoes'];
           final pedidos = raw is List
               ? raw.whereType<Map<String, dynamic>>().toList()
               : <Map<String, dynamic>>[];
           final novos = pedidos
               .where((p) => p['status'] == 'aguardando_resposta')
               .toList();
-          final agendados = pedidos
-              .where((p) => p['status'] == 'aceita_agendada')
-              .toList();
+          final proximosRaw = data['proximosAtendimentos'];
+          final agendados = _tab == 0 && proximosRaw is List
+              ? proximosRaw.whereType<Map<String, dynamic>>().toList()
+              : pedidos.where((p) => p['status'] == 'aceita_agendada').toList();
           final concluidos = pedidos
               .where((p) => p['status'] == 'conclusao_confirmada')
               .toList();
@@ -158,19 +167,19 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     children: [
                       _ResumoCard(
                         label: 'Novas',
-                        valor: novos.length,
+                        valor: _resumo(data, 'solicitacoesNovas', novos.length),
                         icon: Icons.mark_email_unread_outlined,
                       ),
                       const SizedBox(width: 8),
                       _ResumoCard(
                         label: 'Agendados',
-                        valor: agendados.length,
+                        valor: _resumo(data, 'agendados', agendados.length),
                         icon: Icons.event_available_outlined,
                       ),
                       const SizedBox(width: 8),
                       _ResumoCard(
                         label: 'Concluídos',
-                        valor: concluidos.length,
+                        valor: _resumo(data, 'concluidos', concluidos.length),
                         icon: Icons.task_alt_rounded,
                       ),
                     ],
@@ -314,6 +323,12 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
               .toList(),
         _ => pedidos,
       };
+
+  int _resumo(Map<String, dynamic> data, String chave, int fallback) {
+    final resumo = data['resumo'];
+    if (resumo is! Map<String, dynamic>) return fallback;
+    return int.tryParse('${resumo[chave]}') ?? fallback;
+  }
 
   int _id(Map<String, dynamic> p) => int.tryParse('${p['id']}') ?? 0;
 }
@@ -463,11 +478,11 @@ class ServicosProfissionalPage extends StatefulWidget {
 
 class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
   late Future<Map<String, dynamic>> _future = AppServices.instance.profissionais
-      .meuPerfil();
+      .meusServicos();
   Future<void> _editar({Map<String, dynamic>? servico}) async {
     final nome = TextEditingController(text: '${servico?['nome'] ?? ''}');
     final categoriaId = TextEditingController(
-      text: '${servico?['categoria']?['id'] ?? ''}',
+      text: '${servico?['categoriaId'] ?? servico?['categoria']?['id'] ?? ''}',
     );
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
@@ -523,14 +538,13 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     );
     if (ok != true) return;
     try {
-      final atual = await AppServices.instance.profissionais.meuPerfil();
-      final perfil = atual['profissional'] as Map<String, dynamic>? ?? {};
-      final servicos = (perfil['servicos'] as List? ?? [])
+      final atual = await AppServices.instance.profissionais.meusServicos();
+      final servicos = (atual['servicos'] as List? ?? [])
           .whereType<Map<String, dynamic>>()
           .map(
             (e) => <String, dynamic>{
               'nome': e['nome'],
-              'categoriaId': e['categoria']?['id'],
+              'categoriaId': e['categoriaId'] ?? e['categoria']?['id'],
               'precoInicial': e['precoInicial'],
             },
           )
@@ -548,15 +562,10 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
         final index = servicos.indexWhere((e) => e['nome'] == servico['nome']);
         if (index >= 0) servicos[index] = novo;
       }
-      await AppServices.instance.profissionais.salvarMeuPerfil({
-        'descricao': perfil['descricao'] ?? '',
-        'bairro': perfil['bairro'] ?? '',
-        'precoInicial': perfil['precoInicial'],
-        'servicos': servicos,
-      });
+      await AppServices.instance.profissionais.salvarMeusServicos(servicos);
       if (mounted) {
         setState(
-          () => _future = AppServices.instance.profissionais.meuPerfil(),
+          () => _future = AppServices.instance.profissionais.meusServicos(),
         );
       }
     } catch (_) {
@@ -587,20 +596,17 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
         if (s.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        final p = s.data?['profissional'];
-        final list = p is Map<String, dynamic>
-            ? (p['servicos'] as List? ?? [])
-                  .whereType<Map<String, dynamic>>()
-                  .toList()
-            : <Map<String, dynamic>>[];
+        final list = (s.data?['servicos'] as List? ?? [])
+            .whereType<Map<String, dynamic>>()
+            .toList();
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
             const _BadgeCard(
               icon: Icons.info_outline,
-              title: 'Ofertas vinculadas ao seu perfil',
+              title: 'Ofertas profissionais',
               text:
-                  'Serviços e preços iniciais são salvos pela API no perfil profissional. O valor final é combinado fora do aplicativo.',
+                  'Serviços e preços iniciais são gerenciados pela API. O valor final é combinado fora do aplicativo.',
             ),
             const SizedBox(height: 12),
             if (list.isEmpty)
@@ -617,7 +623,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   ),
                   title: Text('${e['nome']}'),
                   subtitle: Text(
-                    '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\nAtivo',
+                    '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['ativo'] == true ? 'Ativo' : 'Inativo'}',
                   ),
                   isThreeLine: true,
                   trailing: IconButton(
@@ -905,7 +911,7 @@ class _PedidoCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'Recusar',
                     onPressed: onDecline,
-                    icon: const Icon(Icons.close, color: AppColors.erro),
+                    icon: const Icon(Icons.close, color: Color(0xFFC53030)),
                   ),
                   FilledButton(
                     onPressed: onAccept,
@@ -967,7 +973,7 @@ class _BadgeCard extends StatelessWidget {
   final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Card(
-    color: AppColors.verdePastel,
+    color: AppColors.verdeClaro,
     child: ListTile(
       onTap: onTap,
       leading: Icon(icon, color: AppColors.verde),

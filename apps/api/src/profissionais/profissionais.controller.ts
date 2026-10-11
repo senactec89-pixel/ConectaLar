@@ -32,6 +32,30 @@ export class ProfissionaisController {
     return this.profissionais.meuPerfil(user);
   }
 
+  @Get('me/painel')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  meuPainel(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.profissionais.meuPainel(user);
+  }
+
+  @Get('me/servicos')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  meusServicos(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.profissionais.meusServicos(user);
+  }
+
+  @Put('me/servicos')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  salvarMeusServicos(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.profissionais.salvarMeusServicos(user, body);
+  }
+
   @Put('me')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)

@@ -138,96 +138,122 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  Widget _painel() => ListView(
-    padding: const EdgeInsets.all(18),
-    children: [
-      Text('Visão geral', style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 5),
-      const Text(
-        'Ações administrativas são restritas e ficam registradas conforme os módulos da API.',
-      ),
-      const SizedBox(height: 16),
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _carregar(AdminModulo.usuarios),
-        builder: (context, s) => _Indicador(
-          label: 'Usuários',
-          value: '${s.data?.length ?? '—'}',
-          icon: Icons.people_outline,
-        ),
-      ),
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _carregar(AdminModulo.documentos),
-        builder: (context, s) => _Indicador(
-          label: 'Documentos em análise',
-          value: '${s.data?.length ?? '—'}',
-          icon: Icons.verified_user_outlined,
-        ),
-      ),
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _carregar(AdminModulo.categorias),
-        builder: (context, s) => _Indicador(
-          label: 'Categorias ativas',
-          value: '${s.data?.where((e) => e['ativo'] == true).length ?? '—'}',
-          icon: Icons.category_outlined,
-        ),
-      ),
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _carregar(AdminModulo.denuncias),
-        builder: (context, s) => _Indicador(
-          label: 'Denúncias',
-          value:
-              '${s.data?.where((e) => ['pendente', 'em_analise'].contains(e['status'])).length ?? '—'}',
-          icon: Icons.report_outlined,
-        ),
-      ),
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _carregar(AdminModulo.avaliacoes),
-        builder: (context, s) => _Indicador(
-          label: 'Avaliações pendentes',
-          value: '${s.data?.length ?? '—'}',
-          icon: Icons.star_outline,
-        ),
-      ),
-      const SizedBox(height: 12),
-      _AdminAtalho(
-        icon: Icons.people_outline,
-        title: 'Gerenciar usuários',
-        subtitle: 'Consultar perfis e status',
-        onTap: () => _abrir(AdminModulo.usuarios),
-      ),
-      _AdminAtalho(
-        icon: Icons.verified_user_outlined,
-        title: 'Analisar documentos',
-        subtitle: 'Aprovar ou rejeitar com motivo',
-        onTap: () => _abrir(AdminModulo.documentos),
-      ),
-      _AdminAtalho(
-        icon: Icons.report_outlined,
-        title: 'Revisar denúncias',
-        subtitle: 'Registrar decisão sem punição automática',
-        onTap: () => _abrir(AdminModulo.denuncias),
-      ),
-      _AdminAtalho(
-        icon: Icons.star_outline,
-        title: 'Moderar avaliações',
-        subtitle: 'Preservar o histórico da análise',
-        onTap: () => _abrir(AdminModulo.avaliacoes),
-      ),
-      _AdminAtalho(
-        icon: Icons.category_outlined,
-        title: 'Categorias',
-        subtitle: 'Gerenciar itens do catálogo',
-        onTap: () => _abrir(AdminModulo.categorias),
-      ),
-      const Padding(
-        padding: EdgeInsets.only(top: 12),
-        child: Text(
-          'Contagens refletem somente os itens retornados pelos endpoints atuais (limite da API: até 100).',
-          style: TextStyle(fontSize: 12, color: AppColors.textoSuave),
-        ),
-      ),
-    ],
+  Widget _painel() => FutureBuilder<Map<String, dynamic>>(
+    future: AppServices.instance.admin.painel(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Não foi possível carregar o resumo administrativo.'),
+              TextButton(
+                onPressed: () => setState(() {}),
+                child: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        );
+      }
+      final data = snapshot.data ?? const <String, dynamic>{};
+      final usuarios = _map(data['usuarios']);
+      final profissionais = _map(data['profissionais']);
+      final moderacao = _map(data['moderacao']);
+      final catalogo = _map(data['catalogo']);
+      final atendimentos = _map(data['atendimentos']);
+      return ListView(
+        padding: const EdgeInsets.all(18),
+        children: [
+          Text('Visão geral', style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 5),
+          const Text('Indicadores consolidados pela API administrativa.'),
+          const SizedBox(height: 16),
+          _Indicador(
+            label: 'Usuários ativos',
+            value: '${usuarios['ativos'] ?? '—'}',
+            icon: Icons.people_outline,
+          ),
+          _Indicador(
+            label: 'Profissionais ativos',
+            value: '${usuarios['profissionais'] ?? '—'}',
+            icon: Icons.work_outline,
+          ),
+          _Indicador(
+            label: 'Perfis profissionais',
+            value: '${profissionais['perfisAtivos'] ?? '—'}',
+            icon: Icons.badge_outlined,
+          ),
+          _Indicador(
+            label: 'Documentos em análise',
+            value: '${moderacao['documentosPendentes'] ?? '—'}',
+            icon: Icons.verified_user_outlined,
+          ),
+          _Indicador(
+            label: 'Denúncias abertas',
+            value: '${moderacao['denunciasAbertas'] ?? '—'}',
+            icon: Icons.report_outlined,
+          ),
+          _Indicador(
+            label: 'Avaliações em moderação',
+            value: '${moderacao['avaliacoesPendentes'] ?? '—'}',
+            icon: Icons.star_outline,
+          ),
+          _Indicador(
+            label: 'Categorias ativas',
+            value: '${catalogo['categoriasAtivas'] ?? '—'}',
+            icon: Icons.category_outlined,
+          ),
+          _Indicador(
+            label: 'Solicitações aguardando',
+            value: '${atendimentos['aguardandoResposta'] ?? '—'}',
+            icon: Icons.inbox_outlined,
+          ),
+          _Indicador(
+            label: 'Atendimentos agendados',
+            value: '${atendimentos['aceitaAgendada'] ?? '—'}',
+            icon: Icons.event_available_outlined,
+          ),
+          const SizedBox(height: 12),
+          _AdminAtalho(
+            icon: Icons.people_outline,
+            title: 'Gerenciar usuários',
+            subtitle: 'Consultar perfis e status',
+            onTap: () => _abrir(AdminModulo.usuarios),
+          ),
+          _AdminAtalho(
+            icon: Icons.verified_user_outlined,
+            title: 'Analisar documentos',
+            subtitle: 'Aprovar ou rejeitar com motivo',
+            onTap: () => _abrir(AdminModulo.documentos),
+          ),
+          _AdminAtalho(
+            icon: Icons.report_outlined,
+            title: 'Revisar denúncias',
+            subtitle: 'Registrar decisão sem punição automática',
+            onTap: () => _abrir(AdminModulo.denuncias),
+          ),
+          _AdminAtalho(
+            icon: Icons.star_outline,
+            title: 'Moderar avaliações',
+            subtitle: 'Preservar o histórico da análise',
+            onTap: () => _abrir(AdminModulo.avaliacoes),
+          ),
+          _AdminAtalho(
+            icon: Icons.category_outlined,
+            title: 'Categorias',
+            subtitle: 'Gerenciar itens do catálogo',
+            onTap: () => _abrir(AdminModulo.categorias),
+          ),
+        ],
+      );
+    },
   );
+
+  Map<String, dynamic> _map(Object? value) =>
+      value is Map<String, dynamic> ? value : const {};
 
   Widget _lista() => FutureBuilder<List<Map<String, dynamic>>>(
     future: _future,
@@ -366,7 +392,10 @@ class _AdminPageState extends State<AdminPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
           child: ListTile(
-            leading: const Icon(Icons.report_outlined, color: AppColors.erro),
+            leading: const Icon(
+              Icons.report_outlined,
+              color: Color(0xFFC53030),
+            ),
             title: Text('${item['motivo'] ?? 'Denúncia'} • ${item['status']}'),
             subtitle: Text(
               'Relato: ${item['descricao'] ?? ''}\nSolicitação #${item['solicitacaoId'] ?? ''}',

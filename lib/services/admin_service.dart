@@ -5,6 +5,8 @@ class AdminService {
 
   final ApiService _api;
 
+  Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
+
   Future<Map<String, dynamic>> usuarios({String? tipo, String? termo}) =>
       _api.get(
         'admin/usuarios',
@@ -14,8 +16,23 @@ class AdminService {
         },
       );
 
+  Future<Map<String, dynamic>> listarUsuarios({
+    String? tipo,
+    String? termo,
+    bool? ativo,
+  }) => _api.get(
+    'admin/usuarios',
+    queryParameters: {
+      if (tipo != null && tipo.isNotEmpty) 'tipo': tipo,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+      if (ativo != null) 'ativo': ativo.toString(),
+    },
+  );
+
   Future<Map<String, dynamic>> usuario(int id) =>
       _api.get('admin/usuarios/$id');
+
+  Future<Map<String, dynamic>> obterUsuario(int id) => usuario(id);
 
   Future<Map<String, dynamic>> atualizarStatus(
     int id,
@@ -28,6 +45,11 @@ class AdminService {
       if (motivo != null && motivo.isNotEmpty) 'motivo': motivo,
     },
   );
+
+  Future<Map<String, dynamic>> atualizarStatusUsuario({
+    required int usuarioId,
+    required bool ativo,
+  }) => atualizarStatus(usuarioId, ativo);
 
   Future<Map<String, dynamic>> documentos({String? status}) => _api.get(
     'documentos-verificacao',

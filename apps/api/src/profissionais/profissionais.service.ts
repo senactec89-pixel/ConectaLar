@@ -9,7 +9,9 @@ import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
+import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 
 interface ProfissionalServicoInput {
@@ -40,6 +42,8 @@ export class ProfissionaisService {
     private readonly perfis: Repository<ProfissionalPerfilEntity>,
     @InjectRepository(ProfissionalServicoEntity)
     private readonly servicos: Repository<ProfissionalServicoEntity>,
+    @InjectRepository(SolicitacaoEntity)
+    private readonly solicitacoes: Repository<SolicitacaoEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
   ) {}
@@ -109,35 +113,8 @@ export class ProfissionaisService {
 
   async salvarMeuPerfil(user: AuthenticatedUser, body: unknown) {
     const input = parseUpsertPerfil(body);
-    const usuario = await this.usuarios.findOne({
-      where: {
-        id: user.id,
-        tipo: In([UsuarioTipo.Profissional, UsuarioTipo.Empresa]),
-        ativo: true,
-      },
-    });
-    if (usuario === null) {
-      throw new BadRequestException({
-        code: 'USUARIO_NAO_ELEGIVEL',
-        message: 'Apenas profissionais ou empresas podem publicar perfil.',
-      });
-    }
-
-    const categoriaIds = [
-      ...new Set(
-        input.servicos
-          .map((servico) => servico.categoriaId)
-          .filter((id): id is number => id !== null && id !== undefined),
-      ),
-    ];
-    if (categoriaIds.length > 0) {
-      const categoriasAtivas = await this.categorias.find({
-        where: { id: In(categoriaIds), ativo: true },
-      });
-      if (categoriasAtivas.length !== categoriaIds.length) {
-        throw badRequest('CATEGORIA_INVALIDA');
-      }
-    }
+    const usuario = await this.carregarUsuarioProfissional(user);
+    await this.validarCategorias(input.servicos);
 
     let perfil = await this.perfis.findOne({ where: { usuarioId: user.id } });
     perfil ??= this.perfis.create({ usuarioId: user.id, verificado: false });
@@ -174,6 +151,100 @@ export class ProfissionaisService {
     return { profissional: perfilPublico(reloaded) };
   }
 
+  async meuPainel(user: AuthenticatedUser) {
+    const perfil = await this.carregarMeuPerfil(user);
+    if (perfil === null) {
+      return {
+        profissional: null,
+        resumo: {
+          solicitacoesNovas: 0,
+          agendados: 0,
+          concluidos: 0,
+          recusadasOuCanceladas: 0,
+        },
+        proximosAtendimentos: [],
+        solicitacoesRecentes: [],
+      };
+    }
+
+    const solicitacoes = await this.solicitacoes.find({
+      where: { profissionalId: perfil.id },
+      relations: {
+        cliente: true,
+        profissional: { usuario: true },
+        categoria: true,
+      },
+      order: { criadoEm: 'DESC' },
+      take: 50,
+    });
+    const hoje = new Date().toISOString().slice(0, 10);
+    const proximosAtendimentos = solicitacoes
+      .filter(
+        (solicitacao) =>
+          solicitacao.status === SolicitacaoStatus.AceitaAgendada &&
+          solicitacao.dataServico >= hoje,
+      )
+      .sort(
+        (a, b) =>
+          `${a.dataServico} ${a.horarioServico}`.localeCompare(
+            `${b.dataServico} ${b.horarioServico}`,
+          ),
+      )
+      .slice(0, 5);
+
+    return {
+      profissional: perfilPublico(perfil),
+      resumo: {
+        solicitacoesNovas: solicitacoes.filter(
+          (item) => item.status === SolicitacaoStatus.AguardandoResposta,
+        ).length,
+        agendados: solicitacoes.filter(
+          (item) => item.status === SolicitacaoStatus.AceitaAgendada,
+        ).length,
+        concluidos: solicitacoes.filter(
+          (item) => item.status === SolicitacaoStatus.ConclusaoConfirmada,
+        ).length,
+        recusadasOuCanceladas: solicitacoes.filter((item) =>
+          [SolicitacaoStatus.Recusada, SolicitacaoStatus.Cancelada].includes(
+            item.status,
+          ),
+        ).length,
+      },
+      proximosAtendimentos: proximosAtendimentos.map(
+        solicitacaoProfissionalResumo,
+      ),
+      solicitacoesRecentes: solicitacoes
+        .slice(0, 8)
+        .map(solicitacaoProfissionalResumo),
+    };
+  }
+
+  async meusServicos(user: AuthenticatedUser) {
+    const perfil = await this.carregarMeuPerfil(user);
+    return {
+      servicos: perfil === null ? [] : (perfil.servicos ?? []).map(servicoResponse),
+    };
+  }
+
+  async salvarMeusServicos(user: AuthenticatedUser, body: unknown) {
+    await this.carregarUsuarioProfissional(user);
+    const input = parseServicosBody(body);
+    await this.validarCategorias(input);
+    const perfil = await this.carregarMeuPerfil(user);
+    if (perfil === null) {
+      throw new BadRequestException({
+        code: 'PERFIL_PROFISSIONAL_OBRIGATORIO',
+        message: 'Cadastre o perfil profissional antes de gerenciar servicos.',
+      });
+    }
+
+    await this.salvarServicos(perfil.id, input);
+    const reloaded = await this.carregarMeuPerfil(user);
+    return {
+      servicos: reloaded === null ? [] : (reloaded.servicos ?? []).map(servicoResponse),
+    };
+  }
+
   async definirVerificacao(id: number, body: unknown) {
     void id;
     void body;
@@ -183,23 +254,106 @@ export class ProfissionaisService {
         'Use a analise documental em /documentos-verificacao/:id/analisar.',
     });
   }
+
+  private async carregarUsuarioProfissional(user: AuthenticatedUser) {
+    const usuario = await this.usuarios.findOne({
+      where: {
+        id: user.id,
+        tipo: In([UsuarioTipo.Profissional, UsuarioTipo.Empresa]),
+        ativo: true,
+      },
+    });
+    if (usuario === null) {
+      throw new BadRequestException({
+        code: 'USUARIO_NAO_ELEGIVEL',
+        message: 'Apenas profissionais ou empresas podem publicar perfil.',
+      });
+    }
+
+    return usuario;
+  }
+
+  private carregarMeuPerfil(user: AuthenticatedUser) {
+    return this.perfis.findOne({
+      where: { usuarioId: user.id },
+      relations: { usuario: true, servicos: { categoria: true } },
+      order: { servicos: { nome: 'ASC' } },
+    });
+  }
+
+  private async validarCategorias(
+    servicos: readonly ProfissionalServicoInput[],
+  ) {
+    const categoriaIds = [
+      ...new Set(
+        servicos
+          .map((servico) => servico.categoriaId)
+          .filter((id): id is number => id !== null && id !== undefined),
+      ),
+    ];
+    if (categoriaIds.length === 0) return;
+
+    const categoriasAtivas = await this.categorias.find({
+      where: { id: In(categoriaIds), ativo: true },
+    });
+    if (categoriasAtivas.length !== categoriaIds.length) {
+      throw badRequest('CATEGORIA_INVALIDA');
+    }
+  }
+
+  private async salvarServicos(
+    profissionalId: number,
+    servicos: readonly ProfissionalServicoInput[],
+  ) {
+    await this.servicos.delete({ profissionalId });
+    if (servicos.length === 0) return;
+
+    await this.servicos.save(
+      servicos.map((servico) =>
+        this.servicos.create({
+          profissionalId,
+          categoriaId: servico.categoriaId ?? null,
+          nome: servico.nome,
+          precoInicial: decimalOrNull(servico.precoInicial),
+          ativo: true,
+        }),
+      ),
+    );
+  }
+}
+
+function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
+  return {
+    id: solicitacao.id,
+    status: solicitacao.status,
+    descricao: solicitacao.descricao,
+    bairroAtendimento: solicitacao.bairroAtendimento,
+    dataServico: solicitacao.dataServico,
+    horarioServico: solicitacao.horarioServico,
+    precoInicial: numberOrNull(solicitacao.precoInicial),
+    enderecoCompletoLiberado:
+      solicitacao.status === SolicitacaoStatus.AceitaAgendada,
+    enderecoCompleto: null,
+    cliente: {
+      id: solicitacao.cliente.id,
+      nome: solicitacao.cliente.nome,
+    },
+    categoria:
+      solicitacao.categoria === null
+        ? null
+        : {
+            id: solicitacao.categoria.id,
+            nome: solicitacao.categoria.nome,
+          },
+    criadoEm: solicitacao.criadoEm.toISOString(),
+    atualizadoEm: solicitacao.atualizadoEm.toISOString(),
+  };
 }
 
 function perfilPublico(perfil: ProfissionalPerfilEntity) {
   const servicos = (perfil.servicos ?? [])
     .filter((servico) => servico.ativo)
-    .map((servico) => ({
-      id: servico.id,
-      nome: servico.nome,
-      categoria:
-        servico.categoria === null || servico.categoria === undefined
-          ? null
-          : {
-              id: servico.categoria.id,
-              nome: servico.categoria.nome,
-            },
-      precoInicial: numberOrNull(servico.precoInicial),
-    }));
+    .map(servicoResponse);
 
   return {
     id: perfil.id,
@@ -211,6 +365,23 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     precoInicial: numberOrNull(perfil.precoInicial),
     verificado: perfil.verificado,
     servicos,
+  };
+}
+
+function servicoResponse(servico: ProfissionalServicoEntity) {
+  return {
+    id: servico.id,
+    nome: servico.nome,
+    categoria:
+      servico.categoria === null || servico.categoria === undefined
+        ? null
+        : {
+            id: servico.categoria.id,
+            nome: servico.categoria.nome,
+          },
+    categoriaId: servico.categoriaId,
+    precoInicial: numberOrNull(servico.precoInicial),
+    ativo: servico.ativo,
   };
 }
 
@@ -281,6 +452,11 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       precoInicial: optionalMoney(body.precoInicial),
     };
   });
+}
+
+function parseServicosBody(body: unknown): readonly ProfissionalServicoInput[] {
+  const value = objectBody(body);
+  return parseServicos(value.servicos);
 }
 
 function objectBody(body: unknown): Record<string, unknown> {
