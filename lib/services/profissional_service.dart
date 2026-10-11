@@ -31,8 +31,22 @@ class ProfissionalService {
     return _api.get('profissionais/me');
   }
 
+  Future<Map<String, dynamic>> meuPainel() {
+    return _api.get('profissionais/me/painel');
+  }
+
   Future<Map<String, dynamic>> salvarMeuPerfil(Map<String, dynamic> dados) {
     return _api.put('profissionais/me', body: dados);
+  }
+
+  Future<Map<String, dynamic>> meusServicos() {
+    return _api.get('profissionais/me/servicos');
+  }
+
+  Future<Map<String, dynamic>> salvarMeusServicos(
+    List<Map<String, dynamic>> servicos,
+  ) {
+    return _api.put('profissionais/me/servicos', body: {'servicos': servicos});
   }
 
   Future<Map<String, dynamic>> disponibilidadePublica(int profissionalId) {

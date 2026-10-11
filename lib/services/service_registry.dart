@@ -1,4 +1,5 @@
 import '../models/home_content.dart';
+import 'admin_service.dart';
 import 'api_mappers.dart';
 import 'api_service.dart';
 import 'auth_service.dart';
@@ -18,6 +19,7 @@ class AppServices {
   static final AppServices instance = AppServices._shared();
 
   AppServices._shared() : api = ApiService() {
+    admin = AdminService(api);
     auth = AuthService(api);
     avaliacoes = AvaliacaoService(api);
     categorias = CategoriaService(api);
@@ -33,6 +35,7 @@ class AppServices {
   }
 
   final ApiService api;
+  late AdminService admin;
   late AuthService auth;
   late AvaliacaoService avaliacoes;
   late CategoriaService categorias;
