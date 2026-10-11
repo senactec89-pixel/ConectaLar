@@ -15,3 +15,5 @@
 - Os documentos funcionais e de qualidade descrevem pagamento direto entre as partes, sem processamento financeiro no app. Não criar tabelas de cobrança/comissão no modelo inicial.
 - Os documentos funcionais preservam RF001–RF030; RF031–RF042 são propostas. RNF027–RNF030 e Q01–Q08 também são propostas e não viram metas ou escopo implementado sem aprovação.
 - Os cinco estados documentados do atendimento são: Aguardando resposta, Aceita/agendada, Recusada, Cancelada e Conclusão confirmada. Regras de transição dependentes de P08 continuam pendentes.
+
+- Em 11/10/2026, o usuário solicitou os seis ajustes de fluxos descritos em `docs/ajustes-fluxos-2026-10-11.md`, incluindo proteção contra aceites simultâneos e persistência da oferta escolhida. O bloqueio usa a data e o horário inicial existentes; P06/P12 permanecem pendentes para duração, sobreposição e capacidade de empresa. Migrations desta tarefa foram aplicadas apenas em banco temporário de teste.

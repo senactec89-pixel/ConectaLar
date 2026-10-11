@@ -21,7 +21,7 @@ Os PDFs ainda precisam de inspeção visual antes de implementar telas administr
 - Cidades, cobertura territorial e regras de atendimento por região.
 - Exceções e prevalência das condições do prestador diante da referência documental de cancelamento em 24 horas.
 - Momento de visibilidade do endereço completo já tem regra operacional no contrato atual: cliente, administrador e profissional vinculado podem ver o endereço completo após aceite do atendimento. Ainda falta decidir política de snapshot, histórico, retenção e acesso após cancelamento/encerramento.
-- Duração e capacidade de atendimento de profissionais/empresas.
+- Duração e capacidade de atendimento de profissionais/empresas. O aceite já bloqueia pedidos aceitos na mesma data e horário, inclusive em concorrência; sobreposição por duração e múltiplos executores ainda dependem de P06/P12.
 - Momento de abertura do chat, anexos, avaliações e reenvio de mensagens.
 - Retenção, descarte e solicitações de titulares para dados pessoais.
 - Permissões, justificativa e auditoria de decisões administrativas e denúncias.
@@ -69,7 +69,7 @@ A escolha TypeORM + `mysql2` já foi aprovada e registrada em `docs/decisoes.md`
 ### Limites dos módulos Flutter profissionais e administrativos
 
 - As telas profissionais P01–P07 e os módulos administrativos de usuários, documentos, denúncias, avaliações e categorias usam os endpoints disponíveis em `apps/api`. O selo continua condicionado à aprovação administrativa; o cliente não realiza essa aprovação.
-- A API atualiza as ofertas profissionais junto com o perfil (`PUT profissionais/me`) e recria os itens enviados como ativos. Não há endpoint para desativar uma oferta individual nem para alterar os campos públicos de perfil separadamente. A tela permite incluir/editar ofertas e apresenta-as como ativas; a desativação individual depende de uma decisão de contrato e endpoint específico.
+- A API atualiza as ofertas profissionais preservando os IDs enviados. Ofertas omitidas são desativadas, preservando o histórico; novas ofertas recebem novos IDs. O Flutter mantém os IDs ao editar perfil, serviços e região. A solicitação registra o ID e o nome da oferta escolhida no envio. Não foi criado um novo endpoint de exclusão individual.
 - O endpoint administrativo de usuários não informa o estado de verificação do perfil profissional. O painel conta documentos pendentes, mas não consegue separar profissionais pendentes de verificação de profissionais sem documentos enviados.
 - A API de categorias administra apenas nome e status. Cadastro de ícone/descrição, gerenciamento independente de serviços do catálogo e relatório/paginação administrativa não estão disponíveis; a interface não simula essas operações.
 - A solicitação agora aceita `enderecoId` e a API retorna o endereço completo apenas para atores autorizados: cliente dono, administrador e profissional vinculado depois do aceite. Antes do aceite, o profissional recebe somente dados protegidos do local. Permanecem pendentes as regras finais de snapshot, retenção, histórico e cancelamento.
