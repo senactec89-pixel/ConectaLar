@@ -29,6 +29,7 @@ class _AdminPageState extends State<AdminPage> {
   String _tipo = '';
   String _termo = '';
   String _buscaLocal = '';
+  String _statusDocumento = 'pendente';
   bool _mutando = false;
 
   Future<List<Map<String, dynamic>>> _carregar(AdminModulo modulo) async {
@@ -43,7 +44,9 @@ class _AdminPageState extends State<AdminPage> {
         );
         key = 'usuarios';
       case AdminModulo.documentos:
-        result = await service.documentos(status: 'pendente');
+        result = await service.documentos(
+          status: _statusDocumento.isEmpty ? null : _statusDocumento,
+        );
         key = 'documentos';
       case AdminModulo.denuncias:
         result = await service.denuncias();
@@ -151,6 +154,37 @@ class _AdminPageState extends State<AdminPage> {
       body: Column(
         children: [
           if (_mutando) const LinearProgressIndicator(),
+          if (_modulo == AdminModulo.documentos)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final filtro in const {
+                      'pendente': 'Pendentes',
+                      'aprovado': 'Aprovados',
+                      'rejeitado': 'Rejeitados',
+                      '': 'Todos',
+                    }.entries)
+                      ChoiceChip(
+                        key: ValueKey('admin-documentos-${filtro.key}'),
+                        label: Text(filtro.value),
+                        selected: _statusDocumento == filtro.key,
+                        onSelected: _mutando
+                            ? null
+                            : (_) => setState(() {
+                                _statusDocumento = filtro.key;
+                                _future = _carregar(_modulo);
+                                _future.ignore();
+                              }),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
         ],
       ),
@@ -220,10 +254,10 @@ class _AdminPageState extends State<AdminPage> {
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final colunas = constraints.maxWidth < 300 ? 1 : 2;
-              final escala = MediaQuery.textScalerOf(
-                context,
-              ).scale(1).clamp(1.0, 2.0).toDouble();
+              final escala = MediaQuery.textScalerOf(context).scale(1);
+              final colunas = constraints.maxWidth < 300 || escala > 1.3
+                  ? 1
+                  : 2;
               final indicadores = [
                 _Indicador(
                   label: 'Usuários ativos',
@@ -271,17 +305,17 @@ class _AdminPageState extends State<AdminPage> {
                   icon: Icons.event_available_outlined,
                 ),
               ];
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: indicadores.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: colunas,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  mainAxisExtent: 104 * escala,
-                ),
-                itemBuilder: (context, index) => indicadores[index],
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final indicador in indicadores)
+                    SizedBox(
+                      width:
+                          (constraints.maxWidth - (colunas - 1) * 10) / colunas,
+                      child: indicador,
+                    ),
+                ],
               );
             },
           ),
@@ -423,6 +457,7 @@ class _AdminPageState extends State<AdminPage> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _tipo,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de conta',
                     ),
@@ -469,10 +504,14 @@ class _AdminPageState extends State<AdminPage> {
             child: itensVisiveis.isEmpty
                 ? EmptyStateView(
                     title: items.isEmpty
-                        ? _tituloVazio(_modulo)
+                        ? _modulo == AdminModulo.documentos
+                              ? 'Nenhum documento neste filtro'
+                              : _tituloVazio(_modulo)
                         : 'Nenhum resultado encontrado',
                     message: items.isEmpty
-                        ? _mensagemVazia(_modulo)
+                        ? _modulo == AdminModulo.documentos
+                              ? 'Escolha outro status ou aguarde novos envios.'
+                              : _mensagemVazia(_modulo)
                         : 'Tente outro termo de busca.',
                     icon: items.isEmpty
                         ? _iconeModulo(_modulo)
@@ -670,7 +709,7 @@ class _AdminPageState extends State<AdminPage> {
       }
     } catch (_) {
       if (mounted) {
-        _avisar('A API não permitiu atualizar o status desta conta.');
+        _avisar('Não foi possível atualizar o status desta conta.');
       }
     } finally {
       if (mounted) setState(() => _mutando = false);
@@ -691,6 +730,9 @@ class _AdminPageState extends State<AdminPage> {
           children: [
             Text('Profissional: ${item['profissional']?['nome'] ?? '—'}'),
             Text('Tipo: ${item['tipoDocumento'] ?? '—'}'),
+            Text('Status atual: ${item['status'] ?? '—'}'),
+            if (item['motivoRejeicao'] != null)
+              Text('Motivo registrado: ${item['motivoRejeicao']}'),
             Text(
               'Arquivo: ${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? '—'}',
             ),
@@ -1031,13 +1073,21 @@ class _Indicador extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(icon, color: AppColors.verde),
-                Text(value, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),

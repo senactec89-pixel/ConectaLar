@@ -1,0 +1,14 @@
+{
+  "disponibilidade": {
+    "modo": "demonstracao",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "excecoes_runtime": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU; nenhum erro de aplicação."
+  }
+}

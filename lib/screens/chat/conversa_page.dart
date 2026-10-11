@@ -8,6 +8,7 @@ import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class ConversaPage extends StatefulWidget {
   const ConversaPage({super.key});
@@ -21,6 +22,24 @@ class _ConversaPageState extends State<ConversaPage> {
   Future<_ConversaData?>? _dataFuture;
   int? _solicitacaoAtual;
   bool _enviando = false;
+  bool _atualizando = false;
+
+  Future<void> _atualizar() async {
+    if (_atualizando || _enviando || _solicitacaoAtual == null) return;
+    final future = _carregarConversa(_solicitacaoAtual);
+    future.ignore();
+    setState(() {
+      _atualizando = true;
+      _dataFuture = future;
+    });
+    try {
+      await future;
+    } catch (_) {
+      // O FutureBuilder apresenta o erro e permite uma nova tentativa.
+    } finally {
+      if (mounted) setState(() => _atualizando = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -65,7 +84,7 @@ class _ConversaPageState extends State<ConversaPage> {
 
   Future<void> _enviar(int solicitacaoId) async {
     final texto = _controller.text.trim();
-    if (texto.isEmpty || _enviando) return;
+    if (texto.isEmpty || _enviando || _atualizando) return;
 
     setState(() => _enviando = true);
     try {
@@ -105,44 +124,76 @@ class _ConversaPageState extends State<ConversaPage> {
     if (_dataFuture == null || _solicitacaoAtual != solicitacaoId) {
       _solicitacaoAtual = solicitacaoId;
       _dataFuture = _carregarConversa(solicitacaoId);
+      _dataFuture?.ignore();
     }
 
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Conversa'),
+      appBar: AppBarCustom(
+        title: 'Conversa',
+        actions: [
+          IconButton(
+            tooltip: 'Atualizar conversa',
+            onPressed: _atualizando || _enviando ? null : _atualizar,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
       backgroundColor: AppColors.fundo,
       body: AnimatedBuilder(
         animation: store,
         builder: (context, _) => FutureBuilder<_ConversaData?>(
           future: _dataFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
+              return const AsyncLoadingView(label: 'Carregando conversa.');
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar a conversa.',
+                onRetry: _atualizar,
+              );
             }
             final data = snapshot.data;
             if (data == null) return const _ConversaIndisponivel();
 
             return Column(
               children: [
+                if (_atualizando || _enviando) const LinearProgressIndicator(),
                 _ContextoServico(atendimento: data.atendimento),
                 Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                    children: [
-                      for (final mensagem in data.mensagens)
-                        _MensagemBolha(
-                          mensagem: mensagem,
-                          enviadaPorMim:
-                              mensagem.remetenteId == data.usuarioAtualId,
-                        ),
-                      if (data.atendimento.solicitacao.status ==
-                          StatusSolicitacao.aceitaAgendada)
-                        _PropostaAgendada(atendimento: data.atendimento),
-                    ],
+                  child: RefreshIndicator(
+                    onRefresh: _atualizar,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                      children: [
+                        if (data.mensagens.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Text(
+                              'Ainda não há mensagens. Use a conversa para alinhar os detalhes do serviço.',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        for (final mensagem in data.mensagens)
+                          _MensagemBolha(
+                            mensagem: mensagem,
+                            enviadaPorMim:
+                                mensagem.remetenteId == data.usuarioAtualId,
+                          ),
+                        if (data.atendimento.solicitacao.status ==
+                            StatusSolicitacao.aceitaAgendada)
+                          _PropostaAgendada(atendimento: data.atendimento),
+                      ],
+                    ),
                   ),
                 ),
                 _CampoMensagem(
                   controller: _controller,
-                  onEnviar: _enviando ? null : () => _enviar(solicitacaoId!),
+                  onEnviar: _enviando || _atualizando
+                      ? null
+                      : () => _enviar(solicitacaoId!),
                 ),
               ],
             );

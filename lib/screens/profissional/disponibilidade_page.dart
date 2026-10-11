@@ -119,14 +119,51 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                   padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
                   children: [
                     const Card(
+                      color: AppColors.verdeClaro,
                       child: Padding(
                         padding: EdgeInsets.all(16),
-                        child: Text(
-                          'Cadastre os horários em que você pode receber solicitações. Pedidos fora desses horários são recusados pela API.',
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.event_available_outlined,
+                              color: AppColors.verdeEscuro,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Organize seus horários',
+                                    style: TextStyle(
+                                      color: AppColors.verdeEscuro,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Text(
+                                    'Cadastre os horários em que você pode receber solicitações. Os pedidos devem respeitar os horários disponíveis.',
+                                    style: TextStyle(height: 1.4),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'Horários disponíveis',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.texto,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     if (_itens.isEmpty)
                       const EmptyStateView(
                         title: 'Agenda sem horários',
@@ -176,10 +213,22 @@ class _DisponibilidadeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
         child: Row(
           children: [
-            const Icon(Icons.schedule_rounded, color: AppColors.verdeEscuro),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: AppColors.verdeClaro,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const SizedBox.square(
+                dimension: 44,
+                child: Icon(
+                  Icons.schedule_rounded,
+                  color: AppColors.verdeEscuro,
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -187,17 +236,23 @@ class _DisponibilidadeCard extends StatelessWidget {
                 children: [
                   Text(
                     _diaLabel(item.diaSemana),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                    style: const TextStyle(
+                      color: AppColors.texto,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  Text('${item.horaInicio} às ${item.horaFim}'),
+                  Text(
+                    '${item.horaInicio} às ${item.horaFim}',
+                    style: const TextStyle(color: AppColors.textoSuave),
+                  ),
                 ],
               ),
             ),
             IconButton(
               tooltip: 'Remover horário de ${_diaLabel(item.diaSemana)}',
               onPressed: onRemover,
-              icon: const Icon(Icons.delete_outline),
+              icon: const Icon(Icons.delete_outline, color: AppColors.erro),
             ),
           ],
         ),
@@ -244,52 +299,64 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 16,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<int>(
-                initialValue: _dia,
-                decoration: const InputDecoration(labelText: 'Dia da semana'),
-                items: [
-                  for (var dia = 0; dia <= 6; dia++)
-                    DropdownMenuItem(value: dia, child: Text(_diaLabel(dia))),
-                ],
-                onChanged: (value) => setState(() => _dia = value ?? 1),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _inicio,
-                      decoration: const InputDecoration(labelText: 'Início'),
-                      validator: validarCampoObrigatorio,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Adicionar horário',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Selecione o dia e o período de atendimento.',
+                  style: TextStyle(color: AppColors.textoSuave, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                DropdownButtonFormField<int>(
+                  initialValue: _dia,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Dia da semana'),
+                  items: [
+                    for (var dia = 0; dia <= 6; dia++)
+                      DropdownMenuItem(value: dia, child: Text(_diaLabel(dia))),
+                  ],
+                  onChanged: (value) => setState(() => _dia = value ?? 1),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _inicio,
+                        decoration: const InputDecoration(labelText: 'Início'),
+                        validator: validarCampoObrigatorio,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _fim,
-                      decoration: const InputDecoration(labelText: 'Fim'),
-                      validator: validarCampoObrigatorio,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _fim,
+                        decoration: const InputDecoration(labelText: 'Fim'),
+                        validator: validarCampoObrigatorio,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: _salvar,
-                icon: const Icon(Icons.check_rounded),
-                label: const Text('Adicionar horário'),
-              ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _salvar,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Adicionar horário'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

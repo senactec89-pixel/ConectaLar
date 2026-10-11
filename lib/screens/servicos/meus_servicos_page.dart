@@ -51,12 +51,13 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
     }).toList();
   }
 
-  void _abrirDetalhes(int solicitacaoId) {
-    Navigator.pushNamed(
+  Future<void> _abrirDetalhes(int solicitacaoId) async {
+    await Navigator.pushNamed(
       context,
       AppRoutes.detalhesServico,
       arguments: solicitacaoId,
     );
+    if (mounted) _recarregarServicos();
   }
 
   @override

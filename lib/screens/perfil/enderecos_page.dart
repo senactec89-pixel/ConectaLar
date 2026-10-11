@@ -130,7 +130,7 @@ class _AvisoEndereco extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                'O endereço completo é dado protegido. No pedido, usamos o bairro; a liberação completa depende de aceite válido e autorização no backend.',
+                'O endereço completo é privado. Antes do aceite, o profissional vê somente o bairro do atendimento.',
                 style: TextStyle(height: 1.35),
               ),
             ),
@@ -155,28 +155,73 @@ class _EnderecoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: Icon(
-          endereco.principal ? Icons.home_rounded : Icons.location_on_outlined,
-          color: AppColors.verdeEscuro,
-        ),
-        title: Text(
-          endereco.apelido,
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(endereco.completo),
-        trailing: Wrap(
-          spacing: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            IconButton(
-              tooltip: 'Editar',
-              onPressed: onEditar,
-              icon: const Icon(Icons.edit_outlined),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.verdeClaro,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: SizedBox.square(
+                    dimension: 40,
+                    child: Icon(
+                      endereco.principal
+                          ? Icons.home_rounded
+                          : Icons.location_on_outlined,
+                      color: AppColors.verdeEscuro,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    endereco.apelido,
+                    style: const TextStyle(
+                      color: AppColors.texto,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: 'Remover',
-              onPressed: onRemover,
-              icon: const Icon(Icons.delete_outline),
+            const SizedBox(height: 12),
+            Text(
+              endereco.completo,
+              style: const TextStyle(color: AppColors.textoSuave, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.borda),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onEditar,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.verdeEscuro,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  label: const Text('Editar'),
+                ),
+                TextButton.icon(
+                  onPressed: onRemover,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.erro,
+                    minimumSize: const Size(48, 48),
+                  ),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  label: const Text('Remover'),
+                ),
+              ],
             ),
           ],
         ),

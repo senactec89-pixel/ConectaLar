@@ -1,11 +1,11 @@
 {
-    "name": "conectarlar_app",
-    "short_name": "conectarlar_app",
+    "name": "ConectaLar",
+    "short_name": "ConectaLar",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F6FAF7",
+    "theme_color": "#157A54",
+    "description": "ConectaLar conecta clientes a profissionais de serviços residenciais.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,0 +1,151 @@
+# Etapas de front-end — 11/10/2026
+
+Execução autorizada em etapas sequenciais, com análise, verificações e commit/push ao concluir cada etapa. Base inicial: `f2acbe9`, sincronizada por `git pull origin main`. Backend, banco, migrations e OpenAPI ficam fora deste trabalho.
+
+## Ordem
+
+| Etapa | Trabalho | Situação |
+| --- | --- | --- |
+| 1 | Auditoria dos protótipos e responsividade | Enviada: `32bcfbc` |
+| 2 | Prévia isolada das telas sem API | Enviada: `1420819` |
+| 3 | Cadastro, leitura de termos e empresa | Enviada: `f5ddfc2` |
+| 4 | Chat: erro, nova tentativa e atualização | Enviada: `1cf1246` |
+| 5 | Notificações: envio, erros e retorno | Enviada: `67a9ee8` |
+| 6 | Atualização de Meus serviços ao retornar | Enviada: `5cf520a` |
+| 7 | Encaminhamento após sessão expirada | Enviada: `f12b8ac` |
+| 8 | Filtros administrativos de documentos | Enviada: `b386db3` |
+| 9 | Textos e identidade da versão web | Concluída; commit desta etapa no histórico |
+
+## Etapa 1 — referências e auditoria
+
+Referências disponíveis em `/home/rodrigo/Downloads`: `Prototipo 2.pdf` (8 páginas), `ConectaLar_Telas_Individuais_Cliente_Profissional.pdf` (14 páginas) e `ConectaLar_Telas_Restantes_Administrativo.pdf` (24 páginas). Foram extraídos texto e painéis de todas as páginas para inspeção; páginas profissionais, categorias e auditoria também foram ampliadas. O PDF orienta apresentação e não concede funcionalidades, permissões ou regras novas.
+
+### Comparação com as telas implementadas
+
+| Tela/grupo | Referência | Observação e encaminhamento |
+| --- | --- | --- |
+| Home | Principal p.1; C01 | Cabeçalho, casa circular, grade e cards presentes. Preservar a imagem já aprovada. O erro atual depende da conexão; melhorar diagnóstico e prévia na etapa 2. |
+| Busca e resultados | Principal p.2; C02 | Busca por termo/bairro/categoria e cards presentes. Ordenação e comparação adicionais dependem do escopo vigente. |
+| Favoritos | Principal p.3 | Favoritos de profissionais presentes. Favoritos de serviços não foram aprovados pelo desenho isolado. |
+| Perfil público e solicitação | C03–C04 | Serviços/ofertas, preços, avaliações e formulário presentes. Endereço e ações seguem a API. |
+| Meus serviços e detalhes | Principal p.4; C05 | Cards e agrupamentos pelos cinco estados presentes. Falta atualizar ao retornar; etapa 6. |
+| Chat | Principal p.8; C06 | Contexto e balões presentes. Erro, retry e atualização na etapa 4; não criar proposta/reagendamento pelo desenho. |
+| Perfil, endereço e segurança | Principal p.5; C07; R20–R21 | Opções disponíveis, formulários e logout presentes. Sessão expirada na etapa 7. Suporte, idioma, MFA e sessões concorrentes não são simulados como recursos reais. |
+| Login, cadastro e recuperação | Principal p.6–7; R01–R02 | Formulários presentes. Falta leitura de termos, escolha de empresa e indicação coerente de etapas; etapa 3. E-mail fictício e textos na etapa 9. |
+| Painel profissional | P01 | Hierarquia e resumo presentes; o app usa cards mais altos e aviso documental explícito. Não reproduzir números ou selo fictícios em uso real. |
+| Pedidos recebidos e detalhes | P02–P03 | Cards, filtros, endereço protegido e ações presentes. Não criar novos estados “Em análise”. |
+| Agenda e disponibilidade | P04 | Calendário e edição semanal presentes. A disponibilidade continua sendo a retornada pela API. |
+| Serviços e perfil profissional | P05–P06 | Ofertas editáveis, preço inicial, região e navegação presentes. Fotos/galeria e categorias globais não viram novas operações pelo protótipo. |
+| Documentos profissionais | P07 | Seletor, nome, status e motivo presentes; formato e 5 MB preservados. O seletor nativo exige conferência em aparelho. |
+| Central e usuários administrativos | R16 e navegação do PDF | Painel, listagem, busca e tipo de conta presentes. Encontrados e corrigidos overflows de indicadores e seletor com texto ampliado. |
+| Denúncias e avaliações administrativas | R03–R05 | Lista, análise e decisão presentes. Não incluir evidências/medidas que a API não fornece. |
+| Categorias administrativas | R08–R09 | Busca, edição, criação e status presentes. Descrição, ícone persistido e total de serviços não fazem parte do contrato atual. |
+| Auditoria administrativa | R19 | Registro já implementado, com ator/alvo/ação/data. Filtros por período/responsável dependem do contrato; não simular abrangência sobre registros não retornados. |
+| Documentos administrativos | Fluxo documental existente | Lista e decisão presentes. Filtros por status na etapa 8; abertura do conteúdo privado depende de endpoint seguro do colega. |
+| Demais propostas administrativas | R06–R07, R10–R15, R17–R18 | Não foram convertidas em novos módulos por referência visual; exigem escopo, API e permissões próprios. |
+
+### Correções e verificações da primeira etapa
+
+- Nova suíte `test/admin_visual_test.dart` abre os sete módulos administrativos com sessão e HTTP simulados exclusivamente no teste. A cobertura anterior mostrava principalmente o estado restrito/sem dados.
+- Conferência de conteúdo em 360, 390 e 412 pixels, com escala de texto 1,4 e busca com teclado de 300 pixels.
+- A primeira execução encontrou overflow de 10 pixels nos indicadores e de 25 pixels no seletor de tipo. Os indicadores passaram a ter altura natural e uma coluna com texto ampliado; o seletor ocupa a largura disponível.
+- Nova suíte: 8 testes aprovados após a correção.
+- `flutter analyze --no-pub`: sem problemas. `flutter test --no-pub`: 39 testes aprovados (31 existentes + 8 administrativos).
+- Capturas anteriores de área profissional e avaliações foram confrontadas com as referências. A inspeção de código/testes não substitui homologação manual de cada fluxo em aparelho, nem certifica fidelidade pixel a pixel.
+
+As próximas etapas mantêm dados de prévia explicitamente fictícios e não alteram autorizações do uso real.
+
+## Etapa 2 — prévia isolada
+
+- `CONECTALAR_DEMO=true` inicializa uma conta fictícia somente em memória. A sessão real não é lida, sobrescrita ou apagada, inclusive no logout da prévia.
+- `CONECTALAR_DEMO_ROLE` seleciona `cliente`, `profissional`, `empresa` ou `administrador`. O cliente local não tem transporte de rede; somente consultas e login/logout fictícios são atendidos. Operações de salvar, aceitar, moderar ou enviar mostram aviso de que a prévia não salva dados.
+- A faixa “DEMONSTRAÇÃO” identifica a versão. Acesso administrativo e papéis do uso real continuam verificando a sessão/API.
+- Configurações de execução disponíveis no VS Code em `.vscode/launch.json`.
+- URL padrão corrigida para desktop/web/iOS (`127.0.0.1:3012`); Android mantém o alias do emulador (`10.0.2.2:3012`). A definição explícita de URL prevalece. A API padrão sem o script Windows pode usar outra porta, como 3000; nesse caso informar a URL completa.
+- Home diferencia conexão indisponível, timeout e erro genérico, com nova tentativa e scroll no estado de erro.
+- A prévia preenchida revelou um botão “Aceitar” com largura infinita dentro de uma linha de pedido profissional. A largura agora é limitada pelo espaço da linha.
+- Verificação: quatro papéis abriram em 390 px sem API; sessão real preservada ao iniciar e sair; uso real ainda restaura a sessão; URL explícita testada separadamente; erro/retry da Home coberto. `flutter analyze --no-pub`: sem problemas. Suíte completa: 44 testes aprovados.
+
+Exemplo para trabalhar no Linux sem API:
+
+```bash
+flutter run -d linux --dart-define=CONECTALAR_DEMO=true --dart-define=CONECTALAR_DEMO_ROLE=administrador
+```
+
+Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual de leitura; não comprova fluxos de negócio integrados. Depois de mudar `dart-define`, reiniciar a execução completa, pois hot reload não troca essas definições.
+
+## Etapa 3 — cadastro e termos
+
+- Tela pública de leitura dos termos existentes na API, com título, versão, resumo e seções, scroll, carregamento, erro e nova tentativa. A leitura não registra aceite.
+- Link de leitura disponível antes do cadastro. O aceite continua usando o endpoint existente, com a versão retornada pela API.
+- Cadastro distingue autônomo e empresa no grupo de prestadores, enviando `tipo: empresa` já aceito pelo contrato.
+- A indicação fixa “Passo 1 de 3” foi substituída por orientação compatível com cliente e prestador.
+- Se a conta for criada e a consulta/aceite dos termos falhar, a tela preserva os dados e oferece “Concluir cadastro”. A repetição não cria outra conta. Durante envio, campos e seleção ficam desabilitados.
+- Três testes específicos aprovados: termos públicos com retry; escolha de empresa e recuperação do aceite; consulta dos termos antes de qualquer criação de conta.
+
+- `flutter analyze --no-pub`: sem problemas. `flutter test --no-pub`: 47 testes aprovados.
+
+## Etapa 4 — conversa
+
+- Erro de consulta com “Tentar novamente”, botão “Atualizar conversa” e gesto de atualização. Sem polling, sockets ou mudança de contrato.
+- Mensagens existentes permanecem visíveis durante atualização; envio/atualização têm indicador e bloqueio contra cliques simultâneos. Falha de envio preserva o texto digitado.
+- Lista vazia orienta iniciar a conversa. A informação de que chat não altera agendamento foi preservada.
+- Três testes específicos aprovados: erro/retry e nova mensagem recebida; envio com falha; vazio em 360/390/412 px com texto 1,4 e teclado.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 50 testes aprovados.
+
+## Etapa 5 — notificações
+
+- Falhas ao marcar uma/todas como lidas mostram aviso e preservam a lista para nova tentativa.
+- Indicador de envio e ações desabilitadas enquanto há operação em andamento; a guarda no callback impede repetição antes da reconstrução do widget.
+- A abertura dos detalhes/documentos é aguardada; no retorno, a lista é consultada novamente. Nenhum estado de leitura é antecipado antes da resposta da API.
+- Testes específicos de erro/repetição, bloqueio de cliques simultâneos e retorno dos detalhes.
+
+- Três testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 53 testes aprovados.
+
+## Etapa 6 — retorno a Meus serviços
+
+- A navegação para detalhes é aguardada; ao retornar, a lista consulta novamente a API. O filtro selecionado é preservado e a recarga só ocorre se a tela ainda estiver montada.
+- Mantidos os cinco estados oficiais e o carregamento/erro/retry já existentes.
+- Testes específicos: mudança para conclusão confirmada aparece após retorno sem perder filtro; erro de recarga oferece nova tentativa.
+
+- Dois testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 55 testes aprovados.
+
+## Etapa 7 — sessão expirada
+
+- Resposta 401 de consulta/operação autenticada encerra a sessão local, remove a persistência e encaminha ao login com aviso claro, removendo as telas anteriores da pilha.
+- Credenciais inválidas em login/cadastro e o logout explícito não disparam o aviso de expiração. Resposta 403 preserva a sessão.
+- Cada requisição captura a revisão da sessão: uma resposta antiga não encerra uma nova entrada. Requisições simultâneas só encerram uma vez. Resposta 401 sem JSON também é tratada.
+- A limpeza por expiração não tenta logout adicional com token inválido. Nenhum prazo, regra de token ou endpoint foi alterado.
+- Quatro testes específicos aprovados: encaminhamento/limpeza; credenciais e 403; resposta antiga; 401 simultâneos.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 59 testes aprovados.
+
+## Etapa 8 — filtros documentais administrativos
+
+- Chips Pendentes, Aprovados, Rejeitados e Todos consultam o parâmetro `status` existente. Pendentes continua sendo o filtro inicial.
+- Filtros ficam visíveis durante carregamento e erro; a nova tentativa mantém a seleção. Estado vazio deixa de afirmar que toda lista é de pendentes.
+- Detalhes mostram status atual e motivo registrado quando retornado. Fluxo de análise e permissões permanecem os existentes.
+- Dois testes específicos aprovados: quatro filtros em 360/390/412 px com texto 1,4; erro/retry e lista vazia preservando o filtro.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 61 testes aprovados.
+
+## Etapa 9 — acabamento e revisão final
+
+- Login inicia sem e-mail fictício e informa erros com acentuação correta.
+- Textos de privacidade, endereço, disponibilidade e ofertas falam das ações do usuário. Lógica, permissões, valores e integração permanecem os existentes.
+- HTML com idioma pt-BR, título/descrição ConectaLar e cor verde; manifest com nome, descrição e cores do tema atual. Identificadores de pacote não foram renomeados.
+- Estados comuns de erro/vazio têm scroll quando a altura disponível é pequena.
+- Doze testes específicos aprovados: oito telas profissionais preenchidas em 360/390/412 px e texto 1,4 (incluindo agenda/pedidos); edição profissional com teclado; empresa nas três larguras; login vazio com teclado; estados de erro/vazio com 220 px de altura e texto 1,6; metadados web.
+
+- A primeira compilação web mostrou falta da fonte CupertinoIcons. Adicionado `cupertino_icons` conforme a dependência padrão do template Flutter instalado; somente esse pacote foi acrescentado ao lockfile, preservando as demais versões. A regressão foi repetida após a inclusão.
+
+- Após a fonte: `flutter analyze --no-pub` sem problemas e `flutter test --no-pub` com 73 testes aprovados. Compilações web de prévia cliente e profissional concluídas; arquivo CupertinoIcons.ttf incluído no bundle.
+
+- Prévia administrativa também compilada com sucesso. Nove capturas do Flutter Web em viewport mobile foram inspecionadas: Home, área profissional e central administrativa em 360/390/412 px. Não foram registrados erros/exceções do app nos eventos do navegador; os logs incluem avisos de desempenho do WebGL e de configuração do viewport pelo Flutter.
+- A imagem da casa foi aguardada até carregar antes de registrar as capturas finais. O enquadramento e a altura do cabeçalho aprovado foram preservados.
+- [Capturas e instruções](evidencias/front-end-2026-10-11/README.md).
+
+## Limites da validação
+
+As nove etapas cobrem front-end, prévia, estados visuais e navegação. Backend, banco, migrations e OpenAPI não receberam alterações. Os testes usam respostas HTTP/sessões simuladas e não confirmam comportamento do servidor real. A inspeção mobile foi feita no Flutter Web; os fluxos integrados e o seletor nativo ainda precisam de homologação em aparelho. Não há declaração de fidelidade pixel a pixel de todos os PDFs ou de prontidão para produção do projeto inteiro.

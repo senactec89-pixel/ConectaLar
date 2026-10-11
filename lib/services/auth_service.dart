@@ -1,21 +1,39 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
 
-class AuthService {
-  AuthService(this._api);
+class AuthService extends ChangeNotifier {
+  AuthService(this._api, {this.persistirSessao = true});
 
   static const _sessionKey = 'conectalar.auth.session.v1';
 
   final ApiService _api;
+  final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
+  bool _sessaoExpirada = false;
 
   Map<String, dynamic>? get usuarioAtual => _usuarioAtual;
   bool get autenticado => _api.autenticado;
+  bool get sessaoExpirada => _sessaoExpirada;
+
+  Future<void> encerrarSessaoExpirada() async {
+    if (!autenticado) return;
+    _usuarioAtual = null;
+    _api.definirToken(null);
+    _sessaoExpirada = true;
+    notifyListeners();
+    if (persistirSessao) {
+      final prefs = await SharedPreferences.getInstance();
+      // Uma nova entrada pode acontecer enquanto o armazenamento é obtido.
+      if (!autenticado) await prefs.remove(_sessionKey);
+    }
+  }
 
   Future<void> inicializarSessao() async {
+    if (!persistirSessao) return;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_sessionKey);
     if (raw == null || raw.trim().isEmpty) return;
@@ -111,8 +129,12 @@ class AuthService {
     }
     _usuarioAtual = null;
     _api.definirToken(null);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sessionKey);
+    _sessaoExpirada = false;
+    notifyListeners();
+    if (persistirSessao) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionKey);
+    }
     return response;
   }
 
@@ -130,7 +152,9 @@ class AuthService {
     if (usuario is Map<String, dynamic>) {
       _usuarioAtual = usuario;
     }
-    if (accessToken != null && _usuarioAtual != null) {
+    _sessaoExpirada = false;
+    notifyListeners();
+    if (persistirSessao && accessToken != null && _usuarioAtual != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         _sessionKey,

@@ -5,6 +5,6 @@ import 'services/service_registry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppServices.instance.auth.inicializarSessao();
+  await AppServices.instance.inicializar();
   runApp(const ConectaLarApp());
 }

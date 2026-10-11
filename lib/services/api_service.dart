@@ -19,10 +19,13 @@ class ApiService {
 
   final http.Client _client;
   String? _accessToken;
+  int _sessionRevision = 0;
+  Future<void> Function()? onSessionExpired;
 
   bool get autenticado => _accessToken != null;
 
   void definirToken(String? token) {
+    _sessionRevision++;
     _accessToken = token == null || token.trim().isEmpty ? null : token.trim();
   }
 
@@ -67,11 +70,13 @@ class ApiService {
     Map<String, dynamic>? body,
   }) async {
     final uri = _buildUri(endpoint, queryParameters);
+    final requestToken = _accessToken;
+    final requestRevision = _sessionRevision;
     final request = http.Request(method, uri)
       ..headers['Accept'] = 'application/json';
 
-    if (_accessToken != null) {
-      request.headers['Authorization'] = 'Bearer $_accessToken';
+    if (requestToken != null) {
+      request.headers['Authorization'] = 'Bearer $requestToken';
     }
     if (body != null) {
       request.headers['Content-Type'] = 'application/json; charset=utf-8';
@@ -83,6 +88,14 @@ class ApiService {
     final response = await http.Response.fromStream(
       streamedResponse,
     ).timeout(timeout);
+
+    final path = endpoint.replaceFirst(RegExp(r'^/+'), '');
+    if (response.statusCode == 401 &&
+        requestToken != null &&
+        requestRevision == _sessionRevision &&
+        !const {'auth/login', 'auth/cadastro', 'auth/logout'}.contains(path)) {
+      await onSessionExpired?.call();
+    }
 
     final Object? decoded;
     try {
