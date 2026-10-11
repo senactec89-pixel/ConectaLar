@@ -267,9 +267,18 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                 ],
                 if (lista.isEmpty)
                   _EmptyCard(
-                    text: _tab == 0
-                        ? 'Nenhuma solicitação aguardando resposta.'
-                        : 'Nenhum pedido neste filtro.',
+                    text: switch (_tab) {
+                      0 => 'Nenhuma solicitação aguardando resposta.',
+                      2 => 'Nenhum atendimento aceito para este mês.',
+                      _ => switch (_filtro) {
+                        'Novas / aguardando' =>
+                          'Nenhuma solicitação aguardando resposta.',
+                        'Agendadas' => 'Nenhum atendimento agendado.',
+                        'Histórico' =>
+                          'Seu histórico de atendimentos está vazio.',
+                        _ => 'Nenhum pedido recebido ainda.',
+                      },
+                    },
                   )
                 else
                   ...lista.map(
@@ -429,11 +438,15 @@ class _DetalheSolicitacaoProfissionalPageState
                     const SizedBox(height: 8),
                     _BadgeCard(
                       icon: Icons.lock_outline,
-                      title: aceito
+                      title: enderecoLiberado
+                          ? 'Endereço completo liberado'
+                          : aceito
                           ? 'Aceite confirmado'
                           : 'Endereço completo protegido',
-                      text: aceito
-                          ? 'A API atual ainda não fornece o endereço completo nesta tela. Consulte apenas os dados retornados para esta solicitação.'
+                      text: enderecoLiberado
+                          ? 'A API autorizou o acesso ao endereço desta solicitação.'
+                          : aceito
+                          ? 'A API ainda não liberou o endereço completo para esta solicitação.'
                           : 'O endereço completo só fica disponível após o aceite válido registrado pela API.',
                     ),
                     if (enderecoLiberado)

@@ -9,6 +9,11 @@ import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 
+double? _precoInicialFromText(String value) {
+  final preco = double.tryParse(value.trim().replaceAll(',', '.'));
+  return preco != null && preco.isFinite && preco >= 0 ? preco : null;
+}
+
 class CadastroProfissionalPage extends StatefulWidget {
   const CadastroProfissionalPage({super.key});
 
@@ -23,7 +28,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   final _bairroController = TextEditingController(text: 'Jardim das Flores');
   final _precoController = TextEditingController(text: '80');
   bool _empresa = false;
-  bool _documentosEnviados = false;
+  bool _perfilSalvo = false;
   bool _salvando = false;
   late Future<List<AtendimentoResumo>> _pendentesFuture;
 
@@ -66,17 +71,23 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   Future<void> _continuar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_salvando) return;
+    final precoInicial = _precoInicialFromText(_precoController.text);
+    if (precoInicial == null) return;
 
     setState(() => _salvando = true);
     try {
       if (AppServices.instance.auth.autenticado) {
-        await AppServices.instance.profissionais.salvarMeuPerfil({
+        final profissionais = AppServices.instance.profissionais;
+        final resposta = await profissionais.meuPerfil();
+        final servicosAtuais = _servicosExistentes(resposta['profissional']);
+        await profissionais.salvarMeuPerfil({
           'descricao': _descricaoController.text.trim(),
           'bairro': _bairroController.text.trim(),
-          'precoInicial': _precoController.text.trim(),
+          'precoInicial': precoInicial,
+          'servicos': servicosAtuais,
         });
       }
-      setState(() => _documentosEnviados = true);
+      if (mounted) setState(() => _perfilSalvo = true);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,6 +98,28 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
+  }
+
+  List<Map<String, dynamic>> _servicosExistentes(Object? perfil) {
+    if (perfil is! Map<String, dynamic> || perfil['servicos'] is! List) {
+      return const [];
+    }
+
+    return (perfil['servicos'] as List)
+        .whereType<Map>()
+        .map((servico) {
+          final categoria = servico['categoria'];
+          final categoriaId =
+              servico['categoriaId'] ??
+              (categoria is Map ? categoria['id'] : null);
+          final preco = servico['precoInicial'];
+          return <String, dynamic>{
+            'nome': servico['nome'],
+            'categoriaId': ?categoriaId,
+            'precoInicial': ?preco,
+          };
+        })
+        .toList(growable: false);
   }
 
   @override
@@ -110,7 +143,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Passo 1 de 4: dados de atuação, serviços e documentação.',
+              'Passo 1 de 4: dados de atuação. Serviços e documentos são gerenciados nas próximas etapas.',
               style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 16),
@@ -120,7 +153,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
               bairroController: _bairroController,
               precoController: _precoController,
               empresa: _empresa,
-              documentosEnviados: _documentosEnviados,
+              perfilSalvo: _perfilSalvo,
               salvando: _salvando,
               onEmpresaChanged: (value) => setState(() => _empresa = value),
               onContinuar: () => _continuar(),
@@ -180,7 +213,7 @@ class _FormularioProfissional extends StatelessWidget {
     required this.bairroController,
     required this.precoController,
     required this.empresa,
-    required this.documentosEnviados,
+    required this.perfilSalvo,
     required this.salvando,
     required this.onEmpresaChanged,
     required this.onContinuar,
@@ -191,7 +224,7 @@ class _FormularioProfissional extends StatelessWidget {
   final TextEditingController bairroController;
   final TextEditingController precoController;
   final bool empresa;
-  final bool documentosEnviados;
+  final bool perfilSalvo;
   final bool salvando;
   final ValueChanged<bool> onEmpresaChanged;
   final VoidCallback onContinuar;
@@ -241,7 +274,9 @@ class _FormularioProfissional extends StatelessWidget {
                   prefixText: 'R\$ ',
                   border: OutlineInputBorder(),
                 ),
-                validator: validarCampoObrigatorio,
+                validator: (value) => _precoInicialFromText(value ?? '') == null
+                    ? 'Informe um preço válido.'
+                    : null,
               ),
               const SizedBox(height: 12),
               const _DocumentoAviso(),
@@ -275,14 +310,12 @@ class _FormularioProfissional extends StatelessWidget {
                   key: const ValueKey('profissional-continuar'),
                   onPressed: salvando ? null : onContinuar,
                   icon: Icon(
-                    documentosEnviados
-                        ? Icons.verified_user_outlined
+                    perfilSalvo
+                        ? Icons.check_circle_outline
                         : Icons.upload_file_outlined,
                   ),
                   label: Text(
-                    documentosEnviados
-                        ? 'Documentação enviada para análise'
-                        : 'Continuar',
+                    perfilSalvo ? 'Perfil profissional salvo' : 'Continuar',
                   ),
                 ),
               ),

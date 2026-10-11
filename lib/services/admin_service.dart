@@ -7,6 +7,9 @@ class AdminService {
 
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
 
+  Future<Map<String, dynamic>> auditoria() =>
+      _api.get('admin/painel/auditoria');
+
   Future<Map<String, dynamic>> usuarios({String? tipo, String? termo}) =>
       _api.get(
         'admin/usuarios',

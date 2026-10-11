@@ -57,6 +57,7 @@ abstract final class AppRoutes {
   static const adminDenuncias = '/admin/denuncias';
   static const adminAvaliacoes = '/admin/avaliacoes';
   static const adminCategorias = '/admin/categorias';
+  static const adminAuditoria = '/admin/auditoria';
 
   static final Map<String, WidgetBuilder> routes = {
     home: (_) => const HomePage(),
@@ -91,5 +92,6 @@ abstract final class AppRoutes {
     adminDenuncias: (_) => const AdminPage(modulo: AdminModulo.denuncias),
     adminAvaliacoes: (_) => const AdminPage(modulo: AdminModulo.avaliacoes),
     adminCategorias: (_) => const AdminPage(modulo: AdminModulo.categorias),
+    adminAuditoria: (_) => const AdminPage(modulo: AdminModulo.auditoria),
   };
 }

@@ -11,6 +11,7 @@ enum AdminModulo {
   denuncias,
   avaliacoes,
   categorias,
+  auditoria,
 }
 
 class AdminPage extends StatefulWidget {
@@ -49,6 +50,9 @@ class _AdminPageState extends State<AdminPage> {
       case AdminModulo.categorias:
         result = await service.categorias();
         key = 'categorias';
+      case AdminModulo.auditoria:
+        result = await service.auditoria();
+        key = 'eventos';
       case AdminModulo.painel:
         return const [];
     }
@@ -88,6 +92,7 @@ class _AdminPageState extends State<AdminPage> {
       AdminModulo.denuncias => 'Denúncias',
       AdminModulo.avaliacoes => 'Avaliações',
       AdminModulo.categorias => 'Categorias',
+      AdminModulo.auditoria => 'Registro de auditoria',
     };
     return Scaffold(
       appBar: AppBarCustom(
@@ -108,6 +113,7 @@ class _AdminPageState extends State<AdminPage> {
           AdminModulo.painel => 0,
           AdminModulo.usuarios => 1,
           AdminModulo.categorias => 3,
+          AdminModulo.auditoria => 0,
           _ => 2,
         },
         onDestinationSelected: (i) => _abrir(switch (i) {
@@ -247,6 +253,12 @@ class _AdminPageState extends State<AdminPage> {
             subtitle: 'Gerenciar itens do catálogo',
             onTap: () => _abrir(AdminModulo.categorias),
           ),
+          _AdminAtalho(
+            icon: Icons.history,
+            title: 'Registro de auditoria',
+            subtitle: 'Consultar as ações administrativas recentes',
+            onTap: () => _abrir(AdminModulo.auditoria),
+          ),
         ],
       );
     },
@@ -341,7 +353,13 @@ class _AdminPageState extends State<AdminPage> {
             ),
           Expanded(
             child: items.isEmpty
-                ? const Center(child: Text('Nenhum item para revisar.'))
+                ? Center(
+                    child: Text(
+                      _modulo == AdminModulo.auditoria
+                          ? 'Nenhuma ação administrativa registrada.'
+                          : 'Nenhum item para revisar.',
+                    ),
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
                     itemCount: items.length,
@@ -430,6 +448,33 @@ class _AdminPageState extends State<AdminPage> {
               icon: const Icon(Icons.edit_outlined),
               onPressed: () => _editarCategoria(item),
             ),
+          ),
+        );
+      case AdminModulo.auditoria:
+        final ator = _map(item['ator']);
+        final detalhe = '${item['detalhe'] ?? ''}'.trim();
+        return Card(
+          margin: const EdgeInsets.only(bottom: 9),
+          child: ListTile(
+            leading: const Icon(Icons.history, color: AppColors.verde),
+            title: Text(_rotuloAcaoAuditoria(item['acao']?.toString())),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Por ${ator['nome'] ?? 'Administrador'} • ${ator['tipo'] ?? 'administrador'}',
+                  ),
+                  Text(
+                    'Alvo: ${item['alvoTipo'] ?? 'registro'} #${item['alvoId'] ?? '—'}',
+                  ),
+                  if (detalhe.isNotEmpty) Text(detalhe),
+                  Text(_dataAuditoria(item['criadoEm'])),
+                ],
+              ),
+            ),
+            isThreeLine: true,
           ),
         );
       case AdminModulo.painel:
@@ -713,6 +758,28 @@ class _AdminPageState extends State<AdminPage> {
 
   void _avisar(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+}
+
+String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
+  'usuario_ativado' => 'Conta ativada',
+  'usuario_desativado' => 'Conta desativada',
+  'administrador_criado' => 'Administrador criado',
+  'categoria_criada' => 'Categoria criada',
+  'categoria_atualizada' => 'Categoria atualizada',
+  'documento_analisado' => 'Documento analisado',
+  'denuncia_moderada' => 'Denúncia moderada',
+  'avaliacao_moderada' => 'Avaliação moderada',
+  _ => 'Ação administrativa',
+};
+
+String _dataAuditoria(Object? valor) {
+  final data = valor is String ? DateTime.tryParse(valor)?.toLocal() : null;
+  if (data == null) return 'Data indisponível';
+  final dia = data.day.toString().padLeft(2, '0');
+  final mes = data.month.toString().padLeft(2, '0');
+  final hora = data.hour.toString().padLeft(2, '0');
+  final minuto = data.minute.toString().padLeft(2, '0');
+  return '$dia/$mes/${data.year} às $hora:$minuto';
 }
 
 class _Indicador extends StatelessWidget {
