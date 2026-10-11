@@ -156,24 +156,16 @@ class _BuscaPageState extends State<BuscaPage> {
               return ListView(
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
-                  20,
+                  16,
                   horizontalPadding,
                   28,
                 ),
                 children: [
-                  Text(
-                    'Encontre profissionais',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: AppColors.texto,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
                   const Text(
                     'Pesquise por serviço, profissional ou bairro.',
                     style: TextStyle(color: AppColors.textoSuave, height: 1.35),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   _FiltrosBusca(
                     termoController: _termoController,
                     bairroController: _bairroController,
@@ -183,7 +175,7 @@ class _BuscaPageState extends State<BuscaPage> {
                     onCategoriaSelecionada: _selecionarCategoria,
                     onLimparFiltros: _temFiltros ? _limparFiltros : null,
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 20),
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Center(child: CircularProgressIndicator())
                   else ...[
@@ -280,7 +272,7 @@ class _FiltrosBusca extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             if (categorias.isNotEmpty) ...[
               const Wrap(
                 spacing: 12,
@@ -323,26 +315,40 @@ class _FiltrosBusca extends StatelessWidget {
                 ),
               ),
             ],
-            if (categoriaSelecionada != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Categoria: ${categoriaSelecionada!.nome}',
-                style: const TextStyle(
-                  color: AppColors.verdeEscuro,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+            if (categoriaSelecionada != null || onLimparFiltros != null) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: categoriaSelecionada == null
+                      ? WrapAlignment.end
+                      : WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (categoriaSelecionada != null)
+                      Text(
+                        'Categoria: ${categoriaSelecionada!.nome}',
+                        style: const TextStyle(
+                          color: AppColors.verdeEscuro,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    if (onLimparFiltros != null)
+                      TextButton.icon(
+                        onPressed: onLimparFiltros,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                        ),
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        label: const Text('Limpar filtros'),
+                      ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onLimparFiltros,
-                icon: const Icon(Icons.close_rounded, size: 18),
-                label: const Text('Limpar filtros'),
-              ),
-            ),
           ],
         ),
       ),

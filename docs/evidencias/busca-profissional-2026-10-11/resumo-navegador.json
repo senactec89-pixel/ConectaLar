@@ -1,0 +1,50 @@
+{
+  "busca": {
+    "modo": "demonstracao",
+    "base": "5db8ecb",
+    "hash_arquivo_busca": "281ebb76e7e8198778ea2a51e41cd48191c50f76",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Dados fictícios; não valida a API real."
+  },
+  "busca-categoria": {
+    "modo": "demonstracao",
+    "base": "5db8ecb",
+    "hash_arquivo_busca": "281ebb76e7e8198778ea2a51e41cd48191c50f76",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Dados fictícios; não valida a API real."
+  },
+  "busca-vazia": {
+    "modo": "demonstracao",
+    "base": "5db8ecb",
+    "hash_arquivo_busca": "281ebb76e7e8198778ea2a51e41cd48191c50f76",
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "altura": 844,
+    "escala_dispositivo": 1,
+    "excecoes_runtime": 0,
+    "erros_console": 0,
+    "avisos": 5,
+    "observacao": "Avisos de viewport e GPU. Dados fictícios; não valida a API real."
+  }
+}
