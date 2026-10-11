@@ -244,7 +244,7 @@ class _DadosProtegidos extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Dados protegidos: endereço completo, documentos e conversas só devem ser liberados por autorização no backend.',
+              'Endereço completo, documentos e conversas são informações privadas. Compartilhe seus dados com cuidado.',
               style: TextStyle(
                 color: AppColors.texto,
                 fontWeight: FontWeight.w700,

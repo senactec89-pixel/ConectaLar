@@ -569,14 +569,14 @@ class _DetalheSolicitacaoProfissionalPageState
                           ? 'Aceite confirmado'
                           : 'Endereço completo protegido',
                       text: enderecoLiberado
-                          ? 'A API autorizou o acesso ao endereço desta solicitação.'
+                          ? 'O endereço está disponível para este atendimento.'
                           : aceito
-                          ? 'A API ainda não liberou o endereço completo para esta solicitação.'
-                          : 'O endereço completo só fica disponível após o aceite válido registrado pela API.',
+                          ? 'O endereço completo ainda não está disponível para este atendimento.'
+                          : 'O endereço completo fica disponível após o aceite, quando o acesso for autorizado para este atendimento.',
                     ),
                     if (enderecoLiberado)
                       _InfoCard(
-                        title: 'Endereço completo liberado pela API',
+                        title: 'Endereço completo disponível',
                         value: enderecoTexto,
                       ),
                     const SizedBox(height: 14),
@@ -670,7 +670,11 @@ class _DetalheSolicitacaoProfissionalPageState
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('A API não confirmou a alteração.')),
+          const SnackBar(
+            content: Text(
+              'Não foi possível confirmar a alteração. Tente novamente.',
+            ),
+          ),
         );
       }
     } finally {
@@ -887,7 +891,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                     icon: Icons.info_outline,
                     title: 'Ofertas profissionais',
                     text:
-                        'Serviços e preços iniciais são gerenciados pela API. O valor final é combinado fora do aplicativo.',
+                        'Cadastre os serviços que você oferece e seus preços iniciais. O valor final e o pagamento são combinados fora do aplicativo.',
                   ),
                   const SizedBox(height: 12),
                   if (list.isEmpty)

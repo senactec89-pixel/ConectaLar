@@ -13,8 +13,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | 5 | Notificações: envio, erros e retorno | Enviada: `67a9ee8` |
 | 6 | Atualização de Meus serviços ao retornar | Enviada: `5cf520a` |
 | 7 | Encaminhamento após sessão expirada | Enviada: `f12b8ac` |
-| 8 | Filtros administrativos de documentos | Verificada |
-| 9 | Textos e identidade da versão web | A executar |
+| 8 | Filtros administrativos de documentos | Enviada: `b386db3` |
+| 9 | Textos e identidade da versão web | Concluída; commit desta etapa no histórico |
 
 ## Etapa 1 — referências e auditoria
 
@@ -129,3 +129,23 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Dois testes específicos aprovados: quatro filtros em 360/390/412 px com texto 1,4; erro/retry e lista vazia preservando o filtro.
 
 - `flutter analyze --no-pub`: sem problemas. Suíte completa: 61 testes aprovados.
+
+## Etapa 9 — acabamento e revisão final
+
+- Login inicia sem e-mail fictício e informa erros com acentuação correta.
+- Textos de privacidade, endereço, disponibilidade e ofertas falam das ações do usuário. Lógica, permissões, valores e integração permanecem os existentes.
+- HTML com idioma pt-BR, título/descrição ConectaLar e cor verde; manifest com nome, descrição e cores do tema atual. Identificadores de pacote não foram renomeados.
+- Estados comuns de erro/vazio têm scroll quando a altura disponível é pequena.
+- Doze testes específicos aprovados: oito telas profissionais preenchidas em 360/390/412 px e texto 1,4 (incluindo agenda/pedidos); edição profissional com teclado; empresa nas três larguras; login vazio com teclado; estados de erro/vazio com 220 px de altura e texto 1,6; metadados web.
+
+- A primeira compilação web mostrou falta da fonte CupertinoIcons. Adicionado `cupertino_icons` conforme a dependência padrão do template Flutter instalado; somente esse pacote foi acrescentado ao lockfile, preservando as demais versões. A regressão foi repetida após a inclusão.
+
+- Após a fonte: `flutter analyze --no-pub` sem problemas e `flutter test --no-pub` com 73 testes aprovados. Compilações web de prévia cliente e profissional concluídas; arquivo CupertinoIcons.ttf incluído no bundle.
+
+- Prévia administrativa também compilada com sucesso. Nove capturas do Flutter Web em viewport mobile foram inspecionadas: Home, área profissional e central administrativa em 360/390/412 px. Não foram registrados erros/exceções do app nos eventos do navegador; os logs incluem avisos de desempenho do WebGL e de configuração do viewport pelo Flutter.
+- A imagem da casa foi aguardada até carregar antes de registrar as capturas finais. O enquadramento e a altura do cabeçalho aprovado foram preservados.
+- [Capturas e instruções](evidencias/front-end-2026-10-11/README.md).
+
+## Limites da validação
+
+As nove etapas cobrem front-end, prévia, estados visuais e navegação. Backend, banco, migrations e OpenAPI não receberam alterações. Os testes usam respostas HTTP/sessões simuladas e não confirmam comportamento do servidor real. A inspeção mobile foi feita no Flutter Web; os fluxos integrados e o seletor nativo ainda precisam de homologação em aparelho. Não há declaração de fidelidade pixel a pixel de todos os PDFs ou de prontidão para produção do projeto inteiro.

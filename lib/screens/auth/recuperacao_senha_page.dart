@@ -392,7 +392,7 @@ class _AvisoTokenDemonstracao extends StatelessWidget {
           SizedBox(width: 10),
           Expanded(
             child: Text(
-              'A API enviou um código de demonstração e o preencheu para este ambiente local.',
+              'Código de demonstração preenchido para este ambiente local.',
               style: TextStyle(height: 1.35, color: Color(0xFF553D00)),
             ),
           ),

@@ -1,0 +1,236 @@
+[
+  {
+    "method": "Runtime.consoleAPICalled",
+    "params": {
+      "type": "warning",
+      "args": [
+        {
+          "type": "string",
+          "value": "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced."
+        }
+      ],
+      "executionContextId": 2,
+      "timestamp": 1791738947790.212,
+      "stackTrace": {
+        "callFrames": [
+          {
+            "functionName": "call$1",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 66711,
+            "columnNumber": 24
+          },
+          {
+            "functionName": "call$0",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 81204,
+            "columnNumber": 30
+          },
+          {
+            "functionName": "_applyViewportMeta$0",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 81182,
+            "columnNumber": 96
+          },
+          {
+            "functionName": "EmbeddingStrategy_EmbeddingStrategy$create",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 4463,
+            "columnNumber": 11
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 2385,
+            "columnNumber": 99
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11957,
+            "columnNumber": 14
+          },
+          {
+            "functionName": "call$2",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 88565,
+            "columnNumber": 11
+          },
+          {
+            "functionName": "_asyncStartSync",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11921,
+            "columnNumber": 19
+          },
+          {
+            "functionName": "initializeEngineUi",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 2401,
+            "columnNumber": 15
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 99261,
+            "columnNumber": 37
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11957,
+            "columnNumber": 14
+          },
+          {
+            "functionName": "call$2",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 88565,
+            "columnNumber": 11
+          },
+          {
+            "functionName": "_asyncStartSync",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11921,
+            "columnNumber": 19
+          },
+          {
+            "functionName": "call$0",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 99269,
+            "columnNumber": 15
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 62978,
+            "columnNumber": 46
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11957,
+            "columnNumber": 14
+          },
+          {
+            "functionName": "call$2",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 88565,
+            "columnNumber": 11
+          },
+          {
+            "functionName": "_asyncStartSync",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 11921,
+            "columnNumber": 19
+          },
+          {
+            "functionName": "call$1",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 62990,
+            "columnNumber": 15
+          },
+          {
+            "functionName": "call$1",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 68605,
+            "columnNumber": 72
+          },
+          {
+            "functionName": "call$0",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 68608,
+            "columnNumber": 18
+          },
+          {
+            "functionName": "_callDartFunctionFast1",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 16424,
+            "columnNumber": 22
+          },
+          {
+            "functionName": "",
+            "scriptId": "5",
+            "url": "http://127.0.0.1:44543/main.dart.js",
+            "lineNumber": 16399,
+            "columnNumber": 17
+          },
+          {
+            "functionName": "",
+            "scriptId": "3",
+            "url": "http://127.0.0.1:44543/flutter_bootstrap.js",
+            "lineNumber": 0,
+            "columnNumber": 1716
+          }
+        ]
+      }
+    }
+  },
+  {
+    "method": "Log.entryAdded",
+    "params": {
+      "entry": {
+        "source": "rendering",
+        "level": "warning",
+        "text": "[.WebGL-0x2e44009f7a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+        "timestamp": 1791738950223.323,
+        "url": "http://127.0.0.1:44543/"
+      }
+    }
+  },
+  {
+    "method": "Log.entryAdded",
+    "params": {
+      "entry": {
+        "source": "rendering",
+        "level": "warning",
+        "text": "[.WebGL-0x2e44009f7a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+        "timestamp": 1791738950485.783,
+        "url": "http://127.0.0.1:44543/"
+      }
+    }
+  },
+  {
+    "method": "Log.entryAdded",
+    "params": {
+      "entry": {
+        "source": "rendering",
+        "level": "warning",
+        "text": "[.WebGL-0x2e44009f7a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+        "timestamp": 1791738974954.066,
+        "url": "http://127.0.0.1:44543/"
+      }
+    }
+  },
+  {
+    "method": "Log.entryAdded",
+    "params": {
+      "entry": {
+        "source": "rendering",
+        "level": "warning",
+        "text": "[.WebGL-0x2e44009f7a00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)",
+        "timestamp": 1791738975031.545,
+        "url": "http://127.0.0.1:44543/"
+      }
+    }
+  }
+]

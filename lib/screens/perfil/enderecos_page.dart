@@ -130,7 +130,7 @@ class _AvisoEndereco extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
               child: Text(
-                'O endereço completo é dado protegido. No pedido, usamos o bairro; a liberação completa depende de aceite válido e autorização no backend.',
+                'O endereço completo é privado. Antes do aceite, o profissional vê somente o bairro do atendimento.',
                 style: TextStyle(height: 1.35),
               ),
             ),

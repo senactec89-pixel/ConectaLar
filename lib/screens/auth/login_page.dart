@@ -16,7 +16,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'mariana@email.com');
+  final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   bool _ocultarSenha = true;
   bool _enviando = false;
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
       _mostrarErro(error.message);
     } catch (_) {
       if (!mounted) return;
-      _mostrarErro('Nao foi possivel entrar. Verifique sua conexao.');
+      _mostrarErro('Não foi possível entrar. Verifique sua conexão.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -183,7 +183,7 @@ class _AvisoSegurancaAuth extends StatelessWidget {
         SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Sua senha e sessao sao validadas pela API do ConectaLar. Nunca compartilhe seus dados de acesso.',
+            'Use os dados da sua conta. Nunca compartilhe sua senha ou seus códigos de acesso.',
             style: TextStyle(color: AppColors.textoSuave, height: 1.35),
           ),
         ),

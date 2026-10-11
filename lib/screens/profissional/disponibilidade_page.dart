@@ -122,7 +122,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                       child: Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Cadastre os horários em que você pode receber solicitações. Pedidos fora desses horários são recusados pela API.',
+                          'Cadastre os horários em que você pode receber solicitações. Os pedidos devem respeitar os horários disponíveis.',
                         ),
                       ),
                     ),

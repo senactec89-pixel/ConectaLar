@@ -709,7 +709,7 @@ class _AdminPageState extends State<AdminPage> {
       }
     } catch (_) {
       if (mounted) {
-        _avisar('A API não permitiu atualizar o status desta conta.');
+        _avisar('Não foi possível atualizar o status desta conta.');
       }
     } finally {
       if (mounted) setState(() => _mutando = false);

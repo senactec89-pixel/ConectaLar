@@ -606,7 +606,7 @@ class _RegraStatus extends StatelessWidget {
       child: const Text(
         'A solicitação só vira agendamento confirmado quando o profissional '
         'aceita e o sistema registra a confirmação do agendamento. A proteção real '
-        'de ações, endereço e chat deve ser validada pela API.',
+        'de ações, endereço e chat segue as permissões da sua conta.',
         style: TextStyle(
           color: AppColors.texto,
           fontWeight: FontWeight.w700,
