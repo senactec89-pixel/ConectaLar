@@ -1171,9 +1171,11 @@ class _PedidoCard extends StatelessWidget {
                     onPressed: onDecline,
                     icon: const Icon(Icons.close, color: Color(0xFFC53030)),
                   ),
-                  FilledButton(
-                    onPressed: onAccept,
-                    child: const Text('Aceitar'),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: onAccept,
+                      child: const Text('Aceitar'),
+                    ),
                   ),
                 ],
               ],

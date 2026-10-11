@@ -6,8 +6,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 
 | Etapa | Trabalho | Situação |
 | --- | --- | --- |
-| 1 | Auditoria dos protótipos e responsividade | Verificada |
-| 2 | Prévia isolada das telas sem API | A executar |
+| 1 | Auditoria dos protótipos e responsividade | Enviada: `32bcfbc` |
+| 2 | Prévia isolada das telas sem API | Verificada |
 | 3 | Cadastro, leitura de termos e empresa | A executar |
 | 4 | Chat: erro, nova tentativa e atualização | A executar |
 | 5 | Notificações: envio, erros e retorno | A executar |
@@ -54,3 +54,22 @@ Referências disponíveis em `/home/rodrigo/Downloads`: `Prototipo 2.pdf` (8 pá
 - Capturas anteriores de área profissional e avaliações foram confrontadas com as referências. A inspeção de código/testes não substitui homologação manual de cada fluxo em aparelho, nem certifica fidelidade pixel a pixel.
 
 As próximas etapas mantêm dados de prévia explicitamente fictícios e não alteram autorizações do uso real.
+
+## Etapa 2 — prévia isolada
+
+- `CONECTALAR_DEMO=true` inicializa uma conta fictícia somente em memória. A sessão real não é lida, sobrescrita ou apagada, inclusive no logout da prévia.
+- `CONECTALAR_DEMO_ROLE` seleciona `cliente`, `profissional`, `empresa` ou `administrador`. O cliente local não tem transporte de rede; somente consultas e login/logout fictícios são atendidos. Operações de salvar, aceitar, moderar ou enviar mostram aviso de que a prévia não salva dados.
+- A faixa “DEMONSTRAÇÃO” identifica a versão. Acesso administrativo e papéis do uso real continuam verificando a sessão/API.
+- Configurações de execução disponíveis no VS Code em `.vscode/launch.json`.
+- URL padrão corrigida para desktop/web/iOS (`127.0.0.1:3012`); Android mantém o alias do emulador (`10.0.2.2:3012`). A definição explícita de URL prevalece. A API padrão sem o script Windows pode usar outra porta, como 3000; nesse caso informar a URL completa.
+- Home diferencia conexão indisponível, timeout e erro genérico, com nova tentativa e scroll no estado de erro.
+- A prévia preenchida revelou um botão “Aceitar” com largura infinita dentro de uma linha de pedido profissional. A largura agora é limitada pelo espaço da linha.
+- Verificação: quatro papéis abriram em 390 px sem API; sessão real preservada ao iniciar e sair; uso real ainda restaura a sessão; URL explícita testada separadamente; erro/retry da Home coberto. `flutter analyze --no-pub`: sem problemas. Suíte completa: 44 testes aprovados.
+
+Exemplo para trabalhar no Linux sem API:
+
+```bash
+flutter run -d linux --dart-define=CONECTALAR_DEMO=true --dart-define=CONECTALAR_DEMO_ROLE=administrador
+```
+
+Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual de leitura; não comprova fluxos de negócio integrados. Depois de mudar `dart-define`, reiniciar a execução completa, pois hot reload não troca essas definições.

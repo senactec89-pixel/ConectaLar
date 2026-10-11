@@ -1,0 +1,51 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ConectaLar: prévia cliente",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=CONECTALAR_DEMO=true",
+        "--dart-define=CONECTALAR_DEMO_ROLE=cliente"
+      ]
+    },
+    {
+      "name": "ConectaLar: prévia profissional",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=CONECTALAR_DEMO=true",
+        "--dart-define=CONECTALAR_DEMO_ROLE=profissional"
+      ]
+    },
+    {
+      "name": "ConectaLar: prévia empresa",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=CONECTALAR_DEMO=true",
+        "--dart-define=CONECTALAR_DEMO_ROLE=empresa"
+      ]
+    },
+    {
+      "name": "ConectaLar: prévia admin",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=CONECTALAR_DEMO=true",
+        "--dart-define=CONECTALAR_DEMO_ROLE=administrador"
+      ]
+    },
+    {
+      "name": "ConectaLar: API real",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    }
+  ]
+}

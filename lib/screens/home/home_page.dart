@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
@@ -78,7 +81,7 @@ class _HomePageState extends State<HomePage> {
             }
 
             if (snapshot.hasError) {
-              return _HomeErrorState(onRetry: _retry);
+              return _HomeErrorState(error: snapshot.error!, onRetry: _retry);
             }
 
             return _HomeContentView(
@@ -1037,20 +1040,28 @@ class _EmptySectionMessage extends StatelessWidget {
 }
 
 class _HomeErrorState extends StatelessWidget {
-  const _HomeErrorState({required this.onRetry});
+  const _HomeErrorState({required this.error, required this.onRetry});
 
+  final Object error;
   final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Não foi possível carregar a página inicial. Tente novamente.',
+              switch (error) {
+                TimeoutException() =>
+                  'O carregamento demorou mais que o esperado. Tente novamente.',
+                http.ClientException() =>
+                  'Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.',
+                _ =>
+                  'Não foi possível carregar a página inicial. Tente novamente.',
+              },
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),

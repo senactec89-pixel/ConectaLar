@@ -1,4 +1,5 @@
 import '../models/home_content.dart';
+import '../data/frontend_preview_client.dart';
 import '../utils/constants.dart';
 import 'api_mappers.dart';
 import 'api_service.dart';
@@ -19,9 +20,16 @@ import 'verificacao_service.dart';
 class AppServices {
   static AppServices instance = AppServices();
 
-  AppServices({ApiService? api, this.modoDemo = AppConstants.demoMode})
-    : api = api ?? ApiService() {
-    auth = AuthService(this.api);
+  AppServices({
+    ApiService? api,
+    this.modoDemo = AppConstants.demoMode,
+    this.papelDemo = AppConstants.demoRole,
+  }) : api =
+           api ??
+           ApiService(
+             client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
+           ) {
+    auth = AuthService(this.api, persistirSessao: !modoDemo);
     admin = AdminService(this.api);
     avaliacoes = AvaliacaoService(this.api);
     categorias = CategoriaService(this.api);
@@ -38,6 +46,7 @@ class AppServices {
 
   final ApiService api;
   final bool modoDemo;
+  final String papelDemo;
   bool get emDemonstracao => modoDemo && !auth.autenticado;
   late AuthService auth;
   late AdminService admin;
@@ -52,6 +61,15 @@ class AppServices {
   late MensagemService mensagens;
   late DenunciaService denuncias;
   late VerificacaoService verificacao;
+
+  Future<void> inicializar() async {
+    if (modoDemo) {
+      // A prévia usa somente o cliente local e não lê/altera a sessão real.
+      await auth.login(email: 'previa@example.invalid', senha: 'previa-visual');
+    } else {
+      await auth.inicializarSessao();
+    }
+  }
 
   Future<HomeContent> carregarHome() async {
     final responses = await Future.wait([

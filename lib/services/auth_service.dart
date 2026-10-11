@@ -5,17 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 
 class AuthService {
-  AuthService(this._api);
+  AuthService(this._api, {this.persistirSessao = true});
 
   static const _sessionKey = 'conectalar.auth.session.v1';
 
   final ApiService _api;
+  final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
 
   Map<String, dynamic>? get usuarioAtual => _usuarioAtual;
   bool get autenticado => _api.autenticado;
 
   Future<void> inicializarSessao() async {
+    if (!persistirSessao) return;
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_sessionKey);
     if (raw == null || raw.trim().isEmpty) return;
@@ -111,8 +113,10 @@ class AuthService {
     }
     _usuarioAtual = null;
     _api.definirToken(null);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sessionKey);
+    if (persistirSessao) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionKey);
+    }
     return response;
   }
 
@@ -130,7 +134,7 @@ class AuthService {
     if (usuario is Map<String, dynamic>) {
       _usuarioAtual = usuario;
     }
-    if (accessToken != null && _usuarioAtual != null) {
+    if (persistirSessao && accessToken != null && _usuarioAtual != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         _sessionKey,
