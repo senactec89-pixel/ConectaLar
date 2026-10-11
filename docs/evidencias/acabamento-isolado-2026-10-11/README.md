@@ -51,7 +51,7 @@ Disponibilidade e modal foram capturados após seu ajuste específico; o arquivo
 
 ## Pendências da auditoria
 
-O teste de lista preenchida com texto 200% revelou overflows de 30 e 29 px no selo e na linha de ações de `lib/widgets/profissional_card.dart`. Esse componente compartilhado permanece reservado até confirmar a divisão com o colega. As verificações preenchidas de Busca/Favoritos cobrem 140%; os controles, cabeçalhos e estados vazios cobrem 200% conforme a tabela. Não há confirmação de suporte a 200% para os cards preenchidos.
+O teste de lista preenchida com texto 200% revelou overflows de 30 e 29 px no selo e na linha de ações de `lib/widgets/profissional_card.dart`. Este registro documenta a situação daquela etapa. O componente foi ajustado e verificado posteriormente em [Cards de profissionais](../cards-profissionais-2026-10-11/README.md), com as listas preenchidas de Busca e Favoritos a 200%.
 
 Na tela Meus dados, ainda há oportunidades locais: permitir múltiplas linhas no texto de apoio do e-mail (`lib/screens/perfil/editar_dados_page.dart`) e tornar seu estado de erro rolável em alturas pequenas. Esses ajustes foram registrados para uma próxima etapa; esse arquivo permaneceu igual nesta entrega.
 

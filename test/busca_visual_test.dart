@@ -101,19 +101,14 @@ void main() {
     }
   });
 
-  testWidgets('busca mantém resultados e filtros acessíveis com texto 140%', (
+  testWidgets('busca mantém resultados e filtros acessíveis com texto 200%', (
     tester,
   ) async {
     await configurarFrontend();
     addTearDown(tester.view.resetViewInsets);
     for (final width in [360.0, 390.0, 412.0]) {
       await tester.pumpWidget(const SizedBox.shrink());
-      await abrirFrontend(
-        tester,
-        AppRoutes.busca,
-        width: width,
-        textScale: 1.4,
-      );
+      await abrirFrontend(tester, AppRoutes.busca, width: width, textScale: 2);
       await tester.scrollUntilVisible(
         find.text('2 profissionais encontrados'),
         200,
