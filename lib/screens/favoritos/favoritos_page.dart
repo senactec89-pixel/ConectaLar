@@ -115,6 +115,40 @@ class _FavoritosPageState extends State<FavoritosPage> {
                   style: TextStyle(color: AppColors.textoSuave, height: 1.35),
                 ),
                 const SizedBox(height: 16),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.verdeClaro,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Text(
+                        'Profissionais',
+                        style: TextStyle(
+                          color: AppColors.verdeEscuro,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${favoritos.length} ${favoritos.length == 1 ? 'salvo' : 'salvos'}',
+                      style: const TextStyle(
+                        color: AppColors.textoSuave,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 if (favoritos.isEmpty)
                   const EmptyStateView(
                     title: 'Sua lista está vazia',
@@ -161,7 +195,11 @@ class _FavoritoItem extends StatelessWidget {
       trailingAction: IconButton.filledTonal(
         key: ValueKey('favorito-remover-${profissional.id}'),
         tooltip: 'Remover dos favoritos',
-        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          backgroundColor: const Color(0xFFFCEEEE),
+          minimumSize: const Size(48, 48),
+          padding: EdgeInsets.zero,
+        ),
         onPressed: onRemover,
         icon: const Icon(Icons.favorite, color: Color(0xFFC53030)),
       ),
