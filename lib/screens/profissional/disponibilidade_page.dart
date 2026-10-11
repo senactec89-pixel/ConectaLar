@@ -18,6 +18,7 @@ class DisponibilidadePage extends StatefulWidget {
 class _DisponibilidadePageState extends State<DisponibilidadePage> {
   late Future<List<Disponibilidade>> _future;
   final List<Disponibilidade> _itens = [];
+  bool _salvando = false;
 
   @override
   void initState() {
@@ -40,6 +41,8 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
   }
 
   Future<void> _salvar() async {
+    if (_salvando) return;
+    setState(() => _salvando = true);
     try {
       await AppServices.instance.profissionais.salvarMinhaDisponibilidade(
         _itens.map((item) => item.toApi()).toList(growable: false),
@@ -56,10 +59,13 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
           content: Text('Confira os horários. Eles não podem se sobrepor.'),
         ),
       );
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 
   Future<void> _adicionar() async {
+    if (_salvando) return;
     final item = await showModalBottomSheet<Disponibilidade>(
       context: context,
       isScrollControlled: true,
@@ -70,6 +76,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
   }
 
   void _remover(int index) {
+    if (_salvando) return;
     setState(() => _itens.removeAt(index));
   }
 
@@ -79,59 +86,75 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
       appBar: const AppBarCustom(title: 'Disponibilidade'),
       backgroundColor: AppColors.fundo,
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _adicionar,
+        onPressed: _salvando ? null : _adicionar,
         icon: const Icon(Icons.add_rounded),
         label: const Text('Horário'),
       ),
-      body: FutureBuilder<List<Disponibilidade>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const AsyncLoadingView(label: 'Carregando disponibilidade.');
-          }
-          if (snapshot.hasError) {
-            return AsyncErrorView(
-              message: 'Não foi possível carregar seus horários agora.',
-              onRetry: () => setState(() => _future = _carregar()),
-              icon: Icons.calendar_month_outlined,
-            );
-          }
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
-            children: [
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Cadastre os horários em que você pode receber solicitações. Pedidos fora desses horários são recusados pela API.',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_itens.isEmpty)
-                const EmptyStateView(
-                  title: 'Agenda sem horários',
-                  message:
-                      'Adicione os períodos em que você pode receber solicitações.',
-                  icon: Icons.calendar_month_outlined,
-                )
-              else
-                for (var index = 0; index < _itens.length; index++) ...[
-                  _DisponibilidadeCard(
-                    item: _itens[index],
-                    onRemover: () => _remover(index),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _salvar,
-                icon: const Icon(Icons.save_outlined),
-                label: const Text('Salvar disponibilidade'),
-              ),
-            ],
-          );
-        },
+      body: Column(
+        children: [
+          if (_salvando) const LinearProgressIndicator(),
+          Expanded(
+            child: FutureBuilder<List<Disponibilidade>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const AsyncLoadingView(
+                    label: 'Carregando disponibilidade.',
+                  );
+                }
+                if (snapshot.hasError) {
+                  return AsyncErrorView(
+                    message: 'Não foi possível carregar seus horários agora.',
+                    onRetry: () => setState(() => _future = _carregar()),
+                    icon: Icons.calendar_month_outlined,
+                  );
+                }
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
+                  children: [
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text(
+                          'Cadastre os horários em que você pode receber solicitações. Pedidos fora desses horários são recusados pela API.',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_itens.isEmpty)
+                      const EmptyStateView(
+                        title: 'Agenda sem horários',
+                        message:
+                            'Adicione os períodos em que você pode receber solicitações.',
+                        icon: Icons.calendar_month_outlined,
+                      )
+                    else
+                      for (var index = 0; index < _itens.length; index++) ...[
+                        _DisponibilidadeCard(
+                          item: _itens[index],
+                          onRemover: () => _remover(index),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: _salvando ? null : _salvar,
+                      icon: _salvando
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save_outlined),
+                      label: Text(
+                        _salvando ? 'Salvando...' : 'Salvar disponibilidade',
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -146,17 +169,31 @@ class _DisponibilidadeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        leading: const Icon(
-          Icons.schedule_rounded,
-          color: AppColors.verdeEscuro,
-        ),
-        title: Text(_diaLabel(item.diaSemana)),
-        subtitle: Text('${item.horaInicio} às ${item.horaFim}'),
-        trailing: IconButton(
-          tooltip: 'Remover',
-          onPressed: onRemover,
-          icon: const Icon(Icons.delete_outline),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        child: Row(
+          children: [
+            const Icon(Icons.schedule_rounded, color: AppColors.verdeEscuro),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _diaLabel(item.diaSemana),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text('${item.horaInicio} às ${item.horaFim}'),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Remover horário de ${_diaLabel(item.diaSemana)}',
+              onPressed: onRemover,
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 double? _precoInicialFromText(String value) {
   final preco = double.tryParse(value.trim().replaceAll(',', '.'));
@@ -143,8 +144,17 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Passo 1 de 4: dados de atuação. Serviços e documentos são gerenciados nas próximas etapas.',
+              'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
               style: TextStyle(color: AppColors.textoSuave),
+            ),
+            const SizedBox(height: 16),
+            _EtapasCadastro(
+              onServicos: () =>
+                  Navigator.pushNamed(context, AppRoutes.servicosProfissional),
+              onDocumentos: () => Navigator.pushNamed(
+                context,
+                AppRoutes.documentosProfissional,
+              ),
             ),
             const SizedBox(height: 16),
             _FormularioProfissional(
@@ -172,15 +182,25 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
               future: _pendentesFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const AsyncLoadingView(
+                    label: 'Carregando solicitações recebidas.',
+                  );
+                }
+                if (snapshot.hasError) {
+                  return AsyncErrorView(
+                    message: 'Não foi possível carregar as solicitações.',
+                    icon: Icons.inbox_outlined,
+                    onRetry: () =>
+                        setState(() => _pendentesFuture = _carregarPendentes()),
+                  );
                 }
                 final pendentes = snapshot.data ?? const <AtendimentoResumo>[];
                 if (pendentes.isEmpty) {
-                  return const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text('Nenhuma solicitação aguardando resposta.'),
-                    ),
+                  return const EmptyStateView(
+                    title: 'Nenhuma solicitação nova',
+                    message:
+                        'Quando um cliente enviar um pedido, ele aparecerá aqui para sua análise.',
+                    icon: Icons.inbox_outlined,
                   );
                 }
                 return Column(
@@ -310,12 +330,18 @@ class _FormularioProfissional extends StatelessWidget {
                   key: const ValueKey('profissional-continuar'),
                   onPressed: salvando ? null : onContinuar,
                   icon: Icon(
-                    perfilSalvo
+                    salvando
+                        ? Icons.hourglass_top_rounded
+                        : perfilSalvo
                         ? Icons.check_circle_outline
-                        : Icons.upload_file_outlined,
+                        : Icons.arrow_forward_rounded,
                   ),
                   label: Text(
-                    perfilSalvo ? 'Perfil profissional salvo' : 'Continuar',
+                    salvando
+                        ? 'Salvando...'
+                        : perfilSalvo
+                        ? 'Perfil profissional salvo'
+                        : 'Salvar e continuar',
                   ),
                 ),
               ),
@@ -323,6 +349,66 @@ class _FormularioProfissional extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EtapasCadastro extends StatelessWidget {
+  const _EtapasCadastro({required this.onServicos, required this.onDocumentos});
+
+  final VoidCallback onServicos;
+  final VoidCallback onDocumentos;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      const _EtapaCadastroPill(numero: '1', titulo: 'Dados', ativa: true),
+      _EtapaCadastroPill(numero: '2', titulo: 'Serviços', onTap: onServicos),
+      _EtapaCadastroPill(
+        numero: '3',
+        titulo: 'Documentos',
+        onTap: onDocumentos,
+      ),
+    ],
+  );
+}
+
+class _EtapaCadastroPill extends StatelessWidget {
+  const _EtapaCadastroPill({
+    required this.numero,
+    required this.titulo,
+    this.ativa = false,
+    this.onTap,
+  });
+
+  final String numero;
+  final String titulo;
+  final bool ativa;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cor = ativa ? AppColors.verde : AppColors.textoSuave;
+    return ActionChip(
+      onPressed: onTap,
+      avatar: CircleAvatar(
+        radius: 12,
+        backgroundColor: ativa ? AppColors.verde : AppColors.verdeClaro,
+        child: Text(
+          numero,
+          style: TextStyle(
+            color: ativa ? Colors.white : AppColors.verdeEscuro,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      label: Text(titulo),
+      labelStyle: TextStyle(color: cor, fontWeight: FontWeight.w700),
+      backgroundColor: ativa ? AppColors.verdeClaro : Colors.white,
+      side: const BorderSide(color: AppColors.borda),
     );
   }
 }

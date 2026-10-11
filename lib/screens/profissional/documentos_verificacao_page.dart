@@ -216,12 +216,14 @@ class _DocumentoFormState extends State<_DocumentoForm> {
         _ => null,
       };
       if (mimeType == null) {
+        _limparArquivoSelecionado();
         _mostrarMensagem('Selecione um arquivo PDF, JPEG ou PNG.');
         return;
       }
 
       final tamanho = await arquivo.length();
       if (tamanho > _tamanhoMaximoArquivo) {
+        _limparArquivoSelecionado();
         _mostrarMensagem('O arquivo deve ter no máximo 5 MB.');
         return;
       }
@@ -229,6 +231,7 @@ class _DocumentoFormState extends State<_DocumentoForm> {
       final bytes = await arquivo.readAsBytes();
       if (!mounted) return;
       if (bytes.length > _tamanhoMaximoArquivo) {
+        _limparArquivoSelecionado();
         _mostrarMensagem('O arquivo deve ter no máximo 5 MB.');
         return;
       }
@@ -247,6 +250,17 @@ class _DocumentoFormState extends State<_DocumentoForm> {
     } finally {
       if (mounted) setState(() => _selecionandoArquivo = false);
     }
+  }
+
+  void _limparArquivoSelecionado() {
+    if (!mounted) return;
+    setState(() {
+      _arquivoBase64 = null;
+      _nomeArquivo = null;
+      _tamanhoArquivo = null;
+      _mimeType = 'application/pdf';
+    });
+    _formKey.currentState?.validate();
   }
 
   void _mostrarMensagem(String mensagem) {
@@ -374,7 +388,12 @@ class _DocumentoFormState extends State<_DocumentoForm> {
               const SizedBox(height: 14),
               FilledButton.icon(
                 onPressed: _enviando ? null : _enviar,
-                icon: const Icon(Icons.upload_file_outlined),
+                icon: _enviando
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.upload_file_outlined),
                 label: Text(_enviando ? 'Enviando...' : 'Enviar documento'),
               ),
             ],
