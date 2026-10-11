@@ -12,8 +12,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | 4 | Chat: erro, nova tentativa e atualização | Enviada: `1cf1246` |
 | 5 | Notificações: envio, erros e retorno | Enviada: `67a9ee8` |
 | 6 | Atualização de Meus serviços ao retornar | Enviada: `5cf520a` |
-| 7 | Encaminhamento após sessão expirada | Verificada |
-| 8 | Filtros administrativos de documentos | A executar |
+| 7 | Encaminhamento após sessão expirada | Enviada: `f12b8ac` |
+| 8 | Filtros administrativos de documentos | Verificada |
 | 9 | Textos e identidade da versão web | A executar |
 
 ## Etapa 1 — referências e auditoria
@@ -120,3 +120,12 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Quatro testes específicos aprovados: encaminhamento/limpeza; credenciais e 403; resposta antiga; 401 simultâneos.
 
 - `flutter analyze --no-pub`: sem problemas. Suíte completa: 59 testes aprovados.
+
+## Etapa 8 — filtros documentais administrativos
+
+- Chips Pendentes, Aprovados, Rejeitados e Todos consultam o parâmetro `status` existente. Pendentes continua sendo o filtro inicial.
+- Filtros ficam visíveis durante carregamento e erro; a nova tentativa mantém a seleção. Estado vazio deixa de afirmar que toda lista é de pendentes.
+- Detalhes mostram status atual e motivo registrado quando retornado. Fluxo de análise e permissões permanecem os existentes.
+- Dois testes específicos aprovados: quatro filtros em 360/390/412 px com texto 1,4; erro/retry e lista vazia preservando o filtro.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 61 testes aprovados.
