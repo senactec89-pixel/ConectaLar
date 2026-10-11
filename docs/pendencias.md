@@ -20,7 +20,7 @@ Os PDFs ainda precisam de inspeção visual antes de implementar telas administr
 
 - Cidades, cobertura territorial e regras de atendimento por região.
 - Exceções e prevalência das condições do prestador diante da referência documental de cancelamento em 24 horas.
-- Momento em que o endereço completo passa a ser visível e a política de histórico após o atendimento.
+- Momento de visibilidade do endereço completo já tem regra operacional no contrato atual: cliente, administrador e profissional vinculado podem ver o endereço completo após aceite do atendimento. Ainda falta decidir política de snapshot, histórico, retenção e acesso após cancelamento/encerramento.
 - Duração e capacidade de atendimento de profissionais/empresas.
 - Momento de abertura do chat, anexos, avaliações e reenvio de mensagens.
 - Retenção, descarte e solicitações de titulares para dados pessoais.
@@ -72,8 +72,8 @@ A escolha TypeORM + `mysql2` já foi aprovada e registrada em `docs/decisoes.md`
 - A API atualiza as ofertas profissionais junto com o perfil (`PUT profissionais/me`) e recria os itens enviados como ativos. Não há endpoint para desativar uma oferta individual nem para alterar os campos públicos de perfil separadamente. A tela permite incluir/editar ofertas e apresenta-as como ativas; a desativação individual depende de uma decisão de contrato e endpoint específico.
 - O endpoint administrativo de usuários não informa o estado de verificação do perfil profissional. O painel conta documentos pendentes, mas não consegue separar profissionais pendentes de verificação de profissionais sem documentos enviados.
 - A API de categorias administra apenas nome e status. Cadastro de ícone/descrição, gerenciamento independente de serviços do catálogo e relatório/paginação administrativa não estão disponíveis; a interface não simula essas operações.
-- A solicitação atualmente armazena e retorna o bairro, mas não fornece o endereço completo mesmo após o aceite. A tela profissional mantém esse dado oculto e explica a limitação; liberar o endereço exige contrato e autorização de API que verifiquem o aceite e o vínculo do prestador.
-- O formulário atual de documentos recebe referência de arquivo, mas o projeto ainda não tem fluxo de upload/armazenamento binário. A referência não deve ser tratada como arquivo validado até existir esse fluxo e os controles correspondentes.
+- A solicitação agora aceita `enderecoId` e a API retorna o endereço completo apenas para atores autorizados: cliente dono, administrador e profissional vinculado depois do aceite. Antes do aceite, o profissional recebe somente dados protegidos do local. Permanecem pendentes as regras finais de snapshot, retenção, histórico e cancelamento.
+- O envio real de documentos profissionais foi implementado com seletor nativo no Flutter e upload Base64 para PDF, JPEG e PNG de até 5 MB. A API armazena o arquivo em diretório privado local de desenvolvimento e expõe o fluxo de moderação administrativa. Para produção ainda faltam armazenamento gerenciado privado, antivírus/verificação de conteúdo, política de retenção/descarte e trilha operacional de download/acesso.
 
 - O orçamento informado é de R$ 400 no total; desenvolvimento deve começar localmente e sem custos recorrentes assumidos.
 - A equipe não dispõe de Mac. Compilação e assinatura iOS dependem de ambiente macOS a escolher e aprovar antes da homologação.

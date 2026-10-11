@@ -1,32 +1,67 @@
 # Progresso do ConectaLar
 
-## Etapa 1 — Fundação do backend
+Atualizado em 2026-10-10, apos a integracao dos fluxos principais do app Flutter com a API NestJS/MySQL.
 
-**Estado:** validada com Node.js 22.23.3 e npm 10.9.9.
+## Estado atual
 
-**Entregue nesta etapa:**
+O nucleo funcional de demo esta implementado no app e na API:
 
-- Área independente `apps/api` com estrutura NestJS e versões diretas fixadas.
-- Validação de `NODE_ENV`, `HOST` e `PORT` sem incluir os valores fornecidos em mensagens de erro.
-- Endpoint `GET /health` sem detalhes de ambiente ou dependências.
-- Filtro global com respostas genéricas e logs sem mensagem, stack trace, URL ou corpo da requisição.
-- `.env.example` apenas com configurações não secretas.
-- Testes básicos para saúde e validação de configuração.
-- Exclusões locais e de dependências adicionadas ao `.gitignore`.
+- cadastro e login de cliente, profissional e administrador;
+- perfil profissional, ofertas, disponibilidade e documentos de verificacao;
+- enderecos de cliente e solicitacoes com `enderecoId`;
+- protecao do endereco completo antes do aceite e liberacao apenas para atores autorizados apos aceite;
+- agenda/solicitacoes com estados formais `aguardando_resposta`, `aceita_agendada`, `recusada`, `cancelada` e `conclusao_confirmada`;
+- chat vinculado a solicitacao e restrito aos participantes autorizados;
+- conclusao de atendimento, avaliacoes e moderacao;
+- denuncias, moderacao administrativa e trilha de auditoria;
+- notificacoes internas;
+- modulos administrativos para usuarios, documentos, denuncias, avaliacoes, categorias e auditoria;
+- contrato OpenAPI atualizado para os fluxos principais.
 
-**Evidências e limitações:**
+## Evidencias recentes
 
-- `npm ci --ignore-scripts` reproduziu a instalação a partir de `apps/api/package-lock.json` (101 pacotes). O registry alternativo e `NODE_USE_SYSTEM_CA=1` foram usados apenas no processo de instalação por limitações de certificado/rede; a validação TLS permaneceu ativa e scripts de instalação de terceiros não foram executados.
-- `npm run typecheck`, `npm run build`, `npm test` (2 testes) e `npm ls --depth=0` passaram após a instalação limpa.
-- O servidor iniciou em loopback e `GET /health` respondeu `{"status":"ok"}`.
-- Inspeções heurísticas de caminhos, marcadores de chave privada/tokens e atribuições de credenciais não localizaram candidatos no conteúdo preparado para versionamento.
-- O snapshot Git está na branch `main`; ainda não há commit porque nome e e-mail de autoria não estão configurados.
-- A validação cobre a API inicial e não conecta ao MySQL nem executa o SQL legado.
+- `flutter analyze --no-pub`: aprovado.
+- `flutter test`: aprovado com 17 testes.
+- `npm.cmd run typecheck`: aprovado.
+- `npm.cmd test`: aprovado com 8 testes.
+- MySQL local + API em `127.0.0.1:3016`: fluxo integrado validado com cadastro, login, upload documental, moderacao, solicitacao com endereco protegido, aceite, liberacao de endereco, chat, conclusao, avaliacoes, denuncia e auditoria.
+- Commit publicado: `4e303d0 Corrige configuracao do body parser`.
 
-**Etapa 1 concluída.**
+Observacao: no Windows, `flutter analyze` sem `--no-pub` pode exigir Modo de Desenvolvedor por causa dos symlinks usados por plugins nativos como `file_picker`. Para analise rapida sem tentar recriar plugins, use `flutter analyze --no-pub`; para ambiente completo, habilite o Modo de Desenvolvedor do Windows.
 
-## Etapa 2 — Banco e contratos
+## Checklist de demo
 
-**Estado:** em andamento; inventário legado, entidades candidatas, convenções de contrato, rastreabilidade inicial e configuração TypeORM preparados. O usuário escolheu login por e-mail ou telefone, aprovou o fluxo recomendado de recuperação e definiu uma conta administrativa principal que cria contas individuais. O modelo executável ainda precisa dos detalhes em aberto de P01/P02/P11/P15 e do escopo da primeira entrega.
+A validacao integrada via contrato HTTP esta registrada em `docs/checklist-demo.md`. O que ela cobriu:
 
-**Próximo passo:** completar normalização/verificação dos contatos, expiração e concorrência de sessões, permissões e convite administrativo; informar o escopo da primeira entrega. O usuário criará um MySQL local. Após os detalhes, fechar entidades e índices, criar migrations revisáveis e dados sintéticos isolados; não aplicar ao SQL legado.
+- envio real de PDF, JPEG e PNG pelo fluxo profissional;
+- listagem desses documentos no painel administrativo;
+- aprovacao e rejeicao de documentos pelo administrador;
+- retorno do status atualizado na area profissional;
+- cadastro de cliente;
+- cadastro de profissional;
+- criacao de solicitacao com endereco;
+- aceite pelo profissional;
+- endereco completo liberado apos aceite;
+- mensagens no chat;
+- conclusao do atendimento;
+- avaliacao;
+- denuncia;
+- moderacao administrativa;
+- auditoria administrativa.
+
+Ainda falta a conferencia visual manual no Flutter do seletor nativo de arquivo, porque o clique abre uma interface do sistema operacional e nao foi automatizado neste roteiro.
+
+## Pendencias para producao
+
+Estes pontos nao bloqueiam demo local, mas bloqueiam uma publicacao profissional segura:
+
+- MFA para administradores;
+- recuperacao de senha com envio real por e-mail/contato verificado;
+- armazenamento privado gerenciado para documentos, com antivirus/verificacao de conteudo;
+- politica aprovada de retencao, descarte e atendimento a titulares de dados;
+- limite de requisicoes distribuido para ambiente com mais de uma instancia;
+- monitoramento, alertas e logs operacionais;
+- backup/restauracao testados;
+- pipeline de build/deploy;
+- testes de carga e homologacao;
+- ambiente macOS, aparelho de teste e contas de loja para iOS.
