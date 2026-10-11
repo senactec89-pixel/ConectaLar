@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
@@ -15,6 +16,7 @@ import { ProfissionaisService } from './profissionais.service.js';
     AuthModule,
     TypeOrmModule.forFeature([
       CategoriaEntity,
+      AvaliacaoEntity,
       ProfissionalDisponibilidadeEntity,
       ProfissionalPerfilEntity,
       ProfissionalServicoEntity,

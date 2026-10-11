@@ -1,13 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
+import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
+import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
@@ -22,6 +25,7 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 interface CriarSolicitacaoInput {
   readonly profissionalId: number;
   readonly categoriaId: number | null;
+  readonly servicoId: number | null;
   readonly enderecoId: number | null;
   readonly descricao: string;
   readonly bairroAtendimento: string;
@@ -32,6 +36,10 @@ interface CriarSolicitacaoInput {
 @Injectable()
 export class SolicitacoesService {
   constructor(
+    @InjectRepository(AvaliacaoEntity)
+    private readonly avaliacoes: Repository<AvaliacaoEntity>,
+    @InjectRepository(ProfissionalServicoEntity)
+    private readonly ofertas: Repository<ProfissionalServicoEntity>,
     @InjectRepository(CategoriaEntity)
     private readonly categorias: Repository<CategoriaEntity>,
     @InjectRepository(ClienteEnderecoEntity)
@@ -73,9 +81,24 @@ export class SolicitacoesService {
       });
     }
 
-    if (input.categoriaId !== null) {
+    const oferta =
+      input.servicoId === null
+        ? null
+        : await this.ofertas.findOne({
+            where: {
+              id: input.servicoId,
+              profissionalId: profissional.id,
+              ativo: true,
+            },
+          });
+    if (input.servicoId !== null && oferta === null) {
+      throw badRequest('OFERTA_INDISPONIVEL');
+    }
+    const categoriaId =
+      oferta === null ? input.categoriaId : oferta.categoriaId;
+    if (categoriaId !== null) {
       const categoria = await this.categorias.findOne({
-        where: { id: input.categoriaId, ativo: true },
+        where: { id: categoriaId, ativo: true },
       });
       if (categoria === null) {
         throw badRequest('CATEGORIA_INVALIDA');
@@ -100,13 +123,15 @@ export class SolicitacoesService {
     const solicitacao = this.solicitacoes.create({
       clienteId: cliente.id,
       profissionalId: profissional.id,
-      categoriaId: input.categoriaId,
+      categoriaId,
+      servicoId: oferta?.id ?? null,
+      nomeServico: oferta?.nome ?? null,
       enderecoId: input.enderecoId,
       descricao: input.descricao,
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
-      precoInicial: profissional.precoInicial,
+      precoInicial: oferta?.precoInicial ?? profissional.precoInicial,
       status: SolicitacaoStatus.AguardandoResposta,
     });
 
@@ -120,7 +145,7 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: saved.id,
     });
-    return { solicitacao: solicitacaoResponse(reloaded, user) };
+    return this.responder(reloaded, user);
   }
 
   async minhas(user: AuthenticatedUser) {
@@ -144,9 +169,24 @@ export class SolicitacoesService {
     }
 
     const solicitacoes = await builder.getMany();
+    const avaliadas =
+      solicitacoes.length === 0
+        ? []
+        : await this.avaliacoes.find({
+            where: {
+              solicitacaoId: In(solicitacoes.map((s) => s.id)),
+              avaliadorId: user.id,
+            },
+            select: { solicitacaoId: true },
+          });
+    const idsAvaliados = new Set(avaliadas.map((a) => a.solicitacaoId));
     return {
       solicitacoes: solicitacoes.map((solicitacao) =>
-        solicitacaoResponse(solicitacao, user),
+        solicitacaoResponse(
+          solicitacao,
+          user,
+          idsAvaliados.has(solicitacao.id),
+        ),
       ),
     };
   }
@@ -154,7 +194,7 @@ export class SolicitacoesService {
   async obter(user: AuthenticatedUser, id: number) {
     const solicitacao = await this.carregar(id);
     assertParticipante(user, solicitacao);
-    return { solicitacao: solicitacaoResponse(solicitacao, user) };
+    return this.responder(solicitacao, user);
   }
 
   async aceitar(user: AuthenticatedUser, id: number) {
@@ -200,17 +240,12 @@ export class SolicitacoesService {
   async cancelar(user: AuthenticatedUser, id: number) {
     const solicitacao = await this.carregar(id);
     assertClienteParticipante(user, solicitacao);
-    if (
-      ![
-        SolicitacaoStatus.AguardandoResposta,
-        SolicitacaoStatus.AceitaAgendada,
-      ].includes(solicitacao.status)
-    ) {
-      throw badRequest('TRANSICAO_INVALIDA');
-    }
-
-    solicitacao.status = SolicitacaoStatus.Cancelada;
-    const saved = await this.solicitacoes.save(solicitacao);
+    const response = await this.transicionar(
+      solicitacao,
+      [SolicitacaoStatus.AguardandoResposta, SolicitacaoStatus.AceitaAgendada],
+      SolicitacaoStatus.Cancelada,
+      user,
+    );
     await this.notificarSeguro({
       usuarioId: solicitacao.profissional.usuarioId,
       tipo: NotificacaoTipo.SolicitacaoCancelada,
@@ -219,7 +254,7 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
-    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id), user) };
+    return response;
   }
 
   async concluir(user: AuthenticatedUser, id: number) {
@@ -244,17 +279,83 @@ export class SolicitacoesService {
 
   private async transicionar(
     solicitacao: SolicitacaoEntity,
-    origem: SolicitacaoStatus,
+    origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
     destino: SolicitacaoStatus,
-    user?: AuthenticatedUser,
+    user: AuthenticatedUser,
   ) {
-    if (solicitacao.status !== origem) {
-      throw badRequest('TRANSICAO_INVALIDA');
-    }
+    await this.solicitacoes.manager.transaction(
+      'READ COMMITTED',
+      async (manager) => {
+        // Todas as transições adquirem os locks na mesma ordem. O perfil serializa
+        // aceites de pedidos distintos; o pedido protege a sua própria transição.
+        const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+          where: { id: solicitacao.profissionalId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const atual = await manager.findOne(SolicitacaoEntity, {
+          where: { id: solicitacao.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const permitidos = Array.isArray(origem) ? origem : [origem];
+        if (atual === null || !permitidos.includes(atual.status)) {
+          throw new ConflictException({
+            code: 'TRANSICAO_INVALIDA',
+            message: 'A solicitação já foi atualizada.',
+          });
+        }
+        if (destino === SolicitacaoStatus.AceitaAgendada) {
+          if (perfil === null || !perfil.ativo)
+            throw badRequest('PROFISSIONAL_INDISPONIVEL');
+          const disponibilidade = await manager.find(
+            ProfissionalDisponibilidadeEntity,
+            {
+              where: { profissionalId: perfil.id, ativo: true },
+            },
+          );
+          if (
+            !horarioDisponivel(
+              disponibilidade,
+              atual.dataServico,
+              atual.horarioServico,
+            )
+          ) {
+            throw new ConflictException({
+              code: 'HORARIO_INDISPONIVEL',
+              message: 'Horário fora da disponibilidade.',
+            });
+          }
+          const ocupados = await manager.count(SolicitacaoEntity, {
+            where: {
+              profissionalId: perfil.id,
+              dataServico: atual.dataServico,
+              horarioServico: atual.horarioServico,
+              status: SolicitacaoStatus.AceitaAgendada,
+            },
+          });
+          if (ocupados > 0) {
+            throw new ConflictException({
+              code: 'HORARIO_OCUPADO',
+              message: 'Já existe atendimento neste horário.',
+            });
+          }
+        }
+        atual.status = destino;
+        await manager.save(SolicitacaoEntity, atual);
+      },
+    );
+    return this.responder(await this.carregar(solicitacao.id), user);
+  }
 
-    solicitacao.status = destino;
-    const saved = await this.solicitacoes.save(solicitacao);
-    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id), user) };
+  private async responder(
+    solicitacao: SolicitacaoEntity,
+    user: AuthenticatedUser,
+  ) {
+    const avaliado =
+      solicitacao.status === SolicitacaoStatus.ConclusaoConfirmada &&
+      (await this.avaliacoes.count({
+        where: { solicitacaoId: solicitacao.id, avaliadorId: user.id },
+      })) > 0;
+    return { solicitacao: solicitacaoResponse(solicitacao, user, avaliado) };
   }
 
   private async carregar(id: number): Promise<SolicitacaoEntity> {
@@ -293,7 +394,9 @@ export class SolicitacoesService {
     }
   }
 
-  private async notificarSeguro(input: Parameters<NotificacoesService['criar']>[0]) {
+  private async notificarSeguro(
+    input: Parameters<NotificacoesService['criar']>[0],
+  ) {
     try {
       await this.notificacoes.criar(input);
     } catch {
@@ -305,10 +408,14 @@ export class SolicitacoesService {
 function solicitacaoResponse(
   solicitacao: SolicitacaoEntity,
   user?: AuthenticatedUser,
+  avaliado = false,
 ) {
   const enderecoLiberado = enderecoCompletoLiberado(solicitacao, user);
   return {
     id: solicitacao.id,
+    servicoId: solicitacao.servicoId,
+    nomeServico: solicitacao.nomeServico,
+    avaliado,
     status: solicitacao.status,
     descricao: solicitacao.descricao,
     bairroAtendimento: solicitacao.bairroAtendimento,
@@ -431,6 +538,7 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
   return {
     profissionalId: requiredId(value.profissionalId),
     categoriaId: optionalId(value.categoriaId),
+    servicoId: optionalId(value.servicoId),
     enderecoId: optionalId(value.enderecoId),
     descricao: textField(value, 'descricao', 10, 600),
     bairroAtendimento: textField(value, 'bairroAtendimento', 2, 120),
@@ -493,7 +601,10 @@ function dateField(value: unknown): string {
   }
 
   const date = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 10) !== value
+  ) {
     throw badRequest('DATA_INVALIDA');
   }
 
@@ -501,10 +612,7 @@ function dateField(value: unknown): string {
 }
 
 function timeField(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)
-  ) {
+  if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
     throw badRequest('HORARIO_INVALIDO');
   }
 

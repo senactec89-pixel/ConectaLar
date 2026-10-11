@@ -17,7 +17,8 @@
     "db:migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
     "db:migration:revert": "npm run build && typeorm migration:revert -d dist/database/data-source.js",
     "db:seed:demo": "node scripts/seed-demo.mjs",
-    "test": "npm run build && node --test test/*.test.mjs"
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:integration": "node --test test/integration/*.test.mjs"
   },
   "dependencies": {
     "@nestjs/common": "12.1.2",

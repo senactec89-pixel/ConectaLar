@@ -714,6 +714,7 @@ paths:
     patch:
       operationId: patchSolicitacaoAceitar
       summary: Provider accepts a pending request and creates an accepted appointment
+      description: Revalida disponibilidade e bloqueia outro atendimento aceito na mesma data e horário. Transições simultâneas são serializadas por perfil e solicitação; conflito retorna 409. Duração e capacidade por empresa continuam pendentes.
       tags:
         - Solicitacoes
       security:
@@ -811,6 +812,36 @@ paths:
                 type: object
                 additionalProperties: true
         default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/avaliacoes:
+    get:
+      operationId: getMinhasAvaliacoesRecebidas
+      tags: [Profissionais]
+      summary: Avaliações aprovadas recebidas pelo profissional autenticado
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/AvaliacoesPublicadasResponse'
+        '401':
+          $ref: '#/components/responses/ApiErrorResponse'
+        '403':
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/{id}/avaliacoes:
+    get:
+      operationId: getAvaliacoesPublicasProfissional
+      tags: [Profissionais]
+      summary: Avaliações aprovadas de um perfil público ativo
+      description: Retorna as 50 avaliações mais recentes, sem identificadores de clientes ou solicitações. A média e a quantidade consideram todas as avaliações aprovadas.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          $ref: '#/components/responses/AvaliacoesPublicadasResponse'
+        '404':
           $ref: '#/components/responses/ApiErrorResponse'
   /profissionais/me/servicos:
     get:
@@ -2019,6 +2050,12 @@ components:
         type: integer
         minimum: 1
   responses:
+    AvaliacoesPublicadasResponse:
+      description: Avaliações aprovadas e resumo agregado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AvaliacoesPublicadas'
     OkResponse:
       description: Operation completed successfully
       content:
@@ -2184,29 +2221,12 @@ components:
             - number
             - 'null'
           minimum: 0
+          maximum: 99999999.99
         servicos:
           type: array
           maxItems: 12
           items:
-            type: object
-            additionalProperties: false
-            required:
-              - nome
-            properties:
-              nome:
-                type: string
-                minLength: 2
-                maxLength: 90
-              categoriaId:
-                type:
-                  - integer
-                  - 'null'
-                minimum: 1
-              precoInicial:
-                type:
-                  - number
-                  - 'null'
-                minimum: 0
+            $ref: '#/components/schemas/ServicoProfissionalInput'
     ProfissionalPublico:
       type: object
       additionalProperties: false
@@ -2220,6 +2240,8 @@ components:
         - precoInicial
         - verificado
         - servicos
+        - notaMedia
+        - quantidadeAvaliacoes
       properties:
         id:
           type: integer
@@ -2244,27 +2266,15 @@ components:
         servicos:
           type: array
           items:
-            type: object
-            additionalProperties: false
-            required:
-              - id
-              - nome
-              - categoria
-              - precoInicial
-            properties:
-              id:
-                type: integer
-                minimum: 1
-              nome:
-                type: string
-              categoria:
-                anyOf:
-                  - $ref: '#/components/schemas/CategoriaResumo'
-                  - type: 'null'
-              precoInicial:
-                type:
-                  - number
-                  - 'null'
+            $ref: '#/components/schemas/ServicoProfissional'
+        notaMedia:
+          type: [number, 'null']
+          minimum: 1
+          maximum: 5
+          description: Média somente das avaliações aprovadas; null quando não há avaliações.
+        quantidadeAvaliacoes:
+          type: integer
+          minimum: 0
     Categoria:
       type: object
       additionalProperties: false
@@ -2367,6 +2377,10 @@ components:
         profissionalId:
           type: integer
           minimum: 1
+        servicoId:
+          type: [integer, 'null']
+          minimum: 1
+          description: Oferta ativa do profissional; a API deriva categoria, nome e preço inicial desta oferta. Opcional para compatibilidade com pedidos antigos.
         categoriaId:
           type:
             - integer
@@ -2396,6 +2410,9 @@ components:
       additionalProperties: false
       required:
         - id
+        - servicoId
+        - nomeServico
+        - avaliado
         - status
         - descricao
         - bairroAtendimento
@@ -2415,6 +2432,15 @@ components:
         id:
           type: integer
           minimum: 1
+        servicoId:
+          type: [integer, 'null']
+          minimum: 1
+        nomeServico:
+          type: [string, 'null']
+          description: Nome da oferta no envio do pedido, preservado após edições.
+        avaliado:
+          type: boolean
+          description: O ator autenticado já enviou sua avaliação deste atendimento, inclusive se ainda não publicada.
         status:
           $ref: '#/components/schemas/SolicitacaoStatus'
         descricao:
@@ -2763,6 +2789,35 @@ components:
           format: date-time
         profissional:
           $ref: '#/components/schemas/ProfissionalPublico'
+    AvaliacoesPublicadas:
+      type: object
+      additionalProperties: false
+      required: [resumo, avaliacoes]
+      properties:
+        resumo:
+          type: object
+          additionalProperties: false
+          required: [notaMedia, quantidadeAvaliacoes]
+          properties:
+            notaMedia:
+              type: [number, 'null']
+              minimum: 1
+              maximum: 5
+            quantidadeAvaliacoes:
+              type: integer
+              minimum: 0
+        avaliacoes:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, nota, comentario, criadoEm]
+            properties:
+              id: {type: integer, minimum: 1}
+              nota: {type: integer, minimum: 1, maximum: 5}
+              comentario: {type: [string, 'null']}
+              criadoEm: {type: string, format: date-time}
     ServicoProfissional:
       type: object
       additionalProperties: false
@@ -2790,6 +2845,10 @@ components:
       additionalProperties: false
       required: [nome]
       properties:
+        id:
+          type: [integer, 'null']
+          minimum: 1
+          description: ID da oferta existente para editar sem recriar. Deve pertencer ao profissional autenticado.
         nome:
           type: string
           minLength: 2
@@ -2800,6 +2859,7 @@ components:
         precoInicial:
           type: [number, 'null']
           minimum: 0
+          maximum: 99999999.99
     DisponibilidadeInput:
       type: object
       additionalProperties: false
@@ -3098,11 +3158,16 @@ components:
     AtendimentoAgenda:
       type: object
       additionalProperties: false
-      required: [id, status, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
+      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
           minimum: 1
+        servicoId:
+          type: [integer, 'null']
+          minimum: 1
+        nomeServico:
+          type: [string, 'null']
         status:
           type: string
           const: aceita_agendada
@@ -3120,7 +3185,12 @@ components:
         enderecoCompletoLiberado:
           type: boolean
           const: true
+        enderecoAtendimento:
+          anyOf:
+            - $ref: '#/components/schemas/EnderecoAtendimento'
+            - type: 'null'
         enderecoCompleto:
+          description: Alias de compatibilidade para enderecoAtendimento.
           anyOf:
             - $ref: '#/components/schemas/EnderecoAtendimento'
             - type: 'null'

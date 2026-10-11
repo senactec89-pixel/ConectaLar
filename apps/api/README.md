@@ -199,3 +199,18 @@ Terms and privacy notice routes:
 - `POST /termos/aceites/me` with `Authorization: Bearer <token>`
 
 The current terms are written in plain language and include privacy/LGPD explanations, protected address handling, external payment, verification seal limits, user responsibilities, and version changes. Acceptance stores only the authenticated user, accepted version, channel, and timestamp; it does not store raw IP address or user-agent data. Retention, deletion, legal text approval, and re-consent rules remain pending under P13/P18.
+
+## Atualização dos fluxos em 11/10/2026
+
+Aplicar `npm run db:migration:run` antes de iniciar esta versão: a migration `OfertaDaSolicitacao1760114000000` adiciona o vínculo e o nome da oferta escolhida ao pedido. `servicoId` é opcional para compatibilidade; quando enviado, a API deriva categoria e preço da oferta ativa. As ofertas são editadas preservando IDs e os itens omitidos são desativados.
+
+Novas consultas de avaliações aprovadas:
+
+- `GET /profissionais/:id/avaliacoes` (público, perfil ativo).
+- `GET /profissionais/me/avaliacoes` (profissional/empresa autenticado).
+
+Ambas retornam `resumo` com `notaMedia`/`quantidadeAvaliacoes` e as 50 avaliações aprovadas mais recentes, sem identificadores de clientes/pedidos. Listas/detalhes de solicitação incluem `avaliado` do ator atual, mesmo para avaliação pendente.
+
+Aceites usam transação e bloqueio do perfil/pedido para impedir dois atendimentos aceitos na mesma data e horário inicial. Conflitos retornam 409. Duração/capacidade empresarial continuam pendentes. Datas `DATE` não são convertidas por fuso. A agenda retorna `enderecoAtendimento` e mantém o alias `enderecoCompleto`.
+
+Procedimento de teste com banco descartável, modo demo explícito no Flutter e limites: [registro dos ajustes](../../docs/ajustes-fluxos-2026-10-11.md).

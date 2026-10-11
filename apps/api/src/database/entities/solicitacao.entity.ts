@@ -12,6 +12,7 @@ import { SolicitacaoStatus } from '../../domain/solicitacao-status.js';
 import { CategoriaEntity } from './categoria.entity.js';
 import { ClienteEnderecoEntity } from './cliente-endereco.entity.js';
 import { ProfissionalPerfilEntity } from './profissional-perfil.entity.js';
+import { ProfissionalServicoEntity } from './profissional-servico.entity.js';
 import { UsuarioEntity } from './usuario.entity.js';
 
 @Entity({ name: 'solicitacoes' })
@@ -42,6 +43,19 @@ export class SolicitacaoEntity {
   @ManyToOne(() => CategoriaEntity, { nullable: true })
   @JoinColumn({ name: 'categoria_id' })
   categoria!: CategoriaEntity | null;
+
+  @Column({ name: 'servico_id', type: 'int', unsigned: true, nullable: true })
+  servicoId!: number | null;
+
+  @ManyToOne(() => ProfissionalServicoEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'servico_id' })
+  servico!: ProfissionalServicoEntity | null;
+
+  @Column({ name: 'nome_servico', type: 'varchar', length: 90, nullable: true })
+  nomeServico!: string | null;
 
   @Column({ name: 'endereco_id', type: 'int', unsigned: true, nullable: true })
   enderecoId!: number | null;

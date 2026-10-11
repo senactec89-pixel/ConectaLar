@@ -60,7 +60,10 @@ export function isAuthRuntimeConfigured(
 ): boolean {
   return (
     isDatabaseRuntimeConfigured(environment) &&
-    Boolean(environment.AUTH_TOKEN_SECRET && environment.AUTH_TOKEN_SECRET.length >= 32)
+    Boolean(
+      environment.AUTH_TOKEN_SECRET &&
+        environment.AUTH_TOKEN_SECRET.length >= 32,
+    )
   );
 }
 
@@ -74,6 +77,9 @@ export function databaseRuntimeOptions(): DataSourceOptions {
     database: requiredDatabaseValue('DB_NAME'),
     charset: 'utf8mb4',
     timezone: 'Z',
+    // DATE é uma data civil, sem fuso. Evita deslocar o atendimento para o dia
+    // anterior quando o servidor roda em America/Sao_Paulo.
+    dateStrings: ['DATE'],
     synchronize: false,
     migrationsRun: false,
     migrationsTableName: 'typeorm_migrations',

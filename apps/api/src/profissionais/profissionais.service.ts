@@ -4,8 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
+import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
@@ -17,6 +19,7 @@ import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 
 interface ProfissionalServicoInput {
+  readonly id?: number | null;
   readonly nome: string;
   readonly categoriaId?: number | null;
   readonly precoInicial?: number | null;
@@ -38,6 +41,8 @@ interface ProfissionaisFiltros {
 @Injectable()
 export class ProfissionaisService {
   constructor(
+    @InjectRepository(AvaliacaoEntity)
+    private readonly avaliacoes: Repository<AvaliacaoEntity>,
     @InjectRepository(CategoriaEntity)
     private readonly categorias: Repository<CategoriaEntity>,
     @InjectRepository(ProfissionalDisponibilidadeEntity)
@@ -76,12 +81,17 @@ export class ProfissionaisService {
       .addOrderBy('usuario.nome', 'ASC');
 
     const perfis = await builder.getMany();
+    const filtrados = perfis.filter((perfil) =>
+      correspondeFiltros(perfil, { termo, bairro, categoriaId }),
+    );
+    const resumos = await this.resumosAvaliacoes(
+      filtrados.map((p) => p.usuarioId),
+    );
     return {
-      profissionais: perfis
-        .filter((perfil) =>
-          correspondeFiltros(perfil, { termo, bairro, categoriaId }),
-        )
-        .map(perfilPublico),
+      profissionais: filtrados.map((p) => ({
+        ...perfilPublico(p),
+        ...resumos.get(p.usuarioId),
+      })),
     };
   }
 
@@ -103,7 +113,7 @@ export class ProfissionaisService {
       });
     }
 
-    return { profissional: perfilPublico(perfil) };
+    return { profissional: await this.comResumo(perfil) };
   }
 
   async meuPerfil(user: AuthenticatedUser) {
@@ -112,37 +122,34 @@ export class ProfissionaisService {
       relations: { usuario: true, servicos: { categoria: true } },
     });
 
-    return { profissional: perfil === null ? null : perfilPublico(perfil) };
+    return {
+      profissional: perfil === null ? null : await this.comResumo(perfil),
+    };
   }
 
   async salvarMeuPerfil(user: AuthenticatedUser, body: unknown) {
     const input = parseUpsertPerfil(body);
-    const usuario = await this.carregarUsuarioProfissional(user);
+    await this.carregarUsuarioProfissional(user);
     await this.validarCategorias(input.servicos);
 
-    let perfil = await this.perfis.findOne({ where: { usuarioId: user.id } });
-    perfil ??= this.perfis.create({ usuarioId: user.id, verificado: false });
-    perfil.usuario = usuario;
-    perfil.descricao = input.descricao;
-    perfil.bairro = input.bairro;
-    perfil.precoInicial = decimalOrNull(input.precoInicial);
-    perfil.ativo = true;
-
-    const saved = await this.perfis.save(perfil);
-    await this.servicos.delete({ profissionalId: saved.id });
-    if (input.servicos.length > 0) {
-      await this.servicos.save(
-        input.servicos.map((servico) =>
-          this.servicos.create({
-            profissionalId: saved.id,
-            categoriaId: servico.categoriaId ?? null,
-            nome: servico.nome,
-            precoInicial: decimalOrNull(servico.precoInicial),
-            ativo: true,
-          }),
-        ),
-      );
-    }
+    const saved = await this.perfis.manager.transaction(async (manager) => {
+      const perfil =
+        (await manager.findOne(ProfissionalPerfilEntity, {
+          where: { usuarioId: user.id },
+          lock: { mode: 'pessimistic_write' },
+        })) ??
+        manager.create(ProfissionalPerfilEntity, {
+          usuarioId: user.id,
+          verificado: false,
+        });
+      perfil.descricao = input.descricao;
+      perfil.bairro = input.bairro;
+      perfil.precoInicial = decimalOrNull(input.precoInicial);
+      perfil.ativo = true;
+      const saved = await manager.save(ProfissionalPerfilEntity, perfil);
+      await this.persistirServicos(manager, saved.id, input.servicos);
+      return saved;
+    });
 
     const reloaded = await this.perfis.findOne({
       where: { id: saved.id },
@@ -152,7 +159,7 @@ export class ProfissionaisService {
       throw new Error('Saved professional profile could not be reloaded.');
     }
 
-    return { profissional: perfilPublico(reloaded) };
+    return { profissional: await this.comResumo(reloaded) };
   }
 
   async meuPainel(user: AuthenticatedUser) {
@@ -188,16 +195,15 @@ export class ProfissionaisService {
           solicitacao.status === SolicitacaoStatus.AceitaAgendada &&
           solicitacao.dataServico >= hoje,
       )
-      .sort(
-        (a, b) =>
-          `${a.dataServico} ${a.horarioServico}`.localeCompare(
-            `${b.dataServico} ${b.horarioServico}`,
-          ),
+      .sort((a, b) =>
+        `${a.dataServico} ${a.horarioServico}`.localeCompare(
+          `${b.dataServico} ${b.horarioServico}`,
+        ),
       )
       .slice(0, 5);
 
     return {
-      profissional: perfilPublico(perfil),
+      profissional: await this.comResumo(perfil),
       resumo: {
         solicitacoesNovas: solicitacoes.filter(
           (item) => item.status === SolicitacaoStatus.AguardandoResposta,
@@ -264,7 +270,10 @@ export class ProfissionaisService {
   async meusServicos(user: AuthenticatedUser) {
     const perfil = await this.carregarMeuPerfil(user);
     return {
-      servicos: perfil === null ? [] : (perfil.servicos ?? []).map(servicoResponse),
+      servicos:
+        perfil === null
+          ? []
+          : (perfil.servicos ?? []).filter((s) => s.ativo).map(servicoResponse),
     };
   }
 
@@ -283,7 +292,12 @@ export class ProfissionaisService {
     await this.salvarServicos(perfil.id, input);
     const reloaded = await this.carregarMeuPerfil(user);
     return {
-      servicos: reloaded === null ? [] : (reloaded.servicos ?? []).map(servicoResponse),
+      servicos:
+        reloaded === null
+          ? []
+          : (reloaded.servicos ?? [])
+              .filter((s) => s.ativo)
+              .map(servicoResponse),
     };
   }
 
@@ -345,28 +359,134 @@ export class ProfissionaisService {
 
   private async salvarServicos(
     profissionalId: number,
-    servicos: readonly ProfissionalServicoInput[],
+    inputs: readonly ProfissionalServicoInput[],
   ) {
-    await this.servicos.delete({ profissionalId });
-    if (servicos.length === 0) return;
+    await this.servicos.manager.transaction(async (manager) => {
+      await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: profissionalId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      await this.persistirServicos(manager, profissionalId, inputs);
+    });
+  }
 
-    await this.servicos.save(
-      servicos.map((servico) =>
-        this.servicos.create({
-          profissionalId,
-          categoriaId: servico.categoriaId ?? null,
-          nome: servico.nome,
-          precoInicial: decimalOrNull(servico.precoInicial),
-          ativo: true,
-        }),
-      ),
+  private async persistirServicos(
+    manager: EntityManager,
+    profissionalId: number,
+    inputs: readonly ProfissionalServicoInput[],
+  ) {
+    const existentes = await manager.find(ProfissionalServicoEntity, {
+      where: { profissionalId },
+    });
+    const usados = new Set<number>();
+    for (const input of inputs) {
+      let oferta =
+        input.id == null
+          ? existentes.find(
+              (s) =>
+                !usados.has(s.id) &&
+                s.ativo &&
+                s.nome === input.nome &&
+                s.categoriaId === (input.categoriaId ?? null),
+            )
+          : existentes.find((s) => s.id === input.id);
+      if (input.id != null && (oferta === undefined || usados.has(input.id))) {
+        throw badRequest('OFERTA_INVALIDA');
+      }
+      oferta ??= manager.create(ProfissionalServicoEntity, { profissionalId });
+      oferta.nome = input.nome;
+      oferta.categoriaId = input.categoriaId ?? null;
+      oferta.precoInicial = decimalOrNull(input.precoInicial);
+      oferta.ativo = true;
+      const saved = await manager.save(ProfissionalServicoEntity, oferta);
+      usados.add(saved.id);
+    }
+    for (const oferta of existentes) {
+      if (oferta.ativo && !usados.has(oferta.id)) {
+        oferta.ativo = false;
+        await manager.save(ProfissionalServicoEntity, oferta);
+      }
+    }
+  }
+
+  private async resumosAvaliacoes(usuarioIds: number[]) {
+    const resumos = new Map<
+      number,
+      { notaMedia: number | null; quantidadeAvaliacoes: number }
+    >(
+      usuarioIds.map((id) => [
+        id,
+        { notaMedia: null, quantidadeAvaliacoes: 0 },
+      ]),
     );
+    if (usuarioIds.length === 0) return resumos;
+    const rows = await this.avaliacoes
+      .createQueryBuilder('avaliacao')
+      .select('avaliacao.avaliadoId', 'usuarioId')
+      .addSelect('AVG(avaliacao.nota)', 'notaMedia')
+      .addSelect('COUNT(*)', 'quantidadeAvaliacoes')
+      .where('avaliacao.avaliadoId IN (:...ids)', { ids: usuarioIds })
+      .andWhere('avaliacao.moderacaoStatus = :status', {
+        status: AvaliacaoModeracaoStatus.Aprovada,
+      })
+      .groupBy('avaliacao.avaliadoId')
+      .getRawMany<{
+        usuarioId: string;
+        notaMedia: string;
+        quantidadeAvaliacoes: string;
+      }>();
+    for (const row of rows)
+      resumos.set(Number(row.usuarioId), {
+        notaMedia: Number(row.notaMedia),
+        quantidadeAvaliacoes: Number(row.quantidadeAvaliacoes),
+      });
+    return resumos;
+  }
+
+  private async comResumo(perfil: ProfissionalPerfilEntity) {
+    const resumos = await this.resumosAvaliacoes([perfil.usuarioId]);
+    return { ...perfilPublico(perfil), ...resumos.get(perfil.usuarioId) };
+  }
+
+  async avaliacoesPublicas(id: number) {
+    const { profissional } = await this.obter(id);
+    return this.avaliacoesDoUsuario(profissional.usuarioId);
+  }
+
+  async minhasAvaliacoes(user: AuthenticatedUser) {
+    await this.carregarUsuarioProfissional(user);
+    return this.avaliacoesDoUsuario(user.id);
+  }
+
+  private async avaliacoesDoUsuario(usuarioId: number) {
+    const [resumos, avaliacoes] = await Promise.all([
+      this.resumosAvaliacoes([usuarioId]),
+      this.avaliacoes.find({
+        where: {
+          avaliadoId: usuarioId,
+          moderacaoStatus: AvaliacaoModeracaoStatus.Aprovada,
+        },
+        order: { criadoEm: 'DESC' },
+        take: 50,
+      }),
+    ]);
+    return {
+      resumo: resumos.get(usuarioId),
+      avaliacoes: avaliacoes.map((a) => ({
+        id: a.id,
+        nota: a.nota,
+        comentario: a.comentario,
+        criadoEm: a.criadoEm.toISOString(),
+      })),
+    };
   }
 }
 
 function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
   return {
     id: solicitacao.id,
+    servicoId: solicitacao.servicoId,
+    nomeServico: solicitacao.nomeServico,
     status: solicitacao.status,
     descricao: solicitacao.descricao,
     bairroAtendimento: solicitacao.bairroAtendimento,
@@ -375,6 +495,7 @@ function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
     precoInicial: numberOrNull(solicitacao.precoInicial),
     enderecoCompletoLiberado:
       solicitacao.status === SolicitacaoStatus.AceitaAgendada,
+    enderecoAtendimento: null,
     enderecoCompleto: null,
     cliente: {
       id: solicitacao.cliente.id,
@@ -406,8 +527,14 @@ function agendaAtendimentoResponse(solicitacao: SolicitacaoEntity) {
   return {
     ...solicitacaoProfissionalResumo(solicitacao),
     enderecoCompletoLiberado: true,
+    enderecoAtendimento:
+      solicitacao.endereco === null
+        ? null
+        : enderecoResponse(solicitacao.endereco),
     enderecoCompleto:
-      solicitacao.endereco === null ? null : enderecoResponse(solicitacao.endereco),
+      solicitacao.endereco === null
+        ? null
+        : enderecoResponse(solicitacao.endereco),
   };
 }
 
@@ -522,6 +649,7 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
   return value.map((item) => {
     const body = objectBody(item);
     return {
+      id: optionalId(body.id),
       nome: textField(body, 'nome', 2, 90),
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
@@ -591,7 +719,10 @@ function parseMes(value: unknown): string {
   }
 
   const date = new Date(`${value}-01T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 7) !== value) {
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.toISOString().slice(0, 7) !== value
+  ) {
     throw badRequest('MES_INVALIDO');
   }
 
@@ -609,7 +740,12 @@ function intervaloMes(mes: string): readonly [string, string] {
 
 function optionalMoney(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 99999999.99
+  ) {
     throw badRequest('PRECO_INVALIDO');
   }
 

@@ -11,11 +11,6 @@ import { DisponibilidadeService } from './disponibilidade.service.js';
 export class DisponibilidadeController {
   constructor(private readonly disponibilidade: DisponibilidadeService) {}
 
-  @Get('profissionais/:id/disponibilidade')
-  listarPublica(@Param('id') id: string) {
-    return this.disponibilidade.listarPublica(parseId(id));
-  }
-
   @Get('profissionais/me/disponibilidade')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
@@ -31,6 +26,12 @@ export class DisponibilidadeController {
     @Body() body: unknown,
   ) {
     return this.disponibilidade.salvarMinha(user, body);
+  }
+
+  // Rotas literais devem preceder :id; "me" não é um ID de perfil público.
+  @Get('profissionais/:id/disponibilidade')
+  listarPublica(@Param('id') id: string) {
+    return this.disponibilidade.listarPublica(parseId(id));
   }
 }
 

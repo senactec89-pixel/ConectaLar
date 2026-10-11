@@ -10,6 +10,20 @@ interface SafeHttpResponse {
   json(body: { statusCode: number; message: string }): void;
 }
 
+const publicErrors: Readonly<Record<string, string>> = {
+  HORARIO_OCUPADO:
+    'Este horário já tem um atendimento agendado. Escolha outro horário.',
+  HORARIO_INDISPONIVEL:
+    'Este horário não está mais disponível. Atualize a disponibilidade.',
+  TRANSICAO_INVALIDA:
+    'Esta solicitação já foi atualizada. Recarregue para conferir o estado atual.',
+  OFERTA_INDISPONIVEL:
+    'Este serviço não está mais disponível. Atualize o perfil do profissional.',
+  OFERTA_INVALIDA:
+    'Não foi possível atualizar esta oferta. Recarregue os serviços.',
+  AVALIACAO_JA_REGISTRADA: 'Você já enviou uma avaliação deste atendimento.',
+};
+
 @Catch()
 export class SafeExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -35,12 +49,21 @@ export class SafeExceptionFilter implements ExceptionFilter {
       }),
     );
 
+    const body =
+      exception instanceof HttpException ? exception.getResponse() : null;
+    const code =
+      typeof body === 'object' && body !== null && 'code' in body
+        ? body.code
+        : null;
+    const publicMessage =
+      typeof code === 'string' ? publicErrors[code] : undefined;
     response.status(statusCode).json({
       statusCode,
       message:
-        statusCode >= 500
+        publicMessage ??
+        (statusCode >= 500
           ? 'Internal server error'
-          : 'Request could not be processed',
+          : 'Request could not be processed'),
     });
   }
 }

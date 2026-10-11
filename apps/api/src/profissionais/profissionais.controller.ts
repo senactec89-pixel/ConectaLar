@@ -76,6 +76,18 @@ export class ProfissionaisController {
     return this.profissionais.salvarMeuPerfil(user, body);
   }
 
+  @Get('me/avaliacoes')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  minhasAvaliacoes(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.profissionais.minhasAvaliacoes(user);
+  }
+
+  @Get(':id/avaliacoes')
+  avaliacoesPublicas(@Param('id') id: string) {
+    return this.profissionais.avaliacoesPublicas(parseId(id));
+  }
+
   @Get(':id')
   obter(@Param('id') id: string) {
     return this.profissionais.obter(parseId(id));

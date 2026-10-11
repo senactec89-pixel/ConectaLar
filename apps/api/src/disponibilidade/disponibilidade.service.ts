@@ -51,20 +51,31 @@ export class DisponibilidadeService {
     const profissional = await this.carregarMeuProfissional(user);
     const itens = parseDisponibilidades(body);
 
-    await this.disponibilidades.delete({ profissionalId: profissional.id });
-    if (itens.length > 0) {
-      await this.disponibilidades.save(
-        itens.map((item) =>
-          this.disponibilidades.create({
-            profissionalId: profissional.id,
-            diaSemana: item.diaSemana,
-            horaInicio: item.horaInicio,
-            horaFim: item.horaFim,
-            ativo: item.ativo,
-          }),
-        ),
-      );
-    }
+    await this.disponibilidades.manager.transaction(async (manager) => {
+      // Usa a mesma ordem de bloqueio do aceite para publicar a agenda inteira
+      // de forma atômica e impedir que o aceite leia uma atualização parcial.
+      await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: profissional.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      await manager.delete(ProfissionalDisponibilidadeEntity, {
+        profissionalId: profissional.id,
+      });
+      if (itens.length > 0) {
+        await manager.save(
+          ProfissionalDisponibilidadeEntity,
+          itens.map((item) =>
+            manager.create(ProfissionalDisponibilidadeEntity, {
+              profissionalId: profissional.id,
+              diaSemana: item.diaSemana,
+              horaInicio: item.horaInicio,
+              horaFim: item.horaFim,
+              ativo: item.ativo,
+            }),
+          ),
+        );
+      }
+    });
 
     return this.minha(user);
   }
@@ -185,7 +196,11 @@ function validarSobreposicao(itens: readonly DisponibilidadeInput[]): void {
     for (let index = 1; index < doDia.length; index += 1) {
       const anterior = doDia[index - 1];
       const atual = doDia[index];
-      if (anterior !== undefined && atual !== undefined && atual.horaInicio < anterior.horaFim) {
+      if (
+        anterior !== undefined &&
+        atual !== undefined &&
+        atual.horaInicio < anterior.horaFim
+      ) {
         throw badRequest('DISPONIBILIDADE_SOBREPOSTA');
       }
     }
@@ -209,10 +224,7 @@ function objectBody(body: unknown): Record<string, unknown> {
 }
 
 function timeField(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)
-  ) {
+  if (typeof value !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
     throw badRequest('HORARIO_INVALIDO');
   }
 
