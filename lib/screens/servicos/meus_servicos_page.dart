@@ -29,7 +29,7 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
 
   Future<List<AtendimentoResumo>> _carregarServicos() async {
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.servicos;
     }
 
@@ -38,7 +38,10 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
   }
 
   void _recarregarServicos() {
-    setState(() => _servicosFuture = _carregarServicos());
+    setState(() {
+      _servicosFuture = _carregarServicos();
+      _servicosFuture.ignore();
+    });
   }
 
   List<AtendimentoResumo> _servicosFiltrados(List<AtendimentoResumo> servicos) {
@@ -259,8 +262,9 @@ class _ServicoCard extends StatelessWidget {
                   ),
                   _ResumoIcone(
                     icon: Icons.payments_outlined,
-                    text:
-                        'A partir de R\$ ${solicitacao.precoInicial.toStringAsFixed(0)}',
+                    text: solicitacao.precoInicial == null
+                        ? 'Preço a combinar fora do app'
+                        : 'A partir de R\$ ${solicitacao.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')}',
                   ),
                 ],
               ),

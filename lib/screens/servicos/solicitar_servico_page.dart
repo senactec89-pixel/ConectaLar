@@ -27,7 +27,15 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   final _horarioController = TextEditingController();
 
   Profissional? _profissional;
-  String? _servicoSelecionado;
+  int? _ofertaSelecionadaId;
+  OfertaProfissional? get _ofertaSelecionada {
+    for (final oferta
+        in _profissional?.ofertasParaSolicitacao ?? <OfertaProfissional>[]) {
+      if (oferta.id == _ofertaSelecionadaId) return oferta;
+    }
+    return null;
+  }
+
   bool _argumentosLidos = false;
   bool _solicitacaoEnviada = false;
   bool _enviando = false;
@@ -44,9 +52,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     final arguments = ModalRoute.of(context)?.settings.arguments;
     if (arguments is Profissional) {
       _profissional = arguments;
-      _servicoSelecionado = arguments.servicos.isEmpty
-          ? arguments.descricao
-          : arguments.servicos.first;
+      _ofertaSelecionadaId = arguments.ofertasParaSolicitacao.first.id;
       _bairroController.text = arguments.bairro;
       _enderecosFuture = _carregarEnderecos();
       _disponibilidadeFuture = _carregarDisponibilidade(arguments.id);
@@ -84,6 +90,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   Future<List<Disponibilidade>> _carregarDisponibilidade(
     int profissionalId,
   ) async {
+    if (AppServices.instance.emDemonstracao) return const [];
     try {
       final response = await AppServices.instance.profissionais
           .disponibilidadePublica(profissionalId);
@@ -103,25 +110,31 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   }
 
   Future<void> _enviarSolicitacao() async {
+    if (_enviando) return;
     if (!_formKey.currentState!.validate()) return;
 
     final profissional = _profissional;
     if (profissional == null) return;
 
+    if (AppServices.instance.emDemonstracao) {
+      _criarSolicitacaoMock(profissional);
+      return;
+    }
     setState(() => _enviando = true);
     try {
       final data = _parseData(_dataController.text);
       final response = await AppServices.instance.servicos.solicitar({
         'profissionalId': profissional.id,
-        'categoriaId': profissional.categoriaIds.isEmpty
-            ? null
-            : profissional.categoriaIds.first,
+        'categoriaId': _ofertaSelecionada?.categoriaId,
+        if ((_ofertaSelecionada?.id ?? 0) > 0)
+          'servicoId': _ofertaSelecionada!.id,
         'enderecoId': _enderecoSelecionadoId,
         'descricao': _descricaoController.text,
         'bairroAtendimento': _bairroController.text,
         'dataServico': _dataApi(data),
         'horarioServico': _horarioController.text,
       });
+      if (!mounted) return;
       final solicitacao = response['solicitacao'];
       setState(() {
         _solicitacaoEnviada = true;
@@ -130,17 +143,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
             : null;
       });
     } on ApiException catch (error) {
-      if (!AppServices.instance.auth.autenticado) {
-        _criarSolicitacaoMock(profissional);
-      } else {
-        _mostrarErro(error.message);
-      }
+      _mostrarErro(error.message);
     } catch (_) {
-      if (!AppServices.instance.auth.autenticado) {
-        _criarSolicitacaoMock(profissional);
-      } else {
-        _mostrarErro('Nao foi possivel enviar a solicitacao.');
-      }
+      _mostrarErro('Não foi possível enviar a solicitação.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -149,7 +154,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   void _criarSolicitacaoMock(Profissional profissional) {
     final solicitacaoId = ConectaLarMockStore.instance.criarSolicitacao(
       profissional: profissional,
-      servico: _servicoSelecionado ?? profissional.descricao,
+      servico: _ofertaSelecionada?.nome ?? profissional.descricao,
       descricao: _descricaoController.text,
       bairro: _bairroController.text,
       data: _parseData(_dataController.text) ?? DateTime.now(),
@@ -180,12 +185,17 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
-                _ResumoProfissional(profissional: profissional),
+                _ResumoProfissional(
+                  profissional: profissional,
+                  precoInicial:
+                      _ofertaSelecionada?.precoInicial ??
+                      profissional.precoInicial,
+                ),
                 const SizedBox(height: 14),
                 if (_solicitacaoEnviada)
                   _SolicitacaoEnviada(
                     profissional: profissional,
-                    servico: _servicoSelecionado ?? profissional.descricao,
+                    servico: _ofertaSelecionada?.nome ?? profissional.descricao,
                     solicitacaoId: _solicitacaoId,
                     onVerServicos: () =>
                         Navigator.pushNamed(context, AppRoutes.meusServicos),
@@ -194,7 +204,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                   _FormularioSolicitacao(
                     formKey: _formKey,
                     profissional: profissional,
-                    servicoSelecionado: _servicoSelecionado,
+                    ofertaSelecionadaId: _ofertaSelecionadaId,
                     descricaoController: _descricaoController,
                     bairroController: _bairroController,
                     dataController: _dataController,
@@ -202,8 +212,8 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                     enderecoSelecionadoId: _enderecoSelecionadoId,
                     enderecosFuture: _enderecosFuture,
                     disponibilidadeFuture: _disponibilidadeFuture,
-                    onServicoChanged: (servico) =>
-                        setState(() => _servicoSelecionado = servico),
+                    onOfertaChanged: (id) =>
+                        setState(() => _ofertaSelecionadaId = id),
                     onEnderecoChanged: (endereco) => setState(() {
                       _enderecoSelecionadoId = endereco.id;
                       _bairroController.text = endereco.bairro;
@@ -218,7 +228,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
 }
 
 class _ResumoProfissional extends StatelessWidget {
-  const _ResumoProfissional({required this.profissional});
+  const _ResumoProfissional({required this.profissional, this.precoInicial});
+
+  final double? precoInicial;
 
   final Profissional profissional;
 
@@ -258,7 +270,7 @@ class _ResumoProfissional extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _precoTexto(profissional.precoInicial),
+                    _precoTexto(precoInicial),
                     style: const TextStyle(
                       color: AppColors.verde,
                       fontWeight: FontWeight.w700,
@@ -278,7 +290,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   const _FormularioSolicitacao({
     required this.formKey,
     required this.profissional,
-    required this.servicoSelecionado,
+    required this.ofertaSelecionadaId,
     required this.descricaoController,
     required this.bairroController,
     required this.dataController,
@@ -286,7 +298,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.enderecoSelecionadoId,
     required this.enderecosFuture,
     required this.disponibilidadeFuture,
-    required this.onServicoChanged,
+    required this.onOfertaChanged,
     required this.onEnderecoChanged,
     required this.onSubmit,
     required this.enviando,
@@ -294,7 +306,7 @@ class _FormularioSolicitacao extends StatelessWidget {
 
   final GlobalKey<FormState> formKey;
   final Profissional profissional;
-  final String? servicoSelecionado;
+  final int? ofertaSelecionadaId;
   final TextEditingController descricaoController;
   final TextEditingController bairroController;
   final TextEditingController dataController;
@@ -302,16 +314,14 @@ class _FormularioSolicitacao extends StatelessWidget {
   final int? enderecoSelecionadoId;
   final Future<List<ClienteEndereco>>? enderecosFuture;
   final Future<List<Disponibilidade>>? disponibilidadeFuture;
-  final ValueChanged<String?> onServicoChanged;
+  final ValueChanged<int?> onOfertaChanged;
   final ValueChanged<ClienteEndereco> onEnderecoChanged;
   final Future<void> Function() onSubmit;
   final bool enviando;
 
   @override
   Widget build(BuildContext context) {
-    final servicos = profissional.servicos.isEmpty
-        ? [profissional.descricao]
-        : profissional.servicos;
+    final ofertas = profissional.ofertasParaSolicitacao;
 
     return Form(
       key: formKey,
@@ -340,19 +350,23 @@ class _FormularioSolicitacao extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<int>(
                 key: const ValueKey('solicitar-servico'),
-                initialValue: servicoSelecionado,
+                isExpanded: true,
+                initialValue: ofertaSelecionadaId,
                 decoration: const InputDecoration(
                   labelText: 'Serviço desejado',
                   border: OutlineInputBorder(),
                 ),
                 items: [
-                  for (final servico in servicos)
-                    DropdownMenuItem(value: servico, child: Text(servico)),
+                  for (final oferta in ofertas)
+                    DropdownMenuItem(
+                      value: oferta.id,
+                      child: Text(oferta.nome),
+                    ),
                 ],
-                onChanged: onServicoChanged,
-                validator: validarCampoObrigatorio,
+                onChanged: onOfertaChanged,
+                validator: (id) => id == null ? 'Selecione um serviço.' : null,
               ),
               const SizedBox(height: 12),
               if (enderecosFuture != null)

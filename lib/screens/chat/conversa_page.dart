@@ -38,7 +38,7 @@ class _ConversaPageState extends State<ConversaPage> {
   Future<_ConversaData?> _carregarConversa(int? solicitacaoId) async {
     if (solicitacaoId == null) return null;
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       final store = ConectaLarMockStore.instance;
       final atendimento = store.atendimentoPorId(solicitacaoId);
       if (atendimento == null) return null;
@@ -74,14 +74,20 @@ class _ConversaPageState extends State<ConversaPage> {
           solicitacaoId: solicitacaoId,
           texto: texto,
         );
-      } else {
+      } else if (AppServices.instance.emDemonstracao) {
         ConectaLarMockStore.instance.enviarMensagem(
           solicitacaoId: solicitacaoId,
           conteudo: texto,
         );
+      } else {
+        throw StateError('Sessão encerrada.');
       }
+      if (!mounted) return;
       _controller.clear();
-      setState(() => _dataFuture = _carregarConversa(solicitacaoId));
+      setState(() {
+        _dataFuture = _carregarConversa(solicitacaoId);
+        _dataFuture?.ignore();
+      });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

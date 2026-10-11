@@ -51,7 +51,10 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Disponibilidade salva.')));
-      setState(() => _future = _carregar());
+      setState(() {
+        _future = _carregar();
+        _future.ignore();
+      });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,7 +108,10 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                 if (snapshot.hasError) {
                   return AsyncErrorView(
                     message: 'Não foi possível carregar seus horários agora.',
-                    onRetry: () => setState(() => _future = _carregar()),
+                    onRetry: () => setState(() {
+                      _future = _carregar();
+                      _future.ignore();
+                    }),
                     icon: Icons.calendar_month_outlined,
                   );
                 }

@@ -31,7 +31,10 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
   }
 
   void _recarregar() {
-    setState(() => _future = _carregar());
+    setState(() {
+      _future = _carregar();
+      _future.ignore();
+    });
   }
 
   Future<void> _marcarTodas() async {

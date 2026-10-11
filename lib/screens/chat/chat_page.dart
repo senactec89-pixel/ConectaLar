@@ -27,7 +27,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<List<AtendimentoResumo>> _carregarConversas() async {
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.servicos;
     }
 
@@ -36,7 +36,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _recarregar() {
-    setState(() => _conversasFuture = _carregarConversas());
+    setState(() {
+      _conversasFuture = _carregarConversas();
+      _conversasFuture.ignore();
+    });
   }
 
   @override

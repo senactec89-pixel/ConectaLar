@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
+import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 
@@ -22,7 +23,7 @@ class DetalhesServicoPage extends StatelessWidget {
     if (solicitacaoId == null) return null;
 
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.atendimentoPorId(solicitacaoId);
     }
 
@@ -37,7 +38,7 @@ class DetalhesServicoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
     final solicitacaoId = _solicitacaoId(context);
-    if (!AppServices.instance.auth.autenticado) {
+    if (AppServices.instance.emDemonstracao) {
       return Scaffold(
         appBar: const AppBarCustom(title: 'Detalhes do serviço'),
         backgroundColor: AppColors.fundo,
@@ -103,6 +104,21 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   late AtendimentoResumo _atendimento;
   bool _enviando = false;
 
+  Map<String, dynamic> get _ator =>
+      AppServices.instance.auth.usuarioAtual ??
+      (AppServices.instance.emDemonstracao
+          ? {
+              'id': widget.store.usuarioAtual.id,
+              'tipo': widget.store.usuarioAtual.tipo.valorBanco,
+            }
+          : <String, dynamic>{});
+  bool get _clienteParticipante =>
+      _ator['tipo'] == 'cliente' &&
+      _atendimento.solicitacao.clienteId == intValue(_ator['id']);
+  bool get _profissionalParticipante =>
+      {'profissional', 'empresa'}.contains(_ator['tipo']) &&
+      _atendimento.solicitacao.profissionalUsuarioId == intValue(_ator['id']);
+
   @override
   void initState() {
     super.initState();
@@ -121,6 +137,20 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
+  Future<void> _atualizarAposConflito() async {
+    try {
+      final response = await AppServices.instance.servicos.obter(
+        _atendimento.solicitacao.id,
+      );
+      final pedido = response['solicitacao'];
+      if (mounted && pedido is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(pedido));
+      }
+    } catch (_) {
+      // A mensagem original permanece quando não for possível recarregar.
+    }
+  }
+
   Future<void> _executarTransicao(
     Future<Map<String, dynamic>> Function(int id) request,
     bool Function(int id) fallback,
@@ -132,12 +162,13 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     try {
       if (AppServices.instance.auth.autenticado) {
         final response = await request(_atendimento.solicitacao.id);
+        if (!mounted) return;
         final solicitacao = response['solicitacao'];
         if (solicitacao is Map<String, dynamic>) {
           setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
         }
         _notificar(sucesso);
-      } else {
+      } else if (AppServices.instance.emDemonstracao) {
         final ok = fallback(_atendimento.solicitacao.id);
         final atualizado = widget.store.atendimentoPorId(
           _atendimento.solicitacao.id,
@@ -145,8 +176,11 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
         if (atualizado != null) setState(() => _atendimento = atualizado);
         _notificar(ok ? sucesso : falha);
       }
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) await _atualizarAposConflito();
+      if (mounted) _notificar(error.message);
     } catch (_) {
-      _notificar(falha);
+      if (mounted) _notificar(falha);
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -193,14 +227,18 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     setState(() => _enviando = true);
     try {
       if (AppServices.instance.auth.autenticado) {
-        await AppServices.instance.avaliacoes.avaliarProfissional(
+        final avaliar = _profissionalParticipante
+            ? AppServices.instance.avaliacoes.avaliarCliente
+            : AppServices.instance.avaliacoes.avaliarProfissional;
+        await avaliar(
           solicitacaoId: _atendimento.solicitacao.id,
           nota: _nota,
           comentario: _comentarioController.text,
         );
+        if (!mounted) return;
         setState(() => _atendimento = _atendimento.copyWith(avaliado: true));
         _notificar('Avaliação registrada.');
-      } else {
+      } else if (AppServices.instance.emDemonstracao) {
         final ok = widget.store.avaliarAtendimento(
           solicitacaoId: _atendimento.solicitacao.id,
           nota: _nota,
@@ -216,8 +254,11 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
               : 'Avaliação indisponível para este status.',
         );
       }
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) await _atualizarAposConflito();
+      if (mounted) _notificar(error.message);
     } catch (_) {
-      _notificar('Avaliação indisponível para este status.');
+      if (mounted) _notificar('Avaliação indisponível para este status.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -283,8 +324,9 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 _DetalheLinha(
                   icon: Icons.payments_outlined,
                   label: 'Preço inicial',
-                  value:
-                      'R\$ ${solicitacao.precoInicial.toStringAsFixed(0)} - pagamento fora do app',
+                  value: solicitacao.precoInicial == null
+                      ? 'A combinar fora do app'
+                      : 'R\$ ${solicitacao.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')} - pagamento fora do app',
                 ),
               ],
             ),
@@ -294,6 +336,9 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
         _AcoesAtendimento(
           solicitacao: solicitacao,
           avaliado: atendimento.avaliado,
+          cliente: _clienteParticipante,
+          profissional: _profissionalParticipante,
+          ocupada: _enviando,
           onConversar: () => Navigator.pushNamed(
             context,
             AppRoutes.conversa,
@@ -305,13 +350,17 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           onConcluir: () => _concluir(),
         ),
         if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada &&
-            !atendimento.avaliado) ...[
+            !atendimento.avaliado &&
+            (_clienteParticipante || _profissionalParticipante)) ...[
           const SizedBox(height: 16),
           _FormularioAvaliacao(
+            titulo: _profissionalParticipante
+                ? 'Avaliar cliente'
+                : 'Avaliar profissional',
             nota: _nota,
             controller: _comentarioController,
             onNotaChanged: (nota) => setState(() => _nota = nota),
-            onAvaliar: () => _avaliar(),
+            onAvaliar: _enviando ? null : () => _avaliar(),
           ),
         ],
         const SizedBox(height: 16),
@@ -330,6 +379,9 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.onAceitar,
     required this.onRecusar,
     required this.onConcluir,
+    required this.cliente,
+    required this.profissional,
+    required this.ocupada,
   });
 
   final Solicitacao solicitacao;
@@ -339,6 +391,9 @@ class _AcoesAtendimento extends StatelessWidget {
   final VoidCallback onAceitar;
   final VoidCallback onRecusar;
   final VoidCallback onConcluir;
+  final bool cliente;
+  final bool profissional;
+  final bool ocupada;
 
   @override
   Widget build(BuildContext context) {
@@ -360,39 +415,44 @@ class _AcoesAtendimento extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (solicitacao.status ==
-                        StatusSolicitacao.aguardandoResposta ||
-                    solicitacao.status == StatusSolicitacao.aceitaAgendada)
+                if ((cliente || profissional) &&
+                    (solicitacao.status ==
+                            StatusSolicitacao.aguardandoResposta ||
+                        solicitacao.status == StatusSolicitacao.aceitaAgendada))
                   OutlinedButton.icon(
-                    onPressed: onConversar,
+                    onPressed: ocupada ? null : onConversar,
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text('Conversar'),
                   ),
-                if (solicitacao.status == StatusSolicitacao.aguardandoResposta)
+                if (profissional &&
+                    solicitacao.status == StatusSolicitacao.aguardandoResposta)
                   FilledButton.icon(
                     key: const ValueKey('detalhes-aceitar'),
-                    onPressed: onAceitar,
+                    onPressed: ocupada ? null : onAceitar,
                     icon: const Icon(Icons.check_rounded),
-                    label: const Text('Aceitar como profissional'),
+                    label: const Text('Aceitar solicitação'),
                   ),
-                if (solicitacao.status == StatusSolicitacao.aguardandoResposta)
+                if (profissional &&
+                    solicitacao.status == StatusSolicitacao.aguardandoResposta)
                   OutlinedButton.icon(
-                    onPressed: onRecusar,
+                    onPressed: ocupada ? null : onRecusar,
                     icon: const Icon(Icons.close_rounded),
                     label: const Text('Recusar'),
                   ),
-                if (solicitacao.status ==
-                        StatusSolicitacao.aguardandoResposta ||
-                    solicitacao.status == StatusSolicitacao.aceitaAgendada)
+                if (cliente &&
+                    (solicitacao.status ==
+                            StatusSolicitacao.aguardandoResposta ||
+                        solicitacao.status == StatusSolicitacao.aceitaAgendada))
                   OutlinedButton.icon(
-                    onPressed: onCancelar,
+                    onPressed: ocupada ? null : onCancelar,
                     icon: const Icon(Icons.cancel_outlined),
                     label: const Text('Cancelar'),
                   ),
-                if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
+                if (cliente &&
+                    solicitacao.status == StatusSolicitacao.aceitaAgendada)
                   FilledButton.icon(
                     key: const ValueKey('detalhes-concluir'),
-                    onPressed: onConcluir,
+                    onPressed: ocupada ? null : onConcluir,
                     icon: const Icon(Icons.task_alt_rounded),
                     label: const Text('Confirmar conclusão'),
                   ),
@@ -418,12 +478,14 @@ class _FormularioAvaliacao extends StatelessWidget {
     required this.controller,
     required this.onNotaChanged,
     required this.onAvaliar,
+    required this.titulo,
   });
 
   final int nota;
   final TextEditingController controller;
   final ValueChanged<int> onNotaChanged;
-  final VoidCallback onAvaliar;
+  final VoidCallback? onAvaliar;
+  final String titulo;
 
   @override
   Widget build(BuildContext context) {
@@ -433,9 +495,9 @@ class _FormularioAvaliacao extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Avaliar profissional',
-              style: TextStyle(
+            Text(
+              titulo,
+              style: const TextStyle(
                 color: AppColors.texto,
                 fontWeight: FontWeight.w900,
               ),

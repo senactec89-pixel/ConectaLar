@@ -29,7 +29,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
 
   Future<List<Profissional>> _carregarFavoritos() async {
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.profissionaisFavoritos;
     }
 
@@ -45,7 +45,10 @@ class _FavoritosPageState extends State<FavoritosPage> {
   }
 
   void _recarregarFavoritos() {
-    setState(() => _favoritosFuture = _carregarFavoritos());
+    setState(() {
+      _favoritosFuture = _carregarFavoritos();
+      _favoritosFuture.ignore();
+    });
   }
 
   Future<void> _removerFavorito(
@@ -55,7 +58,10 @@ class _FavoritosPageState extends State<FavoritosPage> {
     if (AppServices.instance.auth.autenticado) {
       try {
         await AppServices.instance.clientes.removerFavorito(profissionalId);
-        setState(() => _favoritosFuture = _carregarFavoritos());
+        setState(() {
+          _favoritosFuture = _carregarFavoritos();
+          _favoritosFuture.ignore();
+        });
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +71,9 @@ class _FavoritosPageState extends State<FavoritosPage> {
       return;
     }
 
-    store.toggleFavorito(profissionalId);
+    if (AppServices.instance.emDemonstracao) {
+      store.toggleFavorito(profissionalId);
+    }
   }
 
   @override

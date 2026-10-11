@@ -59,6 +59,19 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
     categoriaIds: categoriaIds,
     verificado: boolValue(json['verificado']),
     servicos: servicos,
+    ofertas: listFromApi(
+      json['servicos'],
+      (s) => OfertaProfissional(
+        id: intValue(s['id']),
+        nome: stringValue(s['nome']),
+        categoriaId: s['categoria']?['id'] == null
+            ? null
+            : intValue(s['categoria']?['id']),
+        precoInicial: doubleValueOrNull(s['precoInicial']),
+      ),
+    ),
+    notaMedia: doubleValueOrNull(json['notaMedia']),
+    quantidadeAvaliacoes: intValue(json['quantidadeAvaliacoes']),
   );
 }
 
@@ -72,6 +85,9 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     profissionalId: profissional is Map<String, dynamic>
         ? intValue(profissional['id'])
         : 0,
+    profissionalUsuarioId: intValue(profissional?['usuarioId']),
+    servicoId: json['servicoId'] == null ? null : intValue(json['servicoId']),
+    nomeServico: nullableString(json['nomeServico']),
     categoriaId: categoria is Map<String, dynamic>
         ? intValue(categoria['id'])
         : 0,
@@ -89,7 +105,7 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         : null,
     dataServico: dateValue(json['dataServico']),
     horarioServico: stringValue(json['horarioServico']),
-    precoInicial: doubleValueOrNull(json['precoInicial']) ?? 0,
+    precoInicial: doubleValueOrNull(json['precoInicial']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),
     atualizadoEm: dateTimeValue(json['atualizadoEm']),
@@ -103,9 +119,11 @@ AtendimentoResumo atendimentoResumoFromApi(Map<String, dynamic> json) {
     profissional: profissional is Map<String, dynamic>
         ? stringValue(profissional['nome'])
         : 'Profissional',
-    categoria: categoria is Map<String, dynamic>
-        ? stringValue(categoria['nome'])
-        : 'Servico',
+    categoria:
+        nullableString(json['nomeServico']) ??
+        (categoria is Map<String, dynamic>
+            ? stringValue(categoria['nome'])
+            : 'Serviço'),
     solicitacao: solicitacaoFromApi(json),
     avaliado: boolValue(json['avaliado']),
   );

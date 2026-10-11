@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/session_gate.dart';
+
 import '../screens/auth/cadastro_page.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/admin/admin_pages.dart';
@@ -20,6 +22,7 @@ import '../screens/profissional/disponibilidade_page.dart';
 import '../screens/profissional/documentos_verificacao_page.dart';
 import '../screens/profissional/perfil_profissional_page.dart';
 import '../screens/profissional/area_profissional_page.dart';
+import '../screens/profissional/avaliacoes_recebidas_page.dart';
 import '../screens/servicos/detalhes_servico_page.dart';
 import '../screens/servicos/meus_servicos_page.dart';
 import '../screens/servicos/solicitar_servico_page.dart';
@@ -51,6 +54,7 @@ abstract final class AppRoutes {
       '/profissionais/solicitacoes/detalhes';
   static const servicosProfissional = '/profissionais/servicos';
   static const perfilProfissionalPrivado = '/profissionais/meu-perfil';
+  static const avaliacoesRecebidas = '/profissionais/avaliacoes';
   static const admin = '/admin';
   static const adminUsuarios = '/admin/usuarios';
   static const adminDocumentos = '/admin/documentos';
@@ -59,7 +63,7 @@ abstract final class AppRoutes {
   static const adminCategorias = '/admin/categorias';
   static const adminAuditoria = '/admin/auditoria';
 
-  static final Map<String, WidgetBuilder> routes = {
+  static final Map<String, WidgetBuilder> _builders = {
     home: (_) => const HomePage(),
     login: (_) => const LoginPage(),
     cadastro: (_) => const CadastroPage(),
@@ -86,6 +90,7 @@ abstract final class AppRoutes {
         const DetalheSolicitacaoProfissionalPage(),
     servicosProfissional: (_) => const ServicosProfissionalPage(),
     perfilProfissionalPrivado: (_) => const PerfilProfissionalPrivadoPage(),
+    avaliacoesRecebidas: (_) => const AvaliacoesRecebidasPage(),
     admin: (_) => const AdminPage(),
     adminUsuarios: (_) => const AdminPage(modulo: AdminModulo.usuarios),
     adminDocumentos: (_) => const AdminPage(modulo: AdminModulo.documentos),
@@ -94,4 +99,28 @@ abstract final class AppRoutes {
     adminCategorias: (_) => const AdminPage(modulo: AdminModulo.categorias),
     adminAuditoria: (_) => const AdminPage(modulo: AdminModulo.auditoria),
   };
+  static Map<String, WidgetBuilder> get routes => _builders.map((
+    route,
+    builder,
+  ) {
+    const publicas = {
+      home,
+      login,
+      cadastro,
+      busca,
+      resultados,
+      perfilProfissional,
+      recuperacaoSenha,
+    };
+    if (publicas.contains(route)) return MapEntry(route, builder);
+    final Set<String>? papeis = route.startsWith('/profissionais/')
+        ? {'profissional', 'empresa'}
+        : {favoritos, solicitarServico, enderecos, editarDados}.contains(route)
+        ? {'cliente'}
+        : null;
+    return MapEntry(
+      route,
+      (context) => SessionGate(builder: builder, papeis: papeis),
+    );
+  });
 }

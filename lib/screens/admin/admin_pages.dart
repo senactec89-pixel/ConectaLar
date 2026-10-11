@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -133,14 +134,18 @@ class _AdminPageState extends State<AdminPage> {
     return Scaffold(
       appBar: AppBarCustom(
         title: titulo,
-        actions: _modulo == AdminModulo.painel
-            ? null
-            : [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => _abrir(AdminModulo.painel),
-                ),
-              ],
+        actions: [
+          IconButton(
+            tooltip: 'Conta e segurança',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.perfil),
+          ),
+          if (_modulo != AdminModulo.painel)
+            IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => _abrir(AdminModulo.painel),
+            ),
+        ],
       ),
       backgroundColor: AppColors.fundo,
       body: Column(
@@ -346,7 +351,10 @@ class _AdminPageState extends State<AdminPage> {
           message:
               'Não foi possível carregar esta lista. Confira sua sessão administrativa.',
           icon: Icons.admin_panel_settings_outlined,
-          onRetry: () => setState(() => _future = _carregar(_modulo)),
+          onRetry: () => setState(() {
+            _future = _carregar(_modulo);
+            _future.ignore();
+          }),
         );
       }
       final items = snapshot.data ?? const <Map<String, dynamic>>[];
@@ -407,8 +415,10 @@ class _AdminPageState extends State<AdminPage> {
                       labelText: 'Buscar nome ou e-mail',
                     ),
                     onChanged: (value) => _termo = value,
-                    onSubmitted: (_) =>
-                        setState(() => _future = _carregar(_modulo)),
+                    onSubmitted: (_) => setState(() {
+                      _future = _carregar(_modulo);
+                      _future.ignore();
+                    }),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
@@ -653,7 +663,10 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (mounted) {
         _avisar('Status da conta atualizado.');
-        setState(() => _future = _carregar(_modulo));
+        setState(() {
+          _future = _carregar(_modulo);
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) {
@@ -720,7 +733,10 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (mounted) {
         _avisar('Análise documental registrada.');
-        setState(() => _future = _carregar(_modulo));
+        setState(() {
+          _future = _carregar(_modulo);
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) _avisar('Não foi possível registrar a análise documental.');
@@ -788,7 +804,10 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (mounted) {
         _avisar('Decisão registrada.');
-        setState(() => _future = _carregar(_modulo));
+        setState(() {
+          _future = _carregar(_modulo);
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) _avisar('Não foi possível registrar a decisão.');
@@ -832,7 +851,10 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (mounted) {
         _avisar('Moderação da avaliação atualizada.');
-        setState(() => _future = _carregar(_modulo));
+        setState(() {
+          _future = _carregar(_modulo);
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) _avisar('Não foi possível atualizar a moderação.');
@@ -893,7 +915,10 @@ class _AdminPageState extends State<AdminPage> {
       );
       if (mounted) {
         _avisar('Categoria salva.');
-        setState(() => _future = _carregar(_modulo));
+        setState(() {
+          _future = _carregar(_modulo);
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) {

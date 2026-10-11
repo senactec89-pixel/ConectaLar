@@ -22,3 +22,17 @@ String? validarSenha(String? valor) {
   if (valor!.length < 8) return 'A senha deve ter pelo menos 8 caracteres.';
   return null;
 }
+
+double? parsePrecoInicial(String valor) {
+  final preco = double.tryParse(valor.trim().replaceAll(',', '.'));
+  return preco != null && preco.isFinite && preco >= 0 && preco <= 99999999.99
+      ? preco
+      : null;
+}
+
+String? validarPrecoOpcional(String? valor) {
+  if ((valor ?? '').trim().isEmpty) return null;
+  return parsePrecoInicial(valor!) == null
+      ? 'Informe um valor entre 0 e 99.999.999,99.'
+      : null;
+}

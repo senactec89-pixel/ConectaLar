@@ -10,11 +10,6 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 
-double? _precoInicialFromText(String value) {
-  final preco = double.tryParse(value.trim().replaceAll(',', '.'));
-  return preco != null && preco.isFinite && preco >= 0 ? preco : null;
-}
-
 class CadastroProfissionalPage extends StatefulWidget {
   const CadastroProfissionalPage({super.key});
 
@@ -26,17 +21,51 @@ class CadastroProfissionalPage extends StatefulWidget {
 class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   final _formKey = GlobalKey<FormState>();
   final _descricaoController = TextEditingController();
-  final _bairroController = TextEditingController(text: 'Jardim das Flores');
-  final _precoController = TextEditingController(text: '80');
+  final _bairroController = TextEditingController();
+  final _precoController = TextEditingController();
   bool _empresa = false;
   bool _perfilSalvo = false;
   bool _salvando = false;
+  bool _carregandoPerfil = true;
+  bool _editando = false;
+  String? _erroPerfil;
+  List<Map<String, dynamic>> _ofertasAtuais = [];
   late Future<List<AtendimentoResumo>> _pendentesFuture;
 
   @override
   void initState() {
     super.initState();
     _pendentesFuture = _carregarPendentes();
+    _empresa = AppServices.instance.auth.usuarioAtual?['tipo'] == 'empresa';
+    _carregarPerfil();
+  }
+
+  Future<void> _carregarPerfil() async {
+    setState(() {
+      _carregandoPerfil = true;
+      _erroPerfil = null;
+    });
+    try {
+      if (!AppServices.instance.emDemonstracao) {
+        final response = await AppServices.instance.profissionais.meuPerfil();
+        if (!mounted) return;
+        final perfil = response['profissional'];
+        if (perfil is Map<String, dynamic>) {
+          _editando = true;
+          _descricaoController.text = '${perfil['descricao'] ?? ''}';
+          _bairroController.text = '${perfil['bairro'] ?? ''}';
+          _precoController.text = '${perfil['precoInicial'] ?? ''}'.replaceAll(
+            '.',
+            ',',
+          );
+          _ofertasAtuais = _servicosExistentes(perfil);
+        }
+      }
+    } catch (_) {
+      _erroPerfil = 'Não foi possível carregar seus dados profissionais.';
+    } finally {
+      if (mounted) setState(() => _carregandoPerfil = false);
+    }
   }
 
   @override
@@ -49,7 +78,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
 
   Future<List<AtendimentoResumo>> _carregarPendentes() async {
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.servicos
           .where(
             (servico) =>
@@ -72,23 +101,34 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   Future<void> _continuar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_salvando) return;
-    final precoInicial = _precoInicialFromText(_precoController.text);
-    if (precoInicial == null) return;
+    final precoInicial = parsePrecoInicial(_precoController.text);
+    if (_precoController.text.trim().isNotEmpty && precoInicial == null) return;
 
     setState(() => _salvando = true);
     try {
       if (AppServices.instance.auth.autenticado) {
         final profissionais = AppServices.instance.profissionais;
         final resposta = await profissionais.meuPerfil();
-        final servicosAtuais = _servicosExistentes(resposta['profissional']);
+        _ofertasAtuais = _servicosExistentes(resposta['profissional']);
         await profissionais.salvarMeuPerfil({
           'descricao': _descricaoController.text.trim(),
           'bairro': _bairroController.text.trim(),
           'precoInicial': precoInicial,
-          'servicos': servicosAtuais,
+          'servicos': _ofertasAtuais,
         });
+      } else if (!AppServices.instance.emDemonstracao) {
+        throw StateError('Entre na sua conta para continuar.');
       }
-      if (mounted) setState(() => _perfilSalvo = true);
+      if (!mounted) return;
+      setState(() => _perfilSalvo = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Perfil profissional salvo.')),
+      );
+      if (_editando) {
+        Navigator.pop(context, true);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.servicosProfissional);
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +155,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
               (categoria is Map ? categoria['id'] : null);
           final preco = servico['precoInicial'];
           return <String, dynamic>{
+            'id': servico['id'],
             'nome': servico['nome'],
             'categoriaId': ?categoriaId,
             'precoInicial': ?preco,
@@ -127,101 +168,115 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Cadastro profissional'),
-      backgroundColor: AppColors.fundo,
-      body: AnimatedBuilder(
-        animation: store,
-        builder: (context, _) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-          children: [
-            const Text(
-              'Profissional/Empresa',
-              style: TextStyle(
-                color: AppColors.texto,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
-              style: TextStyle(color: AppColors.textoSuave),
-            ),
-            const SizedBox(height: 16),
-            _EtapasCadastro(
-              onServicos: () =>
-                  Navigator.pushNamed(context, AppRoutes.servicosProfissional),
-              onDocumentos: () => Navigator.pushNamed(
-                context,
-                AppRoutes.documentosProfissional,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _FormularioProfissional(
-              formKey: _formKey,
-              descricaoController: _descricaoController,
-              bairroController: _bairroController,
-              precoController: _precoController,
-              empresa: _empresa,
-              perfilSalvo: _perfilSalvo,
-              salvando: _salvando,
-              onEmpresaChanged: (value) => setState(() => _empresa = value),
-              onContinuar: () => _continuar(),
-            ),
-            const SizedBox(height: 18),
-            const Text(
-              'Solicitações recebidas',
-              style: TextStyle(
-                color: AppColors.texto,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 10),
-            FutureBuilder<List<AtendimentoResumo>>(
-              future: _pendentesFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const AsyncLoadingView(
-                    label: 'Carregando solicitações recebidas.',
-                  );
-                }
-                if (snapshot.hasError) {
-                  return AsyncErrorView(
-                    message: 'Não foi possível carregar as solicitações.',
-                    icon: Icons.inbox_outlined,
-                    onRetry: () =>
-                        setState(() => _pendentesFuture = _carregarPendentes()),
-                  );
-                }
-                final pendentes = snapshot.data ?? const <AtendimentoResumo>[];
-                if (pendentes.isEmpty) {
-                  return const EmptyStateView(
-                    title: 'Nenhuma solicitação nova',
-                    message:
-                        'Quando um cliente enviar um pedido, ele aparecerá aqui para sua análise.',
-                    icon: Icons.inbox_outlined,
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final atendimento in pendentes) ...[
-                      _PedidoRecebidoCard(
-                        atendimento: atendimento,
-                        store: store,
-                        onAtualizado: () => setState(
-                          () => _pendentesFuture = _carregarPendentes(),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
+      appBar: AppBarCustom(
+        title: _editando
+            ? 'Editar perfil profissional'
+            : 'Cadastro profissional',
       ),
+      backgroundColor: AppColors.fundo,
+      body: _carregandoPerfil
+          ? const AsyncLoadingView(label: 'Carregando dados profissionais.')
+          : _erroPerfil != null
+          ? AsyncErrorView(message: _erroPerfil!, onRetry: _carregarPerfil)
+          : AnimatedBuilder(
+              animation: store,
+              builder: (context, _) => ListView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                children: [
+                  const Text(
+                    'Profissional/Empresa',
+                    style: TextStyle(
+                      color: AppColors.texto,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
+                    style: TextStyle(color: AppColors.textoSuave),
+                  ),
+                  const SizedBox(height: 16),
+                  _EtapasCadastro(
+                    onServicos: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.servicosProfissional,
+                    ),
+                    onDocumentos: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.documentosProfissional,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FormularioProfissional(
+                    formKey: _formKey,
+                    descricaoController: _descricaoController,
+                    bairroController: _bairroController,
+                    precoController: _precoController,
+                    empresa: _empresa,
+                    editando: _editando,
+                    perfilSalvo: _perfilSalvo,
+                    salvando: _salvando,
+                    onContinuar: () => _continuar(),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Solicitações recebidas',
+                    style: TextStyle(
+                      color: AppColors.texto,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FutureBuilder<List<AtendimentoResumo>>(
+                    future: _pendentesFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const AsyncLoadingView(
+                          label: 'Carregando solicitações recebidas.',
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        return AsyncErrorView(
+                          message: 'Não foi possível carregar as solicitações.',
+                          icon: Icons.inbox_outlined,
+                          onRetry: () => setState(() {
+                            _pendentesFuture = _carregarPendentes();
+                            _pendentesFuture.ignore();
+                          }),
+                        );
+                      }
+                      final pendentes =
+                          snapshot.data ?? const <AtendimentoResumo>[];
+                      if (pendentes.isEmpty) {
+                        return const EmptyStateView(
+                          title: 'Nenhuma solicitação nova',
+                          message:
+                              'Quando um cliente enviar um pedido, ele aparecerá aqui para sua análise.',
+                          icon: Icons.inbox_outlined,
+                        );
+                      }
+                      return Column(
+                        children: [
+                          for (final atendimento in pendentes) ...[
+                            _PedidoRecebidoCard(
+                              atendimento: atendimento,
+                              store: store,
+                              onAtualizado: () => setState(() {
+                                _pendentesFuture = _carregarPendentes();
+                                _pendentesFuture.ignore();
+                              }),
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -233,9 +288,9 @@ class _FormularioProfissional extends StatelessWidget {
     required this.bairroController,
     required this.precoController,
     required this.empresa,
+    required this.editando,
     required this.perfilSalvo,
     required this.salvando,
-    required this.onEmpresaChanged,
     required this.onContinuar,
   });
 
@@ -244,9 +299,9 @@ class _FormularioProfissional extends StatelessWidget {
   final TextEditingController bairroController;
   final TextEditingController precoController;
   final bool empresa;
+  final bool editando;
   final bool perfilSalvo;
   final bool salvando;
-  final ValueChanged<bool> onEmpresaChanged;
   final VoidCallback onContinuar;
 
   @override
@@ -259,12 +314,15 @@ class _FormularioProfissional extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SwitchListTile(
+              ListTile(
                 contentPadding: EdgeInsets.zero,
-                value: empresa,
-                onChanged: onEmpresaChanged,
-                title: const Text('Atuar como empresa'),
-                subtitle: const Text('Vínculos e integrantes dependem de P12.'),
+                leading: Icon(
+                  empresa ? Icons.business_outlined : Icons.person_outline,
+                ),
+                title: Text(
+                  empresa ? 'Conta de empresa' : 'Profissional autônomo',
+                ),
+                subtitle: const Text('Tipo de conta definido no cadastro.'),
               ),
               const SizedBox(height: 8),
               TextFormField(
@@ -274,7 +332,12 @@ class _FormularioProfissional extends StatelessWidget {
                   hintText: 'Ex.: eletricista residencial',
                   border: OutlineInputBorder(),
                 ),
-                validator: validarCampoObrigatorio,
+                maxLength: 280,
+                minLines: 2,
+                maxLines: 4,
+                validator: (v) => (v ?? '').trim().length < 20
+                    ? 'Descreva sua atuação com pelo menos 20 caracteres.'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -283,20 +346,23 @@ class _FormularioProfissional extends StatelessWidget {
                   labelText: 'Bairro/região de atuação',
                   border: OutlineInputBorder(),
                 ),
-                validator: validarCampoObrigatorio,
+                maxLength: 120,
+                validator: (v) => (v ?? '').trim().length < 2
+                    ? 'Informe o bairro ou região.'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: precoController,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
-                  labelText: 'Preço inicial',
+                  labelText: 'Preço inicial (opcional)',
                   prefixText: 'R\$ ',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => _precoInicialFromText(value ?? '') == null
-                    ? 'Informe um preço válido.'
-                    : null,
+                validator: validarPrecoOpcional,
               ),
               const SizedBox(height: 12),
               const _DocumentoAviso(),
@@ -341,6 +407,8 @@ class _FormularioProfissional extends StatelessWidget {
                         ? 'Salvando...'
                         : perfilSalvo
                         ? 'Perfil profissional salvo'
+                        : editando
+                        ? 'Salvar alterações'
                         : 'Salvar e continuar',
                   ),
                 ),

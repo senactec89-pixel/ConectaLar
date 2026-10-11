@@ -34,7 +34,10 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
   }
 
   void _recarregar() {
-    setState(() => _future = _carregar());
+    setState(() {
+      _future = _carregar();
+      _future.ignore();
+    });
   }
 
   Future<void> _abrirEnvio() async {

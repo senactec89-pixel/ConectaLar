@@ -37,14 +37,14 @@ class _HomePageState extends State<HomePage> {
 
   void _loadContent() {
     _contentFuture = widget.loadContent?.call() ?? _carregarConteudoPadrao();
+    // O FutureBuilder continua recebendo o erro; este listener protege o
+    // intervalo entre criar a consulta e renderizar o próximo frame.
+    _contentFuture.ignore();
   }
 
   Future<HomeContent> _carregarConteudoPadrao() async {
-    try {
-      return await AppServices.instance.carregarHome();
-    } catch (_) {
-      return HomeMockData.content;
-    }
+    if (AppServices.instance.emDemonstracao) return HomeMockData.content;
+    return AppServices.instance.carregarHome();
   }
 
   void _retry() {

@@ -19,6 +19,7 @@ class PerfilPage extends StatefulWidget {
 
 class _PerfilPageState extends State<PerfilPage> {
   late Future<Usuario> _usuarioFuture;
+  bool _saindo = false;
 
   @override
   void initState() {
@@ -28,18 +29,25 @@ class _PerfilPageState extends State<PerfilPage> {
 
   Future<Usuario> _carregarUsuario() async {
     final services = AppServices.instance;
-    if (!services.auth.autenticado) {
+    if (services.emDemonstracao) {
       return ConectaLarMockStore.instance.usuarioAtual;
+    }
+    if (services.auth.usuarioAtual?['tipo'] != 'cliente') {
+      final usuario = services.auth.usuarioAtual;
+      if (usuario == null) throw StateError('Sessão encerrada.');
+      return usuarioFromApi(usuario);
     }
 
     final response = await services.clientes.meuPerfil();
     final cliente = response['cliente'];
     return cliente is Map<String, dynamic>
         ? usuarioFromApi(cliente)
-        : ConectaLarMockStore.instance.usuarioAtual;
+        : throw StateError('Perfil indisponível.');
   }
 
   Future<void> _sair() async {
+    if (_saindo) return;
+    setState(() => _saindo = true);
     await AppServices.instance.auth.logout();
     ConectaLarMockStore.instance.logout();
     if (!mounted) return;
@@ -63,11 +71,13 @@ class _PerfilPageState extends State<PerfilPage> {
             if (snapshot.hasError) {
               return AsyncErrorView(
                 message: 'Não foi possível carregar seu perfil agora.',
-                onRetry: () =>
-                    setState(() => _usuarioFuture = _carregarUsuario()),
+                onRetry: () => setState(() {
+                  _usuarioFuture = _carregarUsuario();
+                  _usuarioFuture.ignore();
+                }),
               );
             }
-            final usuario = snapshot.data ?? store.usuarioAtual;
+            final usuario = snapshot.requireData;
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
@@ -124,22 +134,45 @@ class _PerfilPageState extends State<PerfilPage> {
                   title: 'Meus dados',
                   subtitle: 'Nome, e-mail e telefone',
                   onTap: () async {
+                    if (usuario.tipo.valorBanco != 'cliente') {
+                      await showDialog<void>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          scrollable: true,
+                          title: const Text('Dados da conta'),
+                          content: Text(
+                            '${usuario.nome}\n${usuario.email}\n${usuario.telefone ?? 'Telefone não informado'}',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Fechar'),
+                            ),
+                          ],
+                        ),
+                      );
+                      return;
+                    }
                     final atualizado = await Navigator.pushNamed(
                       context,
                       AppRoutes.editarDados,
                     );
                     if (atualizado == true && mounted) {
-                      setState(() => _usuarioFuture = _carregarUsuario());
+                      setState(() {
+                        _usuarioFuture = _carregarUsuario();
+                        _usuarioFuture.ignore();
+                      });
                     }
                   },
                 ),
-                _PerfilOpcao(
-                  icon: Icons.location_on_outlined,
-                  title: 'Endereço de atendimento',
-                  subtitle: 'Oculto até aceite válido do profissional',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.enderecos),
-                ),
+                if (usuario.tipo.valorBanco == 'cliente')
+                  _PerfilOpcao(
+                    icon: Icons.location_on_outlined,
+                    title: 'Endereço de atendimento',
+                    subtitle: 'Oculto até aceite válido do profissional',
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.enderecos),
+                  ),
                 _PerfilOpcao(
                   icon: Icons.notifications_outlined,
                   title: 'Notificações',
@@ -165,20 +198,24 @@ class _PerfilPageState extends State<PerfilPage> {
                 ),
                 _PerfilOpcao(
                   icon: Icons.logout_rounded,
-                  title: 'Sair da conta',
-                  subtitle: 'Encerrar acesso local',
-                  onTap: _sair,
+                  title: _saindo ? 'Saindo…' : 'Sair da conta',
+                  subtitle: 'Encerrar sessão da conta',
+                  onTap: _saindo ? null : _sair,
                 ),
               ],
             );
           },
         ),
       ),
-      bottomNavigationBar: BottomNavigationCustom(
-        currentIndex: 4,
-        onDestinationSelected: (index) =>
-            navigateToMainDestination(context, index),
-      ),
+      bottomNavigationBar:
+          AppServices.instance.auth.usuarioAtual?['tipo'] != null &&
+              AppServices.instance.auth.usuarioAtual?['tipo'] != 'cliente'
+          ? null
+          : BottomNavigationCustom(
+              currentIndex: 4,
+              onDestinationSelected: (index) =>
+                  navigateToMainDestination(context, index),
+            ),
     );
   }
 
@@ -232,7 +269,7 @@ class _PerfilOpcao extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

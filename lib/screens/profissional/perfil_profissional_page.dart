@@ -6,6 +6,7 @@ import '../../data/conectalar_mock_store.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import 'avaliacoes_recebidas_page.dart';
 
 class PerfilProfissionalPage extends StatelessWidget {
   const PerfilProfissionalPage({super.key});
@@ -15,6 +16,10 @@ class PerfilProfissionalPage extends StatelessWidget {
     final arguments = ModalRoute.of(context)?.settings.arguments;
     final profissional = arguments is Profissional ? arguments : null;
     final store = ConectaLarMockStore.instance;
+    final services = AppServices.instance;
+    final acoesCliente =
+        !services.auth.autenticado ||
+        services.auth.usuarioAtual?['tipo'] == 'cliente';
 
     return Scaffold(
       backgroundColor: AppColors.fundo,
@@ -28,7 +33,7 @@ class PerfilProfissionalPage extends StatelessWidget {
                 store: store,
               ),
             ),
-      bottomNavigationBar: profissional == null
+      bottomNavigationBar: profissional == null || !acoesCliente
           ? null
           : _SolicitarServicoBar(profissional: profissional),
     );
@@ -47,6 +52,10 @@ class _PerfilProfissionalContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foto = profissional.fotoAsset;
+    final services = AppServices.instance;
+    final acoesCliente =
+        !services.auth.autenticado ||
+        services.auth.usuarioAtual?['tipo'] == 'cliente';
     Future<void> salvarFavorito() async {
       if (AppServices.instance.auth.autenticado) {
         try {
@@ -68,7 +77,11 @@ class _PerfilProfissionalContent extends StatelessWidget {
         return;
       }
 
-      store.toggleFavorito(profissional.id);
+      if (AppServices.instance.emDemonstracao) {
+        store.toggleFavorito(profissional.id);
+      } else {
+        Navigator.pushNamed(context, AppRoutes.login);
+      }
     }
 
     return ListView(
@@ -77,8 +90,10 @@ class _PerfilProfissionalContent extends StatelessWidget {
         _CabecalhoPerfil(
           profissional: profissional,
           fotoAsset: foto,
-          favorito: store.isFavorito(profissional.id),
-          onFavoritoTap: salvarFavorito,
+          favorito:
+              AppServices.instance.emDemonstracao &&
+              store.isFavorito(profissional.id),
+          onFavoritoTap: acoesCliente ? salvarFavorito : null,
         ),
         const SizedBox(height: 18),
         _SecaoPerfil(
@@ -131,6 +146,11 @@ class _PerfilProfissionalContent extends StatelessWidget {
             'resposta. O serviço só fica agendado após aceite válido.',
           ),
         ),
+        const SizedBox(height: 12),
+        _SecaoPerfil(
+          title: 'Avaliações de clientes',
+          child: AvaliacoesPublicadasView(profissionalId: profissional.id),
+        ),
       ],
     );
   }
@@ -147,7 +167,7 @@ class _CabecalhoPerfil extends StatelessWidget {
   final Profissional profissional;
   final String? fotoAsset;
   final bool favorito;
-  final VoidCallback onFavoritoTap;
+  final VoidCallback? onFavoritoTap;
 
   @override
   Widget build(BuildContext context) {
@@ -224,15 +244,16 @@ class _CabecalhoPerfil extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              key: ValueKey('perfil-favorito-${profissional.id}'),
-              tooltip: favorito ? 'Remover favorito' : 'Salvar favorito',
-              onPressed: onFavoritoTap,
-              icon: Icon(
-                favorito ? Icons.favorite : Icons.favorite_border,
-                color: favorito ? const Color(0xFFC53030) : AppColors.texto,
+            if (onFavoritoTap != null)
+              IconButton(
+                key: ValueKey('perfil-favorito-${profissional.id}'),
+                tooltip: favorito ? 'Remover favorito' : 'Salvar favorito',
+                onPressed: onFavoritoTap,
+                icon: Icon(
+                  favorito ? Icons.favorite : Icons.favorite_border,
+                  color: favorito ? const Color(0xFFC53030) : AppColors.texto,
+                ),
               ),
-            ),
           ],
         ),
       ),

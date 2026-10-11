@@ -1,4 +1,5 @@
 import '../models/home_content.dart';
+import '../utils/constants.dart';
 import 'api_mappers.dart';
 import 'api_service.dart';
 import 'admin_service.dart';
@@ -16,25 +17,28 @@ import 'termos_service.dart';
 import 'verificacao_service.dart';
 
 class AppServices {
-  static final AppServices instance = AppServices._shared();
+  static AppServices instance = AppServices();
 
-  AppServices._shared() : api = ApiService() {
-    auth = AuthService(api);
-    admin = AdminService(api);
-    avaliacoes = AvaliacaoService(api);
-    categorias = CategoriaService(api);
-    clientes = ClienteService(api);
-    profissionais = ProfissionalService(api);
-    servicos = ServicoService(api);
-    historico = HistoricoService(api);
-    termos = TermosService(api);
-    notificacoes = NotificacaoService(api);
-    mensagens = MensagemService(api);
-    denuncias = DenunciaService(api);
-    verificacao = VerificacaoService(api);
+  AppServices({ApiService? api, this.modoDemo = AppConstants.demoMode})
+    : api = api ?? ApiService() {
+    auth = AuthService(this.api);
+    admin = AdminService(this.api);
+    avaliacoes = AvaliacaoService(this.api);
+    categorias = CategoriaService(this.api);
+    clientes = ClienteService(this.api);
+    profissionais = ProfissionalService(this.api);
+    servicos = ServicoService(this.api);
+    historico = HistoricoService(this.api);
+    termos = TermosService(this.api);
+    notificacoes = NotificacaoService(this.api);
+    mensagens = MensagemService(this.api);
+    denuncias = DenunciaService(this.api);
+    verificacao = VerificacaoService(this.api);
   }
 
   final ApiService api;
+  final bool modoDemo;
+  bool get emDemonstracao => modoDemo && !auth.autenticado;
   late AuthService auth;
   late AdminService admin;
   late AvaliacaoService avaliacoes;

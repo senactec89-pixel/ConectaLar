@@ -61,7 +61,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
           throw const ApiException('Não foi possível carregar seus dados.');
         }
         dados = cliente;
-      } else {
+      } else if (AppServices.instance.emDemonstracao) {
         final usuario = ConectaLarMockStore.instance.usuarioAtual;
         dados = {
           'nome': usuario.nome,
@@ -69,6 +69,8 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
           'telefone': usuario.telefone,
           'bairroPrincipal': usuario.bairro,
         };
+      } else {
+        throw const ApiException('Entre na sua conta para continuar.');
       }
 
       _nome.text = _valor(dados['nome']);

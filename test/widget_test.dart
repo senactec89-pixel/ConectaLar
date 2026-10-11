@@ -13,8 +13,10 @@ import 'package:conectarlar_app/screens/profissional/disponibilidade_page.dart';
 import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:conectarlar_app/services/service_registry.dart';
 
 void main() {
+  setUp(() => AppServices.instance = AppServices(modoDemo: true));
   testWidgets('a Home exibe categorias e profissionais mockados', (
     tester,
   ) async {

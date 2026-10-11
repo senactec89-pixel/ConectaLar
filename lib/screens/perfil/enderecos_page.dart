@@ -31,7 +31,10 @@ class _EnderecosPageState extends State<EnderecosPage> {
   }
 
   void _recarregar() {
-    setState(() => _enderecosFuture = _carregar());
+    setState(() {
+      _enderecosFuture = _carregar();
+      _enderecosFuture.ignore();
+    });
   }
 
   Future<void> _abrirFormulario([ClienteEndereco? endereco]) async {

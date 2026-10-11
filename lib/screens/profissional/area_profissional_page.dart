@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../services/service_registry.dart';
+import '../../services/api_service.dart';
+import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 
@@ -20,6 +22,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   String _filtro = 'Todas';
   DateTime _mesAgenda = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _diaSelecionado;
+  final Set<int> _decidindo = {};
 
   @override
   void initState() {
@@ -64,13 +67,11 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   }
 
   Future<void> _decidir(int id, bool aceitar) async {
+    if (_decidindo.contains(id)) return;
+    setState(() => _decidindo.add(id));
     try {
       final api = AppServices.instance.servicos;
-      if (aceitar) {
-        await api.aceitar(id);
-      } else {
-        await api.recusar(id);
-      }
+      await (aceitar ? api.aceitar(id) : api.recusar(id));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -81,14 +82,30 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           ),
         ),
       );
-      setState(() => _future = _carregar());
+      setState(() {
+        _future = _carregar();
+        _future.ignore();
+      });
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+        setState(() {
+          _future = _carregar();
+          _future.ignore();
+        });
+      }
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Não foi possível atualizar a solicitação.'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível atualizar a solicitação.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _decidindo.remove(id));
     }
   }
 
@@ -126,7 +143,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           if (snapshot.hasError) {
             return AsyncErrorView(
               message: 'Não foi possível carregar seus atendimentos agora.',
-              onRetry: () => setState(() => _future = _carregar()),
+              onRetry: () => setState(() {
+                _future = _carregar();
+                _future.ignore();
+              }),
               icon: Icons.home_repair_service_outlined,
             );
           }
@@ -174,7 +194,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     .toList()
               : _filtrar(pedidos);
           return RefreshIndicator(
-            onRefresh: () async => setState(() => _future = _carregar()),
+            onRefresh: () async => setState(() {
+              _future = _carregar();
+              _future.ignore();
+            }),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
@@ -366,11 +389,18 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ...lista.map(
                     (pedido) => _PedidoCard(
                       pedido: pedido,
-                      onChanged: () => setState(() => _future = _carregar()),
-                      onAccept: pedido['status'] == 'aguardando_resposta'
+                      onChanged: () => setState(() {
+                        _future = _carregar();
+                        _future.ignore();
+                      }),
+                      onAccept:
+                          !_decidindo.contains(_id(pedido)) &&
+                              pedido['status'] == 'aguardando_resposta'
                           ? () => _decidir(_id(pedido), true)
                           : null,
-                      onDecline: pedido['status'] == 'aguardando_resposta'
+                      onDecline:
+                          !_decidindo.contains(_id(pedido)) &&
+                              pedido['status'] == 'aguardando_resposta'
                           ? () => _decidir(_id(pedido), false)
                           : null,
                     ),
@@ -456,6 +486,7 @@ class _DetalheSolicitacaoProfissionalPageState
     extends State<DetalheSolicitacaoProfissionalPage> {
   Future<Map<String, dynamic>>? _future;
   int? _id;
+  bool _decidindo = false;
   @override
   Widget build(BuildContext context) {
     final arg = ModalRoute.of(context)?.settings.arguments;
@@ -483,11 +514,12 @@ class _DetalheSolicitacaoProfissionalPageState
                     onRetry: () {
                       final solicitacaoId = _id;
                       if (solicitacaoId != null) {
-                        setState(
-                          () => _future = AppServices.instance.servicos.obter(
+                        setState(() {
+                          _future = AppServices.instance.servicos.obter(
                             solicitacaoId,
-                          ),
-                        );
+                          );
+                          _future?.ignore();
+                        });
                       }
                     },
                   );
@@ -501,7 +533,7 @@ class _DetalheSolicitacaoProfissionalPageState
                     _BadgeCard(
                       icon: Icons.home_repair_service_outlined,
                       title:
-                          '${p['categoria']?['nome'] ?? 'Serviço solicitado'}',
+                          '${p['nomeServico'] ?? p['categoria']?['nome'] ?? 'Serviço solicitado'}',
                       text: 'Solicitação #${p['id']} • ${_status(p['status'])}',
                     ),
                     const SizedBox(height: 12),
@@ -548,19 +580,24 @@ class _DetalheSolicitacaoProfissionalPageState
                         value: enderecoTexto,
                       ),
                     const SizedBox(height: 14),
+                    if (_decidindo) const LinearProgressIndicator(),
                     if (p['status'] == 'aguardando_resposta')
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _decidir(id!, false),
+                              onPressed: _decidindo
+                                  ? null
+                                  : () => _decidir(id!, false),
                               child: const Text('Recusar'),
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: FilledButton(
-                              onPressed: () => _decidir(id!, true),
+                              onPressed: _decidindo
+                                  ? null
+                                  : () => _decidir(id!, true),
                               child: const Text('Aceitar'),
                             ),
                           ),
@@ -576,6 +613,31 @@ class _DetalheSolicitacaoProfissionalPageState
                         icon: const Icon(Icons.chat_outlined),
                         label: const Text('Conversar sobre este atendimento'),
                       ),
+                    if (p['status'] == 'conclusao_confirmada')
+                      FilledButton.icon(
+                        onPressed: p['avaliado'] == true
+                            ? null
+                            : () async {
+                                await Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.detalhesServico,
+                                  arguments: id,
+                                );
+                                if (mounted) {
+                                  setState(() {
+                                    _future = AppServices.instance.servicos
+                                        .obter(id!);
+                                    _future?.ignore();
+                                  });
+                                }
+                              },
+                        icon: const Icon(Icons.rate_review_outlined),
+                        label: Text(
+                          p['avaliado'] == true
+                              ? 'Avaliação registrada'
+                              : 'Avaliar cliente',
+                        ),
+                      ),
                   ],
                 );
               },
@@ -584,6 +646,8 @@ class _DetalheSolicitacaoProfissionalPageState
   }
 
   Future<void> _decidir(int id, bool aceitar) async {
+    if (_decidindo) return;
+    setState(() => _decidindo = true);
     try {
       if (aceitar) {
         await AppServices.instance.servicos.aceitar(id);
@@ -593,12 +657,24 @@ class _DetalheSolicitacaoProfissionalPageState
       if (mounted) {
         Navigator.pop(context, true);
       }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+        setState(() {
+          _future = AppServices.instance.servicos.obter(id);
+          _future?.ignore();
+        });
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('A API não confirmou a alteração.')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _decidindo = false);
     }
   }
 }
@@ -616,9 +692,33 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
   bool _salvando = false;
   Future<void> _editar({Map<String, dynamic>? servico}) async {
     final nome = TextEditingController(text: '${servico?['nome'] ?? ''}');
-    final categoriaId = TextEditingController(
-      text: '${servico?['categoriaId'] ?? servico?['categoria']?['id'] ?? ''}',
+    if (_salvando) return;
+    setState(() => _salvando = true);
+    List<Map<String, dynamic>> categorias;
+    try {
+      final response = await AppServices.instance.categorias.listar();
+      categorias = (response['categorias'] as List? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não foi possível carregar as categorias. Tente novamente.',
+            ),
+          ),
+        );
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+    if (!mounted) return;
+    int? categoriaId = int.tryParse(
+      '${servico?['categoriaId'] ?? servico?['categoria']?['id'] ?? ''}',
     );
+    if (!categorias.any((c) => c['id'] == categoriaId)) categoriaId = null;
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
@@ -636,15 +736,28 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
               TextFormField(
                 controller: nome,
                 decoration: const InputDecoration(labelText: 'Nome do serviço'),
+                maxLength: 90,
                 validator: (v) =>
                     (v ?? '').trim().length < 2 ? 'Informe o nome.' : null,
               ),
-              TextFormField(
-                controller: categoriaId,
-                keyboardType: TextInputType.number,
+              DropdownButtonFormField<int>(
+                initialValue: categoriaId,
+                isExpanded: true,
                 decoration: const InputDecoration(
-                  labelText: 'ID da categoria aprovada',
+                  labelText: 'Categoria (opcional)',
                 ),
+                items: [
+                  const DropdownMenuItem<int>(
+                    value: null,
+                    child: Text('Sem categoria'),
+                  ),
+                  for (final categoria in categorias)
+                    DropdownMenuItem(
+                      value: int.tryParse('${categoria['id']}'),
+                      child: Text('${categoria['nome']}'),
+                    ),
+                ],
+                onChanged: (value) => categoriaId = value,
               ),
               TextFormField(
                 controller: preco,
@@ -654,6 +767,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                 decoration: const InputDecoration(
                   labelText: 'Preço inicial (R\$)',
                 ),
+                validator: validarPrecoOpcional,
               ),
             ],
           ),
@@ -680,6 +794,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           .whereType<Map<String, dynamic>>()
           .map(
             (e) => <String, dynamic>{
+              'id': e['id'],
               'nome': e['nome'],
               'categoriaId': e['categoriaId'] ?? e['categoria']?['id'],
               'precoInicial': e['precoInicial'],
@@ -687,16 +802,25 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           )
           .toList();
       final novo = <String, dynamic>{
+        if (servico != null) 'id': servico['id'],
         'nome': nome.text.trim(),
-        if (int.tryParse(categoriaId.text.trim()) != null)
-          'categoriaId': int.parse(categoriaId.text.trim()),
-        if (double.tryParse(preco.text.replaceAll(',', '.')) != null)
-          'precoInicial': double.parse(preco.text.replaceAll(',', '.')),
+        'categoriaId': categoriaId,
+        'precoInicial': parsePrecoInicial(preco.text),
       };
       if (servico == null) {
+        if (servicos.length >= 12) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Você pode cadastrar até 12 serviços.'),
+              ),
+            );
+          }
+          return;
+        }
         servicos.add(novo);
       } else {
-        final index = servicos.indexWhere((e) => e['nome'] == servico['nome']);
+        final index = servicos.indexWhere((e) => e['id'] == servico['id']);
         if (index >= 0) servicos[index] = novo;
       }
       await AppServices.instance.profissionais.salvarMeusServicos(servicos);
@@ -704,9 +828,10 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Serviço salvo.')));
-        setState(
-          () => _future = AppServices.instance.profissionais.meusServicos(),
-        );
+        setState(() {
+          _future = AppServices.instance.profissionais.meusServicos();
+          _future.ignore();
+        });
       }
     } catch (_) {
       if (mounted) {
@@ -746,10 +871,10 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                 return AsyncErrorView(
                   message: 'Não foi possível carregar seus serviços.',
                   icon: Icons.home_repair_service_outlined,
-                  onRetry: () => setState(
-                    () => _future = AppServices.instance.profissionais
-                        .meusServicos(),
-                  ),
+                  onRetry: () => setState(() {
+                    _future = AppServices.instance.profissionais.meusServicos();
+                    _future.ignore();
+                  }),
                 );
               }
               final list = (s.data?['servicos'] as List? ?? [])
@@ -828,9 +953,10 @@ class _PerfilProfissionalPrivadoPageState
           return AsyncErrorView(
             message: 'Não foi possível carregar seu perfil profissional.',
             icon: Icons.person_outline_rounded,
-            onRetry: () => setState(
-              () => _future = AppServices.instance.profissionais.meuPerfil(),
-            ),
+            onRetry: () => setState(() {
+              _future = AppServices.instance.profissionais.meuPerfil();
+              _future.ignore();
+            }),
           );
         }
         final perfil = s.data?['profissional'];
@@ -888,8 +1014,7 @@ class _PerfilProfissionalPrivadoPageState
             _MenuRow(
               icon: Icons.badge_outlined,
               label: 'Dados profissionais',
-              onTap: () =>
-                  Navigator.pushNamed(context, AppRoutes.cadastroProfissional),
+              onTap: _editarDadosProfissionais,
             ),
             _MenuRow(
               icon: Icons.home_repair_service_outlined,
@@ -900,7 +1025,7 @@ class _PerfilProfissionalPrivadoPageState
             _MenuRow(
               icon: Icons.location_on_outlined,
               label: 'Região atendida',
-              onTap: () => _editarRegiao(perfil),
+              onTap: _editarDadosProfissionais,
             ),
             _MenuRow(
               icon: Icons.folder_outlined,
@@ -913,9 +1038,8 @@ class _PerfilProfissionalPrivadoPageState
             _MenuRow(
               icon: Icons.star_outline_rounded,
               label: 'Avaliações recebidas',
-              onTap: () => _aviso(
-                'Avaliações públicas podem ser consultadas no seu perfil exibido ao cliente.',
-              ),
+              onTap: () =>
+                  Navigator.pushNamed(context, AppRoutes.avaliacoesRecebidas),
             ),
             _MenuRow(
               icon: Icons.settings_outlined,
@@ -927,80 +1051,18 @@ class _PerfilProfissionalPrivadoPageState
       },
     ),
   );
-  Future<void> _editarRegiao(Object? raw) async {
-    final perfil = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
-    final bairro = TextEditingController(text: '${perfil['bairro'] ?? ''}');
-    final descricao = TextEditingController(
-      text: '${perfil['descricao'] ?? ''}',
+  Future<void> _editarDadosProfissionais() async {
+    final atualizado = await Navigator.pushNamed(
+      context,
+      AppRoutes.cadastroProfissional,
     );
-    final preco = TextEditingController(
-      text: '${perfil['precoInicial'] ?? ''}',
-    );
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        title: const Text('Dados profissionais'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: descricao,
-              decoration: const InputDecoration(
-                labelText: 'Descrição (mín. 20 caracteres)',
-              ),
-            ),
-            TextField(
-              controller: bairro,
-              decoration: const InputDecoration(labelText: 'Bairro/região'),
-            ),
-            TextField(
-              controller: preco,
-              decoration: const InputDecoration(labelText: 'Preço inicial'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await AppServices.instance.profissionais.salvarMeuPerfil({
-        'descricao': descricao.text.trim(),
-        'bairro': bairro.text.trim(),
-        'precoInicial': double.tryParse(preco.text.replaceAll(',', '.')),
-        'servicos': (perfil['servicos'] as List? ?? [])
-            .whereType<Map<String, dynamic>>()
-            .map(
-              (e) => {
-                'nome': e['nome'],
-                'categoriaId': e['categoria']?['id'],
-                'precoInicial': e['precoInicial'],
-              },
-            )
-            .toList(),
+    if (atualizado == true && mounted) {
+      setState(() {
+        _future = AppServices.instance.profissionais.meuPerfil();
+        _future.ignore();
       });
-      if (mounted) {
-        setState(
-          () => _future = AppServices.instance.profissionais.meuPerfil(),
-        );
-      }
-    } catch (_) {
-      if (mounted) _aviso('Não foi possível salvar os dados profissionais.');
     }
   }
-
-  void _aviso(String text) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }
 
 String _status(Object? value) => switch (value) {
@@ -1013,7 +1075,7 @@ String _status(Object? value) => switch (value) {
 };
 
 String _enderecoTexto(Map<String, dynamic> pedido) {
-  final endereco = pedido['enderecoAtendimento'];
+  final endereco = pedido['enderecoAtendimento'] ?? pedido['enderecoCompleto'];
   if (endereco is! Map<String, dynamic>) {
     return '${pedido['bairroAtendimento'] ?? 'Região não informada'}';
   }
@@ -1058,7 +1120,7 @@ class _PedidoCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${pedido['categoria']?['nome'] ?? 'Serviço solicitado'}',
+                        '${pedido['nomeServico'] ?? pedido['categoria']?['nome'] ?? 'Serviço solicitado'}',
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
@@ -1092,12 +1154,12 @@ class _PedidoCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      final result = await Navigator.pushNamed(
+                      await Navigator.pushNamed(
                         context,
                         AppRoutes.detalhesSolicitacaoProfissional,
                         arguments: id,
                       );
-                      if (result == true) onChanged?.call();
+                      onChanged?.call();
                     },
                     child: const Text('Ver detalhes'),
                   ),

@@ -6,6 +6,7 @@ import '../../models/categoria.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
+import '../../widgets/async_state_view.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
@@ -26,9 +27,8 @@ class _BuscaPageState extends State<BuscaPage> {
   bool _argumentosLidos = false;
   late Future<HomeContent> _contentFuture;
 
-  List<Categoria> _categorias = HomeMockData.content.categories;
-  List<Profissional> _profissionais =
-      HomeMockData.content.featuredProfessionals;
+  List<Categoria> _categorias = const [];
+  List<Profissional> _profissionais = const [];
 
   @override
   void initState() {
@@ -56,11 +56,8 @@ class _BuscaPageState extends State<BuscaPage> {
   }
 
   Future<HomeContent> _carregarConteudo() async {
-    try {
-      return await AppServices.instance.carregarHome();
-    } catch (_) {
-      return HomeMockData.content;
-    }
+    if (AppServices.instance.emDemonstracao) return HomeMockData.content;
+    return AppServices.instance.carregarHome();
   }
 
   List<Profissional> get _resultados {
@@ -137,6 +134,15 @@ class _BuscaPageState extends State<BuscaPage> {
       body: FutureBuilder<HomeContent>(
         future: _contentFuture,
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return AsyncErrorView(
+              message: 'Não foi possível carregar os profissionais.',
+              onRetry: () => setState(() {
+                _contentFuture = _carregarConteudo();
+                _contentFuture.ignore();
+              }),
+            );
+          }
           if (snapshot.hasData) {
             _categorias = snapshot.data!.categories;
             _profissionais = snapshot.data!.featuredProfessionals;

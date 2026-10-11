@@ -38,11 +38,17 @@ class Solicitacao {
     this.enderecoCompletoLiberado = false,
     this.enderecoId,
     this.enderecoAtendimento,
+    this.profissionalUsuarioId = 0,
+    this.servicoId,
+    this.nomeServico,
   });
 
   final int id;
   final int clienteId;
   final int profissionalId;
+  final int profissionalUsuarioId;
+  final int? servicoId;
+  final String? nomeServico;
   final int categoriaId;
   final int? enderecoId;
   final String descricao;
@@ -52,7 +58,7 @@ class Solicitacao {
   final ClienteEndereco? enderecoAtendimento;
   final DateTime dataServico;
   final String horarioServico;
-  final double precoInicial;
+  final double? precoInicial;
   final StatusSolicitacao status;
   final DateTime criadoEm;
   final DateTime atualizadoEm;
