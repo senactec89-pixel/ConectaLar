@@ -75,7 +75,18 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     categoriaId: categoria is Map<String, dynamic>
         ? intValue(categoria['id'])
         : 0,
+    enderecoId: json['enderecoId'] == null
+        ? null
+        : intValue(json['enderecoId']),
     descricao: stringValue(json['descricao']),
+    bairroAtendimento: stringValue(json['bairroAtendimento']),
+    enderecoProtegido: boolValue(json['enderecoProtegido']),
+    enderecoCompletoLiberado: boolValue(json['enderecoCompletoLiberado']),
+    enderecoAtendimento: json['enderecoAtendimento'] is Map<String, dynamic>
+        ? clienteEnderecoFromApi(
+            json['enderecoAtendimento'] as Map<String, dynamic>,
+          )
+        : null,
     dataServico: dateValue(json['dataServico']),
     horarioServico: stringValue(json['horarioServico']),
     precoInicial: doubleValueOrNull(json['precoInicial']) ?? 0,

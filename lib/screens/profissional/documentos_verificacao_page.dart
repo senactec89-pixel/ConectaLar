@@ -4,7 +4,6 @@ import '../../app/theme.dart';
 import '../../models/documento_verificacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
-import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 
@@ -170,13 +169,16 @@ class _DocumentoFormState extends State<_DocumentoForm> {
   final _formKey = GlobalKey<FormState>();
   String _tipo = 'documento_identidade';
   final _referencia = TextEditingController();
+  final _arquivoBase64 = TextEditingController();
   final _nomeArquivo = TextEditingController();
   final _observacao = TextEditingController();
+  String _mimeType = 'application/pdf';
   bool _enviando = false;
 
   @override
   void dispose() {
     _referencia.dispose();
+    _arquivoBase64.dispose();
     _nomeArquivo.dispose();
     _observacao.dispose();
     super.dispose();
@@ -188,7 +190,13 @@ class _DocumentoFormState extends State<_DocumentoForm> {
     try {
       await AppServices.instance.verificacao.enviarDocumento(
         tipoDocumento: _tipo,
-        referenciaArquivo: _referencia.text.trim(),
+        referenciaArquivo: _referencia.text.trim().isEmpty
+            ? null
+            : _referencia.text.trim(),
+        arquivoBase64: _arquivoBase64.text.trim().isEmpty
+            ? null
+            : _arquivoBase64.text.trim(),
+        mimeType: _arquivoBase64.text.trim().isEmpty ? null : _mimeType,
         nomeArquivo: _nomeArquivo.text.trim().isEmpty
             ? null
             : _nomeArquivo.text.trim(),
@@ -256,7 +264,45 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                   labelText: 'Referência interna do arquivo',
                   hintText: 'Ex.: local/documentos/rg-frente.pdf',
                 ),
-                validator: validarCampoObrigatorio,
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty &&
+                      _arquivoBase64.text.trim().isEmpty) {
+                    return 'Informe uma referencia ou arquivo base64.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: _mimeType,
+                decoration: const InputDecoration(labelText: 'Tipo do arquivo'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'application/pdf',
+                    child: Text('PDF'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'image/jpeg',
+                    child: Text('Imagem JPEG'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'image/png',
+                    child: Text('Imagem PNG'),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _mimeType = value ?? _mimeType),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _arquivoBase64,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  labelText: 'Arquivo em base64',
+                  hintText:
+                      'Cole o conteudo base64 quando nao houver referencia',
+                ),
               ),
               const SizedBox(height: 10),
               TextFormField(

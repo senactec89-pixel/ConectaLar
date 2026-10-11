@@ -35,6 +35,13 @@ class ProfissionalService {
     return _api.get('profissionais/me/painel');
   }
 
+  Future<Map<String, dynamic>> minhaAgenda({String? mes}) {
+    return _api.get(
+      'profissionais/me/agenda',
+      queryParameters: {if (mes != null && mes.isNotEmpty) 'mes': mes},
+    );
+  }
+
   Future<Map<String, dynamic>> salvarMeuPerfil(Map<String, dynamic> dados) {
     return _api.put('profissionais/me', body: dados);
   }

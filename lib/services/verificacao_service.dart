@@ -7,7 +7,9 @@ class VerificacaoService {
 
   Future<Map<String, dynamic>> enviarDocumento({
     required String tipoDocumento,
-    required String referenciaArquivo,
+    String? referenciaArquivo,
+    String? arquivoBase64,
+    String? mimeType,
     String? nomeArquivo,
     String? observacao,
   }) {
@@ -15,7 +17,9 @@ class VerificacaoService {
       'profissionais/me/documentos',
       body: {
         'tipoDocumento': tipoDocumento,
-        'referenciaArquivo': referenciaArquivo,
+        'referenciaArquivo': ?referenciaArquivo,
+        'arquivoBase64': ?arquivoBase64,
+        'mimeType': ?mimeType,
         'nomeArquivo': ?nomeArquivo,
         'observacao': ?observacao,
       },

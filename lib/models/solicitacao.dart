@@ -1,3 +1,5 @@
+import 'cliente_endereco.dart';
+
 enum StatusSolicitacao {
   aguardandoResposta('aguardando_resposta'),
   aceitaAgendada('aceita_agendada'),
@@ -31,13 +33,23 @@ class Solicitacao {
     required this.status,
     required this.criadoEm,
     required this.atualizadoEm,
+    this.bairroAtendimento = '',
+    this.enderecoProtegido = false,
+    this.enderecoCompletoLiberado = false,
+    this.enderecoId,
+    this.enderecoAtendimento,
   });
 
   final int id;
   final int clienteId;
   final int profissionalId;
   final int categoriaId;
+  final int? enderecoId;
   final String descricao;
+  final String bairroAtendimento;
+  final bool enderecoProtegido;
+  final bool enderecoCompletoLiberado;
+  final ClienteEndereco? enderecoAtendimento;
   final DateTime dataServico;
   final String horarioServico;
   final double precoInicial;

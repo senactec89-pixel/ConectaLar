@@ -32,6 +32,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   bool _solicitacaoEnviada = false;
   bool _enviando = false;
   int? _solicitacaoId;
+  int? _enderecoSelecionadoId;
   Future<List<ClienteEndereco>>? _enderecosFuture;
   Future<List<Disponibilidade>>? _disponibilidadeFuture;
 
@@ -69,7 +70,10 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         }
       }
       if (principal != null && mounted) {
-        _bairroController.text = principal.bairro;
+        setState(() {
+          _enderecoSelecionadoId = principal!.id;
+          _bairroController.text = principal.bairro;
+        });
       }
       return enderecos;
     } catch (_) {
@@ -112,6 +116,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         'categoriaId': profissional.categoriaIds.isEmpty
             ? null
             : profissional.categoriaIds.first,
+        'enderecoId': _enderecoSelecionadoId,
         'descricao': _descricaoController.text,
         'bairroAtendimento': _bairroController.text,
         'dataServico': _dataApi(data),
@@ -194,13 +199,15 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                     bairroController: _bairroController,
                     dataController: _dataController,
                     horarioController: _horarioController,
+                    enderecoSelecionadoId: _enderecoSelecionadoId,
                     enderecosFuture: _enderecosFuture,
                     disponibilidadeFuture: _disponibilidadeFuture,
                     onServicoChanged: (servico) =>
                         setState(() => _servicoSelecionado = servico),
-                    onEnderecoChanged: (endereco) => setState(
-                      () => _bairroController.text = endereco.bairro,
-                    ),
+                    onEnderecoChanged: (endereco) => setState(() {
+                      _enderecoSelecionadoId = endereco.id;
+                      _bairroController.text = endereco.bairro;
+                    }),
                     onSubmit: _enviarSolicitacao,
                     enviando: _enviando,
                   ),
@@ -276,6 +283,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.bairroController,
     required this.dataController,
     required this.horarioController,
+    required this.enderecoSelecionadoId,
     required this.enderecosFuture,
     required this.disponibilidadeFuture,
     required this.onServicoChanged,
@@ -291,6 +299,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   final TextEditingController bairroController;
   final TextEditingController dataController;
   final TextEditingController horarioController;
+  final int? enderecoSelecionadoId;
   final Future<List<ClienteEndereco>>? enderecosFuture;
   final Future<List<Disponibilidade>>? disponibilidadeFuture;
   final ValueChanged<String?> onServicoChanged;
@@ -356,6 +365,13 @@ class _FormularioSolicitacao extends StatelessWidget {
                     return Column(
                       children: [
                         DropdownButtonFormField<int>(
+                          initialValue:
+                              enderecos.any(
+                                (endereco) =>
+                                    endereco.id == enderecoSelecionadoId,
+                              )
+                              ? enderecoSelecionadoId
+                              : null,
                           decoration: const InputDecoration(
                             labelText: 'Endereço cadastrado',
                             border: OutlineInputBorder(),

@@ -101,11 +101,19 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> logout() async {
+    Map<String, dynamic> response = {'ok': true};
+    if (_api.autenticado) {
+      try {
+        response = await _api.post('auth/logout');
+      } catch (_) {
+        // Mesmo se a API estiver indisponivel, a sessao local precisa sair.
+      }
+    }
     _usuarioAtual = null;
     _api.definirToken(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
-    return {'ok': true};
+    return response;
   }
 
   Future<void> _registrarSessao(Map<String, dynamic> response) async {

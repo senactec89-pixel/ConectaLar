@@ -28,16 +28,12 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
     if (!AppServices.instance.auth.autenticado) {
       return {'solicitacoes': <dynamic>[]};
     }
-    return _tab == 0
-        ? AppServices.instance.profissionais.meuPainel()
-        : AppServices.instance.servicos.minhas();
+    if (_tab == 0) return AppServices.instance.profissionais.meuPainel();
+    if (_tab == 2) return AppServices.instance.profissionais.minhaAgenda();
+    return AppServices.instance.servicos.minhas();
   }
 
   void _abrirTab(int tab) {
-    if (tab == 2) {
-      Navigator.pushNamed(context, AppRoutes.disponibilidadeProfissional);
-      return;
-    }
     if (tab == 3) {
       Navigator.pushNamed(context, AppRoutes.servicosProfissional);
       return;
@@ -109,6 +105,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           final data = snapshot.data ?? const <String, dynamic>{};
           final raw = _tab == 0
               ? data['solicitacoesRecentes']
+              : _tab == 2
+              ? data['atendimentos']
               : data['solicitacoes'];
           final pedidos = raw is List
               ? raw.whereType<Map<String, dynamic>>().toList()
@@ -123,7 +121,11 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           final concluidos = pedidos
               .where((p) => p['status'] == 'conclusao_confirmada')
               .toList();
-          final lista = _tab == 0 ? novos.take(3).toList() : _filtrar(pedidos);
+          final lista = _tab == 0
+              ? novos.take(3).toList()
+              : _tab == 2
+              ? agendados
+              : _filtrar(pedidos);
           return RefreshIndicator(
             onRefresh: () async => setState(() => _future = _carregar()),
             child: ListView(
@@ -210,6 +212,25 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     onTap: () => _abrirTab(1),
                   ),
                   const SizedBox(height: 8),
+                ] else if (_tab == 2) ...[
+                  Text(
+                    'Agenda',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Atendimentos aceitos no mes ${data['mes'] ?? 'atual'}. O endereco completo aparece somente quando a API liberar.',
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.disponibilidadeProfissional,
+                    ),
+                    icon: const Icon(Icons.edit_calendar_outlined),
+                    label: const Text('Editar disponibilidade semanal'),
+                  ),
+                  const SizedBox(height: 12),
                 ] else ...[
                   Text(
                     'Pedidos recebidos',
@@ -370,6 +391,8 @@ class _DetalheSolicitacaoProfissionalPageState
                   );
                 }
                 final aceito = p['status'] == 'aceita_agendada';
+                final enderecoLiberado = p['enderecoCompletoLiberado'] == true;
+                final enderecoTexto = _enderecoTexto(p);
                 return ListView(
                   padding: const EdgeInsets.all(18),
                   children: [
@@ -413,6 +436,11 @@ class _DetalheSolicitacaoProfissionalPageState
                           ? 'A API atual ainda não fornece o endereço completo nesta tela. Consulte apenas os dados retornados para esta solicitação.'
                           : 'O endereço completo só fica disponível após o aceite válido registrado pela API.',
                     ),
+                    if (enderecoLiberado)
+                      _InfoCard(
+                        title: 'EndereÃ§o completo liberado pela API',
+                        value: enderecoTexto,
+                      ),
                     const SizedBox(height: 14),
                     if (p['status'] == 'aguardando_resposta')
                       Row(
@@ -839,6 +867,17 @@ String _status(Object? value) => switch (value) {
   _ => 'Status desconhecido',
 };
 
+String _enderecoTexto(Map<String, dynamic> pedido) {
+  final endereco = pedido['enderecoAtendimento'];
+  if (endereco is! Map<String, dynamic>) {
+    return '${pedido['bairroAtendimento'] ?? 'Regiao nao informada'}';
+  }
+  final complemento = '${endereco['complemento'] ?? ''}'.trim();
+  final extra = complemento.isEmpty ? '' : ' - $complemento';
+  return '${endereco['logradouro'] ?? ''}, ${endereco['numero'] ?? ''}$extra - '
+      '${endereco['bairro'] ?? ''}, ${endereco['cidade'] ?? ''}/${endereco['uf'] ?? ''}';
+}
+
 class _PedidoCard extends StatelessWidget {
   const _PedidoCard({
     required this.pedido,
@@ -854,6 +893,7 @@ class _PedidoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = int.tryParse('${pedido['id']}') ?? 0;
     final aguardando = pedido['status'] == 'aguardando_resposta';
+    final enderecoLiberado = pedido['enderecoCompletoLiberado'] == true;
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: Padding(
@@ -886,9 +926,11 @@ class _PedidoCard extends StatelessWidget {
               style: const TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Endereço completo protegido até o aceite válido.',
-              style: TextStyle(fontSize: 12, color: AppColors.textoSuave),
+            Text(
+              enderecoLiberado
+                  ? _enderecoTexto(pedido)
+                  : 'Endereco completo protegido ate o aceite valido.',
+              style: const TextStyle(fontSize: 12, color: AppColors.textoSuave),
             ),
             const SizedBox(height: 10),
             Row(
