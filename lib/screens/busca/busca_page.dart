@@ -281,22 +281,48 @@ class _FiltrosBusca extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final categoria in categorias)
-                  FilterChip(
-                    label: Text(categoria.nome),
-                    selected: categoriaSelecionada?.id == categoria.id,
-                    onSelected: (_) => onCategoriaSelecionada(categoria),
-                    showCheckmark: false,
-                    avatar: categoriaSelecionada?.id == categoria.id
-                        ? const Icon(Icons.check_rounded, size: 18)
-                        : null,
+            if (categorias.isNotEmpty) ...[
+              const Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Categorias',
+                    style: TextStyle(
+                      color: AppColors.texto,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
                   ),
-              ],
-            ),
+                  Text(
+                    'Deslize para ver mais',
+                    style: TextStyle(color: AppColors.textoSuave, fontSize: 12),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final categoria in categorias)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text(categoria.nome),
+                          selected: categoriaSelecionada?.id == categoria.id,
+                          onSelected: (_) => onCategoriaSelecionada(categoria),
+                          showCheckmark: false,
+                          avatar: categoriaSelecionada?.id == categoria.id
+                              ? const Icon(Icons.check_rounded, size: 18)
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
@@ -323,15 +349,17 @@ class _CabecalhoResultados extends StatelessWidget {
     final texto = total == 1
         ? '1 profissional encontrado'
         : '$total profissionais encontrados';
-    return Row(
+    return Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 6,
       children: [
-        Expanded(
-          child: Text(
-            'Resultados',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.texto,
-              fontWeight: FontWeight.w800,
-            ),
+        Text(
+          'Resultados',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.texto,
+            fontWeight: FontWeight.w800,
           ),
         ),
         Text(
