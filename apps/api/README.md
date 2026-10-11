@@ -24,7 +24,7 @@ The health check is `GET /health` and returns only `{ "status": "ok" }`. It does
 
 The OpenAPI contract in `openapi.yaml` covers the routes currently implemented by the API, including client profiles and addresses, professional availability and agenda, service requests, chat, reviews, reports, notifications, document moderation, administrative users, history, terms, and audit. It describes the current HTTP contract; it does not claim that every route has passed an integration or production test. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 
-For local troubleshooting, use `npm run diagnostico:local` after starting the API. The command checks `/health`, MySQL, pending migrations, demo logins, and the main demo endpoints. The full Windows workflow is documented in [`docs/ambiente-local.md`](../../docs/ambiente-local.md).
+For local troubleshooting, use `npm run diagnostico:local` after starting the API. The command checks `/health`, MySQL, pending migrations, demo logins, and the main demo endpoints. Use `npm run diagnostico:fluxo` for a deeper local end-to-end validation that creates temporary test data and exercises request creation, acceptance, chat, completion, reviews, reports, moderation, and audit. The full Windows workflow is documented in [`docs/ambiente-local.md`](../../docs/ambiente-local.md).
 
 ## Logging and errors
 

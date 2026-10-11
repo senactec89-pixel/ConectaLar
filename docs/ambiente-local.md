@@ -68,6 +68,34 @@ O diagnostico confere:
 
 Se aparecer migration pendente, rode `npm.cmd run db:migration:run` e repita o diagnostico. Se o seed estiver desatualizado ou os logins demo falharem, rode `npm.cmd run db:seed:demo`.
 
+### Diagnostico profundo do fluxo principal
+
+Quando a API e o MySQL estiverem ligados, tambem e possivel validar o fluxo principal ponta a ponta:
+
+```powershell
+cd C:\Users\User\Downloads\ConectaLar-main\ConectaLar-main\apps\api
+$env:CONECTALAR_API_BASE_URL='http://127.0.0.1:3012'
+npm.cmd run diagnostico:fluxo
+```
+
+Esse comando cria usuarios temporarios com e-mails `@conectalar.local` e percorre:
+
+- cadastro de cliente, profissional e terceiro;
+- perfil profissional, ofertas e disponibilidade;
+- endereco do cliente;
+- solicitacao com endereco protegido;
+- aceite do profissional e liberacao autorizada do endereco;
+- agenda profissional;
+- chat;
+- conclusao;
+- avaliacoes;
+- moderacao de avaliacao;
+- denuncia;
+- moderacao de denuncia;
+- auditoria administrativa.
+
+Use esse diagnostico em banco local de desenvolvimento ou teste. Ele cria dados novos para preservar rastreabilidade e nao deve ser executado contra banco de producao.
+
 ## 4. Usuarios demo
 
 ```text
