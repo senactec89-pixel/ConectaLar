@@ -6,6 +6,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class DocumentosVerificacaoPage extends StatefulWidget {
   const DocumentosVerificacaoPage({super.key});
@@ -57,7 +58,14 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AsyncLoadingView(label: 'Carregando documentos.');
+          }
+          if (snapshot.hasError) {
+            return AsyncErrorView(
+              message: 'Não foi possível carregar seus documentos agora.',
+              onRetry: _recarregar,
+              icon: Icons.upload_file_outlined,
+            );
           }
           final documentos = snapshot.data ?? const <DocumentoVerificacao>[];
           return ListView(
@@ -93,11 +101,11 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
               ),
               const SizedBox(height: 16),
               if (documentos.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('Nenhum documento enviado ainda.'),
-                  ),
+                const EmptyStateView(
+                  title: 'Nenhum documento enviado',
+                  message:
+                      'Quando você enviar documentos, o andamento da análise aparecerá aqui.',
+                  icon: Icons.folder_open_outlined,
                 )
               else
                 for (final documento in documentos) ...[

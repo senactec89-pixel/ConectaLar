@@ -11,7 +11,10 @@ import '../screens/favoritos/favoritos_page.dart';
 import '../screens/home/home_page.dart';
 import '../screens/notificacoes/notificacoes_page.dart';
 import '../screens/perfil/enderecos_page.dart';
+import '../screens/perfil/editar_dados_page.dart';
 import '../screens/perfil/perfil_page.dart';
+import '../screens/perfil/seguranca_page.dart';
+import '../screens/auth/recuperacao_senha_page.dart';
 import '../screens/profissional/cadastro_profissional_page.dart';
 import '../screens/profissional/disponibilidade_page.dart';
 import '../screens/profissional/documentos_verificacao_page.dart';
@@ -37,6 +40,9 @@ abstract final class AppRoutes {
   static const conversa = '/chat/conversa';
   static const perfil = '/perfil';
   static const enderecos = '/perfil/enderecos';
+  static const editarDados = '/perfil/dados';
+  static const seguranca = '/perfil/seguranca';
+  static const recuperacaoSenha = '/senha/recuperacao';
   static const notificacoes = '/notificacoes';
   static const disponibilidadeProfissional = '/profissionais/disponibilidade';
   static const documentosProfissional = '/profissionais/documentos';
@@ -68,6 +74,9 @@ abstract final class AppRoutes {
     conversa: (_) => const ConversaPage(),
     perfil: (_) => const PerfilPage(),
     enderecos: (_) => const EnderecosPage(),
+    editarDados: (_) => const EditarDadosPage(),
+    seguranca: (_) => const SegurancaPage(),
+    recuperacaoSenha: (_) => const RecuperacaoSenhaPage(),
     notificacoes: (_) => const NotificacoesPage(),
     disponibilidadeProfissional: (_) => const DisponibilidadePage(),
     documentosProfissional: (_) => const DocumentosVerificacaoPage(),

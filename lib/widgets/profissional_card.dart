@@ -259,14 +259,18 @@ class _AvaliacaoProfissional extends StatelessWidget {
       children: [
         const Icon(Icons.star_rounded, color: AppColors.estrela, size: 17),
         const SizedBox(width: 3),
-        Text(
-          nota == null
-              ? 'Novo profissional'
-              : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · ${profissional.quantidadeAvaliacoes ?? 0} avaliações',
-          style: const TextStyle(
-            color: AppColors.textoSuave,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
+        Flexible(
+          child: Text(
+            nota == null
+                ? 'Novo profissional'
+                : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · ${profissional.quantidadeAvaliacoes ?? 0} avaliações',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textoSuave,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

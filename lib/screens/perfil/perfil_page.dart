@@ -7,6 +7,7 @@ import '../../models/usuario.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
 
 class PerfilPage extends StatefulWidget {
@@ -57,7 +58,14 @@ class _PerfilPageState extends State<PerfilPage> {
           future: _usuarioFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const AsyncLoadingView(label: 'Carregando seu perfil.');
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar seu perfil agora.',
+                onRetry: () =>
+                    setState(() => _usuarioFuture = _carregarUsuario()),
+              );
             }
             final usuario = snapshot.data ?? store.usuarioAtual;
             return ListView(
@@ -115,8 +123,15 @@ class _PerfilPageState extends State<PerfilPage> {
                   icon: Icons.badge_outlined,
                   title: 'Meus dados',
                   subtitle: 'Nome, e-mail e telefone',
-                  onTap: () =>
-                      _mostrarInfo(context, 'Edição completa virá com a API.'),
+                  onTap: () async {
+                    final atualizado = await Navigator.pushNamed(
+                      context,
+                      AppRoutes.editarDados,
+                    );
+                    if (atualizado == true && mounted) {
+                      setState(() => _usuarioFuture = _carregarUsuario());
+                    }
+                  },
                 ),
                 _PerfilOpcao(
                   icon: Icons.location_on_outlined,
@@ -136,7 +151,8 @@ class _PerfilPageState extends State<PerfilPage> {
                   icon: Icons.lock_outline,
                   title: 'Segurança',
                   subtitle: 'Sessão, senha e recuperação de acesso',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.login),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.seguranca),
                 ),
                 _PerfilOpcao(
                   icon: Icons.privacy_tip_outlined,

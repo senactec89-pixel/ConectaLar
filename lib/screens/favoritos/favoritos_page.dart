@@ -7,6 +7,7 @@ import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
 
@@ -43,6 +44,10 @@ class _FavoritosPageState extends State<FavoritosPage> {
         .toList(growable: false);
   }
 
+  void _recarregarFavoritos() {
+    setState(() => _favoritosFuture = _carregarFavoritos());
+  }
+
   Future<void> _removerFavorito(
     ConectaLarMockStore store,
     int profissionalId,
@@ -75,7 +80,14 @@ class _FavoritosPageState extends State<FavoritosPage> {
           future: _favoritosFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const AsyncLoadingView(label: 'Carregando favoritos.');
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar seus favoritos agora.',
+                onRetry: _recarregarFavoritos,
+                icon: Icons.favorite_border_rounded,
+              );
             }
             final favoritos = snapshot.data ?? const <Profissional>[];
             return ListView(
@@ -96,7 +108,11 @@ class _FavoritosPageState extends State<FavoritosPage> {
                 ),
                 const SizedBox(height: 16),
                 if (favoritos.isEmpty)
-                  const _FavoritosVazios()
+                  const EmptyStateView(
+                    title: 'Sua lista está vazia',
+                    message: 'Os profissionais salvos aparecerão aqui.',
+                    icon: Icons.favorite_border_rounded,
+                  )
                 else
                   for (final profissional in favoritos) ...[
                     _FavoritoItem(
@@ -140,33 +156,6 @@ class _FavoritoItem extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         onPressed: onRemover,
         icon: const Icon(Icons.favorite, color: Color(0xFFC53030)),
-      ),
-    );
-  }
-}
-
-class _FavoritosVazios extends StatelessWidget {
-  const _FavoritosVazios();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Icon(Icons.favorite_border, color: AppColors.verdeEscuro, size: 36),
-            SizedBox(height: 10),
-            Text(
-              'Nenhum profissional favorito ainda.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.texto,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

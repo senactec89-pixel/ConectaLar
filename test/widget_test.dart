@@ -1,7 +1,11 @@
 import 'package:conectarlar_app/app/app.dart';
 import 'package:conectarlar_app/app/routes.dart';
+import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/models/home_content.dart';
+import 'package:conectarlar_app/screens/auth/recuperacao_senha_page.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
+import 'package:conectarlar_app/screens/perfil/editar_dados_page.dart';
+import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -252,6 +256,104 @@ void main() {
     );
   });
 
+  testWidgets('Meus dados, Segurança e recuperação cabem em telas mobile', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final telas = [
+      const EditarDadosPage(),
+      const SegurancaPage(),
+      const RecuperacaoSenhaPage(),
+    ];
+
+    for (final tela in telas) {
+      for (final width in [360.0, 390.0, 412.0]) {
+        tester.view.physicalSize = Size(width, 844);
+        await tester.pumpWidget(MaterialApp(theme: AppTheme.light, home: tela));
+        await tester.pumpAndSettle();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${tela.runtimeType} em $width px',
+        );
+      }
+    }
+  });
+
+  testWidgets('o perfil abre edição de dados e segurança', (tester) async {
+    await tester.pumpWidget(const ConectaLarApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Meus dados'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('perfil-nome')), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Segurança'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Segurança'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('seguranca-senha-atual')), findsOneWidget);
+    await tester.ensureVisible(find.text('Esqueceu sua senha?'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Esqueceu sua senha?'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('recuperacao-email')), findsOneWidget);
+  });
+
+  test('cores de texto e ação principal atendem contraste de leitura', () {
+    expect(
+      _contraste(AppColors.textoSuave, AppColors.branco),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      _contraste(AppColors.textoSuave, AppColors.verdeClaro),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      _contraste(AppColors.verde, AppColors.branco),
+      greaterThanOrEqualTo(4.5),
+    );
+  });
+
+  testWidgets('telas de conta aceitam texto ampliado', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final tela in [
+      const EditarDadosPage(),
+      const SegurancaPage(),
+      const RecuperacaoSenhaPage(),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: tela,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.4)),
+            child: child!,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: tela.runtimeType.toString(),
+      );
+    }
+  });
+
   testWidgets('a Home mostra uma mensagem amigável se o carregamento falhar', (
     tester,
   ) async {
@@ -272,18 +374,38 @@ void main() {
   });
 
   testWidgets('todas as rotas registradas abrem uma tela', (tester) async {
-    await tester.pumpWidget(const ConectaLarApp());
-    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    for (final route in AppRoutes.routes.keys.where(
-      (route) => route != AppRoutes.home,
-    )) {
-      final navigation = navigator.pushNamed<void>(route);
-      await tester.pumpAndSettle();
-      expect(find.byType(Scaffold), findsOneWidget, reason: route);
-      navigator.pop();
-      await tester.pumpAndSettle();
-      await navigation;
+    for (final width in [360.0, 390.0, 412.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      await tester.pumpWidget(const ConectaLarApp());
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+
+      for (final route in AppRoutes.routes.keys.where(
+        (route) => route != AppRoutes.home,
+      )) {
+        final navigation = navigator.pushNamed(route);
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(Scaffold),
+          findsOneWidget,
+          reason: '$route em $width px',
+        );
+        expect(tester.takeException(), isNull, reason: '$route em $width px');
+        navigator.pop();
+        await tester.pumpAndSettle();
+        await navigation;
+      }
     }
   });
+}
+
+double _contraste(Color foreground, Color background) {
+  final primeira = foreground.computeLuminance();
+  final segunda = background.computeLuminance();
+  final clara = primeira > segunda ? primeira : segunda;
+  final escura = primeira > segunda ? segunda : primeira;
+  return (clara + 0.05) / (escura + 0.05);
 }

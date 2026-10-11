@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const verde = Color(0xFF16845B);
+  static const verde = Color(0xFF157A54);
   static const verdeEscuro = Color(0xFF15553B);
   static const verdeClaro = Color(0xFFE8F5EE);
   static const verdePastel = Color(0xFFF1F8F3);
@@ -10,7 +10,7 @@ abstract final class AppColors {
   static const branco = Color(0xFFFFFFFF);
   static const fundo = Color(0xFFF6FAF7);
   static const texto = Color(0xFF153B31);
-  static const textoSuave = Color(0xFF7D8985);
+  static const textoSuave = Color(0xFF65716D);
   static const estrela = Color(0xFFFFC107);
 }
 

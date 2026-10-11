@@ -148,6 +148,13 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       TextButton(
+                        onPressed: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.recuperacaoSenha,
+                        ),
+                        child: const Text('Esqueci minha senha'),
+                      ),
+                      TextButton(
                         onPressed: () =>
                             Navigator.pushNamed(context, AppRoutes.cadastro),
                         child: const Text('Criar conta'),

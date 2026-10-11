@@ -6,6 +6,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class EnderecosPage extends StatefulWidget {
   const EnderecosPage({super.key});
@@ -72,7 +73,14 @@ class _EnderecosPageState extends State<EnderecosPage> {
         future: _enderecosFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AsyncLoadingView(label: 'Carregando endereços.');
+          }
+          if (snapshot.hasError) {
+            return AsyncErrorView(
+              message: 'Não foi possível carregar seus endereços agora.',
+              onRetry: _recarregar,
+              icon: Icons.location_on_outlined,
+            );
           }
           final enderecos = snapshot.data ?? const <ClienteEndereco>[];
           return ListView(
@@ -81,11 +89,11 @@ class _EnderecosPageState extends State<EnderecosPage> {
               const _AvisoEndereco(),
               const SizedBox(height: 16),
               if (enderecos.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('Nenhum endereço cadastrado ainda.'),
-                  ),
+                const EmptyStateView(
+                  title: 'Nenhum endereço salvo',
+                  message:
+                      'Adicione um endereço para agilizar suas solicitações.',
+                  icon: Icons.location_on_outlined,
                 )
               else
                 for (final endereco in enderecos) ...[

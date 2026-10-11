@@ -6,6 +6,7 @@ import '../../models/notificacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class NotificacoesPage extends StatefulWidget {
   const NotificacoesPage({super.key});
@@ -75,15 +76,21 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AsyncLoadingView(label: 'Carregando notificações.');
+          }
+          if (snapshot.hasError) {
+            return AsyncErrorView(
+              message: 'Não foi possível carregar suas notificações agora.',
+              onRetry: _recarregar,
+              icon: Icons.notifications_none_rounded,
+            );
           }
           final notificacoes = snapshot.data ?? const <Notificacao>[];
           if (notificacoes.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Nenhuma notificação no momento.'),
-              ),
+            return const EmptyStateView(
+              title: 'Tudo em dia',
+              message: 'Suas notificações aparecerão aqui.',
+              icon: Icons.notifications_none_rounded,
             );
           }
           return ListView.separated(

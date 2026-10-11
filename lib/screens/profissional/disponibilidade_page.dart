@@ -6,6 +6,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class DisponibilidadePage extends StatefulWidget {
   const DisponibilidadePage({super.key});
@@ -86,7 +87,14 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const AsyncLoadingView(label: 'Carregando disponibilidade.');
+          }
+          if (snapshot.hasError) {
+            return AsyncErrorView(
+              message: 'Não foi possível carregar seus horários agora.',
+              onRetry: () => setState(() => _future = _carregar()),
+              icon: Icons.calendar_month_outlined,
+            );
           }
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
@@ -101,11 +109,11 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
               ),
               const SizedBox(height: 16),
               if (_itens.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text('Nenhum horário cadastrado.'),
-                  ),
+                const EmptyStateView(
+                  title: 'Agenda sem horários',
+                  message:
+                      'Adicione os períodos em que você pode receber solicitações.',
+                  icon: Icons.calendar_month_outlined,
                 )
               else
                 for (var index = 0; index < _itens.length; index++) ...[

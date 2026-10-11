@@ -9,6 +9,10 @@ class ClienteService {
     return _api.get('clientes/me');
   }
 
+  Future<Map<String, dynamic>> atualizarMeuPerfil(Map<String, dynamic> dados) {
+    return _api.put('clientes/me', body: dados);
+  }
+
   Future<Map<String, dynamic>> listarEnderecos() {
     return _api.get('clientes/me/enderecos');
   }

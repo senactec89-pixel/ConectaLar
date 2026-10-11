@@ -7,6 +7,7 @@ import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -34,6 +35,10 @@ class _ChatPageState extends State<ChatPage> {
     return listFromApi(response['solicitacoes'], atendimentoResumoFromApi);
   }
 
+  void _recarregar() {
+    setState(() => _conversasFuture = _carregarConversas());
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
@@ -46,7 +51,14 @@ class _ChatPageState extends State<ChatPage> {
           future: _conversasFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const AsyncLoadingView(label: 'Carregando conversas.');
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar suas conversas agora.',
+                onRetry: _recarregar,
+                icon: Icons.chat_bubble_outline_rounded,
+              );
             }
             final conversas = (snapshot.data ?? const <AtendimentoResumo>[])
                 .where(
@@ -76,7 +88,12 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(height: 16),
                 if (conversas.isEmpty)
-                  const _SemConversas()
+                  const EmptyStateView(
+                    title: 'Nenhuma conversa ativa',
+                    message:
+                        'As conversas ficam disponíveis enquanto a solicitação estiver ativa.',
+                    icon: Icons.chat_bubble_outline_rounded,
+                  )
                 else
                   for (final conversa in conversas) ...[
                     _ConversaCard(
@@ -123,27 +140,6 @@ class _ConversaCard extends StatelessWidget {
           '${conversa.categoria} • ${conversa.solicitacao.status.rotulo}',
         ),
         trailing: const Icon(Icons.chevron_right),
-      ),
-    );
-  }
-}
-
-class _SemConversas extends StatelessWidget {
-  const _SemConversas();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Text(
-          'Nenhuma conversa ativa no momento.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }

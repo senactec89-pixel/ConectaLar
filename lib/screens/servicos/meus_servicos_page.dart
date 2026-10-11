@@ -7,6 +7,7 @@ import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
 
 class MeusServicosPage extends StatefulWidget {
@@ -36,6 +37,10 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
     return listFromApi(response['solicitacoes'], atendimentoResumoFromApi);
   }
 
+  void _recarregarServicos() {
+    setState(() => _servicosFuture = _carregarServicos());
+  }
+
   List<AtendimentoResumo> _servicosFiltrados(List<AtendimentoResumo> servicos) {
     return servicos.where((servico) {
       return _filtro.statuses == null ||
@@ -63,10 +68,14 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
           future: _servicosFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const AsyncLoadingView(label: 'Carregando seus serviços.');
             }
             if (snapshot.hasError) {
-              return const _ErroServicos();
+              return AsyncErrorView(
+                message: 'Não foi possível carregar seus serviços agora.',
+                onRetry: _recarregarServicos,
+                icon: Icons.event_busy_outlined,
+              );
             }
             final servicos = _servicosFiltrados(snapshot.data ?? const []);
             return SafeArea(
@@ -112,27 +121,6 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
         currentIndex: 3,
         onDestinationSelected: (index) =>
             navigateToMainDestination(context, index),
-      ),
-    );
-  }
-}
-
-class _ErroServicos extends StatelessWidget {
-  const _ErroServicos();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'Não foi possível carregar seus serviços agora.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
@@ -365,11 +353,15 @@ class _ResumoIcone extends StatelessWidget {
       children: [
         Icon(icon, size: 18, color: AppColors.verdeEscuro),
         const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textoSuave,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -382,17 +374,10 @@ class _ListaVazia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 48),
-      child: Center(
-        child: Text(
-          'Nenhum serviço encontrado para este filtro.',
-          style: TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+    return const EmptyStateView(
+      title: 'Nenhum atendimento encontrado',
+      message: 'Tente escolher outro filtro para ver seus serviços.',
+      icon: Icons.event_busy_outlined,
     );
   }
 }
