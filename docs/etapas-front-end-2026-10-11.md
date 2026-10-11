@@ -11,8 +11,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | 3 | Cadastro, leitura de termos e empresa | Enviada: `f5ddfc2` |
 | 4 | Chat: erro, nova tentativa e atualização | Enviada: `1cf1246` |
 | 5 | Notificações: envio, erros e retorno | Enviada: `67a9ee8` |
-| 6 | Atualização de Meus serviços ao retornar | Verificada |
-| 7 | Encaminhamento após sessão expirada | A executar |
+| 6 | Atualização de Meus serviços ao retornar | Enviada: `5cf520a` |
+| 7 | Encaminhamento após sessão expirada | Verificada |
 | 8 | Filtros administrativos de documentos | A executar |
 | 9 | Textos e identidade da versão web | A executar |
 
@@ -110,3 +110,13 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Testes específicos: mudança para conclusão confirmada aparece após retorno sem perder filtro; erro de recarga oferece nova tentativa.
 
 - Dois testes específicos aprovados. `flutter analyze --no-pub`: sem problemas. Suíte completa: 55 testes aprovados.
+
+## Etapa 7 — sessão expirada
+
+- Resposta 401 de consulta/operação autenticada encerra a sessão local, remove a persistência e encaminha ao login com aviso claro, removendo as telas anteriores da pilha.
+- Credenciais inválidas em login/cadastro e o logout explícito não disparam o aviso de expiração. Resposta 403 preserva a sessão.
+- Cada requisição captura a revisão da sessão: uma resposta antiga não encerra uma nova entrada. Requisições simultâneas só encerram uma vez. Resposta 401 sem JSON também é tratada.
+- A limpeza por expiração não tenta logout adicional com token inválido. Nenhum prazo, regra de token ou endpoint foi alterado.
+- Quatro testes específicos aprovados: encaminhamento/limpeza; credenciais e 403; resposta antiga; 401 simultâneos.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 59 testes aprovados.

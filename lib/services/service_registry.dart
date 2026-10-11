@@ -30,6 +30,7 @@ class AppServices {
              client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
            ) {
     auth = AuthService(this.api, persistirSessao: !modoDemo);
+    this.api.onSessionExpired = auth.encerrarSessaoExpirada;
     admin = AdminService(this.api);
     avaliacoes = AvaliacaoService(this.api);
     categorias = CategoriaService(this.api);

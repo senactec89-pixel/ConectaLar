@@ -1,10 +1,11 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   AuthService(this._api, {this.persistirSessao = true});
 
   static const _sessionKey = 'conectalar.auth.session.v1';
@@ -12,9 +13,24 @@ class AuthService {
   final ApiService _api;
   final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
+  bool _sessaoExpirada = false;
 
   Map<String, dynamic>? get usuarioAtual => _usuarioAtual;
   bool get autenticado => _api.autenticado;
+  bool get sessaoExpirada => _sessaoExpirada;
+
+  Future<void> encerrarSessaoExpirada() async {
+    if (!autenticado) return;
+    _usuarioAtual = null;
+    _api.definirToken(null);
+    _sessaoExpirada = true;
+    notifyListeners();
+    if (persistirSessao) {
+      final prefs = await SharedPreferences.getInstance();
+      // Uma nova entrada pode acontecer enquanto o armazenamento é obtido.
+      if (!autenticado) await prefs.remove(_sessionKey);
+    }
+  }
 
   Future<void> inicializarSessao() async {
     if (!persistirSessao) return;
@@ -113,6 +129,8 @@ class AuthService {
     }
     _usuarioAtual = null;
     _api.definirToken(null);
+    _sessaoExpirada = false;
+    notifyListeners();
     if (persistirSessao) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_sessionKey);
@@ -134,6 +152,8 @@ class AuthService {
     if (usuario is Map<String, dynamic>) {
       _usuarioAtual = usuario;
     }
+    _sessaoExpirada = false;
+    notifyListeners();
     if (persistirSessao && accessToken != null && _usuarioAtual != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
