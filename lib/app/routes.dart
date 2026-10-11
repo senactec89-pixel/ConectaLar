@@ -4,6 +4,7 @@ import '../widgets/session_gate.dart';
 
 import '../screens/auth/cadastro_page.dart';
 import '../screens/auth/login_page.dart';
+import '../screens/auth/termos_page.dart';
 import '../screens/admin/admin_pages.dart';
 import '../screens/busca/busca_page.dart';
 import '../screens/busca/resultado_page.dart';
@@ -31,6 +32,7 @@ abstract final class AppRoutes {
   static const home = '/';
   static const login = '/login';
   static const cadastro = '/cadastro';
+  static const termos = '/termos';
   static const busca = '/busca';
   static const resultados = '/busca/resultados';
   static const perfilProfissional = '/profissionais/perfil';
@@ -67,6 +69,7 @@ abstract final class AppRoutes {
     home: (_) => const HomePage(),
     login: (_) => const LoginPage(),
     cadastro: (_) => const CadastroPage(),
+    termos: (_) => const TermosPage(),
     busca: (_) => const BuscaPage(),
     resultados: (_) => const ResultadoPage(),
     perfilProfissional: (_) => const PerfilProfissionalPage(),
@@ -107,6 +110,7 @@ abstract final class AppRoutes {
       home,
       login,
       cadastro,
+      termos,
       busca,
       resultados,
       perfilProfissional,

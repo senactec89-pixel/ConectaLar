@@ -7,8 +7,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | Etapa | Trabalho | Situação |
 | --- | --- | --- |
 | 1 | Auditoria dos protótipos e responsividade | Enviada: `32bcfbc` |
-| 2 | Prévia isolada das telas sem API | Verificada |
-| 3 | Cadastro, leitura de termos e empresa | A executar |
+| 2 | Prévia isolada das telas sem API | Enviada: `1420819` |
+| 3 | Cadastro, leitura de termos e empresa | Em verificação |
 | 4 | Chat: erro, nova tentativa e atualização | A executar |
 | 5 | Notificações: envio, erros e retorno | A executar |
 | 6 | Atualização de Meus serviços ao retornar | A executar |
@@ -73,3 +73,14 @@ flutter run -d linux --dart-define=CONECTALAR_DEMO=true --dart-define=CONECTALAR
 ```
 
 Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual de leitura; não comprova fluxos de negócio integrados. Depois de mudar `dart-define`, reiniciar a execução completa, pois hot reload não troca essas definições.
+
+## Etapa 3 — cadastro e termos
+
+- Tela pública de leitura dos termos existentes na API, com título, versão, resumo e seções, scroll, carregamento, erro e nova tentativa. A leitura não registra aceite.
+- Link de leitura disponível antes do cadastro. O aceite continua usando o endpoint existente, com a versão retornada pela API.
+- Cadastro distingue autônomo e empresa no grupo de prestadores, enviando `tipo: empresa` já aceito pelo contrato.
+- A indicação fixa “Passo 1 de 3” foi substituída por orientação compatível com cliente e prestador.
+- Se a conta for criada e a consulta/aceite dos termos falhar, a tela preserva os dados e oferece “Concluir cadastro”. A repetição não cria outra conta. Durante envio, campos e seleção ficam desabilitados.
+- Três testes específicos aprovados: termos públicos com retry; escolha de empresa e recuperação do aceite; consulta dos termos antes de qualquer criação de conta.
+
+- `flutter analyze --no-pub`: sem problemas. `flutter test --no-pub`: 47 testes aprovados.
