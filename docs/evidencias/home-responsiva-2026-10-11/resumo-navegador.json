@@ -1,0 +1,34 @@
+{
+  "contexto": "Prévia Flutter Web, cliente, dados fictícios, texto padrão",
+  "browser": {
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 5
+  },
+  "viewports": {
+    "home-360.png": [
+      360,
+      844
+    ],
+    "home-390.png": [
+      390,
+      844
+    ],
+    "home-412.png": [
+      412,
+      844
+    ],
+    "home-cards-360.png": [
+      360,
+      844
+    ],
+    "home-cards-390.png": [
+      390,
+      844
+    ],
+    "home-cards-412.png": [
+      412,
+      844
+    ]
+  }
+}
