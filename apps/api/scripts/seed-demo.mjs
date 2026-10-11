@@ -10,7 +10,7 @@ const config = {
   host: process.env.DB_HOST ?? '127.0.0.1',
   port: Number(process.env.DB_PORT ?? 3307),
   user: process.env.DB_USER ?? 'conectalar_app',
-  password: process.env.DB_PASSWORD ?? 'ConectaLarDev123!',
+  password: process.env.DB_PASSWORD ?? '',
   database: process.env.DB_NAME ?? 'conectalar_dev',
   multipleStatements: false,
 };
@@ -59,7 +59,7 @@ async function main() {
     };
     ids.profissional = await upsertProfessional(db, ids.profissionalUsuario);
     await resetDemoData(db, ids);
-    await seedClientProfile(db, ids.cliente);
+    ids.enderecoCliente = await seedClientProfile(db, ids.cliente);
     await seedProfessionalChildren(db, ids.profissional, ids.profissionalUsuario);
     const solicitacoes = await seedRequests(db, ids);
     await seedMessages(db, ids, solicitacoes);
@@ -204,6 +204,11 @@ async function seedClientProfile(db, clienteId) {
        (?, 'Casa demo', '30140-000', 'Rua Demo Protegida', '123', 'Apto 301', 'Jardim das Flores', 'Belo Horizonte', 'MG', 1, 1)`,
     [clienteId],
   );
+  const [enderecos] = await db.execute(
+    'SELECT id FROM cliente_enderecos WHERE usuario_id = ? AND principal = 1 LIMIT 1',
+    [clienteId],
+  );
+  return enderecos[0].id;
 }
 
 async function seedProfessionalChildren(db, profissionalId, profissionalUsuarioId) {
@@ -258,6 +263,7 @@ async function seedRequests(db, ids) {
       ids.cliente,
       ids.profissional,
       eletricaId,
+      ids.enderecoCliente,
       'Minha tomada nao esta funcionando e preciso de verificacao no circuito.',
       'Jardim das Flores',
       dates.tomorrow,
@@ -269,6 +275,7 @@ async function seedRequests(db, ids) {
       ids.cliente,
       ids.profissional,
       eletricaId,
+      ids.enderecoCliente,
       'Instalacao eletrica para novo chuveiro.',
       'Jardim das Flores',
       dates.plusTwo,
@@ -280,6 +287,7 @@ async function seedRequests(db, ids) {
       ids.cliente,
       ids.profissional,
       manutencaoId,
+      ids.enderecoCliente,
       'Manutencao preventiva em quadro de energia residencial.',
       'Centro',
       dates.plusFive,
@@ -291,6 +299,7 @@ async function seedRequests(db, ids) {
       ids.cliente,
       ids.profissional,
       manutencaoId,
+      ids.enderecoCliente,
       'Troca de tomada concluida para teste de historico.',
       'Jardim das Flores',
       dates.minusTwo,
@@ -302,6 +311,7 @@ async function seedRequests(db, ids) {
       ids.cliente,
       ids.profissional,
       eletricaId,
+      ids.enderecoCliente,
       'Pedido recusado para validar filtros.',
       'Centro',
       dates.minusFive,
@@ -315,11 +325,11 @@ async function seedRequests(db, ids) {
   for (const request of requests) {
     const [result] = await db.execute(
       `INSERT INTO solicitacoes
-         (cliente_id, profissional_id, categoria_id, descricao, bairro_atendimento, data_servico, horario_servico, preco_inicial, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (cliente_id, profissional_id, categoria_id, endereco_id, descricao, bairro_atendimento, data_servico, horario_servico, preco_inicial, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       request,
     );
-    idsByStatus[request[8]] ??= result.insertId;
+    idsByStatus[request[9]] ??= result.insertId;
   }
 
   return idsByStatus;

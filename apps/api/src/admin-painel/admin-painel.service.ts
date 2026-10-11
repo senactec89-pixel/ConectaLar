@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
@@ -17,6 +18,8 @@ import { UsuarioTipo } from '../domain/usuario-tipo.js';
 @Injectable()
 export class AdminPainelService {
   constructor(
+    @InjectRepository(AdminAuditoriaEntity)
+    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(AvaliacaoEntity)
     private readonly avaliacoes: Repository<AvaliacaoEntity>,
     @InjectRepository(CategoriaEntity)
@@ -108,6 +111,30 @@ export class AdminPainelService {
         aceitaAgendada: solicitacoesAgendadas,
         conclusaoConfirmada: solicitacoesConcluidas,
       },
+    };
+  }
+
+  async listarAuditoria() {
+    const eventos = await this.auditoria.find({
+      relations: { ator: true },
+      order: { criadoEm: 'DESC' },
+      take: 100,
+    });
+
+    return {
+      eventos: eventos.map((evento) => ({
+        id: evento.id,
+        ator: {
+          id: evento.ator.id,
+          nome: evento.ator.nome,
+          tipo: evento.ator.tipo,
+        },
+        acao: evento.acao,
+        alvoTipo: evento.alvoTipo,
+        alvoId: evento.alvoId,
+        detalhe: evento.detalhe,
+        criadoEm: evento.criadoEm.toISOString(),
+      })),
     };
   }
 }

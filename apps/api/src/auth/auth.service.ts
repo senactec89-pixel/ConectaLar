@@ -200,6 +200,18 @@ export class AuthService {
     return { ok: true };
   }
 
+  async logout(user: AuthenticatedUser) {
+    const usuario = await this.usuarios.findOne({
+      where: { id: user.id, ativo: true },
+    });
+    if (usuario !== null) {
+      usuario.tokenVersion += 1;
+      await this.usuarios.save(usuario);
+    }
+
+    return { ok: true };
+  }
+
   private authResponse(usuario: UsuarioEntity) {
     return {
       usuario: {

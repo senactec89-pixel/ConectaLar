@@ -36,4 +36,10 @@ export class AuthController {
   ) {
     return this.authService.alterarSenha(user, body);
   }
+
+  @Post('logout')
+  @UseGuards(AuthGuard)
+  logout(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.logout(user);
+  }
 }

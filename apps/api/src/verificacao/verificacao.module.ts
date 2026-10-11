@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
@@ -12,6 +13,7 @@ import { VerificacaoService } from './verificacao.service.js';
     AuthModule,
     NotificacoesModule,
     TypeOrmModule.forFeature([
+      AdminAuditoriaEntity,
       ProfissionalDocumentoVerificacaoEntity,
       ProfissionalPerfilEntity,
     ]),

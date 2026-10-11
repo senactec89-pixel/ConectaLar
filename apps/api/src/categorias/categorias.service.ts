@@ -5,11 +5,16 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
+import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 
 @Injectable()
 export class CategoriasService {
   constructor(
+    @InjectRepository(AdminAuditoriaEntity)
+    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(CategoriaEntity)
     private readonly categorias: Repository<CategoriaEntity>,
   ) {}
@@ -31,7 +36,7 @@ export class CategoriasService {
     return { categorias: categorias.map(categoriaResponse) };
   }
 
-  async criar(body: unknown) {
+  async criar(user: AuthenticatedUser, body: unknown) {
     const input = parseCategoriaInput(body, true);
     const categoria = this.categorias.create({
       nome: input.nome,
@@ -40,13 +45,19 @@ export class CategoriasService {
 
     try {
       const saved = await this.categorias.save(categoria);
+      await this.registrarAuditoria(
+        user.id,
+        AdminAuditoriaAcao.CategoriaCriada,
+        saved.id,
+        saved.nome,
+      );
       return { categoria: categoriaResponse(saved) };
     } catch {
       throw badRequest('CATEGORIA_JA_EXISTE');
     }
   }
 
-  async atualizar(id: number, body: unknown) {
+  async atualizar(user: AuthenticatedUser, id: number, body: unknown) {
     const input = parseCategoriaInput(body, false);
     const categoria = await this.categorias.findOne({ where: { id } });
     if (categoria === null) {
@@ -65,10 +76,33 @@ export class CategoriasService {
 
     try {
       const saved = await this.categorias.save(categoria);
+      await this.registrarAuditoria(
+        user.id,
+        AdminAuditoriaAcao.CategoriaAtualizada,
+        saved.id,
+        saved.nome,
+      );
       return { categoria: categoriaResponse(saved) };
     } catch {
       throw badRequest('CATEGORIA_JA_EXISTE');
     }
+  }
+
+  private async registrarAuditoria(
+    atorId: number,
+    acao: AdminAuditoriaAcao,
+    alvoId: number,
+    nome: string,
+  ) {
+    await this.auditoria.save(
+      this.auditoria.create({
+        atorId,
+        acao,
+        alvoTipo: 'categoria',
+        alvoId,
+        detalhe: `Categoria: ${nome}`,
+      }),
+    );
   }
 }
 

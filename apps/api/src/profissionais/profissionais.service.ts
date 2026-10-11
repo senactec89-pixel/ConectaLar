@@ -7,6 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
+import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
+import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -38,6 +40,8 @@ export class ProfissionaisService {
   constructor(
     @InjectRepository(CategoriaEntity)
     private readonly categorias: Repository<CategoriaEntity>,
+    @InjectRepository(ProfissionalDisponibilidadeEntity)
+    private readonly disponibilidades: Repository<ProfissionalDisponibilidadeEntity>,
     @InjectRepository(ProfissionalPerfilEntity)
     private readonly perfis: Repository<ProfissionalPerfilEntity>,
     @InjectRepository(ProfissionalServicoEntity)
@@ -219,6 +223,44 @@ export class ProfissionaisService {
     };
   }
 
+  async minhaAgenda(user: AuthenticatedUser, query: Record<string, unknown>) {
+    const perfil = await this.carregarMeuPerfil(user);
+    const mes = parseMes(query.mes);
+    if (perfil === null) {
+      return { mes, disponibilidade: [], atendimentos: [] };
+    }
+
+    const [inicio, fim] = intervaloMes(mes);
+    const [disponibilidade, atendimentos] = await Promise.all([
+      this.disponibilidades.find({
+        where: { profissionalId: perfil.id, ativo: true },
+        order: { diaSemana: 'ASC', horaInicio: 'ASC' },
+      }),
+      this.solicitacoes
+        .createQueryBuilder('solicitacao')
+        .leftJoinAndSelect('solicitacao.cliente', 'cliente')
+        .leftJoinAndSelect('solicitacao.categoria', 'categoria')
+        .leftJoinAndSelect('solicitacao.endereco', 'endereco')
+        .where('solicitacao.profissional_id = :profissionalId', {
+          profissionalId: perfil.id,
+        })
+        .andWhere('solicitacao.status = :status', {
+          status: SolicitacaoStatus.AceitaAgendada,
+        })
+        .andWhere('solicitacao.data_servico >= :inicio', { inicio })
+        .andWhere('solicitacao.data_servico <= :fim', { fim })
+        .orderBy('solicitacao.dataServico', 'ASC')
+        .addOrderBy('solicitacao.horarioServico', 'ASC')
+        .getMany(),
+    ]);
+
+    return {
+      mes,
+      disponibilidade: disponibilidade.map(disponibilidadeResponse),
+      atendimentos: atendimentos.map(agendaAtendimentoResponse),
+    };
+  }
+
   async meusServicos(user: AuthenticatedUser) {
     const perfil = await this.carregarMeuPerfil(user);
     return {
@@ -347,6 +389,39 @@ function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
           },
     criadoEm: solicitacao.criadoEm.toISOString(),
     atualizadoEm: solicitacao.atualizadoEm.toISOString(),
+  };
+}
+
+function disponibilidadeResponse(item: ProfissionalDisponibilidadeEntity) {
+  return {
+    id: item.id,
+    diaSemana: item.diaSemana,
+    horaInicio: item.horaInicio,
+    horaFim: item.horaFim,
+    ativo: item.ativo,
+  };
+}
+
+function agendaAtendimentoResponse(solicitacao: SolicitacaoEntity) {
+  return {
+    ...solicitacaoProfissionalResumo(solicitacao),
+    enderecoCompletoLiberado: true,
+    enderecoCompleto:
+      solicitacao.endereco === null ? null : enderecoResponse(solicitacao.endereco),
+  };
+}
+
+function enderecoResponse(endereco: ClienteEnderecoEntity) {
+  return {
+    id: endereco.id,
+    apelido: endereco.apelido,
+    cep: endereco.cep,
+    logradouro: endereco.logradouro,
+    numero: endereco.numero,
+    complemento: endereco.complemento,
+    bairro: endereco.bairro,
+    cidade: endereco.cidade,
+    uf: endereco.uf,
   };
 }
 
@@ -505,6 +580,31 @@ function optionalId(value: unknown): number | null {
   }
 
   throw badRequest('ID_INVALIDO');
+}
+
+function parseMes(value: unknown): string {
+  if (value === undefined || value === null || value === '') {
+    return new Date().toISOString().slice(0, 7);
+  }
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}$/.test(value)) {
+    throw badRequest('MES_INVALIDO');
+  }
+
+  const date = new Date(`${value}-01T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 7) !== value) {
+    throw badRequest('MES_INVALIDO');
+  }
+
+  return value;
+}
+
+function intervaloMes(mes: string): readonly [string, string] {
+  const inicio = `${mes}-01`;
+  const [anoTexto, mesTexto] = mes.split('-');
+  const ano = Number(anoTexto);
+  const mesNumero = Number(mesTexto);
+  const fim = new Date(Date.UTC(ano, mesNumero, 0)).toISOString().slice(0, 10);
+  return [inicio, fim];
 }
 
 function optionalMoney(value: unknown): number | null {

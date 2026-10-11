@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
+import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -21,6 +22,7 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 interface CriarSolicitacaoInput {
   readonly profissionalId: number;
   readonly categoriaId: number | null;
+  readonly enderecoId: number | null;
   readonly descricao: string;
   readonly bairroAtendimento: string;
   readonly dataServico: string;
@@ -32,6 +34,8 @@ export class SolicitacoesService {
   constructor(
     @InjectRepository(CategoriaEntity)
     private readonly categorias: Repository<CategoriaEntity>,
+    @InjectRepository(ClienteEnderecoEntity)
+    private readonly enderecos: Repository<ClienteEnderecoEntity>,
     @InjectRepository(ProfissionalDisponibilidadeEntity)
     private readonly disponibilidades: Repository<ProfissionalDisponibilidadeEntity>,
     @InjectRepository(ProfissionalPerfilEntity)
@@ -78,6 +82,15 @@ export class SolicitacoesService {
       }
     }
 
+    if (input.enderecoId !== null) {
+      const endereco = await this.enderecos.findOne({
+        where: { id: input.enderecoId, usuarioId: cliente.id, ativo: true },
+      });
+      if (endereco === null) {
+        throw badRequest('ENDERECO_INVALIDO');
+      }
+    }
+
     await this.validarDisponibilidade(
       profissional.id,
       input.dataServico,
@@ -88,6 +101,7 @@ export class SolicitacoesService {
       clienteId: cliente.id,
       profissionalId: profissional.id,
       categoriaId: input.categoriaId,
+      enderecoId: input.enderecoId,
       descricao: input.descricao,
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
@@ -106,7 +120,7 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: saved.id,
     });
-    return { solicitacao: solicitacaoResponse(reloaded) };
+    return { solicitacao: solicitacaoResponse(reloaded, user) };
   }
 
   async minhas(user: AuthenticatedUser) {
@@ -116,6 +130,7 @@ export class SolicitacoesService {
       .leftJoinAndSelect('solicitacao.profissional', 'profissional')
       .leftJoinAndSelect('profissional.usuario', 'profissionalUsuario')
       .leftJoinAndSelect('solicitacao.categoria', 'categoria')
+      .leftJoinAndSelect('solicitacao.endereco', 'endereco')
       .orderBy('solicitacao.criadoEm', 'DESC');
 
     if (user.tipo === UsuarioTipo.Cliente) {
@@ -129,13 +144,17 @@ export class SolicitacoesService {
     }
 
     const solicitacoes = await builder.getMany();
-    return { solicitacoes: solicitacoes.map(solicitacaoResponse) };
+    return {
+      solicitacoes: solicitacoes.map((solicitacao) =>
+        solicitacaoResponse(solicitacao, user),
+      ),
+    };
   }
 
   async obter(user: AuthenticatedUser, id: number) {
     const solicitacao = await this.carregar(id);
     assertParticipante(user, solicitacao);
-    return { solicitacao: solicitacaoResponse(solicitacao) };
+    return { solicitacao: solicitacaoResponse(solicitacao, user) };
   }
 
   async aceitar(user: AuthenticatedUser, id: number) {
@@ -145,6 +164,7 @@ export class SolicitacoesService {
       solicitacao,
       SolicitacaoStatus.AguardandoResposta,
       SolicitacaoStatus.AceitaAgendada,
+      user,
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.clienteId,
@@ -164,6 +184,7 @@ export class SolicitacoesService {
       solicitacao,
       SolicitacaoStatus.AguardandoResposta,
       SolicitacaoStatus.Recusada,
+      user,
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.clienteId,
@@ -198,7 +219,7 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
-    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id)) };
+    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id), user) };
   }
 
   async concluir(user: AuthenticatedUser, id: number) {
@@ -208,6 +229,7 @@ export class SolicitacoesService {
       solicitacao,
       SolicitacaoStatus.AceitaAgendada,
       SolicitacaoStatus.ConclusaoConfirmada,
+      user,
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.profissional.usuarioId,
@@ -224,6 +246,7 @@ export class SolicitacoesService {
     solicitacao: SolicitacaoEntity,
     origem: SolicitacaoStatus,
     destino: SolicitacaoStatus,
+    user?: AuthenticatedUser,
   ) {
     if (solicitacao.status !== origem) {
       throw badRequest('TRANSICAO_INVALIDA');
@@ -231,7 +254,7 @@ export class SolicitacoesService {
 
     solicitacao.status = destino;
     const saved = await this.solicitacoes.save(solicitacao);
-    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id)) };
+    return { solicitacao: solicitacaoResponse(await this.carregar(saved.id), user) };
   }
 
   private async carregar(id: number): Promise<SolicitacaoEntity> {
@@ -241,6 +264,7 @@ export class SolicitacoesService {
         cliente: true,
         profissional: { usuario: true },
         categoria: true,
+        endereco: true,
       },
     });
     if (solicitacao === null) {
@@ -278,12 +302,23 @@ export class SolicitacoesService {
   }
 }
 
-function solicitacaoResponse(solicitacao: SolicitacaoEntity) {
+function solicitacaoResponse(
+  solicitacao: SolicitacaoEntity,
+  user?: AuthenticatedUser,
+) {
+  const enderecoLiberado = enderecoCompletoLiberado(solicitacao, user);
   return {
     id: solicitacao.id,
     status: solicitacao.status,
     descricao: solicitacao.descricao,
     bairroAtendimento: solicitacao.bairroAtendimento,
+    enderecoId: solicitacao.enderecoId,
+    enderecoProtegido: solicitacao.enderecoId !== null && !enderecoLiberado,
+    enderecoCompletoLiberado: enderecoLiberado,
+    enderecoAtendimento:
+      enderecoLiberado && solicitacao.endereco !== null
+        ? enderecoResponse(solicitacao.endereco)
+        : null,
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
     precoInicial: numberOrNull(solicitacao.precoInicial),
@@ -306,6 +341,42 @@ function solicitacaoResponse(solicitacao: SolicitacaoEntity) {
           },
     criadoEm: solicitacao.criadoEm.toISOString(),
     atualizadoEm: solicitacao.atualizadoEm.toISOString(),
+  };
+}
+
+function enderecoCompletoLiberado(
+  solicitacao: SolicitacaoEntity,
+  user?: AuthenticatedUser,
+): boolean {
+  if (solicitacao.enderecoId === null || user === undefined) return false;
+  if (user.tipo === UsuarioTipo.Administrador) return true;
+  if (user.tipo === UsuarioTipo.Cliente && solicitacao.clienteId === user.id) {
+    return true;
+  }
+  if (
+    [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(user.tipo) &&
+    solicitacao.profissional.usuarioId === user.id
+  ) {
+    return [
+      SolicitacaoStatus.AceitaAgendada,
+      SolicitacaoStatus.ConclusaoConfirmada,
+    ].includes(solicitacao.status);
+  }
+
+  return false;
+}
+
+function enderecoResponse(endereco: ClienteEnderecoEntity) {
+  return {
+    id: endereco.id,
+    apelido: endereco.apelido,
+    cep: endereco.cep,
+    logradouro: endereco.logradouro,
+    numero: endereco.numero,
+    complemento: endereco.complemento,
+    bairro: endereco.bairro,
+    cidade: endereco.cidade,
+    uf: endereco.uf,
   };
 }
 
@@ -360,6 +431,7 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
   return {
     profissionalId: requiredId(value.profissionalId),
     categoriaId: optionalId(value.categoriaId),
+    enderecoId: optionalId(value.enderecoId),
     descricao: textField(value, 'descricao', 10, 600),
     bairroAtendimento: textField(value, 'bairroAtendimento', 2, 120),
     dataServico: dateField(value.dataServico),

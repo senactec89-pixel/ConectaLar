@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { SolicitacaoStatus } from '../../domain/solicitacao-status.js';
 import { CategoriaEntity } from './categoria.entity.js';
+import { ClienteEnderecoEntity } from './cliente-endereco.entity.js';
 import { ProfissionalPerfilEntity } from './profissional-perfil.entity.js';
 import { UsuarioEntity } from './usuario.entity.js';
 
@@ -41,6 +42,13 @@ export class SolicitacaoEntity {
   @ManyToOne(() => CategoriaEntity, { nullable: true })
   @JoinColumn({ name: 'categoria_id' })
   categoria!: CategoriaEntity | null;
+
+  @Column({ name: 'endereco_id', type: 'int', unsigned: true, nullable: true })
+  enderecoId!: number | null;
+
+  @ManyToOne(() => ClienteEnderecoEntity, { nullable: true })
+  @JoinColumn({ name: 'endereco_id' })
+  endereco!: ClienteEnderecoEntity | null;
 
   @Column({ type: 'varchar', length: 600 })
   descricao!: string;

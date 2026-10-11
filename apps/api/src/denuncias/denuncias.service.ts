@@ -7,8 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { DenunciaStatus } from '../domain/denuncia-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 
@@ -29,6 +31,8 @@ interface ModerarDenunciaInput {
 @Injectable()
 export class DenunciasService {
   constructor(
+    @InjectRepository(AdminAuditoriaEntity)
+    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(DenunciaEntity)
     private readonly denuncias: Repository<DenunciaEntity>,
     @InjectRepository(SolicitacaoEntity)
@@ -125,10 +129,31 @@ export class DenunciasService {
     denuncia.analisadoEm = new Date();
 
     const saved = await this.denuncias.save(denuncia);
+    await this.registrarAuditoria(
+      user.id,
+      saved.id,
+      `Status: ${saved.status}`,
+    );
     saved.solicitacao = denuncia.solicitacao;
     saved.denunciante = denuncia.denunciante;
     saved.denunciado = denuncia.denunciado;
     return { denuncia: denunciaAdminResponse(saved) };
+  }
+
+  private async registrarAuditoria(
+    atorId: number,
+    alvoId: number,
+    detalhe: string,
+  ) {
+    await this.auditoria.save(
+      this.auditoria.create({
+        atorId,
+        acao: AdminAuditoriaAcao.DenunciaModerada,
+        alvoTipo: 'denuncia',
+        alvoId,
+        detalhe,
+      }),
+    );
   }
 }
 

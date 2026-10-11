@@ -8,8 +8,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
+import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
+import { UsuarioAtual } from '../auth/usuario-atual.decorator.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { CategoriasService } from './categorias.service.js';
 
@@ -32,15 +34,19 @@ export class CategoriasController {
   @Post()
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Administrador)
-  criar(@Body() body: unknown) {
-    return this.categorias.criar(body);
+  criar(@UsuarioAtual() user: AuthenticatedUser, @Body() body: unknown) {
+    return this.categorias.criar(user, body);
   }
 
   @Patch(':id')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Administrador)
-  atualizar(@Param('id') id: string, @Body() body: unknown) {
-    return this.categorias.atualizar(parseId(id), body);
+  atualizar(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.categorias.atualizar(user, parseId(id), body);
   }
 }
 

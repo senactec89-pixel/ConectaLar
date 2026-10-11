@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
@@ -16,6 +17,7 @@ import { AdminPainelService } from './admin-painel.service.js';
     AuthModule,
     TypeOrmModule.forFeature([
       AvaliacaoEntity,
+      AdminAuditoriaEntity,
       CategoriaEntity,
       DenunciaEntity,
       ProfissionalDocumentoVerificacaoEntity,

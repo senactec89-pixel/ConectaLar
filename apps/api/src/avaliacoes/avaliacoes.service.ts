@@ -8,8 +8,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
@@ -19,6 +21,8 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 @Injectable()
 export class AvaliacoesService {
   constructor(
+    @InjectRepository(AdminAuditoriaEntity)
+    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(AvaliacaoEntity)
     private readonly avaliacoes: Repository<AvaliacaoEntity>,
     @InjectRepository(SolicitacaoEntity)
@@ -74,7 +78,7 @@ export class AvaliacoesService {
     return { avaliacoes: avaliacoes.map(avaliacaoResponse) };
   }
 
-  async moderar(id: number, body: unknown) {
+  async moderar(user: AuthenticatedUser, id: number, body: unknown) {
     const status = parseModeracaoStatus(body);
     const avaliacao = await this.avaliacoes.findOne({
       where: { id },
@@ -89,9 +93,30 @@ export class AvaliacoesService {
 
     avaliacao.moderacaoStatus = status;
     const saved = await this.avaliacoes.save(avaliacao);
+    await this.registrarAuditoria(
+      user.id,
+      saved.id,
+      `Moderacao: ${saved.moderacaoStatus}`,
+    );
     saved.avaliador = avaliacao.avaliador;
     saved.avaliado = avaliacao.avaliado;
     return { avaliacao: avaliacaoResponse(saved) };
+  }
+
+  private async registrarAuditoria(
+    atorId: number,
+    alvoId: number,
+    detalhe: string,
+  ) {
+    await this.auditoria.save(
+      this.auditoria.create({
+        atorId,
+        acao: AdminAuditoriaAcao.AvaliacaoModerada,
+        alvoTipo: 'avaliacao',
+        alvoId,
+        detalhe,
+      }),
+    );
   }
 
   private async criarAvaliacao(

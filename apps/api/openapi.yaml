@@ -91,6 +91,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /auth/logout:
+    post:
+      operationId: postAuthLogout
+      summary: Invalidates the current token version for the authenticated account
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Session invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - ok
+                properties:
+                  ok:
+                    type: boolean
+        default:
+          description: HTTP error with internal details omitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /profissionais:
     get:
       operationId: getProfissionais
@@ -192,6 +219,50 @@ paths:
                 properties:
                   profissional:
                     $ref: '#/components/schemas/ProfissionalPublico'
+        default:
+          description: HTTP error with internal details omitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /profissionais/me/agenda:
+    get:
+      operationId: getMinhaAgendaProfissional
+      summary: Lists monthly accepted appointments and weekly availability
+      tags:
+        - Profissionais
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: mes
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: Professional agenda for the selected month
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - mes
+                  - disponibilidade
+                  - atendimentos
+                properties:
+                  mes:
+                    type: string
+                  disponibilidade:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Disponibilidade'
+                  atendimentos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Solicitacao'
         default:
           description: HTTP error with internal details omitted
           content:
@@ -555,6 +626,31 @@ paths:
           $ref: '#/components/responses/SolicitacaoResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /admin/painel/auditoria:
+    get:
+      operationId: getAdminPainelAuditoria
+      summary: Lists latest administrative audit events
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Administrative audit events
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - eventos
+                properties:
+                  eventos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminAuditoriaEvento'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -871,6 +967,11 @@ components:
             - integer
             - 'null'
           minimum: 1
+        enderecoId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
         descricao:
           type: string
           minLength: 10
@@ -893,6 +994,10 @@ components:
         - status
         - descricao
         - bairroAtendimento
+        - enderecoId
+        - enderecoProtegido
+        - enderecoCompletoLiberado
+        - enderecoAtendimento
         - dataServico
         - horarioServico
         - precoInicial
@@ -911,6 +1016,19 @@ components:
           type: string
         bairroAtendimento:
           type: string
+        enderecoId:
+          type:
+            - integer
+            - 'null'
+          minimum: 1
+        enderecoProtegido:
+          type: boolean
+        enderecoCompletoLiberado:
+          type: boolean
+        enderecoAtendimento:
+          anyOf:
+            - $ref: '#/components/schemas/EnderecoAtendimento'
+            - type: 'null'
         dataServico:
           type: string
           format: date
@@ -969,6 +1087,112 @@ components:
         - recusada
         - cancelada
         - conclusao_confirmada
+    Disponibilidade:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - diaSemana
+        - horaInicio
+        - horaFim
+        - ativo
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        diaSemana:
+          type: integer
+          minimum: 0
+          maximum: 6
+        horaInicio:
+          type: string
+        horaFim:
+          type: string
+        ativo:
+          type: boolean
+    EnderecoAtendimento:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - apelido
+        - cep
+        - logradouro
+        - numero
+        - complemento
+        - bairro
+        - cidade
+        - uf
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        apelido:
+          type: string
+        cep:
+          type:
+            - string
+            - 'null'
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type:
+            - string
+            - 'null'
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+          minLength: 2
+          maxLength: 2
+    AdminAuditoriaEvento:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - ator
+        - acao
+        - alvoTipo
+        - alvoId
+        - detalhe
+        - criadoEm
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        ator:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - nome
+            - tipo
+          properties:
+            id:
+              type: integer
+              minimum: 1
+            nome:
+              type: string
+            tipo:
+              $ref: '#/components/schemas/UsuarioTipo'
+        acao:
+          type: string
+        alvoTipo:
+          type: string
+        alvoId:
+          type: integer
+          minimum: 1
+        detalhe:
+          type:
+            - string
+            - 'null'
+        criadoEm:
+          type: string
+          format: date-time
     ApiError:
       type: object
       additionalProperties: false

@@ -6,8 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
+import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { DocumentoVerificacaoStatus } from '../domain/documento-verificacao-status.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
@@ -30,6 +32,8 @@ interface AnaliseDocumentoInput {
 @Injectable()
 export class VerificacaoService {
   constructor(
+    @InjectRepository(AdminAuditoriaEntity)
+    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(ProfissionalDocumentoVerificacaoEntity)
     private readonly documentos: Repository<ProfissionalDocumentoVerificacaoEntity>,
     @InjectRepository(ProfissionalPerfilEntity)
@@ -131,32 +135,55 @@ export class VerificacaoService {
       input.status === DocumentoVerificacaoStatus.Aprovado;
     await this.perfis.save(documento.profissional);
 
-    await this.notificarResultado(saved, documento.profissional.usuarioId);
+    await this.registrarAuditoria(
+      user.id,
+      saved.id,
+      `Resultado: ${saved.status}`,
+    );
+    await this.notificarResultadoSeguro(saved, documento.profissional.usuarioId);
 
     saved.profissional = documento.profissional;
     saved.enviadoPor = documento.enviadoPor;
     return { documento: documentoAdminResponse(saved) };
   }
 
-  private async notificarResultado(
+  private async registrarAuditoria(
+    atorId: number,
+    alvoId: number,
+    detalhe: string,
+  ) {
+    await this.auditoria.save(
+      this.auditoria.create({
+        atorId,
+        acao: AdminAuditoriaAcao.DocumentoAnalisado,
+        alvoTipo: 'documento_verificacao',
+        alvoId,
+        detalhe,
+      }),
+    );
+  }
+
+  private async notificarResultadoSeguro(
     documento: ProfissionalDocumentoVerificacaoEntity,
     usuarioId: number,
   ) {
     const aprovado = documento.status === DocumentoVerificacaoStatus.Aprovado;
-    await this.notificacoes.criar({
-      usuarioId,
-      tipo: aprovado
-        ? NotificacaoTipo.DocumentoAprovado
-        : NotificacaoTipo.DocumentoRejeitado,
-      titulo: aprovado
-        ? 'Documento aprovado'
-        : 'Documento precisa de ajuste',
-      mensagem: aprovado
-        ? 'Seu selo de verificacao foi ativado pela administracao.'
-        : 'Revise o motivo informado e envie uma nova verificacao.',
-      recursoTipo: 'documento_verificacao',
-      recursoId: documento.id,
-    });
+    try {
+      await this.notificacoes.criar({
+        usuarioId,
+        tipo: aprovado
+          ? NotificacaoTipo.DocumentoAprovado
+          : NotificacaoTipo.DocumentoRejeitado,
+        titulo: aprovado ? 'Documento aprovado' : 'Documento precisa de ajuste',
+        mensagem: aprovado
+          ? 'Seu selo de verificacao foi ativado pela administracao.'
+          : 'Revise o motivo informado e envie uma nova verificacao.',
+        recursoTipo: 'documento_verificacao',
+        recursoId: documento.id,
+      });
+    } catch {
+      // Falha de notificacao nao pode reverter analise documental.
+    }
   }
 }
 

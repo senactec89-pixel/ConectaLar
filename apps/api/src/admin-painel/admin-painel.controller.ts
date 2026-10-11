@@ -15,4 +15,9 @@ export class AdminPainelController {
   resumo() {
     return this.painel.resumo();
   }
+
+  @Get('auditoria')
+  listarAuditoria() {
+    return this.painel.listarAuditoria();
+  }
 }

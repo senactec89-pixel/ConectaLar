@@ -17,6 +17,8 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_PASSWORD` | empty string | Allowed empty only for local development |
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Positive integer window, in milliseconds |
+| `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
 The health check is `GET /health` and returns only `{ "status": "ok" }`. It does not report dependency, database, version, or environment details.
 
@@ -26,7 +28,7 @@ The OpenAPI contract for the health, auth, categories, professional, and request
 
 Request bodies and headers are not logged. The global exception filter returns a generic response and emits only a structured event, HTTP status, and broad exception type; it omits exception messages, stacks, URLs, and request data. Add request logging only with an explicit redaction and retention policy.
 
-The API currently has no external service, CORS, upload, payment, push notification, or file modules. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
+The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. It currently has no external upload, payment, push notification, or binary file modules. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
 
 ## Database foundation
 
@@ -56,6 +58,7 @@ Authentication routes:
 - `POST /auth/senha/recuperacao`
 - `POST /auth/senha/recuperacao/confirmar`
 - `PATCH /auth/senha` with `Authorization: Bearer <token>`
+- `POST /auth/logout` with `Authorization: Bearer <token>`
 
 Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
 
@@ -90,6 +93,7 @@ Professional routes:
 - `GET /profissionais/:id`
 - `GET /profissionais/:id/disponibilidade`
 - `GET /profissionais/me` with `Authorization: Bearer <token>` for `profissional` or `empresa`
+- `GET /profissionais/me/agenda?mes=YYYY-MM` with `Authorization: Bearer <token>` for `profissional` or `empresa`
 - `PUT /profissionais/me` with `Authorization: Bearer <token>` for `profissional` or `empresa`
 - `GET /profissionais/me/disponibilidade` with `Authorization: Bearer <token>` for `profissional` or `empresa`
 - `PUT /profissionais/me/disponibilidade` with `Authorization: Bearer <token>` for `profissional` or `empresa`
@@ -100,6 +104,8 @@ Professional routes:
 Professional public responses do not expose e-mail, phone, address, documents, or password hashes. The `verificado` seal can only be changed through administrative document analysis; professionals cannot approve their own seal. Document registration stores an internal file reference only and must not expose public URLs or files in public profiles.
 
 Availability uses weekly recurring slots with `diaSemana` from `0` Sunday through `6` Saturday and `horaInicio`/`horaFim` in `HH:MM`. Service requests can be created and accepted only when the requested date/time falls inside an active slot. This is a minimal rule until final duration, capacity, exception, and concurrency policies are approved.
+
+The professional agenda returns active weekly availability and accepted appointments for the requested month only. It can include the full service address because every listed appointment is already `aceita_agendada`; pending requests continue to expose only neighborhood-level location.
 
 Category routes:
 
@@ -120,7 +126,14 @@ Service request routes:
 - `PATCH /solicitacoes/:id/cancelar` with `Authorization: Bearer <token>` for the requesting `cliente`
 - `PATCH /solicitacoes/:id/concluir` with `Authorization: Bearer <token>` for the requesting `cliente`
 
-New requests always start as `aguardando_resposta`; they become `aceita_agendada` only after the requested provider accepts them. Request responses expose only the attendance neighborhood, never the client's full address.
+New requests always start as `aguardando_resposta`; they become `aceita_agendada` only after the requested provider accepts them. `POST /solicitacoes` accepts optional `enderecoId`, which must belong to the authenticated client and be active. Request responses always expose the attendance neighborhood. Full address data is returned only to the owning client, an administrator, or the requested professional/company after the request is `aceita_agendada` or `conclusao_confirmada`; otherwise the API returns `enderecoProtegido: true`.
+
+Administrative dashboard and audit routes:
+
+- `GET /admin/painel` with `Authorization: Bearer <token>` for `administrador`
+- `GET /admin/painel/auditoria` with `Authorization: Bearer <token>` for `administrador`
+
+Administrative actions that create or change administrator accounts, activate/deactivate users, create/update categories, analyze documents, moderate reports, or moderate reviews are recorded in `admin_auditoria`. Audit responses include actor summary, action, target type/id, a short non-sensitive detail, and timestamp.
 
 History routes:
 

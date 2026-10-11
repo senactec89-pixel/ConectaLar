@@ -60,8 +60,12 @@ export class AvaliacoesController {
   @Patch('avaliacoes/:id/moderacao')
   @UseGuards(RolesGuard)
   @Roles(UsuarioTipo.Administrador)
-  moderar(@Param('id') id: string, @Body() body: unknown) {
-    return this.avaliacoes.moderar(parseId(id), body);
+  moderar(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.avaliacoes.moderar(user, parseId(id), body);
   }
 }
 

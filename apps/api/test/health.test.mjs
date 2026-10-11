@@ -22,6 +22,9 @@ test('health endpoint returns only the public status', async () => {
   const response = await fetch(`${baseUrl}/health`);
 
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+  assert.equal(response.headers.get('ratelimit-limit'), '120');
   assert.deepEqual(await response.json(), { status: 'ok' });
 });
 

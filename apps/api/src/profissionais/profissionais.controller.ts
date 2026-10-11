@@ -39,6 +39,16 @@ export class ProfissionaisController {
     return this.profissionais.meuPainel(user);
   }
 
+  @Get('me/agenda')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  minhaAgenda(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.profissionais.minhaAgenda(user, query);
+  }
+
   @Get('me/servicos')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
