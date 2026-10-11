@@ -8,8 +8,8 @@ Execução autorizada em etapas sequenciais, com análise, verificações e comm
 | --- | --- | --- |
 | 1 | Auditoria dos protótipos e responsividade | Enviada: `32bcfbc` |
 | 2 | Prévia isolada das telas sem API | Enviada: `1420819` |
-| 3 | Cadastro, leitura de termos e empresa | Em verificação |
-| 4 | Chat: erro, nova tentativa e atualização | A executar |
+| 3 | Cadastro, leitura de termos e empresa | Enviada: `f5ddfc2` |
+| 4 | Chat: erro, nova tentativa e atualização | Verificada |
 | 5 | Notificações: envio, erros e retorno | A executar |
 | 6 | Atualização de Meus serviços ao retornar | A executar |
 | 7 | Encaminhamento após sessão expirada | A executar |
@@ -84,3 +84,12 @@ Trocar o papel por `cliente`, `profissional` ou `empresa`. É uma prévia visual
 - Três testes específicos aprovados: termos públicos com retry; escolha de empresa e recuperação do aceite; consulta dos termos antes de qualquer criação de conta.
 
 - `flutter analyze --no-pub`: sem problemas. `flutter test --no-pub`: 47 testes aprovados.
+
+## Etapa 4 — conversa
+
+- Erro de consulta com “Tentar novamente”, botão “Atualizar conversa” e gesto de atualização. Sem polling, sockets ou mudança de contrato.
+- Mensagens existentes permanecem visíveis durante atualização; envio/atualização têm indicador e bloqueio contra cliques simultâneos. Falha de envio preserva o texto digitado.
+- Lista vazia orienta iniciar a conversa. A informação de que chat não altera agendamento foi preservada.
+- Três testes específicos aprovados: erro/retry e nova mensagem recebida; envio com falha; vazio em 360/390/412 px com texto 1,4 e teclado.
+
+- `flutter analyze --no-pub`: sem problemas. Suíte completa: 50 testes aprovados.
