@@ -601,12 +601,12 @@ class _SolicitacaoEnviada extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Seu pedido de $servico para ${profissional.nome} foi preparado '
-              'com o status inicial aguardando_resposta.',
+              'e aguarda resposta do profissional.',
               style: const TextStyle(color: AppColors.texto),
             ),
             const SizedBox(height: 10),
             const Text(
-              'Status inicial: aguardando_resposta',
+              'Status: Aguardando resposta',
               style: TextStyle(
                 color: AppColors.verdeEscuro,
                 fontWeight: FontWeight.w800,
@@ -615,7 +615,7 @@ class _SolicitacaoEnviada extends StatelessWidget {
             const SizedBox(height: 10),
             const Text(
               'Ainda não há agendamento confirmado. Aguarde o aceite do '
-              'profissional para que o atendimento passe a aceita_agendada.',
+              'profissional para que o atendimento fique aceito e agendado.',
               style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 16),

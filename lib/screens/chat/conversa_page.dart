@@ -190,7 +190,7 @@ class _ContextoServico extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${atendimento.categoria} • ${atendimento.solicitacao.status.valorBanco}',
+                  '${atendimento.categoria} • ${atendimento.solicitacao.status.rotulo}',
                   style: const TextStyle(color: AppColors.textoSuave),
                 ),
               ],

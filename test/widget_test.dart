@@ -40,6 +40,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Buscar profissionais'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Ana Souza'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Ana Souza'), findsOneWidget);
     expect(find.text('Carlos Silva'), findsNothing);
   });
@@ -60,6 +65,11 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('busca-bairro')), 'vila');
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Ana Souza'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.text('Ana Souza'), findsOneWidget);
     expect(find.text('Carlos Silva'), findsNothing);
   });
@@ -136,7 +146,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Solicitação enviada'), findsOneWidget);
-    expect(find.text('Status inicial: aguardando_resposta'), findsOneWidget);
+    expect(find.text('Status: Aguardando resposta'), findsOneWidget);
     expect(
       find.textContaining('Ainda não há agendamento confirmado'),
       findsOneWidget,
@@ -173,26 +183,26 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Meus serviços'), findsOneWidget);
-    expect(find.text('aguardando_resposta'), findsAtLeastNWidgets(1));
+    expect(find.text('Aguardando resposta'), findsAtLeastNWidgets(1));
 
     await tester.tap(find.byKey(const ValueKey('servicos-filtro-agendados')));
     await tester.pumpAndSettle();
 
-    expect(find.text('aceita_agendada'), findsOneWidget);
-    expect(find.text('aguardando_resposta'), findsNothing);
+    expect(find.text('Aceita e agendada'), findsOneWidget);
+    expect(find.text('Aguardando resposta'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('servicos-filtro-aguardando')));
     await tester.pumpAndSettle();
 
-    expect(find.text('aguardando_resposta'), findsAtLeastNWidgets(1));
-    expect(find.text('aceita_agendada'), findsNothing);
+    expect(find.text('Aguardando resposta'), findsAtLeastNWidgets(1));
+    expect(find.text('Aceita e agendada'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('servicos-filtro-historico')));
     await tester.pumpAndSettle();
 
-    expect(find.text('conclusao_confirmada'), findsOneWidget);
-    expect(find.text('recusada'), findsOneWidget);
-    expect(find.text('aguardando_resposta'), findsNothing);
+    expect(find.text('Conclusão confirmada'), findsOneWidget);
+    expect(find.text('Recusada'), findsOneWidget);
+    expect(find.text('Aguardando resposta'), findsNothing);
   });
 
   testWidgets('Meus serviços abre detalhes de uma solicitação', (tester) async {
@@ -202,12 +212,14 @@ void main() {
     await tester.tap(find.byIcon(Icons.calendar_month_outlined));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const ValueKey('servico-1001')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('servico-1001')));
     await tester.pumpAndSettle();
 
     expect(find.text('Detalhes do serviço'), findsOneWidget);
     expect(find.text('Solicitação #1001'), findsOneWidget);
-    expect(find.text('aguardando_resposta'), findsOneWidget);
+    expect(find.text('Aguardando resposta'), findsOneWidget);
     expect(find.textContaining('pagamento fora do app'), findsOneWidget);
   });
 

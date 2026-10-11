@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app/routes.dart';
+
 class BottomNavigationCustom extends StatelessWidget {
   const BottomNavigationCustom({
     required this.currentIndex,
@@ -12,36 +14,54 @@ class BottomNavigationCustom extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NavigationBar(
-      selectedIndex: currentIndex,
-      onDestinationSelected: onDestinationSelected,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home),
-          label: 'Início',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.search_outlined),
-          selectedIcon: Icon(Icons.search),
-          label: 'Buscar',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.favorite_border),
-          selectedIcon: Icon(Icons.favorite),
-          label: 'Favoritos',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.calendar_month_outlined),
-          selectedIcon: Icon(Icons.calendar_month),
-          label: 'Meus serviços',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: 'Perfil',
-        ),
-      ],
+    return SafeArea(
+      top: false,
+      child: NavigationBar(
+        selectedIndex: currentIndex,
+        onDestinationSelected: onDestinationSelected,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search),
+            label: 'Buscar',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.favorite_border),
+            selectedIcon: Icon(Icons.favorite),
+            label: 'Favoritos',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Serviços',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
+        ],
+      ),
     );
   }
+}
+
+void navigateToMainDestination(BuildContext context, int index) {
+  const routes = [
+    AppRoutes.home,
+    AppRoutes.busca,
+    AppRoutes.favoritos,
+    AppRoutes.meusServicos,
+    AppRoutes.perfil,
+  ];
+  if (index < 0 || index >= routes.length) {
+    return;
+  }
+  if (ModalRoute.of(context)?.settings.name == routes[index]) return;
+  Navigator.pushNamed(context, routes[index]);
 }

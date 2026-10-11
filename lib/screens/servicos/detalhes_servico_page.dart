@@ -251,7 +251,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  solicitacao.status.valorBanco,
+                  solicitacao.status.rotulo,
                   style: const TextStyle(
                     color: AppColors.verdeEscuro,
                     fontWeight: FontWeight.w800,
@@ -543,7 +543,7 @@ class _RegraStatus extends StatelessWidget {
       ),
       child: const Text(
         'A solicitação só vira agendamento confirmado quando o profissional '
-        'aceita e o sistema registra o status aceita_agendada. A proteção real '
+        'aceita e o sistema registra a confirmação do agendamento. A proteção real '
         'de ações, endereço e chat deve ser validada pela API.',
         style: TextStyle(
           color: AppColors.texto,

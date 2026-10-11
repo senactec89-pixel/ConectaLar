@@ -7,6 +7,7 @@ import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/bottom_navigation.dart';
 
 class MeusServicosPage extends StatefulWidget {
   const MeusServicosPage({super.key});
@@ -106,6 +107,11 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
             );
           },
         ),
+      ),
+      bottomNavigationBar: BottomNavigationCustom(
+        currentIndex: 3,
+        onDestinationSelected: (index) =>
+            navigateToMainDestination(context, index),
       ),
     );
   }
@@ -314,25 +320,32 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {
-      StatusSolicitacao.aguardandoResposta => const Color(0xFFB7791F),
+      StatusSolicitacao.aguardandoResposta => const Color(0xFF9A6415),
       StatusSolicitacao.aceitaAgendada => AppColors.verde,
-      StatusSolicitacao.recusada => const Color(0xFFC53030),
+      StatusSolicitacao.recusada => AppColors.erro,
       StatusSolicitacao.cancelada => AppColors.textoSuave,
       StatusSolicitacao.conclusaoConfirmada => AppColors.verdeEscuro,
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        status.valorBanco,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 142),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+        ),
+        child: Text(
+          status.rotulo,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            height: 1.15,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );

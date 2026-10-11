@@ -7,6 +7,7 @@ import '../../models/usuario.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/bottom_navigation.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
@@ -156,6 +157,11 @@ class _PerfilPageState extends State<PerfilPage> {
             );
           },
         ),
+      ),
+      bottomNavigationBar: BottomNavigationCustom(
+        currentIndex: 4,
+        onDestinationSelected: (index) =>
+            navigateToMainDestination(context, index),
       ),
     );
   }

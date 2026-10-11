@@ -120,7 +120,7 @@ class _ConversaCard extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
-          '${conversa.categoria} • ${conversa.solicitacao.status.valorBanco}',
+          '${conversa.categoria} • ${conversa.solicitacao.status.rotulo}',
         ),
         trailing: const Icon(Icons.chevron_right),
       ),

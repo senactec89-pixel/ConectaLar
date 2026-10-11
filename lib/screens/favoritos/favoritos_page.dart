@@ -7,6 +7,7 @@ import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
 
 class FavoritosPage extends StatefulWidget {
@@ -81,7 +82,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 const Text(
-                  'Profissionais e serviços salvos',
+                  'Profissionais salvos',
                   style: TextStyle(
                     color: AppColors.texto,
                     fontSize: 22,
@@ -90,16 +91,8 @@ class _FavoritosPageState extends State<FavoritosPage> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Os serviços favoritos aparecem como referência visual; o escopo atual salva perfis profissionais.',
+                  'Consulte os perfis que você adicionou aos favoritos.',
                   style: TextStyle(color: AppColors.textoSuave, height: 1.35),
-                ),
-                const SizedBox(height: 16),
-                const Row(
-                  children: [
-                    ChoiceChip(label: Text('Profissionais'), selected: true),
-                    SizedBox(width: 8),
-                    ChoiceChip(label: Text('Serviços'), selected: false),
-                  ],
                 ),
                 const SizedBox(height: 16),
                 if (favoritos.isEmpty)
@@ -116,6 +109,11 @@ class _FavoritosPageState extends State<FavoritosPage> {
             );
           },
         ),
+      ),
+      bottomNavigationBar: BottomNavigationCustom(
+        currentIndex: 2,
+        onDestinationSelected: (index) =>
+            navigateToMainDestination(context, index),
       ),
     );
   }

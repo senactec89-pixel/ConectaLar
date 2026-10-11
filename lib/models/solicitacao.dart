@@ -8,6 +8,14 @@ enum StatusSolicitacao {
   const StatusSolicitacao(this.valorBanco);
 
   final String valorBanco;
+
+  String get rotulo => switch (this) {
+    StatusSolicitacao.aguardandoResposta => 'Aguardando resposta',
+    StatusSolicitacao.aceitaAgendada => 'Aceita e agendada',
+    StatusSolicitacao.recusada => 'Recusada',
+    StatusSolicitacao.cancelada => 'Cancelada',
+    StatusSolicitacao.conclusaoConfirmada => 'Conclusão confirmada',
+  };
 }
 
 class Solicitacao {

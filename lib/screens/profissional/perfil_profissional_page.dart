@@ -362,7 +362,7 @@ class _SolicitarServicoBar extends StatelessWidget {
             arguments: profissional,
           ),
           icon: const Icon(Icons.calendar_month_rounded),
-          label: const Text('Solicitar serviço'),
+          label: const Text('Solicitar atendimento'),
         ),
       ),
     );

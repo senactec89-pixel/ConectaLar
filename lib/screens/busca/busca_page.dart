@@ -7,6 +7,7 @@ import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
 import '../home/home_mock_data.dart';
 
@@ -200,6 +201,11 @@ class _BuscaPageState extends State<BuscaPage> {
             },
           );
         },
+      ),
+      bottomNavigationBar: BottomNavigationCustom(
+        currentIndex: 1,
+        onDestinationSelected: (index) =>
+            navigateToMainDestination(context, index),
       ),
     );
   }

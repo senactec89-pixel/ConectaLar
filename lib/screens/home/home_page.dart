@@ -120,110 +120,119 @@ class _HomeContentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    return SizedBox(
-      width: screenWidth,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _HomeHero(
-            onSearchTap: onSearchTap,
-            onNotificationsTap: onNotificationsTap,
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(25),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            _HomeHero(
+              onSearchTap: onSearchTap,
+              onNotificationsTap: onNotificationsTap,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionHeading(
+                          title: 'Categorias',
+                          suffix: 'de serviços',
+                          action: 'Ver todas',
+                          onActionTap: onSearchTap,
+                        ),
+                        const SizedBox(height: 16),
+                        if (content.categories.isEmpty)
+                          const _EmptySectionMessage(
+                            message: 'Nenhuma categoria disponível.',
+                          )
+                        else
+                          GridView.builder(
+                            shrinkWrap: true,
+                            primary: false,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: content.categories.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 4,
+                                  mainAxisSpacing: 12,
+                                  crossAxisSpacing: 10,
+                                  mainAxisExtent: 84,
+                                ),
+                            itemBuilder: (context, index) {
+                              final category = content.categories[index];
+                              final style = _categoryStyle(
+                                category.nome,
+                                index,
+                              );
+                              return _CategoryTile(
+                                category: category,
+                                icon: style.icon,
+                                background: style.background,
+                                color: style.foreground,
+                                onTap: () => onCategoryTap(category),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _SectionHeading(
-                        title: 'Categorias',
-                        suffix: 'de serviços',
-                        action: 'Ver todas',
-                        onActionTap: onSearchTap,
-                      ),
-                      const SizedBox(height: 16),
-                      if (content.categories.isEmpty)
-                        const _EmptySectionMessage(
-                          message: 'Nenhuma categoria disponível.',
-                        )
-                      else
-                        GridView.builder(
+                  const SizedBox(height: 28),
+                  _SectionHeading(
+                    title: 'Profissionais em destaque',
+                    action: 'Ver todos',
+                    onActionTap: onSearchTap,
+                  ),
+                  const SizedBox(height: 14),
+                  if (content.featuredProfessionals.isEmpty)
+                    const _EmptySectionMessage(
+                      message: 'Nenhum profissional disponível no momento.',
+                    )
+                  else
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth < 300 ? 1 : 2;
+                        return GridView.builder(
                           shrinkWrap: true,
                           primary: false,
                           physics: const NeverScrollableScrollPhysics(),
-                          itemCount: content.categories.length,
+                          itemCount: content.featuredProfessionals.length,
                           gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: columns,
+                                crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
-                                crossAxisSpacing: 10,
-                                mainAxisExtent: 84,
+                                childAspectRatio: columns == 1
+                                    ? 0.92
+                                    : constraints.maxWidth > 600
+                                    ? 1.2
+                                    : 0.52,
                               ),
                           itemBuilder: (context, index) {
-                            final category = content.categories[index];
-                            final style = _categoryStyle(category.nome, index);
-                            return _CategoryTile(
-                              category: category,
-                              icon: style.icon,
-                              background: style.background,
-                              color: style.foreground,
-                              onTap: () => onCategoryTap(category),
+                            final professional =
+                                content.featuredProfessionals[index];
+                            return _FeaturedProfessionalCard(
+                              professional: professional,
+                              onTap: () => onProfessionalTap(professional),
                             );
                           },
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
-                _SectionHeading(
-                  title: 'Profissionais em destaque',
-                  action: 'Ver todos',
-                  onActionTap: onSearchTap,
-                ),
-                const SizedBox(height: 14),
-                if (content.featuredProfessionals.isEmpty)
-                  const _EmptySectionMessage(
-                    message: 'Nenhum profissional disponível no momento.',
-                  )
-                else
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = constraints.maxWidth < 300 ? 1 : 2;
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        primary: false,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: content.featuredProfessionals.length,
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: columns,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: columns == 1 ? 0.92 : 0.52,
-                        ),
-                        itemBuilder: (context, index) {
-                          final professional =
-                              content.featuredProfessionals[index];
-                          return _FeaturedProfessionalCard(
-                            professional: professional,
-                            onTap: () => onProfessionalTap(professional),
-                          );
-                        },
-                      );
-                    },
-                  ),
-              ],
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
