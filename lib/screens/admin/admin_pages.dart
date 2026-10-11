@@ -220,10 +220,10 @@ class _AdminPageState extends State<AdminPage> {
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final colunas = constraints.maxWidth < 300 ? 1 : 2;
-              final escala = MediaQuery.textScalerOf(
-                context,
-              ).scale(1).clamp(1.0, 2.0).toDouble();
+              final escala = MediaQuery.textScalerOf(context).scale(1);
+              final colunas = constraints.maxWidth < 300 || escala > 1.3
+                  ? 1
+                  : 2;
               final indicadores = [
                 _Indicador(
                   label: 'Usuários ativos',
@@ -271,17 +271,17 @@ class _AdminPageState extends State<AdminPage> {
                   icon: Icons.event_available_outlined,
                 ),
               ];
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: indicadores.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: colunas,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  mainAxisExtent: 104 * escala,
-                ),
-                itemBuilder: (context, index) => indicadores[index],
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final indicador in indicadores)
+                    SizedBox(
+                      width:
+                          (constraints.maxWidth - (colunas - 1) * 10) / colunas,
+                      child: indicador,
+                    ),
+                ],
               );
             },
           ),
@@ -423,6 +423,7 @@ class _AdminPageState extends State<AdminPage> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _tipo,
+                    isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Tipo de conta',
                     ),
@@ -1031,13 +1032,21 @@ class _Indicador extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(icon, color: AppColors.verde),
-                Text(value, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
