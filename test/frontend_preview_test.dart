@@ -96,10 +96,7 @@ void main() {
       await AppServices.instance.inicializar();
       await tester.pumpWidget(const ConectaLarApp());
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<Banner>(find.byType(Banner)).message,
-        'DEMONSTRAÇÃO',
-      );
+      expect(tester.widget<Banner>(find.byType(Banner)).message, 'DEMO');
       expect(find.text('Tentar novamente'), findsNothing);
       expect(find.text('Acesso restrito'), findsNothing);
       expect(

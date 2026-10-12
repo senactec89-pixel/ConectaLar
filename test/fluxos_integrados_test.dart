@@ -167,7 +167,7 @@ void main() {
     await tester.pumpWidget(const ConectaLarApp());
     await tester.pumpAndSettle();
     expect(find.text('Carlos Silva'), findsOneWidget);
-    expect(tester.widget<Banner>(find.byType(Banner)).message, 'DEMONSTRAÇÃO');
+    expect(tester.widget<Banner>(find.byType(Banner)).message, 'DEMO');
   });
 
   testWidgets(

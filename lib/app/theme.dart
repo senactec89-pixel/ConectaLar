@@ -150,6 +150,8 @@ abstract final class AppTheme {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
+        visualDensity: VisualDensity.standard,
+        tapTargetSize: MaterialTapTargetSize.padded,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.field),
@@ -160,6 +162,7 @@ abstract final class AppTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(48, 48),
+        visualDensity: VisualDensity.standard,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.lg,
           vertical: AppSpace.md,
@@ -173,6 +176,7 @@ abstract final class AppTheme {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(48, 48),
+        visualDensity: VisualDensity.standard,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.lg,
           vertical: AppSpace.md,
@@ -186,6 +190,7 @@ abstract final class AppTheme {
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         minimumSize: const Size(48, 48),
+        visualDensity: VisualDensity.standard,
         tapTargetSize: MaterialTapTargetSize.padded,
       ),
     ),

@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -142,14 +143,12 @@ class _LoginPageState extends State<LoginPage> {
                           key: const ValueKey('login-entrar'),
                           onPressed: _enviando ? null : _entrar,
                           icon: _enviando
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
+                              ? const ButtonProgressIndicator()
                               : const Icon(Icons.login_rounded),
-                          label: Text(_enviando ? 'Entrando...' : 'Entrar'),
+                          label: ActionLabel(
+                            busy: _enviando,
+                            text: _enviando ? 'Entrando...' : 'Entrar',
+                          ),
                         ),
                       ),
                       TextButton(

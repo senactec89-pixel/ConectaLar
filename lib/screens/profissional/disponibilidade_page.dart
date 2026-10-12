@@ -6,6 +6,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
 
 class DisponibilidadePage extends StatefulWidget {
@@ -183,13 +184,13 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                     FilledButton.icon(
                       onPressed: _salvando ? null : _salvar,
                       icon: _salvando
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const ButtonProgressIndicator()
                           : const Icon(Icons.save_outlined),
-                      label: Text(
-                        _salvando ? 'Salvando...' : 'Salvar disponibilidade',
+                      label: ActionLabel(
+                        busy: _salvando,
+                        text: _salvando
+                            ? 'Salvando...'
+                            : 'Salvar disponibilidade',
                       ),
                     ),
                   ],

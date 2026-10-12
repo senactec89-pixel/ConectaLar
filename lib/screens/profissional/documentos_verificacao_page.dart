@@ -8,6 +8,7 @@ import '../../models/documento_verificacao.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
 
 class DocumentosVerificacaoPage extends StatefulWidget {
@@ -357,13 +358,11 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                     ? null
                     : _selecionarArquivo,
                 icon: _selecionandoArquivo
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const ButtonProgressIndicator()
                     : const Icon(Icons.attach_file),
-                label: Text(
-                  _selecionandoArquivo
+                label: ActionLabel(
+                  busy: _selecionandoArquivo,
+                  text: _selecionandoArquivo
                       ? 'Abrindo arquivos...'
                       : _nomeArquivo == null
                       ? 'Selecionar arquivo'
@@ -405,12 +404,12 @@ class _DocumentoFormState extends State<_DocumentoForm> {
               FilledButton.icon(
                 onPressed: _enviando ? null : _enviar,
                 icon: _enviando
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const ButtonProgressIndicator()
                     : const Icon(Icons.upload_file_outlined),
-                label: Text(_enviando ? 'Enviando...' : 'Enviar documento'),
+                label: ActionLabel(
+                  busy: _enviando,
+                  text: _enviando ? 'Enviando...' : 'Enviar documento',
+                ),
               ),
             ],
           ),

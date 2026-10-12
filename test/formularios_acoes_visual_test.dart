@@ -63,58 +63,71 @@ void main() {
   testWidgets('login em envio bloqueia repetição e preserva dados após erro', (
     tester,
   ) async {
-    final resposta = Completer<http.Response>();
-    var chamadas = 0;
-    AppServices.instance = AppServices(
-      api: ApiService(
-        client: MockClient((request) {
-          chamadas++;
-          return resposta.future;
-        }),
-      ),
-    );
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(360, 844);
-    tester.platformDispatcher.textScaleFactorTestValue = 2;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    await tester.pumpWidget(
-      MaterialApp(theme: AppTheme.light, home: const LoginPage()),
-    );
-    await tester.pumpAndSettle();
-    final email = find.byKey(const ValueKey('login-email'));
-    final senha = find.byKey(const ValueKey('login-senha'));
-    await tester.ensureVisible(email);
-    await tester.enterText(email, 'teste@example.invalid');
-    await tester.ensureVisible(senha);
-    await tester.enterText(senha, 'Senha123!');
-    final entrar = find.byKey(const ValueKey('login-entrar'));
-    await tester.ensureVisible(entrar);
-    await tester.pumpAndSettle();
-    await tester.tap(entrar);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Entrando...'), findsOneWidget);
-    expect(tester.widget<FilledButton>(entrar).onPressed, isNull);
-    expect(tester.widget<TextFormField>(email).enabled, isFalse);
-    expect(tester.widget<TextFormField>(senha).enabled, isFalse);
-    await tester.tap(entrar);
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(chamadas, 1);
-    resposta.complete(
-      jsonResponse({'message': 'Confira seus dados de acesso.'}, 400),
-    );
-    await tester.pumpAndSettle();
-    expect(tester.widget<TextFormField>(email).enabled, isTrue);
-    expect(
-      tester.widget<TextFormField>(email).controller!.text,
-      'teste@example.invalid',
-    );
-    expect(tester.widget<TextFormField>(senha).controller!.text, 'Senha123!');
-    expect(tester.widget<FilledButton>(entrar).onPressed, isNotNull);
-    expect(find.text('Confira seus dados de acesso.'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    final semantics = tester.ensureSemantics();
+    try {
+      final resposta = Completer<http.Response>();
+      var chamadas = 0;
+      AppServices.instance = AppServices(
+        api: ApiService(
+          client: MockClient((request) {
+            chamadas++;
+            return resposta.future;
+          }),
+        ),
+      );
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(360, 844);
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpWidget(
+        MaterialApp(theme: AppTheme.light, home: const LoginPage()),
+      );
+      await tester.pumpAndSettle();
+      final email = find.byKey(const ValueKey('login-email'));
+      final senha = find.byKey(const ValueKey('login-senha'));
+      await tester.ensureVisible(email);
+      await tester.enterText(email, 'teste@example.invalid');
+      await tester.ensureVisible(senha);
+      await tester.enterText(senha, 'Senha123!');
+      final entrar = find.byKey(const ValueKey('login-entrar'));
+      await tester.ensureVisible(entrar);
+      await tester.pumpAndSettle();
+      await tester.tap(entrar);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Entrando...'), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(entrar)
+            .getSemanticsData()
+            .flagsCollection
+            .isLiveRegion,
+        isTrue,
+      );
+      expect(tester.widget<FilledButton>(entrar).onPressed, isNull);
+      expect(tester.widget<TextFormField>(email).enabled, isFalse);
+      expect(tester.widget<TextFormField>(senha).enabled, isFalse);
+      await tester.tap(entrar);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(chamadas, 1);
+      resposta.complete(
+        jsonResponse({'message': 'Confira seus dados de acesso.'}, 400),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextFormField>(email).enabled, isTrue);
+      expect(
+        tester.widget<TextFormField>(email).controller!.text,
+        'teste@example.invalid',
+      );
+      expect(tester.widget<TextFormField>(senha).controller!.text, 'Senha123!');
+      expect(tester.widget<FilledButton>(entrar).onPressed, isNotNull);
+      expect(find.text('Confira seus dados de acesso.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('seletor de documento conserva valores com texto ampliado', (

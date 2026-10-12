@@ -34,7 +34,7 @@ void main() {
             route,
             arguments: 1002,
             width: width,
-            textScale: 1.4,
+            textScale: 2,
           );
           expect(find.text('Tentar novamente'), findsNothing);
           expect(find.text('Acesso restrito'), findsNothing);
@@ -49,6 +49,11 @@ void main() {
             expect(tester.takeException(), isNull, reason: 'Pedidos em $width');
           }
           if (route == AppRoutes.cadastroProfissional) {
+            await tester.scrollUntilVisible(
+              find.text('Descrição profissional'),
+              200,
+              scrollable: find.byType(Scrollable).first,
+            );
             final campo = find.byType(TextField).first;
             await tester.ensureVisible(campo);
             await tester.pumpAndSettle();
@@ -89,12 +94,7 @@ void main() {
     await configurarFrontend();
     for (final width in [360.0, 390.0, 412.0]) {
       await tester.pumpWidget(const SizedBox.shrink());
-      await abrirFrontend(
-        tester,
-        AppRoutes.login,
-        width: width,
-        textScale: 1.4,
-      );
+      await abrirFrontend(tester, AppRoutes.login, width: width, textScale: 2);
       final field = tester.widget<TextFormField>(
         find.byKey(const ValueKey('login-email')),
       );
@@ -119,7 +119,7 @@ void main() {
         tester,
         AppRoutes.cadastroProfissional,
         width: width,
-        textScale: 1.4,
+        textScale: 2,
       );
       expect(AppServices.instance.auth.usuarioAtual?['tipo'], 'empresa');
       expect(find.text('Tentar novamente'), findsNothing);

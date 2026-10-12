@@ -133,7 +133,7 @@ Future<void> _abrir(
       builder: (context, child) => MediaQuery(
         data: MediaQuery.of(
           context,
-        ).copyWith(textScaler: const TextScaler.linear(1.4)),
+        ).copyWith(textScaler: const TextScaler.linear(2)),
         child: child!,
       ),
     ),

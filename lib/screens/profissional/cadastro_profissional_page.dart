@@ -8,6 +8,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
 
 class CadastroProfissionalPage extends StatefulWidget {
@@ -392,15 +393,16 @@ class _FormularioProfissional extends StatelessWidget {
                 child: FilledButton.icon(
                   key: const ValueKey('profissional-continuar'),
                   onPressed: salvando ? null : onContinuar,
-                  icon: Icon(
-                    salvando
-                        ? Icons.hourglass_top_rounded
-                        : perfilSalvo
-                        ? Icons.check_circle_outline
-                        : Icons.arrow_forward_rounded,
-                  ),
-                  label: Text(
-                    salvando
+                  icon: salvando
+                      ? const ButtonProgressIndicator()
+                      : Icon(
+                          perfilSalvo
+                              ? Icons.check_circle_outline
+                              : Icons.arrow_forward_rounded,
+                        ),
+                  label: ActionLabel(
+                    busy: salvando,
+                    text: salvando
                         ? 'Salvando...'
                         : perfilSalvo
                         ? 'Perfil profissional salvo'

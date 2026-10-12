@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-12",
+  "mode": "gallery_frontend_demo",
+  "logical_widths": [
+    360,
+    390,
+    412
+  ],
+  "height": 844,
+  "device_pixel_ratio": 1,
+  "text_scale": 1,
+  "records": [
+    {
+      "scene": "login",
+      "runtime_or_console_errors": 0,
+      "events": 5
+    },
+    {
+      "scene": "seguranca",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    },
+    {
+      "scene": "documentos",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    },
+    {
+      "scene": "carregando",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    },
+    {
+      "scene": "erro",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    },
+    {
+      "scene": "vazio",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    },
+    {
+      "scene": "restrito",
+      "runtime_or_console_errors": 0,
+      "events": 1
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import '../../widgets/async_state_view.dart';
 import '../../models/categoria.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
@@ -73,10 +74,8 @@ class _HomePageState extends State<HomePage> {
           future: _contentFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  semanticsLabel: 'Carregando conteúdo da página inicial',
-                ),
+              return const AsyncLoadingView(
+                label: 'Carregando conteúdo da página inicial',
               );
             }
 
@@ -1100,32 +1099,15 @@ class _HomeErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              switch (error) {
-                TimeoutException() =>
-                  'O carregamento demorou mais que o esperado. Tente novamente.',
-                http.ClientException() =>
-                  'Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.',
-                _ =>
-                  'Não foi possível carregar a página inicial. Tente novamente.',
-              },
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Tentar novamente'),
-            ),
-          ],
-        ),
-      ),
+    return AsyncErrorView(
+      message: switch (error) {
+        TimeoutException() =>
+          'O carregamento demorou mais que o esperado. Tente novamente.',
+        http.ClientException() =>
+          'Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.',
+        _ => 'Não foi possível carregar a página inicial. Tente novamente.',
+      },
+      onRetry: onRetry,
     );
   }
 }

@@ -179,7 +179,7 @@ class _BuscaPageState extends State<BuscaPage> {
                   ),
                   const SizedBox(height: AppSpace.xl),
                   if (snapshot.connectionState == ConnectionState.waiting)
-                    const Center(child: CircularProgressIndicator())
+                    const AsyncLoadingView(label: 'Carregando profissionais.')
                   else ...[
                     _CabecalhoResultados(total: resultados.length),
                     const SizedBox(height: AppSpace.md),
@@ -370,36 +370,11 @@ class _EstadoVazioBusca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpace.xl),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.borda),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.search_off_rounded,
-            color: Theme.of(context).colorScheme.primary,
-            size: 38,
-          ),
-          const SizedBox(height: AppSpace.md),
-          Text(
-            'Nenhum profissional corresponde a esta busca.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: AppColors.texto,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          const Text(
-            'Tente ajustar o serviço, a categoria ou o bairro.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textoSuave),
-          ),
-        ],
+    return const Card(
+      child: EmptyStateView(
+        title: 'Nenhum profissional corresponde a esta busca.',
+        message: 'Tente ajustar o serviço, a categoria ou o bairro.',
+        icon: Icons.search_off_rounded,
       ),
     );
   }

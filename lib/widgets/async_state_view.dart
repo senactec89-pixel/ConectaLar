@@ -9,11 +9,28 @@ class AsyncLoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return _StateLayout(
       child: Semantics(
+        container: true,
         liveRegion: true,
         label: label,
-        child: const CircularProgressIndicator(),
+        child: ExcludeSemantics(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox.square(
+                dimension: 32,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              const SizedBox(height: AppSpace.lg),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -33,23 +50,30 @@ class AsyncErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpace.xl),
+    return _StateLayout(
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        liveRegion: true,
+        label: message,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(icon, color: AppColors.textoSuave, size: 42),
-            const SizedBox(height: AppSpace.md),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+            ExcludeSemantics(
+              child: _StateIcon(icon: icon, color: AppColors.textoSuave),
             ),
             const SizedBox(height: AppSpace.lg),
+            ExcludeSemantics(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const SizedBox(height: AppSpace.xl),
             OutlinedButton.icon(
               onPressed: onRetry,
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Tentar novamente'),
             ),
@@ -65,39 +89,91 @@ class EmptyStateView extends StatelessWidget {
     required this.title,
     required this.message,
     this.icon = Icons.inbox_outlined,
+    this.action,
     super.key,
   });
 
   final String title;
   final String message;
   final IconData icon;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpace.xl),
+    return _StateLayout(
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        liveRegion: true,
+        label: '$title $message',
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(icon, color: AppColors.verdeEscuro, size: 44),
-            const SizedBox(height: AppSpace.md),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
+            ExcludeSemantics(
+              child: _StateIcon(icon: icon, color: AppColors.verdeEscuro),
+            ),
+            const SizedBox(height: AppSpace.lg),
+            ExcludeSemantics(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ),
             const SizedBox(height: AppSpace.sm),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
+            ExcludeSemantics(
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
+              ),
             ),
+            if (action != null) ...[
+              const SizedBox(height: AppSpace.xl),
+              action!,
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _StateLayout extends StatelessWidget {
+  const _StateLayout({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpace.xl),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: child,
+      ),
+    ),
+  );
+}
+
+class _StateIcon extends StatelessWidget {
+  const _StateIcon({required this.icon, required this.color});
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: DecoratedBox(
+      decoration: const BoxDecoration(
+        color: AppColors.verdeClaro,
+        shape: BoxShape.circle,
+      ),
+      child: SizedBox.square(
+        dimension: 64,
+        child: Icon(icon, color: color, size: 32),
+      ),
+    ),
+  );
 }

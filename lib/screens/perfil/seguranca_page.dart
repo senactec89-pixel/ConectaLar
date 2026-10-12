@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 
 class SegurancaPage extends StatefulWidget {
   const SegurancaPage({super.key});
@@ -157,15 +158,11 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                 key: const ValueKey('seguranca-salvar'),
                                 onPressed: _salvando ? null : _alterarSenha,
                                 icon: _salvando
-                                    ? const SizedBox.square(
-                                        dimension: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
+                                    ? const ButtonProgressIndicator()
                                     : const Icon(Icons.lock_reset_rounded),
-                                label: Text(
-                                  _salvando
+                                label: ActionLabel(
+                                  busy: _salvando,
+                                  text: _salvando
                                       ? 'Atualizando...'
                                       : 'Atualizar senha',
                                 ),

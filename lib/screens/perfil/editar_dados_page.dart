@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
 
 class EditarDadosPage extends StatefulWidget {
@@ -300,15 +301,13 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                               key: const ValueKey('perfil-salvar'),
                               onPressed: _salvando ? null : _salvar,
                               icon: _salvando
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
+                                  ? const ButtonProgressIndicator()
                                   : const Icon(Icons.check_rounded),
-                              label: Text(
-                                _salvando ? 'Salvando...' : 'Salvar alterações',
+                              label: ActionLabel(
+                                busy: _salvando,
+                                text: _salvando
+                                    ? 'Salvando...'
+                                    : 'Salvar alterações',
                               ),
                             ),
                           ],

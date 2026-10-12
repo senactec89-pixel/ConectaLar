@@ -4,6 +4,7 @@ import 'routes.dart';
 import 'theme.dart';
 import '../services/service_registry.dart';
 import '../services/auth_service.dart';
+import '../widgets/demo_banner.dart';
 
 class ConectaLarApp extends StatefulWidget {
   const ConectaLarApp({super.key});
@@ -64,13 +65,8 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
         _ => AppRoutes.home,
       },
       routes: AppRoutes.routes,
-      builder: (context, child) => AppServices.instance.modoDemo
-          ? Banner(
-              message: 'DEMONSTRAÇÃO',
-              location: BannerLocation.topEnd,
-              child: child!,
-            )
-          : child!,
+      builder: (context, child) =>
+          AppServices.instance.modoDemo ? DemoBanner(child: child!) : child!,
     );
   }
 }

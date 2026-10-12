@@ -6,6 +6,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 
 class RecuperacaoSenhaPage extends StatefulWidget {
   const RecuperacaoSenhaPage({super.key});
@@ -181,13 +182,11 @@ class _FormularioEmail extends StatelessWidget {
                       key: const ValueKey('recuperacao-solicitar'),
                       onPressed: enviando ? null : onSolicitar,
                       icon: enviando
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const ButtonProgressIndicator()
                           : const Icon(Icons.send_outlined),
-                      label: Text(
-                        enviando ? 'Solicitando...' : 'Enviar instruções',
+                      label: ActionLabel(
+                        busy: enviando,
+                        text: enviando ? 'Solicitando...' : 'Enviar instruções',
                       ),
                     ),
                   ),
@@ -308,12 +307,12 @@ class _FormularioCodigo extends StatelessWidget {
                       key: const ValueKey('recuperacao-confirmar'),
                       onPressed: enviando ? null : onConfirmar,
                       icon: enviando
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
+                          ? const ButtonProgressIndicator()
                           : const Icon(Icons.check_rounded),
-                      label: Text(enviando ? 'Salvando...' : 'Redefinir senha'),
+                      label: ActionLabel(
+                        busy: enviando,
+                        text: enviando ? 'Salvando...' : 'Redefinir senha',
+                      ),
                     ),
                   ),
                   TextButton.icon(

@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/action_label.dart';
 
 class CadastroPage extends StatefulWidget {
   const CadastroPage({super.key});
@@ -287,15 +288,11 @@ class _CadastroPageState extends State<CadastroPage> {
                           key: const ValueKey('cadastro-criar-conta'),
                           onPressed: _enviando ? null : _criarConta,
                           icon: _enviando
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
+                              ? const ButtonProgressIndicator()
                               : const Icon(Icons.person_add_alt_1),
-                          label: Text(
-                            _enviando
+                          label: ActionLabel(
+                            busy: _enviando,
+                            text: _enviando
                                 ? 'Aguarde...'
                                 : _contaCriada
                                 ? 'Concluir cadastro'
