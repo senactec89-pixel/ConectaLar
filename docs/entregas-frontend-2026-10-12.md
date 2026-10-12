@@ -55,3 +55,12 @@ Verificação da etapa 6: `flutter analyze --no-pub` sem problemas; 31 testes se
 - Verificação específica cobre falha 503, retry, resposta vazia, ausência de POST indevido, responsividade em 360/390/412 px, texto 200% e teclado simulado. A autorização e a disponibilidade final seguem sendo decididas pela API.
 
 Verificação da etapa 7: `flutter analyze --no-pub` sem problemas; 22 testes selecionados aprovados (`solicitacoes_estados_test.dart`, `enderecos_visual_test.dart`, `meus_servicos_retorno_test.dart`, `fluxos_integrados_test.dart`).
+
+## Etapa 8 — Catálogo e ícones administrativos
+
+- Lista administrativa com busca que limpa o campo de verdade e filtros de categorias ativas, inativas ou todas; estado vazio contextual.
+- Nova tela de criar/editar categoria usa os 10 ícones permitidos pelo contrato, prévia imediata, nome de 2 a 80 caracteres e status. Mantém o formulário após falha da API e evita envios simultâneos.
+- Salvamento retorna à lista e atualiza os dados; o acesso exige conta administrativa, além da proteção da API.
+- Responsividade conferida em 360/390/412 px, texto 200% e teclado simulado. Os testes cobrem os valores enviados, filtro, busca, erro e retorno da edição.
+
+Verificação da etapa 8: `flutter analyze --no-pub` sem problemas; 18 testes selecionados aprovados (`admin_categoria_form_test.dart`, `admin_catalogo_fluxo_test.dart`, `admin_visual_test.dart`, `admin_documentos_filtros_test.dart`).

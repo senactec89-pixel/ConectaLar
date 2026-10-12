@@ -4,6 +4,7 @@ import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../services/service_registry.dart';
 import '../../utils/categoria_icons.dart';
+import 'categoria_form_page.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 
@@ -30,8 +31,16 @@ class _AdminPageState extends State<AdminPage> {
   String _tipo = '';
   String _termo = '';
   String _buscaLocal = '';
+  final _buscaLocalController = TextEditingController();
+  String _statusCategoria = '';
   String _statusDocumento = 'pendente';
   bool _mutando = false;
+
+  @override
+  void dispose() {
+    _buscaLocalController.dispose();
+    super.dispose();
+  }
 
   Future<List<Map<String, dynamic>>> _carregar(AdminModulo modulo) async {
     final service = AppServices.instance.admin;
@@ -73,6 +82,7 @@ class _AdminPageState extends State<AdminPage> {
   void _abrir(AdminModulo modulo) => setState(() {
     _modulo = modulo;
     _buscaLocal = '';
+    _buscaLocalController.clear();
     _future = _carregar(modulo);
   });
 
@@ -421,9 +431,18 @@ class _AdminPageState extends State<AdminPage> {
       final permiteBuscaLocal =
           _modulo == AdminModulo.avaliacoes ||
           _modulo == AdminModulo.categorias;
-      final itensVisiveis = !permiteBuscaLocal || _buscaLocal.trim().isEmpty
+      final filtrados =
+          _modulo != AdminModulo.categorias || _statusCategoria.isEmpty
           ? items
           : items
+                .where(
+                  (item) =>
+                      (item['ativo'] == true) == (_statusCategoria == 'ativa'),
+                )
+                .toList(growable: false);
+      final itensVisiveis = !permiteBuscaLocal || _buscaLocal.trim().isEmpty
+          ? filtrados
+          : filtrados
                 .where(
                   (item) => _textoIndexavel(
                     item,
@@ -448,6 +467,7 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
+                controller: _buscaLocalController,
                 onChanged: (value) => setState(() => _buscaLocal = value),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search_rounded),
@@ -458,7 +478,10 @@ class _AdminPageState extends State<AdminPage> {
                       ? null
                       : IconButton(
                           tooltip: 'Limpar busca',
-                          onPressed: () => setState(() => _buscaLocal = ''),
+                          onPressed: () {
+                            _buscaLocalController.clear();
+                            setState(() => _buscaLocal = '');
+                          },
                           icon: const Icon(Icons.close_rounded),
                         ),
                 ),
@@ -515,15 +538,41 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
           if (_modulo == AdminModulo.categorias)
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: FilledButton.icon(
-                  onPressed: () => _editarCategoria(),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nova categoria'),
-                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final filtro in const {
+                            '': 'Todas',
+                            'ativa': 'Ativas',
+                            'inativa': 'Inativas',
+                          }.entries) ...[
+                            ChoiceChip(
+                              key: ValueKey('admin-categorias-${filtro.key}'),
+                              label: Text(filtro.value),
+                              selected: _statusCategoria == filtro.key,
+                              onSelected: (_) =>
+                                  setState(() => _statusCategoria = filtro.key),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    key: const ValueKey('admin-categorias-nova'),
+                    tooltip: 'Nova categoria',
+                    onPressed: _mutando ? null : () => _editarCategoria(),
+                    icon: const Icon(Icons.add),
+                  ),
+                ],
               ),
             ),
           Expanded(
@@ -533,11 +582,15 @@ class _AdminPageState extends State<AdminPage> {
                         ? _modulo == AdminModulo.documentos
                               ? 'Nenhum documento neste filtro'
                               : _tituloVazio(_modulo)
+                        : _modulo == AdminModulo.categorias && filtrados.isEmpty
+                        ? 'Nenhuma categoria neste filtro'
                         : 'Nenhum resultado encontrado',
                     message: items.isEmpty
                         ? _modulo == AdminModulo.documentos
                               ? 'Escolha outro status ou aguarde novos envios.'
                               : _mensagemVazia(_modulo)
+                        : _modulo == AdminModulo.categorias && filtrados.isEmpty
+                        ? 'Escolha outro status para ver as categorias cadastradas.'
                         : 'Tente outro termo de busca.',
                     icon: items.isEmpty
                         ? _iconeModulo(_modulo)
@@ -933,101 +986,18 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _editarCategoria([Map<String, dynamic>? categoria]) async {
     if (_mutando) return;
-    final nome = TextEditingController(text: '${categoria?['nome'] ?? ''}');
-    var icone = '${categoria?['icone'] ?? 'home_repair'}';
-    if (!categoriaIconOptions.any((option) => option.id == icone)) {
-      icone = 'home_repair';
-    }
-    var ativo = categoria?['ativo'] != false;
-    final result = await showDialog<({String nome, String icone, bool ativo})>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialog) => AlertDialog(
-          scrollable: true,
-          title: Text(
-            categoria == null ? 'Nova categoria' : 'Editar categoria',
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nome,
-                decoration: const InputDecoration(labelText: 'Nome'),
-                onChanged: (_) => setDialog(() {}),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: icone,
-                decoration: const InputDecoration(labelText: 'Icone'),
-                items: [
-                  for (final option in categoriaIconOptions)
-                    DropdownMenuItem(
-                      value: option.id,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(option.icon, size: 20),
-                          const SizedBox(width: 8),
-                          Flexible(child: Text(option.label)),
-                        ],
-                      ),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value != null) setDialog(() => icone = value);
-                },
-              ),
-              SwitchListTile(
-                value: ativo,
-                onChanged: (v) => setDialog(() => ativo = v),
-                title: const Text('Ativa'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: nome.text.trim().length < 2
-                  ? null
-                  : () => Navigator.pop(context, (
-                      nome: nome.text.trim(),
-                      icone: icone,
-                      ativo: ativo,
-                    )),
-              child: const Text('Salvar'),
-            ),
-          ],
-        ),
+    final salvo = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => CategoriaFormPage(categoria: categoria),
       ),
     );
-    if (result == null) return;
-    setState(() => _mutando = true);
-    try {
-      await AppServices.instance.admin.salvarCategoria(
-        id: categoria == null ? null : int.parse('${categoria['id']}'),
-        nome: result.nome,
-        icone: result.icone,
-        ativo: result.ativo,
-      );
-      if (mounted) {
-        _avisar('Categoria salva.');
-        setState(() {
-          _future = _carregar(_modulo);
-          _future.ignore();
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        _avisar(
-          'Não foi possível salvar a categoria. O nome pode já estar em uso.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _mutando = false);
-    }
+    if (!mounted || salvo != true) return;
+    _avisar('Categoria salva.');
+    setState(() {
+      _future = _carregar(_modulo);
+      _future.ignore();
+    });
   }
 
   void _avisar(String text) =>
