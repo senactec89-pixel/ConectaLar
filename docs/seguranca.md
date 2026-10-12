@@ -16,11 +16,11 @@ Atualizado para o código disponível em main, commit 0264eab, em 11/10/2026. Es
 
 ## Limites que precisam ser resolvidos
 
-- Recuperação de senha ainda não tem entrega real por e-mail ou SMS.
-- MFA administrativo não está implementado.
+- Recuperação de senha tem integração SMTP configurável por ambiente. Em produção, a API exige entrega configurada para não depender de token de desenvolvimento.
+- MFA administrativo foi implementado com TOTP para contas administradoras. O segredo fica criptografado no banco e o login admin passa por desafio curto antes de emitir token de sessão.
 - O rate limit em memória não coordena instâncias. A identificação por cabeçalho de proxy depende de uma configuração confiável na borda.
 - A aplicação persiste a sessão Flutter com SharedPreferences; definir armazenamento seguro, expiração e política de sessões antes de publicar.
-- O armazenamento local de documentos não oferece verificação do conteúdo/antivírus, retenção aprovada, backup gerenciado ou acesso seguro para análise administrativa.
+- O armazenamento local de documentos ainda não oferece antivírus, retenção aprovada ou backup gerenciado. Para produção, use storage privado gerenciado, varredura de arquivo e política formal de descarte.
 - O launcher local versionado contém valores de desenvolvimento para iniciar a API. Não reutilize esses valores em ambiente compartilhado ou produção; mover segredos para configuração externa antes de publicar.
 - HTTPS, origens de produção, backup/restauração, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.
 - Não há evidência de scanner dedicado de segredos executado antes da publicação.

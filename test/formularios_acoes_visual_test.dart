@@ -130,6 +130,74 @@ void main() {
     }
   });
 
+  testWidgets(
+    'login administrativo com MFA pede código antes de abrir o painel',
+    (tester) async {
+      final chamadas = <String>[];
+      AppServices.instance = AppServices(
+        api: ApiService(
+          client: MockClient((request) async {
+            chamadas.add('${request.method} ${request.url.path}');
+            if (request.url.path == '/auth/login') {
+              return jsonResponse({
+                'mfaRequired': true,
+                'mfaToken': 'token-mfa-teste',
+                'expiresIn': 300,
+              });
+            }
+            return jsonResponse({
+              'usuario': {
+                'id': 9,
+                'nome': 'Admin',
+                'email': 'admin@example.invalid',
+                'telefone': null,
+                'tipo': 'administrador',
+              },
+              'token': {
+                'accessToken': 'token-admin',
+                'tokenType': 'Bearer',
+                'expiresIn': 3600,
+              },
+            });
+          }),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: const LoginPage(),
+          routes: {
+            AppRoutes.admin: (_) => const Scaffold(body: Text('Painel admin')),
+          },
+        ),
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('login-email')),
+        'admin@example.invalid',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('login-senha')),
+        'Senha123!',
+      );
+      await tester.tap(find.byKey(const ValueKey('login-entrar')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('login-mfa-codigo')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const ValueKey('login-mfa-codigo')),
+        '123456',
+      );
+      await tester.tap(find.byKey(const ValueKey('login-mfa-confirmar')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Painel admin'), findsOneWidget);
+      expect(chamadas, ['POST /auth/login', 'POST /auth/login/mfa']);
+    },
+  );
+
   testWidgets('seletor de documento conserva valores com texto ampliado', (
     tester,
   ) async {

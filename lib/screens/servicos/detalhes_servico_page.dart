@@ -236,8 +236,8 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           comentario: _comentarioController.text,
         );
         if (!mounted) return;
-        setState(() => _atendimento = _atendimento.copyWith(avaliado: true));
-        _notificar('Avaliação registrada.');
+        await _atualizarAvaliacaoRegistrada();
+        _notificar('Avaliação registrada e enviada para moderação.');
       } else if (AppServices.instance.emDemonstracao) {
         final ok = widget.store.avaliarAtendimento(
           solicitacaoId: _atendimento.solicitacao.id,
@@ -261,6 +261,21 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       if (mounted) _notificar('Avaliação indisponível para este status.');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _atualizarAvaliacaoRegistrada() async {
+    try {
+      final response = await AppServices.instance.servicos.obter(
+        _atendimento.solicitacao.id,
+      );
+      final solicitacao = response['solicitacao'];
+      if (!mounted || solicitacao is! Map<String, dynamic>) return;
+      setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _atendimento = _atendimento.copyWith(avaliado: true));
+      }
     }
   }
 
@@ -517,6 +532,11 @@ class _FormularioAvaliacao extends StatelessWidget {
                 color: AppColors.texto,
                 fontWeight: FontWeight.w900,
               ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Depois do envio, a avaliação fica salva e aguarda moderação antes de aparecer no perfil público.',
+              style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 10),
             SegmentedButton<int>(

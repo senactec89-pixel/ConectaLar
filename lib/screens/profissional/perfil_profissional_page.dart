@@ -4,18 +4,137 @@ import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../models/profissional.dart';
+import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 import 'avaliacoes_recebidas_page.dart';
 
-class PerfilProfissionalPage extends StatelessWidget {
+class PerfilProfissionalPage extends StatefulWidget {
   const PerfilProfissionalPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  State<PerfilProfissionalPage> createState() => _PerfilProfissionalPageState();
+}
+
+class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
+  Profissional? _argumento;
+  Future<_PerfilProfissionalData?>? _future;
+  bool _argumentosLidos = false;
+  bool _mutandoFavorito = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argumentosLidos) return;
     final arguments = ModalRoute.of(context)?.settings.arguments;
-    final profissional = arguments is Profissional ? arguments : null;
-    final store = ConectaLarMockStore.instance;
+    _argumento = arguments is Profissional ? arguments : null;
+    _future = _carregarPerfil();
+    _future?.ignore();
+    _argumentosLidos = true;
+  }
+
+  Future<_PerfilProfissionalData?> _carregarPerfil() async {
+    final argumento = _argumento;
+    if (argumento == null) return null;
+    final services = AppServices.instance;
+    if (services.emDemonstracao) {
+      return _PerfilProfissionalData(
+        profissional: argumento,
+        favorito: ConectaLarMockStore.instance.isFavorito(argumento.id),
+      );
+    }
+
+    Profissional profissional = argumento;
+    bool favorito = false;
+    if (services.auth.autenticado) {
+      final tipo = services.auth.usuarioAtual?['tipo'];
+      final responses = await Future.wait([
+        services.profissionais.obter(argumento.id),
+        if (tipo == 'cliente') services.clientes.listarFavoritos(),
+      ]);
+      final perfil = responses[0]['profissional'];
+      if (perfil is Map<String, dynamic>) {
+        profissional = profissionalFromApi(perfil);
+      }
+      if (tipo == 'cliente' && responses.length > 1) {
+        favorito = _favoritosContem(responses[1], profissional.id);
+      }
+    } else {
+      final response = await services.profissionais.obter(argumento.id);
+      final perfil = response['profissional'];
+      if (perfil is Map<String, dynamic>) {
+        profissional = profissionalFromApi(perfil);
+      }
+    }
+
+    return _PerfilProfissionalData(
+      profissional: profissional,
+      favorito: favorito,
+    );
+  }
+
+  void _recarregar() {
+    setState(() {
+      _future = _carregarPerfil();
+      _future?.ignore();
+    });
+  }
+
+  Future<void> _alternarFavorito(_PerfilProfissionalData data) async {
+    if (_mutandoFavorito) return;
+    final services = AppServices.instance;
+    final profissional = data.profissional;
+    if (!services.auth.autenticado) {
+      if (services.emDemonstracao) {
+        ConectaLarMockStore.instance.toggleFavorito(profissional.id);
+        setState(() {
+          _future = Future.value(data.copyWith(favorito: !data.favorito));
+        });
+      } else {
+        Navigator.pushNamed(context, AppRoutes.login);
+      }
+      return;
+    }
+
+    setState(() => _mutandoFavorito = true);
+    try {
+      if (data.favorito) {
+        await services.clientes.removerFavorito(profissional.id);
+      } else {
+        await services.clientes.adicionarFavorito(profissional.id);
+      }
+      if (!mounted) return;
+      setState(() {
+        _future = Future.value(data.copyWith(favorito: !data.favorito));
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            data.favorito
+                ? 'Profissional removido dos favoritos.'
+                : 'Profissional salvo nos favoritos.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            data.favorito
+                ? 'Não foi possível remover este favorito.'
+                : 'Não foi possível salvar este favorito.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _mutandoFavorito = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final services = AppServices.instance;
     final acoesCliente =
         !services.auth.autenticado ||
@@ -24,30 +143,90 @@ class PerfilProfissionalPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.fundo,
       appBar: const AppBarCustom(title: 'Perfil profissional'),
-      body: profissional == null
-          ? const _PerfilIndisponivel()
-          : AnimatedBuilder(
-              animation: store,
-              builder: (context, _) => _PerfilProfissionalContent(
-                profissional: profissional,
-                store: store,
-              ),
-            ),
-      bottomNavigationBar: profissional == null || !acoesCliente
-          ? null
-          : _SolicitarServicoBar(profissional: profissional),
+      body: AnimatedBuilder(
+        animation: ConectaLarMockStore.instance,
+        builder: (context, _) => FutureBuilder<_PerfilProfissionalData?>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
+              return const AsyncLoadingView(
+                label: 'Carregando perfil profissional.',
+              );
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar este profissional.',
+                onRetry: _recarregar,
+              );
+            }
+            final data = snapshot.data;
+            if (data == null) return const _PerfilIndisponivel();
+            return _PerfilProfissionalContent(
+              data: data,
+              mutandoFavorito: _mutandoFavorito,
+              onFavoritoTap: acoesCliente
+                  ? () => _alternarFavorito(data)
+                  : null,
+            );
+          },
+        ),
+      ),
+      bottomNavigationBar: FutureBuilder<_PerfilProfissionalData?>(
+        future: _future,
+        builder: (context, snapshot) {
+          final profissional = snapshot.data?.profissional ?? _argumento;
+          if (profissional == null || !acoesCliente) {
+            return const SizedBox.shrink();
+          }
+          return _SolicitarServicoBar(profissional: profissional);
+        },
+      ),
     );
   }
 }
 
-class _PerfilProfissionalContent extends StatefulWidget {
-  const _PerfilProfissionalContent({
+class _PerfilProfissionalData {
+  const _PerfilProfissionalData({
     required this.profissional,
-    required this.store,
+    required this.favorito,
   });
 
   final Profissional profissional;
-  final ConectaLarMockStore store;
+  final bool favorito;
+
+  _PerfilProfissionalData copyWith({bool? favorito}) {
+    return _PerfilProfissionalData(
+      profissional: profissional,
+      favorito: favorito ?? this.favorito,
+    );
+  }
+}
+
+bool _favoritosContem(Map<String, dynamic> response, int profissionalId) {
+  final favoritos = response['favoritos'];
+  if (favoritos is! List) return false;
+  for (final favorito in favoritos) {
+    if (favorito is! Map<String, dynamic>) continue;
+    final profissional = favorito['profissional'];
+    if (profissional is Map<String, dynamic> &&
+        intValue(profissional['id']) == profissionalId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+class _PerfilProfissionalContent extends StatefulWidget {
+  const _PerfilProfissionalContent({
+    required this.data,
+    required this.mutandoFavorito,
+    required this.onFavoritoTap,
+  });
+
+  final _PerfilProfissionalData data;
+  final bool mutandoFavorito;
+  final VoidCallback? onFavoritoTap;
 
   @override
   State<_PerfilProfissionalContent> createState() =>
@@ -60,8 +239,8 @@ class _PerfilProfissionalContentState
   final _servicosKey = GlobalKey();
   final _avaliacoesKey = GlobalKey();
 
-  Profissional get profissional => widget.profissional;
-  ConectaLarMockStore get store => widget.store;
+  _PerfilProfissionalData get data => widget.data;
+  Profissional get profissional => widget.data.profissional;
 
   void _irPara(GlobalKey key) {
     final sectionContext = key.currentContext;
@@ -77,37 +256,6 @@ class _PerfilProfissionalContentState
   @override
   Widget build(BuildContext context) {
     final foto = profissional.fotoAsset;
-    final services = AppServices.instance;
-    final acoesCliente =
-        !services.auth.autenticado ||
-        services.auth.usuarioAtual?['tipo'] == 'cliente';
-    Future<void> salvarFavorito() async {
-      if (AppServices.instance.auth.autenticado) {
-        try {
-          await AppServices.instance.clientes.adicionarFavorito(
-            profissional.id,
-          );
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profissional salvo nos favoritos.')),
-          );
-        } catch (_) {
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Não foi possível salvar este favorito.'),
-            ),
-          );
-        }
-        return;
-      }
-
-      if (AppServices.instance.emDemonstracao) {
-        store.toggleFavorito(profissional.id);
-      } else {
-        Navigator.pushNamed(context, AppRoutes.login);
-      }
-    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -127,10 +275,9 @@ class _PerfilProfissionalContentState
               _CabecalhoPerfil(
                 profissional: profissional,
                 fotoAsset: foto,
-                favorito:
-                    AppServices.instance.emDemonstracao &&
-                    store.isFavorito(profissional.id),
-                onFavoritoTap: acoesCliente ? salvarFavorito : null,
+                favorito: data.favorito,
+                favoritoCarregando: widget.mutandoFavorito,
+                onFavoritoTap: widget.onFavoritoTap,
               ),
               const SizedBox(height: AppSpace.sm),
               Wrap(
@@ -224,12 +371,14 @@ class _CabecalhoPerfil extends StatelessWidget {
     required this.profissional,
     required this.fotoAsset,
     required this.favorito,
+    required this.favoritoCarregando,
     required this.onFavoritoTap,
   });
 
   final Profissional profissional;
   final String? fotoAsset;
   final bool favorito;
+  final bool favoritoCarregando;
   final VoidCallback? onFavoritoTap;
 
   @override
@@ -255,11 +404,16 @@ class _CabecalhoPerfil extends StatelessWidget {
         : IconButton(
             key: ValueKey('perfil-favorito-${profissional.id}'),
             tooltip: favorito ? 'Remover favorito' : 'Salvar favorito',
-            onPressed: onFavoritoTap,
-            icon: Icon(
-              favorito ? Icons.favorite : Icons.favorite_border,
-              color: favorito ? const Color(0xFFC53030) : AppColors.texto,
-            ),
+            onPressed: favoritoCarregando ? null : onFavoritoTap,
+            icon: favoritoCarregando
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    favorito ? Icons.favorite : Icons.favorite_border,
+                    color: favorito ? const Color(0xFFC53030) : AppColors.texto,
+                  ),
           );
     return Card(
       child: Padding(

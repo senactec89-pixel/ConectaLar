@@ -71,6 +71,13 @@ class FrontendPreviewClient extends http.BaseClient {
       },
   ];
 
+  Map<String, dynamic>? _profissionalPorId(String id) {
+    for (final profissional in profissionais) {
+      if ('${profissional['id']}' == id) return profissional;
+    }
+    return null;
+  }
+
   Map<String, dynamic> get endereco => {
     'id': 1,
     'apelido': 'Endereço fictício',
@@ -201,12 +208,8 @@ class FrontendPreviewClient extends http.BaseClient {
       };
     }
     if (RegExp(r'^/profissionais/\d+$').hasMatch(path)) {
-      return {
-        'profissional': profissionais.firstWhere(
-          (p) => '${p['id']}' == path.split('/').last,
-          orElse: () => profissionais.first,
-        ),
-      };
+      final id = path.split('/').last;
+      return {'profissional': _profissionalPorId(id)};
     }
     if (RegExp(r'^/solicitacoes/\d+/mensagens$').hasMatch(path)) {
       return {
@@ -228,6 +231,10 @@ class FrontendPreviewClient extends http.BaseClient {
           orElse: () => pedidos.first,
         ),
       };
+    }
+    if (RegExp(r'^/profissionais/\d+$').hasMatch(path)) {
+      final id = path.split('/').last;
+      return {'profissional': _profissionalPorId(id)};
     }
     return switch (path) {
       '/categorias' || '/categorias/admin' => {'categorias': categorias},

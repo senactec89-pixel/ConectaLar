@@ -17,6 +17,11 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_PASSWORD` | empty string | Allowed empty only for local development |
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
+| `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery e-mail delivery |
+| `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
+| `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
+| `APP_PASSWORD_RESET_URL` | `conectalar://recuperar-senha` | Base URL used in password recovery e-mails |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Positive integer window, in milliseconds |
 | `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
@@ -57,12 +62,19 @@ Authentication routes:
 
 - `POST /auth/cadastro`
 - `POST /auth/login`
+- `POST /auth/login/mfa`
 - `POST /auth/senha/recuperacao`
 - `POST /auth/senha/recuperacao/confirmar`
 - `PATCH /auth/senha` with `Authorization: Bearer <token>`
+- `GET /auth/mfa/admin` with `Authorization: Bearer <token>` for `administrador`
+- `POST /auth/mfa/admin/setup` with `Authorization: Bearer <token>` for `administrador`
+- `POST /auth/mfa/admin/confirmar` with `Authorization: Bearer <token>` for `administrador`
+- `POST /auth/mfa/admin/desativar` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
-Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. E-mail delivery is not configured yet, so production password recovery still needs a delivery provider. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. When SMTP is configured, the reset link is sent by e-mail; in production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+
+Administrator MFA uses TOTP. Setup returns the standard `otpauth://` URL for an authenticator app, stores the secret encrypted in `usuarios.mfa_secret_encrypted`, and requires a six-digit code before issuing an admin access token after password login. Enabling or disabling MFA invalidates previous admin sessions through `token_version`.
 
 Administrative user routes:
 
@@ -72,7 +84,7 @@ Administrative user routes:
 - `POST /admin/usuarios/administradores` with `Authorization: Bearer <token>` for `administrador`
 - `PATCH /admin/usuarios/:id/status` with `Authorization: Bearer <token>` for `administrador`
 
-Administrative user responses never include password hashes. Public registration still cannot create administrator accounts; administrator creation is restricted to authenticated administrators and stores the password with the same `scrypt` hashing. Status changes are soft activation/deactivation only, are audited in `admin_auditoria`, cannot deactivate the current administrator's own account, and cannot deactivate the last active administrator. Invite flow, MFA, detailed permissions, and account recovery remain pending under P02/P15.
+Administrative user responses never include password hashes. Public registration still cannot create administrator accounts; administrator creation is restricted to authenticated administrators and stores the password with the same `scrypt` hashing. Status changes are soft activation/deactivation only, are audited in `admin_auditoria`, cannot deactivate the current administrator's own account, and cannot deactivate the last active administrator. Invite flow, detailed permissions, and account recovery remain pending under P02/P15.
 
 Client routes:
 

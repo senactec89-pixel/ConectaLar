@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../services/api_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -46,6 +47,9 @@ class _LoginPageState extends State<LoginPage> {
         _ => AppRoutes.home,
       };
       Navigator.pushNamedAndRemoveUntil(context, rota, (_) => false);
+    } on MfaRequiredException catch (mfa) {
+      if (!mounted) return;
+      await _confirmarMfa(mfa.mfaToken);
     } on ApiException catch (error) {
       if (!mounted) return;
       _mostrarErro(error.message);
@@ -54,6 +58,29 @@ class _LoginPageState extends State<LoginPage> {
       _mostrarErro('Não foi possível entrar. Verifique sua conexão.');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _confirmarMfa(String mfaToken) async {
+    try {
+      final codigo = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const _MfaCodigoDialog(),
+      );
+      if (codigo == null || codigo.trim().isEmpty) return;
+      await AppServices.instance.auth.confirmarLoginMfa(
+        mfaToken: mfaToken,
+        codigo: codigo.trim(),
+      );
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.admin, (_) => false);
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      _mostrarErro(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _mostrarErro('Não foi possível validar o código. Tente novamente.');
     }
   }
 
@@ -171,6 +198,52 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MfaCodigoDialog extends StatefulWidget {
+  const _MfaCodigoDialog();
+
+  @override
+  State<_MfaCodigoDialog> createState() => _MfaCodigoDialogState();
+}
+
+class _MfaCodigoDialogState extends State<_MfaCodigoDialog> {
+  final _codigoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _codigoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Verificação do administrador'),
+      content: TextField(
+        key: const ValueKey('login-mfa-codigo'),
+        controller: _codigoController,
+        autofocus: true,
+        keyboardType: TextInputType.number,
+        maxLength: 6,
+        decoration: const InputDecoration(
+          labelText: 'Código de 6 dígitos',
+          helperText: 'Use o app autenticador configurado na conta.',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('login-mfa-confirmar'),
+          onPressed: () => Navigator.pop(context, _codigoController.text),
+          child: const Text('Confirmar'),
+        ),
+      ],
     );
   }
 }

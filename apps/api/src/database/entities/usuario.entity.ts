@@ -45,6 +45,18 @@ export class UsuarioEntity {
   @Column({ name: 'token_version', type: 'int', unsigned: true, default: 0 })
   tokenVersion!: number;
 
+  @Column({ name: 'mfa_ativo', type: 'boolean', default: false })
+  mfaAtivo!: boolean;
+
+  @Column({
+    name: 'mfa_secret_encrypted',
+    type: 'varchar',
+    length: 512,
+    nullable: true,
+    select: false,
+  })
+  mfaSecretEncrypted!: string | null;
+
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;
 

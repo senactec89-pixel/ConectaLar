@@ -67,6 +67,24 @@ class AuthService extends ChangeNotifier {
       'auth/login',
       body: {'email': email, 'senha': senha},
     );
+    if (response['mfaRequired'] == true) {
+      final token = response['mfaToken'];
+      if (token is String && token.isNotEmpty) {
+        throw MfaRequiredException(token);
+      }
+    }
+    await _registrarSessao(response);
+    return response;
+  }
+
+  Future<Map<String, dynamic>> confirmarLoginMfa({
+    required String mfaToken,
+    required String codigo,
+  }) async {
+    final response = await _api.post(
+      'auth/login/mfa',
+      body: {'mfaToken': mfaToken, 'codigo': codigo},
+    );
     await _registrarSessao(response);
     return response;
   }
@@ -162,4 +180,10 @@ class AuthService extends ChangeNotifier {
       );
     }
   }
+}
+
+class MfaRequiredException implements Exception {
+  const MfaRequiredException(this.mfaToken);
+
+  final String mfaToken;
 }

@@ -7,6 +7,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,6 +16,8 @@ import { AuthenticatedUser } from './authenticated-user.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo, usuarioTiposPublicos } from '../domain/usuario-tipo.js';
+import { MailService } from './mail.service.js';
+import { MfaService } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
 
@@ -46,6 +49,20 @@ interface AlterarSenhaRequest {
   novaSenha: string;
 }
 
+interface MfaLoginRequest {
+  mfaToken: string;
+  codigo: string;
+}
+
+interface MfaCodigoRequest {
+  codigo: string;
+}
+
+interface MfaDesativarRequest {
+  senhaAtual: string;
+  codigo: string;
+}
+
 const resetTokenTtlMinutes = 30;
 
 @Injectable()
@@ -55,6 +72,8 @@ export class AuthService {
     private readonly senhaResets: Repository<UsuarioSenhaResetEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    private readonly mailService: MailService,
+    private readonly mfaService: MfaService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
   ) {}
@@ -111,6 +130,7 @@ export class AuthService {
     const usuario = await this.usuarios
       .createQueryBuilder('usuario')
       .addSelect('usuario.senhaHash')
+      .addSelect('usuario.mfaSecretEncrypted')
       .where('usuario.email = :email', { email })
       .andWhere('usuario.ativo = :ativo', { ativo: true })
       .getOne();
@@ -123,6 +143,40 @@ export class AuthService {
         code: 'CREDENCIAIS_INVALIDAS',
         message: 'E-mail ou senha invalidos.',
       });
+    }
+
+    if (usuario.tipo === UsuarioTipo.Administrador && usuario.mfaAtivo) {
+      return {
+        mfaRequired: true,
+        ...this.tokenService.createMfaChallengeToken(usuario),
+      };
+    }
+
+    return this.authResponse(usuario);
+  }
+
+  async confirmarLoginMfa(body: unknown) {
+    const input = parseMfaLogin(body);
+    const payload = this.tokenService.verifyMfaChallengeToken(input.mfaToken);
+    if (payload === null) {
+      throw invalidMfaCode();
+    }
+
+    const usuario = await this.usuarios
+      .createQueryBuilder('usuario')
+      .addSelect('usuario.mfaSecretEncrypted')
+      .where('usuario.id = :id', { id: payload.sub })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .getOne();
+    if (
+      usuario === null ||
+      usuario.tipo !== UsuarioTipo.Administrador ||
+      !usuario.mfaAtivo ||
+      usuario.tokenVersion !== payload.tv ||
+      usuario.mfaSecretEncrypted === null ||
+      !this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)
+    ) {
+      throw invalidMfaCode();
     }
 
     return this.authResponse(usuario);
@@ -154,7 +208,91 @@ export class AuthService {
       }),
     );
 
+    const delivered = await this.mailService.sendPasswordResetEmail(
+      usuario.email,
+      token,
+    );
+    if (!delivered && process.env.NODE_ENV === 'production') {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_RECUPERACAO_INDISPONIVEL',
+        message: 'Servico de recuperacao indisponivel no momento.',
+      });
+    }
+
     return recuperacaoSolicitadaResponse(token);
+  }
+
+  async iniciarMfaAdmin(user: AuthenticatedUser) {
+    const usuario = await this.usuarioAdminComMfa(user.id);
+    if (usuario.mfaAtivo) {
+      throw badRequest('MFA_JA_ATIVO');
+    }
+    const secret = this.mfaService.createSecret();
+    usuario.mfaSecretEncrypted = this.mfaService.encryptSecret(secret);
+    await this.usuarios.save(usuario);
+    return {
+      secret,
+      otpauthUrl: this.mfaService.createOtpAuthUrl(secret, usuario.email),
+    };
+  }
+
+  async confirmarMfaAdmin(user: AuthenticatedUser, body: unknown) {
+    const input = parseMfaCodigo(body);
+    const usuario = await this.usuarioAdminComMfa(user.id);
+    if (usuario.mfaSecretEncrypted === null) {
+      throw badRequest('MFA_NAO_INICIADO');
+    }
+    if (!this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)) {
+      throw invalidMfaCode();
+    }
+    usuario.mfaAtivo = true;
+    usuario.tokenVersion += 1;
+    await this.usuarios.save(usuario);
+    return { ok: true };
+  }
+
+  async desativarMfaAdmin(user: AuthenticatedUser, body: unknown) {
+    const input = parseMfaDesativar(body);
+    const usuario = await this.usuarios
+      .createQueryBuilder('usuario')
+      .addSelect('usuario.senhaHash')
+      .addSelect('usuario.mfaSecretEncrypted')
+      .where('usuario.id = :id', { id: user.id })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .getOne();
+    if (
+      usuario === null ||
+      usuario.tipo !== UsuarioTipo.Administrador ||
+      !(await this.passwordService.verify(input.senhaAtual, usuario.senhaHash))
+    ) {
+      throw new UnauthorizedException({
+        code: 'SENHA_ATUAL_INVALIDA',
+        message: 'Senha atual invalida.',
+      });
+    }
+    if (
+      usuario.mfaSecretEncrypted === null ||
+      !this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)
+    ) {
+      throw invalidMfaCode();
+    }
+    usuario.mfaAtivo = false;
+    usuario.mfaSecretEncrypted = null;
+    usuario.tokenVersion += 1;
+    await this.usuarios.save(usuario);
+    return { ok: true };
+  }
+
+  async statusMfaAdmin(user: AuthenticatedUser) {
+    const usuario = await this.usuarios.findOne({
+      where: { id: user.id, ativo: true },
+    });
+    return {
+      mfaAtivo:
+        usuario !== null &&
+        usuario.tipo === UsuarioTipo.Administrador &&
+        usuario.mfaAtivo,
+    };
   }
 
   async confirmarRecuperacaoSenha(body: unknown) {
@@ -247,6 +385,27 @@ export class AuthService {
       token: this.tokenService.createAccessToken(usuario),
     };
   }
+
+  private async usuarioAdminComMfa(id: number): Promise<UsuarioEntity> {
+    const usuario = await this.usuarios
+      .createQueryBuilder('usuario')
+      .addSelect('usuario.mfaSecretEncrypted')
+      .where('usuario.id = :id', { id })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .getOne();
+    if (usuario === null || usuario.tipo !== UsuarioTipo.Administrador) {
+      throw new UnauthorizedException({
+        code: 'ACESSO_NEGADO',
+        message: 'Usuario sem permissao para este recurso.',
+      });
+    }
+    return usuario;
+  }
+
+  private verificarCodigoMfa(secretEncrypted: string, codigo: string): boolean {
+    const secret = this.mfaService.decryptSecret(secretEncrypted);
+    return secret !== null && this.mfaService.verifyCode(secret, codigo);
+  }
 }
 
 function parseCadastro(body: unknown): CadastroRequest {
@@ -319,6 +478,35 @@ function parseConfirmarRecuperacaoSenha(
   }
 
   return { token, novaSenha };
+}
+
+function parseMfaLogin(body: unknown): MfaLoginRequest {
+  const value = objectBody(body);
+  const mfaToken = stringField(value, 'mfaToken');
+  const codigo = stringField(value, 'codigo').replace(/\s/g, '');
+  if (mfaToken.length > 1200 || !/^\d{6}$/.test(codigo)) {
+    throw invalidMfaCode();
+  }
+  return { mfaToken, codigo };
+}
+
+function parseMfaCodigo(body: unknown): MfaCodigoRequest {
+  const value = objectBody(body);
+  const codigo = stringField(value, 'codigo').replace(/\s/g, '');
+  if (!/^\d{6}$/.test(codigo)) {
+    throw invalidMfaCode();
+  }
+  return { codigo };
+}
+
+function parseMfaDesativar(body: unknown): MfaDesativarRequest {
+  const value = objectBody(body);
+  const senhaAtual = stringField(value, 'senhaAtual');
+  const codigo = stringField(value, 'codigo').replace(/\s/g, '');
+  if (!/^\d{6}$/.test(codigo)) {
+    throw invalidMfaCode();
+  }
+  return { senhaAtual, codigo };
 }
 
 function parseAlterarSenha(body: unknown): AlterarSenhaRequest {
@@ -434,6 +622,13 @@ function invalidResetToken(): BadRequestException {
   return new BadRequestException({
     code: 'TOKEN_RECUPERACAO_INVALIDO',
     message: 'Token de recuperacao invalido ou expirado.',
+  });
+}
+
+function invalidMfaCode(): UnauthorizedException {
+  return new UnauthorizedException({
+    code: 'MFA_INVALIDO',
+    message: 'Codigo de verificacao invalido ou expirado.',
   });
 }
 

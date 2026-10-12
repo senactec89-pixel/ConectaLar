@@ -13,6 +13,14 @@ interface AccessTokenPayload {
   readonly exp: number;
 }
 
+interface MfaChallengePayload {
+  readonly sub: number;
+  readonly tv: number;
+  readonly purpose: 'admin_mfa';
+  readonly iat: number;
+  readonly exp: number;
+}
+
 @Injectable()
 export class TokenService {
   createAccessToken(usuario: UsuarioEntity): {
@@ -75,6 +83,44 @@ export class TokenService {
 
     return payload;
   }
+
+  createMfaChallengeToken(usuario: UsuarioEntity): {
+    mfaToken: string;
+    expiresIn: number;
+  } {
+    const expiresIn = 5 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    const payload: MfaChallengePayload = {
+      sub: usuario.id,
+      tv: usuario.tokenVersion ?? 0,
+      purpose: 'admin_mfa',
+      iat: now,
+      exp: now + expiresIn,
+    };
+
+    const header = encode({ alg: 'HS256', typ: 'JWT' });
+    const body = encode(payload);
+    const signature = sign(`${header}.${body}`, tokenSecret());
+
+    return {
+      mfaToken: `${header}.${body}.${signature}`,
+      expiresIn,
+    };
+  }
+
+  verifyMfaChallengeToken(token: string): MfaChallengePayload | null {
+    const payload = verifySignedPayload(token);
+    if (!isMfaChallengePayload(payload)) {
+      return null;
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp <= now) {
+      return null;
+    }
+
+    return payload;
+  }
 }
 
 function encode(value: unknown): string {
@@ -91,6 +137,32 @@ function signatureMatches(value: string, signature: string): boolean {
   return (
     expected.length === received.length && timingSafeEqual(expected, received)
   );
+}
+
+function verifySignedPayload(token: string): unknown {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [header, body, signature] = parts;
+  if (
+    header === undefined ||
+    body === undefined ||
+    signature === undefined ||
+    !signatureMatches(`${header}.${body}`, signature)
+  ) {
+    return null;
+  }
+
+  const headerValue = decodeJson(header);
+  if (
+    !isRecord(headerValue) ||
+    headerValue.alg !== 'HS256' ||
+    headerValue.typ !== 'JWT'
+  ) {
+    return null;
+  }
+
+  return decodeJson(body);
 }
 
 function decodeJson(value: string): unknown {
@@ -112,6 +184,17 @@ function isAccessTokenPayload(value: unknown): value is AccessTokenPayload {
     typeof value.tipo === 'string' &&
     Object.values(UsuarioTipo).includes(value.tipo as UsuarioTipo) &&
     Number.isSafeInteger(value.tv) &&
+    Number.isSafeInteger(value.iat) &&
+    Number.isSafeInteger(value.exp)
+  );
+}
+
+function isMfaChallengePayload(value: unknown): value is MfaChallengePayload {
+  return (
+    isRecord(value) &&
+    Number.isSafeInteger(value.sub) &&
+    Number.isSafeInteger(value.tv) &&
+    value.purpose === 'admin_mfa' &&
     Number.isSafeInteger(value.iat) &&
     Number.isSafeInteger(value.exp)
   );

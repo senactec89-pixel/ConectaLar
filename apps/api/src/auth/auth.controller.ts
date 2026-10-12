@@ -1,7 +1,10 @@
-import { Body, Controller, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthenticatedUser } from './authenticated-user.js';
 import { AuthService } from './auth.service.js';
+import { Roles } from './roles.decorator.js';
+import { RolesGuard } from './roles.guard.js';
 import { UsuarioAtual } from './usuario-atual.decorator.js';
 
 @Controller('auth')
@@ -16,6 +19,11 @@ export class AuthController {
   @Post('login')
   login(@Body() body: unknown) {
     return this.authService.login(body);
+  }
+
+  @Post('login/mfa')
+  confirmarLoginMfa(@Body() body: unknown) {
+    return this.authService.confirmarLoginMfa(body);
   }
 
   @Post('senha/recuperacao')
@@ -35,6 +43,40 @@ export class AuthController {
     @Body() body: unknown,
   ) {
     return this.authService.alterarSenha(user, body);
+  }
+
+  @Get('mfa/admin')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Administrador)
+  statusMfaAdmin(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.statusMfaAdmin(user);
+  }
+
+  @Post('mfa/admin/setup')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Administrador)
+  iniciarMfaAdmin(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.iniciarMfaAdmin(user);
+  }
+
+  @Post('mfa/admin/confirmar')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Administrador)
+  confirmarMfaAdmin(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.authService.confirmarMfaAdmin(user, body);
+  }
+
+  @Post('mfa/admin/desativar')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Administrador)
+  desativarMfaAdmin(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.authService.desativarMfaAdmin(user, body);
   }
 
   @Post('logout')

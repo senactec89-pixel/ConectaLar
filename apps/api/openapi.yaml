@@ -74,11 +74,13 @@ paths:
               $ref: '#/components/schemas/AuthLoginRequest'
       responses:
         '201':
-          description: Access token issued
+          description: Access token issued, or MFA challenge returned for an admin with MFA enabled
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
+                oneOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - $ref: '#/components/schemas/AuthMfaChallenge'
         '401':
           description: Invalid credentials
           content:
@@ -91,6 +93,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /auth/login/mfa:
+    post:
+      operationId: postAuthLoginMfa
+      summary: Completes administrator login when MFA is required
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMfaLoginRequest'
+      responses:
+        '201':
+          description: MFA accepted and access token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /auth/logout:
     post:
       operationId: postAuthLogout
@@ -177,6 +200,78 @@ paths:
                   minLength: 8
                   maxLength: 128
                   writeOnly: true
+      responses:
+        '201':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/mfa/admin:
+    get:
+      operationId: getAuthMfaAdmin
+      summary: Returns MFA status for the authenticated administrator
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current MFA status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMfaStatus'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/mfa/admin/setup:
+    post:
+      operationId: postAuthMfaAdminSetup
+      summary: Starts TOTP setup for the authenticated administrator
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: TOTP secret and otpauth URL for enrollment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMfaSetup'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/mfa/admin/confirmar:
+    post:
+      operationId: postAuthMfaAdminConfirmar
+      summary: Confirms TOTP setup for the authenticated administrator
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMfaCodigoRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/mfa/admin/desativar:
+    post:
+      operationId: postAuthMfaAdminDesativar
+      summary: Disables TOTP for the authenticated administrator after password and code confirmation
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMfaDesativarRequest'
       responses:
         '201':
           $ref: '#/components/responses/OkResponse'
@@ -2147,6 +2242,75 @@ components:
           $ref: '#/components/schemas/UsuarioPublico'
         token:
           $ref: '#/components/schemas/AuthToken'
+    AuthMfaChallenge:
+      type: object
+      additionalProperties: false
+      required:
+        - mfaRequired
+        - mfaToken
+        - expiresIn
+      properties:
+        mfaRequired:
+          type: boolean
+          const: true
+        mfaToken:
+          type: string
+        expiresIn:
+          type: integer
+          const: 300
+    AuthMfaLoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - mfaToken
+        - codigo
+      properties:
+        mfaToken:
+          type: string
+        codigo:
+          type: string
+          pattern: '^\d{6}$'
+    AuthMfaCodigoRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - codigo
+      properties:
+        codigo:
+          type: string
+          pattern: '^\d{6}$'
+    AuthMfaDesativarRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - senhaAtual
+        - codigo
+      properties:
+        senhaAtual:
+          type: string
+          writeOnly: true
+        codigo:
+          type: string
+          pattern: '^\d{6}$'
+    AuthMfaStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - mfaAtivo
+      properties:
+        mfaAtivo:
+          type: boolean
+    AuthMfaSetup:
+      type: object
+      additionalProperties: false
+      required:
+        - secret
+        - otpauthUrl
+      properties:
+        secret:
+          type: string
+        otpauthUrl:
+          type: string
     UsuarioPublico:
       type: object
       additionalProperties: false

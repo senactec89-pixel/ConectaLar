@@ -206,13 +206,21 @@ void main() {
     'profissional avalia o cliente e a avaliação enviada não pode ser repetida',
     (tester) async {
       final paths = <String>[];
+      var avaliou = false;
       await _sessao('profissional', (request) async {
         paths.add('${request.method} ${request.url.path}');
-        return request.method == 'POST'
-            ? _json({
-                'avaliacao': {'id': 1},
-              })
-            : _json({'solicitacao': _pedido(status: 'conclusao_confirmada')});
+        if (request.method == 'POST') {
+          avaliou = true;
+          return _json({
+            'avaliacao': {'id': 1},
+          });
+        }
+        return _json({
+          'solicitacao': _pedido(
+            status: 'conclusao_confirmada',
+            avaliado: avaliou,
+          ),
+        });
       });
       await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
       await tester.scrollUntilVisible(

@@ -17,3 +17,22 @@ test('token service verifies signed bearer tokens and rejects tampering', () => 
   const tampered = `${token.accessToken.slice(0, -3)}abc`;
   assert.equal(service.verifyAccessToken(tampered), null);
 });
+
+test('token service creates short lived MFA challenge tokens', () => {
+  process.env.AUTH_TOKEN_SECRET = 'local-test-secret-change-before-production-123456';
+  const service = new TokenService();
+  const token = service.createMfaChallengeToken({
+    id: 9,
+    tipo: 'administrador',
+    tokenVersion: 4,
+  });
+
+  const payload = service.verifyMfaChallengeToken(token.mfaToken);
+  assert.equal(payload?.sub, 9);
+  assert.equal(payload?.tv, 4);
+  assert.equal(payload?.purpose, 'admin_mfa');
+  assert.equal(token.expiresIn, 300);
+
+  const tampered = `${token.mfaToken.slice(0, -3)}abc`;
+  assert.equal(service.verifyMfaChallengeToken(tampered), null);
+});
