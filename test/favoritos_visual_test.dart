@@ -33,7 +33,7 @@ void main() {
     },
   );
 
-  testWidgets('favoritos preenchido mantém botão acessível com texto 140%', (
+  testWidgets('favoritos preenchido mantém botão acessível com texto 200%', (
     tester,
   ) async {
     await configurarFrontend();
@@ -43,7 +43,7 @@ void main() {
         tester,
         AppRoutes.favoritos,
         width: width,
-        textScale: 1.4,
+        textScale: 2,
       );
       final remover = find.byKey(const ValueKey('favorito-remover-1'));
       await tester.ensureVisible(remover);

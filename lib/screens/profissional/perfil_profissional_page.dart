@@ -171,6 +171,44 @@ class _CabecalhoPerfil extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final avatar = CircleAvatar(
+      radius: 42,
+      backgroundColor: AppColors.verdeClaro,
+      foregroundColor: AppColors.verde,
+      backgroundImage: fotoAsset == null ? null : AssetImage(fotoAsset!),
+      child: fotoAsset == null
+          ? const Icon(Icons.person_rounded, size: 42)
+          : null,
+    );
+    final identificacao = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          profissional.nome,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            color: AppColors.texto,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          profissional.descricao,
+          style: const TextStyle(color: AppColors.textoSuave),
+        ),
+      ],
+    );
+    final favoritoButton = onFavoritoTap == null
+        ? null
+        : IconButton(
+            key: ValueKey('perfil-favorito-${profissional.id}'),
+            tooltip: favorito ? 'Remover favorito' : 'Salvar favorito',
+            onPressed: onFavoritoTap,
+            icon: Icon(
+              favorito ? Icons.favorite : Icons.favorite_border,
+              color: favorito ? const Color(0xFFC53030) : AppColors.texto,
+            ),
+          );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -185,75 +223,47 @@ class _CabecalhoPerfil extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 42,
-              backgroundColor: AppColors.verdeClaro,
-              foregroundColor: AppColors.verde,
-              backgroundImage: fotoAsset == null
-                  ? null
-                  : AssetImage(fotoAsset!),
-              child: fotoAsset == null
-                  ? const Icon(Icons.person_rounded, size: 42)
-                  : null,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                avatar,
+                if (textoAmpliado)
+                  const Spacer()
+                else
+                  const SizedBox(width: 14),
+                if (!textoAmpliado) Expanded(child: identificacao),
+                ?favoritoButton,
+              ],
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profissional.nome,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.texto,
-                      fontWeight: FontWeight.w800,
-                    ),
+            if (textoAmpliado) ...[const SizedBox(height: 12), identificacao],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (profissional.notaMedia == null)
+                  const _ResumoChip(
+                    icon: Icons.star_border_rounded,
+                    text: 'Novo profissional',
+                  )
+                else
+                  _ResumoChip(
+                    icon: Icons.star_rounded,
+                    text:
+                        '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} '
+                        '(${profissional.quantidadeAvaliacoes ?? 0})',
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profissional.descricao,
-                    style: const TextStyle(color: AppColors.textoSuave),
+                if (profissional.verificado)
+                  const _ResumoChip(
+                    icon: Icons.verified_rounded,
+                    text: 'Documentos verificados',
                   ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (profissional.notaMedia == null)
-                        const _ResumoChip(
-                          icon: Icons.star_border_rounded,
-                          text: 'Novo profissional',
-                        )
-                      else
-                        _ResumoChip(
-                          icon: Icons.star_rounded,
-                          text:
-                              '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} '
-                              '(${profissional.quantidadeAvaliacoes ?? 0})',
-                        ),
-                      if (profissional.verificado)
-                        const _ResumoChip(
-                          icon: Icons.verified_rounded,
-                          text: 'Documentos verificados',
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+              ],
             ),
-            if (onFavoritoTap != null)
-              IconButton(
-                key: ValueKey('perfil-favorito-${profissional.id}'),
-                tooltip: favorito ? 'Remover favorito' : 'Salvar favorito',
-                onPressed: onFavoritoTap,
-                icon: Icon(
-                  favorito ? Icons.favorite : Icons.favorite_border,
-                  color: favorito ? const Color(0xFFC53030) : AppColors.texto,
-                ),
-              ),
           ],
         ),
       ),
@@ -319,7 +329,6 @@ class _ResumoChip extends StatelessWidget {
             Flexible(
               child: Text(
                 text,
-                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.texto,
                   fontSize: 12,

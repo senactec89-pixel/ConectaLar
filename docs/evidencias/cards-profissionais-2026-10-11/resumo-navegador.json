@@ -1,0 +1,58 @@
+{
+  "contexto": "Prévia Flutter Web, cliente, dados fictícios, texto padrão",
+  "viewports": {
+    "busca-360.png": [
+      360,
+      844
+    ],
+    "busca-390.png": [
+      390,
+      844
+    ],
+    "busca-412.png": [
+      412,
+      844
+    ],
+    "busca-categoria-360.png": [
+      360,
+      844
+    ],
+    "busca-categoria-390.png": [
+      390,
+      844
+    ],
+    "busca-categoria-412.png": [
+      412,
+      844
+    ],
+    "favoritos-360.png": [
+      360,
+      844
+    ],
+    "favoritos-390.png": [
+      390,
+      844
+    ],
+    "favoritos-412.png": [
+      412,
+      844
+    ]
+  },
+  "browser": {
+    "busca": {
+      "exceptions": 0,
+      "errors": 0,
+      "warnings": 5
+    },
+    "busca-categoria": {
+      "exceptions": 0,
+      "errors": 0,
+      "warnings": 5
+    },
+    "favoritos": {
+      "exceptions": 0,
+      "errors": 0,
+      "warnings": 5
+    }
+  }
+}

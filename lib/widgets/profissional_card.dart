@@ -18,6 +18,7 @@ class ProfissionalCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preco = profissional.precoInicial;
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -39,8 +40,10 @@ class ProfissionalCard extends StatelessWidget {
                       children: [
                         Text(
                           profissional.nome,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                          maxLines: textoAmpliado ? null : 2,
+                          overflow: textoAmpliado
+                              ? TextOverflow.clip
+                              : TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: AppColors.texto,
                             fontSize: 16,
@@ -48,51 +51,33 @@ class ProfissionalCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 7),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (profissional.verificado)
-                              const _SeloVerificado(),
-                            _AvaliacaoProfissional(profissional: profissional),
-                          ],
-                        ),
-                        const SizedBox(height: 7),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: AppColors.textoSuave,
-                            ),
-                            const SizedBox(width: 3),
-                            Expanded(
-                              child: Text(
-                                profissional.bairro,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textoSuave,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        if (!textoAmpliado) ...[
+                          const SizedBox(height: 7),
+                          _InformacoesProfissional(
+                            profissional: profissional,
+                            textoAmpliado: false,
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ],
               ),
+              if (textoAmpliado) ...[
+                const SizedBox(height: 12),
+                _InformacoesProfissional(
+                  profissional: profissional,
+                  textoAmpliado: true,
+                ),
+              ],
               if (profissional.descricao.trim().isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
                   profissional.descricao,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: textoAmpliado ? null : 2,
+                  overflow: textoAmpliado
+                      ? TextOverflow.clip
+                      : TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: const Color(0xFF586B63),
                     height: 1.35,
@@ -106,52 +91,20 @@ class ProfissionalCard extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     for (final servico in profissional.servicos.take(3))
-                      _ServicoTag(servico: servico),
+                      _ServicoTag(
+                        servico: servico,
+                        textoAmpliado: textoAmpliado,
+                      ),
                   ],
                 ),
               ],
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      preco == null
-                          ? 'Preço sob consulta'
-                          : 'A partir de R\$ ${preco.toStringAsFixed(2).replaceAll('.', ',')}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.verde,
-                        fontSize: 13,
-                        height: 1.2,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  if (trailingAction != null) ...[
-                    const SizedBox(width: 4),
-                    trailingAction!,
-                  ],
-                  const SizedBox(width: 4),
-                  TextButton.icon(
-                    onPressed: onTap,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.verde,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      minimumSize: const Size(0, 40),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 16),
-                    label: const Text(
-                      'Ver perfil',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
+              _RodapeProfissional(
+                textoPreco: preco == null
+                    ? 'Preço sob consulta'
+                    : 'A partir de R\$ ${preco.toStringAsFixed(2).replaceAll('.', ',')}',
+                onTap: onTap,
+                trailingAction: trailingAction,
               ),
             ],
           ),
@@ -159,6 +112,155 @@ class ProfissionalCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _InformacoesProfissional extends StatelessWidget {
+  const _InformacoesProfissional({
+    required this.profissional,
+    required this.textoAmpliado,
+  });
+
+  final Profissional profissional;
+  final bool textoAmpliado;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            if (profissional.verificado) const _SeloVerificado(),
+            _AvaliacaoProfissional(profissional: profissional),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.location_on_outlined,
+              size: 16,
+              color: AppColors.textoSuave,
+            ),
+            const SizedBox(width: 3),
+            Expanded(
+              child: Text(
+                profissional.bairro,
+                maxLines: textoAmpliado ? null : 1,
+                overflow: textoAmpliado
+                    ? TextOverflow.clip
+                    : TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textoSuave,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _RodapeProfissional extends StatelessWidget {
+  const _RodapeProfissional({
+    required this.textoPreco,
+    this.onTap,
+    this.trailingAction,
+  });
+
+  final String textoPreco;
+  final VoidCallback? onTap;
+  final Widget? trailingAction;
+
+  @override
+  Widget build(BuildContext context) {
+    const estiloPreco = TextStyle(
+      color: AppColors.verde,
+      fontSize: 13,
+      height: 1.2,
+      fontWeight: FontWeight.w800,
+    );
+    final preco = Text(textoPreco, style: estiloPreco);
+    final acoes = Wrap(
+      alignment: WrapAlignment.end,
+      spacing: 4,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        ?trailingAction,
+        TextButton.icon(
+          onPressed: onTap,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.verde,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            minimumSize: const Size(0, 48),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          iconAlignment: IconAlignment.end,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+          label: const Text(
+            'Ver perfil',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final larguraPreco = _larguraTexto(
+          context,
+          textoPreco,
+          DefaultTextStyle.of(context).style.merge(estiloPreco),
+        );
+        final larguraAcoes =
+            _larguraTexto(
+              context,
+              'Ver perfil',
+              Theme.of(
+                context,
+              ).textTheme.labelLarge!.copyWith(fontWeight: FontWeight.w700),
+            ) +
+            40 +
+            (trailingAction == null ? 0 : 52);
+        if (larguraPreco + 8 + larguraAcoes > constraints.maxWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              preco,
+              const SizedBox(height: 8),
+              Align(alignment: Alignment.centerRight, child: acoes),
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: preco),
+            const SizedBox(width: 8),
+            SizedBox(width: larguraAcoes, child: acoes),
+          ],
+        );
+      },
+    );
+  }
+}
+
+double _larguraTexto(BuildContext context, String texto, TextStyle estilo) {
+  final painter = TextPainter(
+    text: TextSpan(text: texto, style: estilo),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )..layout();
+  final largura = painter.width;
+  painter.dispose();
+  return largura;
 }
 
 class _FotoProfissional extends StatelessWidget {
@@ -231,12 +333,14 @@ class _SeloVerificado extends StatelessWidget {
           children: [
             Icon(Icons.verified_rounded, color: AppColors.verde, size: 14),
             SizedBox(width: 3),
-            Text(
-              'Verificado',
-              style: TextStyle(
-                color: AppColors.verdeEscuro,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+            Flexible(
+              child: Text(
+                'Verificado',
+                style: TextStyle(
+                  color: AppColors.verdeEscuro,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -264,8 +368,6 @@ class _AvaliacaoProfissional extends StatelessWidget {
             nota == null
                 ? 'Novo profissional'
                 : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · ${profissional.quantidadeAvaliacoes ?? 0} avaliações',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textoSuave,
               fontSize: 11,
@@ -279,14 +381,17 @@ class _AvaliacaoProfissional extends StatelessWidget {
 }
 
 class _ServicoTag extends StatelessWidget {
-  const _ServicoTag({required this.servico});
+  const _ServicoTag({required this.servico, required this.textoAmpliado});
 
   final String servico;
+  final bool textoAmpliado;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 180),
+      constraints: BoxConstraints(
+        maxWidth: textoAmpliado ? double.infinity : 180,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F6F3),
@@ -294,8 +399,8 @@ class _ServicoTag extends StatelessWidget {
       ),
       child: Text(
         servico,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+        maxLines: textoAmpliado ? null : 1,
+        overflow: textoAmpliado ? TextOverflow.clip : TextOverflow.ellipsis,
         style: const TextStyle(
           color: Color(0xFF426257),
           fontSize: 10,

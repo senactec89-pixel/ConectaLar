@@ -103,6 +103,12 @@ void main() {
     expect(find.text('Perfil profissional'), findsOneWidget);
     expect(find.text('Eletricista residencial'), findsOneWidget);
     expect(find.text('Serviços oferecidos'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Antes de solicitar'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Antes de solicitar'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('perfil-solicitar-servico')));

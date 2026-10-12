@@ -159,30 +159,41 @@ class _HomeContentView extends StatelessWidget {
                             message: 'Nenhuma categoria disponível.',
                           )
                         else
-                          GridView.builder(
-                            shrinkWrap: true,
-                            primary: false,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: content.categories.length,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  mainAxisSpacing: 12,
-                                  crossAxisSpacing: 10,
-                                  mainAxisExtent: 84,
-                                ),
-                            itemBuilder: (context, index) {
-                              final category = content.categories[index];
-                              final style = _categoryStyle(
-                                category.nome,
-                                index,
-                              );
-                              return _CategoryTile(
-                                category: category,
-                                icon: style.icon,
-                                background: style.background,
-                                color: style.foreground,
-                                onTap: () => onCategoryTap(category),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final textoAmpliado =
+                                  MediaQuery.textScalerOf(context).scale(10) >
+                                  14;
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                primary: false,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: content.categories.length,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: textoAmpliado
+                                          ? 2
+                                          : constraints.maxWidth < 400
+                                          ? 3
+                                          : 4,
+                                      mainAxisSpacing: 12,
+                                      crossAxisSpacing: 10,
+                                      mainAxisExtent: textoAmpliado ? 144 : 84,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final category = content.categories[index];
+                                  final style = _categoryStyle(
+                                    category.nome,
+                                    index,
+                                  );
+                                  return _CategoryTile(
+                                    category: category,
+                                    icon: style.icon,
+                                    background: style.background,
+                                    color: style.foreground,
+                                    onTap: () => onCategoryTap(category),
+                                  );
+                                },
                               );
                             },
                           ),
@@ -203,7 +214,10 @@ class _HomeContentView extends StatelessWidget {
                   else
                     LayoutBuilder(
                       builder: (context, constraints) {
-                        final columns = constraints.maxWidth < 300 ? 1 : 2;
+                        final textoAmpliado =
+                            MediaQuery.textScalerOf(context).scale(13) > 19.5;
+                        final columns =
+                            constraints.maxWidth < 300 || textoAmpliado ? 1 : 2;
                         return GridView.builder(
                           shrinkWrap: true,
                           primary: false,
@@ -333,49 +347,84 @@ class _HomeHero extends StatelessWidget {
         final compact = constraints.maxWidth < 380;
         final baseImageSize = (constraints.maxWidth * 0.43).clamp(144.0, 170.0);
         final imageSize = baseImageSize * (compact ? 1.06 : 1.1);
+        final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
+        const fundo = Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF3FBF6), Color(0xFFE6F5EC)],
+              ),
+            ),
+          ),
+        );
+        final imagem = Positioned(
+          top: 128,
+          right: 8,
+          child: SizedBox.square(
+            dimension: imageSize,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: Color(0xFFD8F0E1),
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: Transform.scale(
+                  scale: 1.08,
+                  alignment: Alignment.bottomRight,
+                  child: Image.asset(
+                    'assets/images/home/hero_house_cutout.png',
+                    width: imageSize,
+                    height: imageSize,
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.65, 0),
+                    semanticLabel: 'Casa com jardim',
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        if (textoAmpliado) {
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              fundo,
+              imagem,
+              SizedBox(
+                width: constraints.maxWidth,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _BrandHeader(
+                        compact: compact,
+                        onNotificationsTap: onNotificationsTap,
+                      ),
+                      const SizedBox(height: 28),
+                      Padding(
+                        padding: EdgeInsets.only(right: imageSize - 2),
+                        child: _Greeting(compact: compact, fullText: true),
+                      ),
+                      const SizedBox(height: 24),
+                      _SearchButton(onTap: onSearchTap, compact: compact),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
         return SizedBox(
           height: 306,
           child: Stack(
             clipBehavior: Clip.hardEdge,
             children: [
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFFF3FBF6), Color(0xFFE6F5EC)],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 128,
-                right: 8,
-                child: SizedBox.square(
-                  dimension: imageSize,
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFD8F0E1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: ClipOval(
-                      child: Transform.scale(
-                        scale: 1.08,
-                        alignment: Alignment.bottomRight,
-                        child: Image.asset(
-                          'assets/images/home/hero_house_cutout.png',
-                          width: imageSize,
-                          height: imageSize,
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0.65, 0),
-                          semanticLabel: 'Casa com jardim',
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              fundo,
+              imagem,
               Positioned(
                 top: 12,
                 left: 20,
@@ -419,6 +468,7 @@ class _BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(11) > 16.5;
     return Row(
       children: [
         Container(
@@ -461,8 +511,10 @@ class _BrandHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Serviços residenciais mais perto de você',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                maxLines: textoAmpliado ? null : 1,
+                overflow: textoAmpliado
+                    ? TextOverflow.clip
+                    : TextOverflow.ellipsis,
                 style: TextStyle(
                   color: AppColors.textoSuave,
                   fontSize: compact ? 10 : 11,
@@ -517,9 +569,10 @@ class _BrandHeader extends StatelessWidget {
 }
 
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.compact});
+  const _Greeting({required this.compact, this.fullText = false});
 
   final bool compact;
+  final bool fullText;
 
   @override
   Widget build(BuildContext context) {
@@ -547,8 +600,8 @@ class _Greeting extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Encontre profissionais para cuidar do seu lar',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          maxLines: fullText ? null : 2,
+          overflow: fullText ? TextOverflow.clip : TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.textoSuave,
             fontSize: 13,
@@ -658,6 +711,7 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(10) > 14;
     return Semantics(
       button: true,
       label: category.nome,
@@ -676,7 +730,7 @@ class _CategoryTile extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   category.nome,
-                  maxLines: 1,
+                  maxLines: textoAmpliado ? 3 : 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -795,10 +849,9 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                       color: const Color(0x55000000),
                       shape: const CircleBorder(),
                       child: IconButton(
-                        visualDensity: VisualDensity.compact,
                         constraints: const BoxConstraints.tightFor(
-                          width: 36,
-                          height: 36,
+                          width: 48,
+                          height: 48,
                         ),
                         tooltip: _isFavorite
                             ? 'Remover dos favoritos'
@@ -1009,7 +1062,7 @@ class _SectionHeading extends StatelessWidget {
             onPressed: onActionTap,
             style: TextButton.styleFrom(
               padding: const EdgeInsets.only(left: 8),
-              minimumSize: const Size(0, 36),
+              minimumSize: const Size(0, 48),
               foregroundColor: const Color(0xFF15935F),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
