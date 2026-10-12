@@ -42,6 +42,15 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  Future<void> _abrirConversa(int solicitacaoId) async {
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.conversa,
+      arguments: solicitacaoId,
+    );
+    if (mounted) _recarregar();
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
@@ -101,11 +110,7 @@ class _ChatPageState extends State<ChatPage> {
                   for (final conversa in conversas) ...[
                     _ConversaCard(
                       conversa: conversa,
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.conversa,
-                        arguments: conversa.solicitacao.id,
-                      ),
+                      onTap: () => _abrirConversa(conversa.solicitacao.id),
                     ),
                     const SizedBox(height: 12),
                   ],

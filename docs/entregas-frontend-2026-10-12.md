@@ -34,3 +34,13 @@ Verificação: `flutter analyze --no-pub` sem problemas; 19 testes selecionados 
 - Conferência por widget test em 360/390/412 px, texto 200%, teclado simulado e ausência de ações de cliente/profissional.
 
 Verificação da etapa 4: `flutter analyze --no-pub` sem problemas; 17 testes selecionados aprovados (`admin_historico_test.dart`, `admin_visual_test.dart`, `cadastro_termos_test.dart`) após o pull de `603b97a`.
+
+## Etapa 6 — Conversa encerrada
+
+- A composição aparece apenas para cliente ou prestador participante quando a solicitação está em `aguardando_resposta` ou `aceita_agendada`.
+- Nos três estados finais, conversa vazia e histórico usam textos de consulta e não convidam a enviar.
+- Ao voltar dos detalhes ou da conversa, a tela consulta novamente o estado. Se a API rejeitar o envio por estado ou permissão, atualiza a conversa sem repetir o POST e preserva o rascunho.
+- Falha de rede mantém o texto para uma tentativa manual. As permissões da API continuam sendo a autoridade.
+- Testes específicos cobrem estados, participantes, lista, falha de envio e texto ampliado em 360/390/412 px.
+
+Verificação da etapa 6: `flutter analyze --no-pub` sem problemas; 31 testes selecionados aprovados (`chat_encerrado_test.dart`, `chat_refresh_test.dart`, `fluxos_integrados_test.dart`). O teste a 200% revelou e corrigiu um overflow no aviso de conversa encerrada.

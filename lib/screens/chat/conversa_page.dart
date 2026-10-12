@@ -6,6 +6,7 @@ import '../../data/conectalar_mock_store.dart';
 import '../../models/mensagem.dart';
 import '../../models/solicitacao.dart';
 import '../../services/api_mappers.dart';
+import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
@@ -26,6 +27,10 @@ class _ConversaPageState extends State<ConversaPage> {
 
   Future<void> _atualizar() async {
     if (_atualizando || _enviando || _solicitacaoAtual == null) return;
+    await _recarregarDados();
+  }
+
+  Future<_ConversaData?> _recarregarDados() async {
     final future = _carregarConversa(_solicitacaoAtual);
     future.ignore();
     setState(() {
@@ -33,12 +38,23 @@ class _ConversaPageState extends State<ConversaPage> {
       _dataFuture = future;
     });
     try {
-      await future;
+      return await future;
     } catch (_) {
       // O FutureBuilder apresenta o erro e permite uma nova tentativa.
+      return null;
     } finally {
       if (mounted) setState(() => _atualizando = false);
     }
+  }
+
+  Future<void> _abrirDetalhes() async {
+    if (_solicitacaoAtual == null) return;
+    await Navigator.pushNamed(
+      context,
+      AppRoutes.detalhesServico,
+      arguments: _solicitacaoAtual,
+    );
+    if (mounted) await _atualizar();
   }
 
   @override
@@ -65,6 +81,7 @@ class _ConversaPageState extends State<ConversaPage> {
         atendimento: atendimento,
         mensagens: store.mensagensDaSolicitacao(solicitacaoId),
         usuarioAtualId: store.usuarioAtual.id,
+        papelAtual: store.usuarioAtual.tipo.valorBanco,
       );
     }
 
@@ -79,12 +96,14 @@ class _ConversaPageState extends State<ConversaPage> {
       atendimento: atendimentoResumoFromApi(solicitacao),
       mensagens: listFromApi(responses[1]['mensagens'], mensagemFromApi),
       usuarioAtualId: intValue(services.auth.usuarioAtual?['id']),
+      papelAtual: stringValue(services.auth.usuarioAtual?['tipo']),
     );
   }
 
-  Future<void> _enviar(int solicitacaoId) async {
+  Future<void> _enviar(_ConversaData data) async {
     final texto = _controller.text.trim();
-    if (texto.isEmpty || _enviando || _atualizando) return;
+    if (texto.isEmpty || _enviando || _atualizando || !data.podeEnviar) return;
+    final solicitacaoId = data.atendimento.solicitacao.id;
 
     setState(() => _enviando = true);
     try {
@@ -107,14 +126,34 @@ class _ConversaPageState extends State<ConversaPage> {
         _dataFuture = _carregarConversa(solicitacaoId);
         _dataFuture?.ignore();
       });
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      _ConversaData? atualizada;
+      if ({400, 403, 404, 409}.contains(error.statusCode)) {
+        // O pedido pode ter sido encerrado em outro aparelho. A API continua
+        // decidindo a permissão, sem repetir o envio nem apagar o rascunho.
+        atualizada = await _recarregarDados();
+      }
+      if (!mounted) return;
+      _mostrarFalhaEnvio(
+        atualizada != null && !atualizada.conversaAberta
+            ? 'Este atendimento foi encerrado. Novas mensagens não podem ser enviadas.'
+            : atualizada != null && !atualizada.podeEnviar
+            ? 'Esta conversa está disponível somente para consulta.'
+            : 'Não foi possível enviar a mensagem.',
+      );
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível enviar a mensagem.')),
-      );
+      _mostrarFalhaEnvio('Não foi possível enviar a mensagem.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
+  }
+
+  void _mostrarFalhaEnvio(String mensagem) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override
@@ -156,16 +195,13 @@ class _ConversaPageState extends State<ConversaPage> {
             }
             final data = snapshot.data;
             if (data == null) return const _ConversaIndisponivel();
-            final conversaAberta =
-                data.atendimento.solicitacao.status ==
-                    StatusSolicitacao.aguardandoResposta ||
-                data.atendimento.solicitacao.status ==
-                    StatusSolicitacao.aceitaAgendada;
-
             return Column(
               children: [
                 if (_atualizando || _enviando) const LinearProgressIndicator(),
-                _ContextoServico(atendimento: data.atendimento),
+                _ContextoServico(
+                  atendimento: data.atendimento,
+                  onDetalhes: _enviando || _atualizando ? null : _abrirDetalhes,
+                ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _atualizar,
@@ -174,10 +210,14 @@ class _ConversaPageState extends State<ConversaPage> {
                       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                       children: [
                         if (data.mensagens.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 24),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 24),
                             child: Text(
-                              'Ainda não há mensagens. Use a conversa para alinhar os detalhes do serviço.',
+                              !data.conversaAberta
+                                  ? 'Não houve mensagens nesta conversa. Este atendimento está encerrado.'
+                                  : data.podeEnviar
+                                  ? 'Ainda não há mensagens. Use a conversa para alinhar os detalhes do serviço.'
+                                  : 'Ainda não há mensagens nesta conversa.',
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -194,16 +234,18 @@ class _ConversaPageState extends State<ConversaPage> {
                     ),
                   ),
                 ),
-                if (conversaAberta)
+                if (data.podeEnviar)
                   _CampoMensagem(
                     controller: _controller,
                     onEnviar: _enviando || _atualizando
                         ? null
-                        : () => _enviar(solicitacaoId!),
+                        : () => _enviar(data),
                   )
                 else
-                  _ConversaEncerrada(
-                    status: data.atendimento.solicitacao.status.rotulo,
+                  _ConversaSomenteLeitura(
+                    mensagem: data.conversaAberta
+                        ? 'Conversa somente para consulta.'
+                        : 'Conversa encerrada: ${data.atendimento.solicitacao.status.rotulo}.',
                   ),
               ],
             );
@@ -219,17 +261,33 @@ class _ConversaData {
     required this.atendimento,
     required this.mensagens,
     required this.usuarioAtualId,
+    required this.papelAtual,
   });
 
   final AtendimentoResumo atendimento;
   final List<Mensagem> mensagens;
   final int usuarioAtualId;
+  final String papelAtual;
+
+  bool get conversaAberta =>
+      atendimento.solicitacao.status == StatusSolicitacao.aguardandoResposta ||
+      atendimento.solicitacao.status == StatusSolicitacao.aceitaAgendada;
+
+  bool get podeEnviar {
+    final solicitacao = atendimento.solicitacao;
+    final participante =
+        (papelAtual == 'cliente' && solicitacao.clienteId == usuarioAtualId) ||
+        ({'profissional', 'empresa'}.contains(papelAtual) &&
+            solicitacao.profissionalUsuarioId == usuarioAtualId);
+    return conversaAberta && participante;
+  }
 }
 
 class _ContextoServico extends StatelessWidget {
-  const _ContextoServico({required this.atendimento});
+  const _ContextoServico({required this.atendimento, required this.onDetalhes});
 
   final AtendimentoResumo atendimento;
+  final VoidCallback? onDetalhes;
 
   @override
   Widget build(BuildContext context) {
@@ -265,11 +323,7 @@ class _ContextoServico extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Ver detalhes',
-            onPressed: () => Navigator.pushNamed(
-              context,
-              AppRoutes.detalhesServico,
-              arguments: atendimento.solicitacao.id,
-            ),
+            onPressed: onDetalhes,
             icon: const Icon(Icons.info_outline),
           ),
         ],
@@ -368,6 +422,7 @@ class _CampoMensagem extends StatelessWidget {
               child: TextField(
                 key: const ValueKey('chat-mensagem'),
                 controller: controller,
+                enabled: onEnviar != null,
                 decoration: const InputDecoration(
                   hintText: 'Digite sua mensagem',
                   border: OutlineInputBorder(),
@@ -390,30 +445,33 @@ class _CampoMensagem extends StatelessWidget {
   }
 }
 
-class _ConversaEncerrada extends StatelessWidget {
-  const _ConversaEncerrada({required this.status});
+class _ConversaSomenteLeitura extends StatelessWidget {
+  const _ConversaSomenteLeitura({required this.mensagem});
 
-  final String status;
+  final String mensagem;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Container(
-        width: double.infinity,
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        child: Row(
-          children: [
-            const Icon(Icons.lock_outline, color: AppColors.textoSuave),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Conversa encerrada: $status.',
-                style: const TextStyle(color: AppColors.textoSuave),
+      child: Semantics(
+        liveRegion: true,
+        child: Container(
+          width: double.infinity,
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              const Icon(Icons.lock_outline, color: AppColors.textoSuave),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  mensagem,
+                  style: const TextStyle(color: AppColors.textoSuave),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
