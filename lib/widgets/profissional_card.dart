@@ -44,12 +44,7 @@ class ProfissionalCard extends StatelessWidget {
                           overflow: textoAmpliado
                               ? TextOverflow.clip
                               : TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.texto,
-                            fontSize: 16,
-                            height: 1.15,
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         if (!textoAmpliado) ...[
                           const SizedBox(height: AppSpace.sm),
@@ -154,11 +149,7 @@ class _InformacoesProfissional extends StatelessWidget {
                 overflow: textoAmpliado
                     ? TextOverflow.clip
                     : TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textoSuave,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ],
@@ -181,12 +172,9 @@ class _RodapeProfissional extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const estiloPreco = TextStyle(
-      color: AppColors.verde,
-      fontSize: 13,
-      height: 1.2,
-      fontWeight: FontWeight.w800,
-    );
+    final estiloPreco = Theme.of(
+      context,
+    ).textTheme.titleSmall!.copyWith(color: AppColors.verde);
     final preco = Text(textoPreco, style: estiloPreco);
     final acoes = Wrap(
       alignment: WrapAlignment.end,
@@ -331,17 +319,20 @@ class _SeloVerificado extends StatelessWidget {
           color: AppColors.verdeClaro,
           borderRadius: BorderRadius.circular(AppRadii.pill),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.verified_rounded, color: AppColors.verde, size: 14),
-            SizedBox(width: AppSpace.xs),
+            const Icon(
+              Icons.verified_rounded,
+              color: AppColors.verde,
+              size: 14,
+            ),
+            const SizedBox(width: AppSpace.xs),
             Flexible(
               child: Text(
                 'Verificado',
-                style: TextStyle(
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: AppColors.verdeEscuro,
-                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -371,11 +362,9 @@ class _AvaliacaoProfissional extends StatelessWidget {
             nota == null
                 ? 'Novo profissional'
                 : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · ${profissional.quantidadeAvaliacoes ?? 0} avaliações',
-            style: const TextStyle(
-              color: AppColors.textoSuave,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -407,11 +396,9 @@ class _ServicoTag extends StatelessWidget {
         servico,
         maxLines: textoAmpliado ? null : 1,
         overflow: textoAmpliado ? TextOverflow.clip : TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFF426257),
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(color: const Color(0xFF426257)),
       ),
     );
   }

@@ -101,18 +101,16 @@ class _FavoritosPageState extends State<FavoritosPage> {
             return ListView(
               padding: AppInsets.page,
               children: [
-                const Text(
+                Text(
                   'Profissionais salvos',
-                  style: TextStyle(
-                    color: AppColors.texto,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppSpace.sm),
-                const Text(
+                Text(
                   'Consulte os perfis que você adicionou aos favoritos.',
-                  style: TextStyle(color: AppColors.textoSuave, height: 1.35),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
                 ),
                 const SizedBox(height: AppSpace.lg),
                 Wrap(
@@ -129,22 +127,15 @@ class _FavoritosPageState extends State<FavoritosPage> {
                         color: AppColors.verdeClaro,
                         borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Profissionais',
-                        style: TextStyle(
-                          color: AppColors.verdeEscuro,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(color: AppColors.verdeEscuro),
                       ),
                     ),
                     Text(
                       '${favoritos.length} ${favoritos.length == 1 ? 'salvo' : 'salvos'}',
-                      style: const TextStyle(
-                        color: AppColors.textoSuave,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),

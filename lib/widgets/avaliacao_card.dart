@@ -21,16 +21,24 @@ class AvaliacaoCard extends StatelessWidget {
               children: [
                 const Icon(Icons.star, color: AppColors.estrela),
                 const SizedBox(width: AppSpace.xs),
-                Text('${avaliacao.nota}/5'),
+                Text(
+                  '${avaliacao.nota}/5',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 if (nomeAvaliador != null) ...[
                   const SizedBox(width: AppSpace.md),
-                  Expanded(child: Text(nomeAvaliador!)),
+                  Expanded(
+                    child: Text(
+                      nomeAvaliador!,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
                 ],
               ],
             ),
             if (avaliacao.comentario case final String comentario) ...[
               const SizedBox(height: AppSpace.sm),
-              Text(comentario),
+              Text(comentario, style: Theme.of(context).textTheme.bodyMedium),
             ],
           ],
         ),
