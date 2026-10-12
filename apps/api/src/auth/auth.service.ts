@@ -229,9 +229,8 @@ export class AuthService {
       }),
     );
 
-    const delivered = await this.mailService.sendPasswordResetEmail(
-      usuario.email,
-      token,
+    const delivered = await this.enviarEmailComFalhaControlada(() =>
+      this.mailService.sendPasswordResetEmail(usuario.email, token),
     );
     if (!delivered && process.env.NODE_ENV === 'production') {
       throw new ServiceUnavailableException({
@@ -492,9 +491,8 @@ export class AuthService {
       }),
     );
 
-    const delivered = await this.mailService.sendEmailVerificationCode(
-      usuario.email,
-      codigo,
+    const delivered = await this.enviarEmailComFalhaControlada(() =>
+      this.mailService.sendEmailVerificationCode(usuario.email, codigo),
     );
     if (!delivered && process.env.NODE_ENV === 'production') {
       throw new ServiceUnavailableException({
@@ -514,6 +512,22 @@ export class AuthService {
       response.devCode = codigo;
     }
     return response;
+  }
+
+  private async enviarEmailComFalhaControlada(
+    send: () => Promise<boolean>,
+  ): Promise<boolean> {
+    try {
+      return await send();
+    } catch {
+      if (process.env.NODE_ENV === 'production') {
+        throw new ServiceUnavailableException({
+          code: 'EMAIL_INDISPONIVEL',
+          message: 'Servico de e-mail indisponivel no momento.',
+        });
+      }
+      return false;
+    }
   }
 
   private async usuarioAdminComMfa(id: number): Promise<UsuarioEntity> {

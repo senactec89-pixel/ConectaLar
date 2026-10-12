@@ -59,14 +59,22 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
       scaffoldMessengerKey: _messenger,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: switch (AppServices.instance.auth.usuarioAtual?['tipo']) {
-        'profissional' || 'empresa' => AppRoutes.areaProfissional,
-        'administrador' => AppRoutes.admin,
-        _ => AppRoutes.home,
-      },
+      initialRoute: _initialRoute(),
       routes: AppRoutes.routes,
       builder: (context, child) =>
           AppServices.instance.modoDemo ? DemoBanner(child: child!) : child!,
     );
+  }
+
+  String _initialRoute() {
+    final auth = AppServices.instance.auth;
+    if (auth.autenticado && !auth.emailVerificado) {
+      return AppRoutes.verificacaoEmail;
+    }
+    return switch (auth.usuarioAtual?['tipo']) {
+      'profissional' || 'empresa' => AppRoutes.areaProfissional,
+      'administrador' => AppRoutes.admin,
+      _ => AppRoutes.home,
+    };
   }
 }
