@@ -27,6 +27,7 @@ Categoria categoriaFromApi(Map<String, dynamic> json) {
   return Categoria(
     id: intValue(json['id']),
     nome: stringValue(json['nome']),
+    icone: nullableString(json['icone']) ?? 'home_repair',
     ativa: boolValue(json['ativo'], fallback: true),
   );
 }

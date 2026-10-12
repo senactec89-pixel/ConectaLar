@@ -156,6 +156,11 @@ class _ConversaPageState extends State<ConversaPage> {
             }
             final data = snapshot.data;
             if (data == null) return const _ConversaIndisponivel();
+            final conversaAberta =
+                data.atendimento.solicitacao.status ==
+                    StatusSolicitacao.aguardandoResposta ||
+                data.atendimento.solicitacao.status ==
+                    StatusSolicitacao.aceitaAgendada;
 
             return Column(
               children: [
@@ -189,12 +194,17 @@ class _ConversaPageState extends State<ConversaPage> {
                     ),
                   ),
                 ),
-                _CampoMensagem(
-                  controller: _controller,
-                  onEnviar: _enviando || _atualizando
-                      ? null
-                      : () => _enviar(solicitacaoId!),
-                ),
+                if (conversaAberta)
+                  _CampoMensagem(
+                    controller: _controller,
+                    onEnviar: _enviando || _atualizando
+                        ? null
+                        : () => _enviar(solicitacaoId!),
+                  )
+                else
+                  _ConversaEncerrada(
+                    status: data.atendimento.solicitacao.status.rotulo,
+                  ),
               ],
             );
           },
@@ -372,6 +382,36 @@ class _CampoMensagem extends StatelessWidget {
               tooltip: 'Enviar',
               onPressed: onEnviar,
               icon: const Icon(Icons.send_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConversaEncerrada extends StatelessWidget {
+  const _ConversaEncerrada({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        width: double.infinity,
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            const Icon(Icons.lock_outline, color: AppColors.textoSuave),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Conversa encerrada: $status.',
+                style: const TextStyle(color: AppColors.textoSuave),
+              ),
             ),
           ],
         ),

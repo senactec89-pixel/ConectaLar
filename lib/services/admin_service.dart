@@ -94,8 +94,15 @@ class AdminService {
   Future<Map<String, dynamic>> salvarCategoria({
     int? id,
     required String nome,
+    required String icone,
     required bool ativo,
   }) => id == null
-      ? _api.post('categorias', body: {'nome': nome, 'ativo': ativo})
-      : _api.patch('categorias/$id', body: {'nome': nome, 'ativo': ativo});
+      ? _api.post(
+          'categorias',
+          body: {'nome': nome, 'icone': icone, 'ativo': ativo},
+        )
+      : _api.patch(
+          'categorias/$id',
+          body: {'nome': nome, 'icone': icone, 'ativo': ativo},
+        );
 }

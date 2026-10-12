@@ -91,7 +91,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       if (mounted) {
         setState(() => _enderecos = const []);
       }
-      return const [];
+      rethrow;
     }
   }
 
@@ -224,6 +224,10 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   Future<void> _cadastrarEndereco() async {
     await Navigator.pushNamed(context, AppRoutes.enderecos);
     if (!mounted) return;
+    _recarregarEnderecos();
+  }
+
+  void _recarregarEnderecos() {
     setState(() {
       _enderecosFuture = _carregarEnderecos();
       _enderecosFuture?.ignore();
@@ -243,9 +247,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
               children: [
                 _ResumoProfissional(
                   profissional: profissional,
-                  precoInicial:
-                      _ofertaSelecionada?.precoInicial ??
-                      profissional.precoInicial,
+                  precoInicial: _ofertaSelecionada == null
+                      ? profissional.precoInicial
+                      : _ofertaSelecionada!.precoInicial,
                 ),
                 const SizedBox(height: 14),
                 if (_solicitacaoEnviada)
@@ -275,6 +279,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                       _bairroController.text = endereco.bairro;
                     }),
                     onCadastrarEndereco: _cadastrarEndereco,
+                    onRetryEnderecos: _recarregarEnderecos,
                     onSubmit: _enviarSolicitacao,
                     enviando: _enviando,
                   ),
@@ -358,6 +363,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.onOfertaChanged,
     required this.onEnderecoChanged,
     required this.onCadastrarEndereco,
+    required this.onRetryEnderecos,
     required this.onSubmit,
     required this.enviando,
   });
@@ -375,6 +381,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   final ValueChanged<int?> onOfertaChanged;
   final ValueChanged<ClienteEndereco> onEnderecoChanged;
   final Future<void> Function() onCadastrarEndereco;
+  final VoidCallback onRetryEnderecos;
   final Future<void> Function() onSubmit;
   final bool enviando;
 
@@ -438,6 +445,12 @@ class _FormularioSolicitacao extends StatelessWidget {
                       return const Padding(
                         padding: EdgeInsets.only(bottom: 12),
                         child: LinearProgressIndicator(),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _EnderecoErroAviso(onRetry: onRetryEnderecos),
                       );
                     }
                     if (enderecos.isEmpty) {
@@ -705,6 +718,58 @@ class _EnderecoObrigatorioAviso extends StatelessWidget {
               onPressed: onCadastrar,
               icon: const Icon(Icons.add_location_alt_outlined),
               label: const Text('Cadastrar endereco'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EnderecoErroAviso extends StatelessWidget {
+  const _EnderecoErroAviso({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.verdePastel,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borda),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.wifi_off_outlined, color: AppColors.verdeEscuro),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Nao foi possivel carregar seus enderecos.',
+                    style: TextStyle(
+                      color: AppColors.texto,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Confira a conexao antes de enviar a solicitacao.',
+                    style: TextStyle(color: AppColors.textoSuave),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: onRetry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Tentar novamente'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

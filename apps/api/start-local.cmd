@@ -7,7 +7,7 @@ set "MYSQL_HOME=%ROOT%\tools\mysql-8.4.9-winx64\bin"
 set "PATH=%NODE_HOME%;%MYSQL_HOME%;%PATH%"
 
 set "NODE_ENV=development"
-set "HOST=127.0.0.1"
+set "HOST=0.0.0.0"
 set "PORT=3012"
 set "DB_HOST=127.0.0.1"
 set "DB_PORT=3307"

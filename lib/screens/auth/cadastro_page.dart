@@ -223,7 +223,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         ),
                         keyboardType: TextInputType.phone,
                         textInputAction: TextInputAction.next,
-                        validator: validarCampoObrigatorio,
+                        validator: validarTelefoneObrigatorio,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(

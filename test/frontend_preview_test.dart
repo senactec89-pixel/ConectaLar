@@ -52,7 +52,11 @@ void main() {
         isNotNull,
       );
       await expectLater(
-        AppServices.instance.admin.salvarCategoria(nome: 'Teste', ativo: true),
+        AppServices.instance.admin.salvarCategoria(
+          nome: 'Teste',
+          icone: 'home_repair',
+          ativo: true,
+        ),
         throwsA(isA<ApiException>()),
       );
       await AppServices.instance.auth.logout();

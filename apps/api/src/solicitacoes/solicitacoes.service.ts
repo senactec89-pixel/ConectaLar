@@ -131,7 +131,7 @@ export class SolicitacoesService {
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
-      precoInicial: oferta?.precoInicial ?? profissional.precoInicial,
+      precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       status: SolicitacaoStatus.AguardandoResposta,
     });
 

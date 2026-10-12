@@ -18,6 +18,7 @@ interface CriarAdministradorInput {
   readonly email: string;
   readonly senha: string;
   readonly telefone: string | null;
+  readonly telefoneNormalizado: string | null;
 }
 
 interface AtualizarStatusInput {
@@ -84,17 +85,40 @@ export class AdminUsuariosService {
         message: 'Nao foi possivel criar a conta com estes dados.',
       });
     }
+    if (input.telefoneNormalizado !== null) {
+      const existingPhone = await this.usuarios.findOne({
+        where: { telefoneNormalizado: input.telefoneNormalizado },
+      });
+      if (existingPhone !== null) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel criar a conta com estes dados.',
+        });
+      }
+    }
 
     const usuario = this.usuarios.create({
       nome: input.nome,
       email,
       telefone: input.telefone,
+      telefoneNormalizado: input.telefoneNormalizado,
       tipo: UsuarioTipo.Administrador,
       senhaHash: await this.passwordService.hash(input.senha),
       ativo: true,
     });
 
-    const saved = await this.usuarios.save(usuario);
+    let saved: UsuarioEntity;
+    try {
+      saved = await this.usuarios.save(usuario);
+    } catch (error) {
+      if (isDuplicateError(error)) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel criar a conta com estes dados.',
+        });
+      }
+      throw error;
+    }
     await this.registrarAuditoria({
       atorId: user.id,
       acao: AdminAuditoriaAcao.AdministradorCriado,
@@ -187,12 +211,13 @@ function parseCriarAdministrador(body: unknown): CriarAdministradorInput {
   const email = textField(value, 'email', 5, 180);
   const senha = textField(value, 'senha', 8, 128);
   const telefone = optionalText(value.telefone, 32);
+  const telefoneNormalizado = normalizarTelefoneOpcional(telefone);
 
   if (!emailValido(email)) {
     throw badRequest('EMAIL_INVALIDO');
   }
 
-  return { nome, email, senha, telefone };
+  return { nome, email, senha, telefone, telefoneNormalizado };
 }
 
 function parseAtualizarStatus(body: unknown): AtualizarStatusInput {
@@ -257,6 +282,27 @@ function optionalText(value: unknown, max: number): string | null {
   if (text.length === 0) return null;
   if (text.length > max) throw badRequest('CAMPO_INVALIDO');
   return text;
+}
+
+function normalizarTelefoneOpcional(telefone: string | null): string | null {
+  if (telefone === null) return null;
+  let digits = telefone.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+  if (digits.length !== 10 && digits.length !== 11) {
+    throw badRequest('TELEFONE_INVALIDO');
+  }
+  return digits;
+}
+
+function isDuplicateError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { readonly code?: unknown }).code === 'ER_DUP_ENTRY'
+  );
 }
 
 function normalizarEmail(email: string): string {

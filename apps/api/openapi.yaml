@@ -2281,6 +2281,7 @@ components:
       required:
         - id
         - nome
+        - icone
         - ativo
       properties:
         id:
@@ -2288,6 +2289,9 @@ components:
           minimum: 1
         nome:
           type: string
+        icone:
+          type: string
+          description: Controlled Material icon identifier selected by an administrator.
         ativo:
           type: boolean
     CategoriaResumo:
@@ -2312,6 +2316,9 @@ components:
           type: string
           minLength: 2
           maxLength: 80
+        icone:
+          type: string
+          default: home_repair
         ativo:
           type: boolean
     CategoriaPatchRequest:
@@ -2322,6 +2329,8 @@ components:
           type: string
           minLength: 2
           maxLength: 80
+        icone:
+          type: string
         ativo:
           type: boolean
     DocumentoVerificacaoEnvioRequest:

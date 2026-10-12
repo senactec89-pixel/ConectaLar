@@ -102,19 +102,18 @@ class ApiService {
     }
 
     final path = endpoint.replaceFirst(RegExp(r'^/+'), '');
-    if (response.statusCode == 401 &&
-        requestToken != null &&
-        requestRevision == _sessionRevision &&
-        !const {'auth/login', 'auth/cadastro', 'auth/logout'}.contains(path)) {
-      await onSessionExpired?.call();
-    }
-
     final Object? decoded;
     try {
       decoded = response.body.trim().isEmpty
           ? <String, dynamic>{}
           : jsonDecode(response.body);
     } on FormatException {
+      if (response.statusCode == 401 &&
+          requestToken != null &&
+          requestRevision == _sessionRevision &&
+          !_erroAutenticacaoTratavel(path, null)) {
+        await onSessionExpired?.call();
+      }
       throw ApiException(
         'A API retornou uma resposta invalida.',
         statusCode: response.statusCode,
@@ -126,6 +125,13 @@ class ApiService {
         'A API retornou uma resposta invalida.',
         statusCode: response.statusCode,
       );
+    }
+
+    if (response.statusCode == 401 &&
+        requestToken != null &&
+        requestRevision == _sessionRevision &&
+        !_erroAutenticacaoTratavel(path, decoded['code'])) {
+      await onSessionExpired?.call();
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -164,5 +170,12 @@ class ApiService {
         'A API encontrou um problema interno. Tente novamente em instantes.',
       _ => 'Nao foi possivel concluir a requisicao.',
     };
+  }
+
+  bool _erroAutenticacaoTratavel(String path, Object? code) {
+    if (const {'auth/login', 'auth/cadastro', 'auth/logout'}.contains(path)) {
+      return true;
+    }
+    return code == 'SENHA_ATUAL_INVALIDA';
   }
 }

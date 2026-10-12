@@ -46,9 +46,35 @@ export class ClientesService {
   async salvarMeuPerfil(user: AuthenticatedUser, body: unknown) {
     const input = parsePerfil(body);
     const usuario = await this.assertClienteAtivo(user);
+    if (input.telefoneNormalizado !== null) {
+      const existente = await this.usuarios
+        .createQueryBuilder('usuario')
+        .where('usuario.telefoneNormalizado = :telefoneNormalizado', {
+          telefoneNormalizado: input.telefoneNormalizado,
+        })
+        .andWhere('usuario.id <> :id', { id: user.id })
+        .getOne();
+      if (existente !== null) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel salvar este telefone.',
+        });
+      }
+    }
     usuario.nome = input.nome;
     usuario.telefone = input.telefone;
-    await this.usuarios.save(usuario);
+    usuario.telefoneNormalizado = input.telefoneNormalizado;
+    try {
+      await this.usuarios.save(usuario);
+    } catch (error) {
+      if (isDuplicateError(error)) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel salvar este telefone.',
+        });
+      }
+      throw error;
+    }
 
     let perfil = await this.perfis.findOne({ where: { usuarioId: user.id } });
     perfil ??= this.perfis.create({ usuarioId: user.id });
@@ -302,9 +328,11 @@ function profissionalPublico(profissional: ProfissionalPerfilEntity) {
 
 function parsePerfil(body: unknown) {
   const value = objectBody(body);
+  const telefone = optionalText(value.telefone, 32);
   return {
     nome: textField(value, 'nome', 3, 140),
-    telefone: optionalText(value.telefone, 32),
+    telefone,
+    telefoneNormalizado: normalizarTelefoneOpcional(telefone),
     bairroPrincipal: optionalText(value.bairroPrincipal, 120),
     cidade: optionalText(value.cidade, 120),
     uf: optionalUf(value.uf),
@@ -386,6 +414,18 @@ function optionalText(value: unknown, max: number): string | null {
   if (text.length === 0) return null;
   if (text.length > max) throw badRequest('CAMPO_INVALIDO');
   return text;
+}
+
+function normalizarTelefoneOpcional(telefone: string | null): string | null {
+  if (telefone === null) return null;
+  let digits = telefone.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+  if (digits.length !== 10 && digits.length !== 11) {
+    throw badRequest('TELEFONE_INVALIDO');
+  }
+  return digits;
 }
 
 function optionalUf(value: unknown): string | null {

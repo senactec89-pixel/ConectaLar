@@ -29,6 +29,10 @@ const publicErrors: Readonly<Record<string, string>> = {
   CATEGORIA_INVALIDA: 'Selecione uma categoria ativa.',
   CAMPO_INVALIDO: 'Confira os campos preenchidos e tente novamente.',
   EMAIL_INVALIDO: 'Informe um e-mail valido.',
+  TELEFONE_INVALIDO: 'Informe um telefone valido com DDD.',
+  CONTA_NAO_CRIADA:
+    'Nao foi possivel criar ou atualizar a conta com estes dados.',
+  SENHA_ATUAL_INVALIDA: 'Senha atual invalida.',
   SENHA_INVALIDA:
     'Use uma senha com pelo menos 8 caracteres, maiuscula, minuscula, numero e caractere especial.',
   CHAT_INDISPONIVEL: 'A conversa nao esta disponivel para este atendimento.',

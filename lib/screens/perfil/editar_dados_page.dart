@@ -206,6 +206,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         labelText: 'Telefone',
                                         prefixIcon: Icon(Icons.phone_outlined),
                                       ),
+                                      validator: validarTelefoneOpcional,
                                     ),
                                   ],
                                 ),

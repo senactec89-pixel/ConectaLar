@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../services/service_registry.dart';
+import '../../utils/categoria_icons.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 
@@ -598,7 +599,7 @@ class _AdminPageState extends State<AdminPage> {
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
           child: ListTile(
-            leading: const Icon(Icons.category_outlined),
+            leading: Icon(categoriaIconData('${item['icone'] ?? ''}')),
             title: Text('${item['nome']}'),
             subtitle: Text(item['ativo'] == true ? 'Ativa' : 'Inativa'),
             trailing: IconButton(
@@ -908,8 +909,12 @@ class _AdminPageState extends State<AdminPage> {
   Future<void> _editarCategoria([Map<String, dynamic>? categoria]) async {
     if (_mutando) return;
     final nome = TextEditingController(text: '${categoria?['nome'] ?? ''}');
+    var icone = '${categoria?['icone'] ?? 'home_repair'}';
+    if (!categoriaIconOptions.any((option) => option.id == icone)) {
+      icone = 'home_repair';
+    }
     var ativo = categoria?['ativo'] != false;
-    final result = await showDialog<(String, bool)>(
+    final result = await showDialog<({String nome, String icone, bool ativo})>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
@@ -924,6 +929,28 @@ class _AdminPageState extends State<AdminPage> {
                 controller: nome,
                 decoration: const InputDecoration(labelText: 'Nome'),
                 onChanged: (_) => setDialog(() {}),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: icone,
+                decoration: const InputDecoration(labelText: 'Icone'),
+                items: [
+                  for (final option in categoriaIconOptions)
+                    DropdownMenuItem(
+                      value: option.id,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(option.icon, size: 20),
+                          const SizedBox(width: 8),
+                          Flexible(child: Text(option.label)),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setDialog(() => icone = value);
+                },
               ),
               SwitchListTile(
                 value: ativo,
@@ -940,7 +967,11 @@ class _AdminPageState extends State<AdminPage> {
             FilledButton(
               onPressed: nome.text.trim().length < 2
                   ? null
-                  : () => Navigator.pop(context, (nome.text.trim(), ativo)),
+                  : () => Navigator.pop(context, (
+                      nome: nome.text.trim(),
+                      icone: icone,
+                      ativo: ativo,
+                    )),
               child: const Text('Salvar'),
             ),
           ],
@@ -952,8 +983,9 @@ class _AdminPageState extends State<AdminPage> {
     try {
       await AppServices.instance.admin.salvarCategoria(
         id: categoria == null ? null : int.parse('${categoria['id']}'),
-        nome: result.$1,
-        ativo: result.$2,
+        nome: result.nome,
+        icone: result.icone,
+        ativo: result.ativo,
       );
       if (mounted) {
         _avisar('Categoria salva.');

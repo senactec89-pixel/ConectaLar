@@ -40,6 +40,7 @@ export class CategoriasService {
     const input = parseCategoriaInput(body, true);
     const categoria = this.categorias.create({
       nome: input.nome,
+      icone: input.icone ?? 'home_repair',
       ativo: input.ativo ?? true,
     });
 
@@ -72,6 +73,9 @@ export class CategoriasService {
     }
     if (input.ativo !== undefined) {
       categoria.ativo = input.ativo;
+    }
+    if (input.icone !== undefined) {
+      categoria.icone = input.icone;
     }
 
     try {
@@ -110,6 +114,7 @@ function categoriaResponse(categoria: CategoriaEntity) {
   return {
     id: categoria.id,
     nome: categoria.nome,
+    icone: categoria.icone,
     ativo: categoria.ativo,
   };
 }
@@ -122,15 +127,46 @@ function parseCategoriaInput(body: unknown, requireNome: boolean) {
       : textField(value, 'nome', 2, 80);
   const ativo =
     value.ativo === undefined ? undefined : booleanField(value.ativo);
+  const icone =
+    value.icone === undefined ? undefined : categoriaIconeField(value.icone);
 
   if (requireNome && nome === undefined) {
     throw badRequest('CATEGORIA_INVALIDA');
   }
-  if (!requireNome && nome === undefined && ativo === undefined) {
+  if (
+    !requireNome &&
+    nome === undefined &&
+    ativo === undefined &&
+    icone === undefined
+  ) {
     throw badRequest('CATEGORIA_INVALIDA');
   }
 
-  return { nome, ativo };
+  return { nome, ativo, icone };
+}
+
+const categoriaIconesPermitidos = new Set([
+  'home_repair',
+  'electrical_services',
+  'plumbing',
+  'format_paint',
+  'cleaning_services',
+  'build',
+  'ac_unit',
+  'construction',
+  'grass',
+  'category',
+]);
+
+function categoriaIconeField(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw badRequest('CATEGORIA_INVALIDA');
+  }
+  const icone = value.trim();
+  if (!categoriaIconesPermitidos.has(icone)) {
+    throw badRequest('CATEGORIA_INVALIDA');
+  }
+  return icone;
 }
 
 function objectBody(body: unknown): Record<string, unknown> {

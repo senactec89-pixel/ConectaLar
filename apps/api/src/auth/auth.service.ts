@@ -24,6 +24,7 @@ interface CadastroRequest {
   senha: string;
   tipo: UsuarioTipo;
   telefone?: string | null;
+  telefoneNormalizado?: string | null;
 }
 
 interface LoginRequest {
@@ -68,18 +69,40 @@ export class AuthService {
         message: 'Nao foi possivel criar a conta com estes dados.',
       });
     }
+    if (cadastro.telefoneNormalizado !== null) {
+      const existingPhone = await this.usuarios.findOne({
+        where: { telefoneNormalizado: cadastro.telefoneNormalizado },
+      });
+      if (existingPhone !== null) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel criar a conta com estes dados.',
+        });
+      }
+    }
 
     const usuario = this.usuarios.create({
       nome: cadastro.nome.trim(),
       email,
       telefone: cadastro.telefone?.trim() || null,
+      telefoneNormalizado: cadastro.telefoneNormalizado ?? null,
       tipo: cadastro.tipo,
       senhaHash: await this.passwordService.hash(cadastro.senha),
       ativo: true,
     });
 
-    const saved = await this.usuarios.save(usuario);
-    return this.authResponse(saved);
+    try {
+      const saved = await this.usuarios.save(usuario);
+      return this.authResponse(saved);
+    } catch (error) {
+      if (isDuplicateError(error)) {
+        throw new ConflictException({
+          code: 'CONTA_NAO_CRIADA',
+          message: 'Nao foi possivel criar a conta com estes dados.',
+        });
+      }
+      throw error;
+    }
   }
 
   async login(body: unknown) {
@@ -233,6 +256,7 @@ function parseCadastro(body: unknown): CadastroRequest {
   const senha = stringField(value, 'senha');
   const tipo = stringField(value, 'tipo');
   const telefone = optionalStringField(value, 'telefone');
+  const telefoneNormalizado = normalizarTelefoneOpcional(telefone);
 
   if (nome.trim().length < 3 || nome.trim().length > 140) {
     throw badRequest('NOME_INVALIDO');
@@ -254,6 +278,7 @@ function parseCadastro(body: unknown): CadastroRequest {
     senha,
     tipo: tipo as UsuarioTipo,
     telefone,
+    telefoneNormalizado,
   };
 }
 
@@ -342,6 +367,18 @@ function normalizarEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+function normalizarTelefoneOpcional(telefone: string | null): string | null {
+  if (telefone === null) return null;
+  let digits = telefone.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+  if (digits.length !== 10 && digits.length !== 11) {
+    throw badRequest('TELEFONE_INVALIDO');
+  }
+  return digits;
+}
+
 function emailValido(email: string): boolean {
   return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(
     email.trim(),
@@ -382,6 +419,15 @@ function safeEqualText(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function isDuplicateError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { readonly code?: unknown }).code === 'ER_DUP_ENTRY'
+  );
 }
 
 function invalidResetToken(): BadRequestException {

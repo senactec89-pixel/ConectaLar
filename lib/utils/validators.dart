@@ -46,6 +46,28 @@ String? validarCepOpcional(String? valor) {
   return digitos.length == 8 ? null : 'Informe um CEP com 8 digitos.';
 }
 
+String? validarTelefoneObrigatorio(String? valor) {
+  final erroObrigatorio = validarCampoObrigatorio(valor);
+  if (erroObrigatorio != null) return erroObrigatorio;
+  return _validarTelefone(valor);
+}
+
+String? validarTelefoneOpcional(String? valor) {
+  if ((valor ?? '').trim().isEmpty) return null;
+  return _validarTelefone(valor);
+}
+
+String? _validarTelefone(String? valor) {
+  var digitos = (valor ?? '').replaceAll(RegExp(r'\D'), '');
+  if (digitos.startsWith('55') &&
+      (digitos.length == 12 || digitos.length == 13)) {
+    digitos = digitos.substring(2);
+  }
+  return digitos.length == 10 || digitos.length == 11
+      ? null
+      : 'Informe um telefone com DDD.';
+}
+
 String? validarUf(String? valor) {
   final erroObrigatorio = validarCampoObrigatorio(valor);
   if (erroObrigatorio != null) return erroObrigatorio;

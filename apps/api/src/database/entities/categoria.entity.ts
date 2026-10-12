@@ -16,6 +16,9 @@ export class CategoriaEntity {
   @Column({ type: 'varchar', length: 80 })
   nome!: string;
 
+  @Column({ type: 'varchar', length: 40, default: 'home_repair' })
+  icone!: string;
+
   @Column({ type: 'boolean', default: true })
   ativo!: boolean;
 

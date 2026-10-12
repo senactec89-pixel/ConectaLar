@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../models/categoria.dart';
+import '../utils/categoria_icons.dart';
 
 class CategoriaCard extends StatelessWidget {
   const CategoriaCard({
     required this.categoria,
-    this.icon = Icons.home_repair_service_outlined,
+    this.icon,
     this.onTap,
     super.key,
   });
 
   final Categoria categoria;
-  final IconData icon;
+  final IconData? icon;
   final VoidCallback? onTap;
 
   @override
@@ -35,7 +36,10 @@ class CategoriaCard extends StatelessWidget {
                       context,
                     ).colorScheme.primaryContainer,
                     foregroundColor: Theme.of(context).colorScheme.primary,
-                    child: Icon(icon, semanticLabel: categoria.nome),
+                    child: Icon(
+                      icon ?? categoriaIconData(categoria.icone),
+                      semanticLabel: categoria.nome,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(

@@ -119,6 +119,7 @@ Category routes:
 - `PATCH /categorias/:id` with `Authorization: Bearer <token>` for `administrador`
 
 Inactive categories do not appear in public lists and cannot be used for new professional offers or new requests, but the category row remains available for historical references.
+Administrators can choose only one of the controlled icon identifiers accepted by the API; arbitrary file upload is intentionally not supported for category icons.
 
 Service request routes:
 
