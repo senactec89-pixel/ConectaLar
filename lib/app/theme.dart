@@ -21,6 +21,19 @@ abstract final class AppSpace {
   static const lg = 16.0;
   static const xl = 24.0;
   static const xxl = 32.0;
+
+  // Margem lateral do conteúdo móvel, preservada em 20 px.
+  static const pageGutter = 20.0;
+}
+
+abstract final class AppInsets {
+  static const page = EdgeInsets.fromLTRB(
+    AppSpace.pageGutter,
+    AppSpace.lg,
+    AppSpace.pageGutter,
+    AppSpace.xxl,
+  );
+  static const card = EdgeInsets.all(AppSpace.lg);
 }
 
 abstract final class AppRadii {
@@ -77,7 +90,7 @@ abstract final class AppTheme {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.branco,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.all(AppSpace.lg),
       labelStyle: const TextStyle(color: AppColors.textoSuave),
       prefixIconColor: AppColors.textoSuave,
       suffixIconColor: AppColors.textoSuave,
@@ -90,15 +103,15 @@ abstract final class AppTheme {
         borderSide: const BorderSide(color: AppColors.borda),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         borderSide: const BorderSide(color: AppColors.verde, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         borderSide: const BorderSide(color: Color(0xFFB3261E)),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadii.field),
         borderSide: const BorderSide(color: Color(0xFFB3261E), width: 1.5),
       ),
     ),
@@ -110,6 +123,33 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(AppRadii.field),
         ),
         textStyle: const TextStyle(fontWeight: FontWeight.w700),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.field),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.field),
+        ),
+      ),
+    ),
+    chipTheme: const ChipThemeData(shape: StadiumBorder()),
+    dialogTheme: DialogThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.panel),
+      ),
+    ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadii.panel),
+        ),
       ),
     ),
     cardTheme: CardThemeData(

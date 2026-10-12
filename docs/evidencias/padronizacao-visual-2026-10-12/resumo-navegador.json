@@ -1,0 +1,79 @@
+{
+  "data": "2026-10-12",
+  "ambiente": "Flutter Web debug, Chrome headless, dados de demonstracao",
+  "larguras_logicas": [
+    360,
+    390,
+    412
+  ],
+  "escala_texto_capturas": 1,
+  "execucoes": [
+    {
+      "tela": "busca",
+      "excecoes": 0,
+      "erros": 0,
+      "avisos_quantidade": 5,
+      "avisos": [
+        "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced.",
+        "GPU stall due to ReadPixels (Chrome headless)"
+      ]
+    },
+    {
+      "tela": "favoritos",
+      "excecoes": 0,
+      "erros": 0,
+      "avisos_quantidade": 5,
+      "avisos": [
+        "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced.",
+        "GPU stall due to ReadPixels (Chrome headless)"
+      ]
+    },
+    {
+      "tela": "busca-vazia",
+      "excecoes": 0,
+      "erros": 0,
+      "avisos_quantidade": 5,
+      "avisos": [
+        "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced.",
+        "GPU stall due to ReadPixels (Chrome headless)"
+      ]
+    },
+    {
+      "tela": "disponibilidade",
+      "excecoes": 0,
+      "erros": 0,
+      "avisos_quantidade": 5,
+      "avisos": [
+        "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced.",
+        "GPU stall due to ReadPixels (Chrome headless)"
+      ]
+    },
+    {
+      "tela": "disponibilidade-modal",
+      "excecoes": 0,
+      "erros": 0,
+      "avisos_quantidade": 5,
+      "avisos": [
+        "Found an existing <meta name=\"viewport\"> tag. Flutter Web uses its own viewport configuration for better compatibility with Flutter. This tag will be replaced.",
+        "GPU stall due to ReadPixels (Chrome headless)"
+      ]
+    }
+  ],
+  "capturas": [
+    "busca-360.png",
+    "busca-390.png",
+    "busca-412.png",
+    "busca-vazia-360.png",
+    "busca-vazia-390.png",
+    "busca-vazia-412.png",
+    "disponibilidade-360.png",
+    "disponibilidade-390.png",
+    "disponibilidade-412.png",
+    "disponibilidade-modal-viewport-reduzido-360.png",
+    "disponibilidade-modal-viewport-reduzido-390.png",
+    "disponibilidade-modal-viewport-reduzido-412.png",
+    "favoritos-360.png",
+    "favoritos-390.png",
+    "favoritos-412.png"
+  ]
+}

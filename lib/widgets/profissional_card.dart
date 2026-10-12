@@ -25,7 +25,7 @@ class ProfissionalCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: AppInsets.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -33,7 +33,7 @@ class ProfissionalCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _FotoProfissional(profissional: profissional),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpace.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +52,7 @@ class ProfissionalCard extends StatelessWidget {
                           ),
                         ),
                         if (!textoAmpliado) ...[
-                          const SizedBox(height: 7),
+                          const SizedBox(height: AppSpace.sm),
                           _InformacoesProfissional(
                             profissional: profissional,
                             textoAmpliado: false,
@@ -64,14 +64,14 @@ class ProfissionalCard extends StatelessWidget {
                 ],
               ),
               if (textoAmpliado) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpace.md),
                 _InformacoesProfissional(
                   profissional: profissional,
                   textoAmpliado: true,
                 ),
               ],
               if (profissional.descricao.trim().isNotEmpty) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpace.md),
                 Text(
                   profissional.descricao,
                   maxLines: textoAmpliado ? null : 2,
@@ -85,10 +85,10 @@ class ProfissionalCard extends StatelessWidget {
                 ),
               ],
               if (profissional.servicos.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpace.md),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: AppSpace.sm,
+                  runSpacing: AppSpace.sm,
                   children: [
                     for (final servico in profissional.servicos.take(3))
                       _ServicoTag(
@@ -98,7 +98,7 @@ class ProfissionalCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
               _RodapeProfissional(
                 textoPreco: preco == null
                     ? 'Preço sob consulta'
@@ -129,15 +129,15 @@ class _InformacoesProfissional extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 8,
-          runSpacing: 6,
+          spacing: AppSpace.sm,
+          runSpacing: AppSpace.sm,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (profissional.verificado) const _SeloVerificado(),
             _AvaliacaoProfissional(profissional: profissional),
           ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: AppSpace.sm),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -146,7 +146,7 @@ class _InformacoesProfissional extends StatelessWidget {
               size: 16,
               color: AppColors.textoSuave,
             ),
-            const SizedBox(width: 3),
+            const SizedBox(width: AppSpace.xs),
             Expanded(
               child: Text(
                 profissional.bairro,
@@ -190,8 +190,8 @@ class _RodapeProfissional extends StatelessWidget {
     final preco = Text(textoPreco, style: estiloPreco);
     final acoes = Wrap(
       alignment: WrapAlignment.end,
-      spacing: 4,
-      runSpacing: 4,
+      spacing: AppSpace.xs,
+      runSpacing: AppSpace.xs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         ?trailingAction,
@@ -199,7 +199,7 @@ class _RodapeProfissional extends StatelessWidget {
           onPressed: onTap,
           style: TextButton.styleFrom(
             foregroundColor: AppColors.verde,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.all(AppSpace.sm),
             minimumSize: const Size(0, 48),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
@@ -234,7 +234,7 @@ class _RodapeProfissional extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               preco,
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpace.sm),
               Align(alignment: Alignment.centerRight, child: acoes),
             ],
           );
@@ -242,7 +242,7 @@ class _RodapeProfissional extends StatelessWidget {
         return Row(
           children: [
             Expanded(child: preco),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpace.sm),
             SizedBox(width: larguraAcoes, child: acoes),
           ],
         );
@@ -272,7 +272,7 @@ class _FotoProfissional extends StatelessWidget {
   Widget build(BuildContext context) {
     final foto = profissional.fotoAsset;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadii.field),
       child: SizedBox(
         width: 76,
         height: 94,
@@ -323,16 +323,19 @@ class _SeloVerificado extends StatelessWidget {
     return Tooltip(
       message: 'Verificação documental administrativa',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.sm,
+          vertical: AppSpace.xs,
+        ),
         decoration: BoxDecoration(
           color: AppColors.verdeClaro,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.verified_rounded, color: AppColors.verde, size: 14),
-            SizedBox(width: 3),
+            SizedBox(width: AppSpace.xs),
             Flexible(
               child: Text(
                 'Verificado',
@@ -362,7 +365,7 @@ class _AvaliacaoProfissional extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.star_rounded, color: AppColors.estrela, size: 17),
-        const SizedBox(width: 3),
+        const SizedBox(width: AppSpace.xs),
         Flexible(
           child: Text(
             nota == null
@@ -392,10 +395,13 @@ class _ServicoTag extends StatelessWidget {
       constraints: BoxConstraints(
         maxWidth: textoAmpliado ? double.infinity : 180,
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.xs,
+      ),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F6F3),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Text(
         servico,

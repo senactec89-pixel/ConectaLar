@@ -35,18 +35,18 @@ class AsyncErrorView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpace.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: AppColors.textoSuave, size: 42),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             Text(
               message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: AppSpace.lg),
             OutlinedButton.icon(
               onPressed: onRetry,
               style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
@@ -76,18 +76,18 @@ class EmptyStateView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpace.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, color: AppColors.verdeEscuro, size: 44),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             Text(
               title,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpace.sm),
             Text(
               message,
               textAlign: TextAlign.center,

@@ -152,20 +152,20 @@ class _BuscaPageState extends State<BuscaPage> {
             builder: (context, constraints) {
               final horizontalPadding = constraints.maxWidth > 760
                   ? (constraints.maxWidth - 720) / 2
-                  : 20.0;
+                  : AppSpace.pageGutter;
               return ListView(
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
-                  16,
+                  AppSpace.lg,
                   horizontalPadding,
-                  28,
+                  AppSpace.xxl,
                 ),
                 children: [
                   const Text(
                     'Pesquise por serviço, profissional ou bairro.',
                     style: TextStyle(color: AppColors.textoSuave, height: 1.35),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpace.lg),
                   _FiltrosBusca(
                     termoController: _termoController,
                     bairroController: _bairroController,
@@ -175,18 +175,18 @@ class _BuscaPageState extends State<BuscaPage> {
                     onCategoriaSelecionada: _selecionarCategoria,
                     onLimparFiltros: _temFiltros ? _limparFiltros : null,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: AppSpace.xl),
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Center(child: CircularProgressIndicator())
                   else ...[
                     _CabecalhoResultados(total: resultados.length),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpace.md),
                     if (resultados.isEmpty)
                       const _EstadoVazioBusca()
                     else
                       ...resultados.map(
                         (profissional) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.only(bottom: AppSpace.md),
                           child: ProfissionalCard(
                             profissional: profissional,
                             onTap: () => _abrirProfissional(profissional),
@@ -233,7 +233,8 @@ class _FiltrosBusca extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.borda),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10153B31),
@@ -243,7 +244,7 @@ class _FiltrosBusca extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: AppInsets.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -256,10 +257,9 @@ class _FiltrosBusca extends StatelessWidget {
                 prefixIcon: Icon(Icons.search_rounded),
                 labelText: 'Serviço ou profissional',
                 hintText: 'Ex.: elétrica, limpeza, Carlos',
-                border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             TextField(
               key: const ValueKey('busca-bairro'),
               controller: bairroController,
@@ -269,14 +269,13 @@ class _FiltrosBusca extends StatelessWidget {
                 prefixIcon: Icon(Icons.location_on_outlined),
                 labelText: 'Bairro',
                 hintText: 'Ex.: Vila Nova',
-                border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             if (categorias.isNotEmpty) ...[
               const Wrap(
-                spacing: 12,
-                runSpacing: 4,
+                spacing: AppSpace.md,
+                runSpacing: AppSpace.xs,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
@@ -293,14 +292,14 @@ class _FiltrosBusca extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpace.sm),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
                     for (final categoria in categorias)
                       Padding(
-                        padding: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.only(right: AppSpace.sm),
                         child: FilterChip(
                           label: Text(categoria.nome),
                           selected: categoriaSelecionada?.id == categoria.id,
@@ -316,7 +315,7 @@ class _FiltrosBusca extends StatelessWidget {
               ),
             ],
             if (categoriaSelecionada != null || onLimparFiltros != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpace.sm),
               SizedBox(
                 width: double.infinity,
                 child: Wrap(
@@ -324,8 +323,8 @@ class _FiltrosBusca extends StatelessWidget {
                       ? WrapAlignment.end
                       : WrapAlignment.spaceBetween,
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 12,
-                  runSpacing: 4,
+                  spacing: AppSpace.md,
+                  runSpacing: AppSpace.xs,
                   children: [
                     if (categoriaSelecionada != null)
                       Text(
@@ -369,8 +368,8 @@ class _CabecalhoResultados extends StatelessWidget {
     return Wrap(
       alignment: WrapAlignment.spaceBetween,
       crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
-      runSpacing: 6,
+      spacing: AppSpace.md,
+      runSpacing: AppSpace.sm,
       children: [
         Text(
           'Resultados',
@@ -398,10 +397,11 @@ class _EstadoVazioBusca extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpace.xl),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.borda),
       ),
       child: Column(
         children: [
@@ -410,7 +410,7 @@ class _EstadoVazioBusca extends StatelessWidget {
             color: Theme.of(context).colorScheme.primary,
             size: 38,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: AppSpace.md),
           Text(
             'Nenhum profissional corresponde a esta busca.',
             textAlign: TextAlign.center,
@@ -419,7 +419,7 @@ class _EstadoVazioBusca extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpace.sm),
           const Text(
             'Tente ajustar o serviço, a categoria ou o bairro.',
             textAlign: TextAlign.center,

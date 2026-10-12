@@ -13,23 +13,23 @@ class AvaliacaoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: AppInsets.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 const Icon(Icons.star, color: AppColors.estrela),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpace.xs),
                 Text('${avaliacao.nota}/5'),
                 if (nomeAvaliador != null) ...[
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpace.md),
                   Expanded(child: Text(nomeAvaliador!)),
                 ],
               ],
             ),
             if (avaliacao.comentario case final String comentario) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpace.sm),
               Text(comentario),
             ],
           ],

@@ -99,7 +99,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
             }
             final favoritos = snapshot.data ?? const <Profissional>[];
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              padding: AppInsets.page,
               children: [
                 const Text(
                   'Profissionais salvos',
@@ -109,25 +109,25 @@ class _FavoritosPageState extends State<FavoritosPage> {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpace.sm),
                 const Text(
                   'Consulte os perfis que você adicionou aos favoritos.',
                   style: TextStyle(color: AppColors.textoSuave, height: 1.35),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpace.lg),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
+                  spacing: AppSpace.md,
+                  runSpacing: AppSpace.sm,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: AppSpace.md,
+                        vertical: AppSpace.sm,
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.verdeClaro,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
                       ),
                       child: const Text(
                         'Profissionais',
@@ -148,7 +148,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpace.lg),
                 if (favoritos.isEmpty)
                   const EmptyStateView(
                     title: 'Sua lista está vazia',
@@ -161,7 +161,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
                       profissional: profissional,
                       onRemover: () => _removerFavorito(store, profissional.id),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpace.md),
                   ],
               ],
             );

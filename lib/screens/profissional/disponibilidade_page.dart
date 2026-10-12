@@ -116,12 +116,12 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                   );
                 }
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 96),
+                  padding: AppInsets.page.copyWith(bottom: 96),
                   children: [
                     const Card(
                       color: AppColors.verdeClaro,
                       child: Padding(
-                        padding: EdgeInsets.all(16),
+                        padding: AppInsets.card,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -129,7 +129,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                               Icons.event_available_outlined,
                               color: AppColors.verdeEscuro,
                             ),
-                            SizedBox(width: 12),
+                            SizedBox(width: AppSpace.md),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +142,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                                       fontSize: 16,
                                     ),
                                   ),
-                                  SizedBox(height: 6),
+                                  SizedBox(height: AppSpace.sm),
                                   Text(
                                     'Cadastre os horários em que você pode receber solicitações. Os pedidos devem respeitar os horários disponíveis.',
                                     style: TextStyle(height: 1.4),
@@ -154,7 +154,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: AppSpace.xl),
                     const Text(
                       'Horários disponíveis',
                       style: TextStyle(
@@ -163,7 +163,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                         color: AppColors.texto,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpace.md),
                     if (_itens.isEmpty)
                       const EmptyStateView(
                         title: 'Agenda sem horários',
@@ -177,9 +177,9 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                           item: _itens[index],
                           onRemover: () => _remover(index),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: AppSpace.md),
                       ],
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpace.md),
                     FilledButton.icon(
                       onPressed: _salvando ? null : _salvar,
                       icon: _salvando
@@ -213,13 +213,18 @@ class _DisponibilidadeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.lg,
+          AppSpace.lg,
+          AppSpace.sm,
+          AppSpace.lg,
+        ),
         child: Row(
           children: [
             DecoratedBox(
               decoration: BoxDecoration(
                 color: AppColors.verdeClaro,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadii.field),
               ),
               child: const SizedBox.square(
                 dimension: 44,
@@ -229,7 +234,7 @@ class _DisponibilidadeCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpace.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +246,7 @@ class _DisponibilidadeCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpace.xs),
                   Text(
                     '${item.horaInicio} às ${item.horaFim}',
                     style: const TextStyle(color: AppColors.textoSuave),
@@ -302,7 +307,12 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
           bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.pageGutter,
+            AppSpace.xl,
+            AppSpace.pageGutter,
+            AppSpace.xl,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -313,12 +323,12 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                   'Adicionar horário',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpace.sm),
                 const Text(
                   'Selecione o dia e o período de atendimento.',
                   style: TextStyle(color: AppColors.textoSuave, height: 1.4),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpace.xl),
                 DropdownButtonFormField<int>(
                   initialValue: _dia,
                   isExpanded: true,
@@ -329,7 +339,7 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                   ],
                   onChanged: (value) => setState(() => _dia = value ?? 1),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: AppSpace.md),
                 Row(
                   children: [
                     Expanded(
@@ -339,7 +349,7 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                         validator: validarCampoObrigatorio,
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: AppSpace.md),
                     Expanded(
                       child: TextFormField(
                         controller: _fim,
