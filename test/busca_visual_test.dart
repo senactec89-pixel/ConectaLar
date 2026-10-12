@@ -44,8 +44,9 @@ void main() {
         );
         final selecionada = find.text('Categoria: ${categoria.nome}');
         final limpar = find.widgetWithText(TextButton, 'Limpar filtros');
-        expect(tester.getRect(selecionada).left, closeTo(36, 1));
-        expect(tester.getRect(limpar).right, lessThanOrEqualTo(width - 36));
+        final campo = tester.getRect(find.byKey(const ValueKey('busca-termo')));
+        expect(tester.getRect(selecionada).left, closeTo(campo.left, 1));
+        expect(tester.getRect(limpar).right, lessThanOrEqualTo(campo.right));
         expect(tester.getSize(limpar).height, greaterThanOrEqualTo(48));
         expect(limpar.hitTestable(), findsOneWidget);
         await tester.tap(limpar);
@@ -134,6 +135,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(limpar);
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Categorias'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
       final outrasCategorias = find.widgetWithText(FilterChip, 'Outros');
       await tester.ensureVisible(outrasCategorias);
       await tester.pumpAndSettle();

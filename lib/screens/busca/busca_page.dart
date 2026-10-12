@@ -161,9 +161,11 @@ class _BuscaPageState extends State<BuscaPage> {
                   AppSpace.xxl,
                 ),
                 children: [
-                  const Text(
+                  Text(
                     'Pesquise por serviço, profissional ou bairro.',
-                    style: TextStyle(color: AppColors.textoSuave, height: 1.35),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textoSuave,
+                    ),
                   ),
                   const SizedBox(height: AppSpace.lg),
                   _FiltrosBusca(
@@ -230,127 +232,106 @@ class _FiltrosBusca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        border: Border.all(color: AppColors.borda),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10153B31),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const ValueKey('busca-termo'),
+          controller: termoController,
+          onChanged: onTextoAlterado,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.search_rounded),
+            labelText: 'Serviço ou profissional',
+            hintText: 'Ex.: elétrica, limpeza, Carlos',
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+        TextField(
+          key: const ValueKey('busca-bairro'),
+          controller: bairroController,
+          onChanged: onTextoAlterado,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.location_on_outlined),
+            labelText: 'Bairro',
+            hintText: 'Ex.: Vila Nova',
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+        if (categorias.isNotEmpty) ...[
+          Wrap(
+            spacing: AppSpace.md,
+            runSpacing: AppSpace.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Categorias',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(color: AppColors.texto),
+              ),
+              Text(
+                'Deslize para ver mais',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.sm),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final categoria in categorias)
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpace.sm),
+                    child: FilterChip(
+                      label: Text(categoria.nome),
+                      selected: categoriaSelecionada?.id == categoria.id,
+                      onSelected: (_) => onCategoriaSelecionada(categoria),
+                      showCheckmark: false,
+                      avatar: categoriaSelecionada?.id == categoria.id
+                          ? const Icon(Icons.check_rounded, size: 18)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: Padding(
-        padding: AppInsets.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              key: const ValueKey('busca-termo'),
-              controller: termoController,
-              onChanged: onTextoAlterado,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search_rounded),
-                labelText: 'Serviço ou profissional',
-                hintText: 'Ex.: elétrica, limpeza, Carlos',
-              ),
-            ),
-            const SizedBox(height: AppSpace.md),
-            TextField(
-              key: const ValueKey('busca-bairro'),
-              controller: bairroController,
-              onChanged: onTextoAlterado,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.location_on_outlined),
-                labelText: 'Bairro',
-                hintText: 'Ex.: Vila Nova',
-              ),
-            ),
-            const SizedBox(height: AppSpace.md),
-            if (categorias.isNotEmpty) ...[
-              const Wrap(
-                spacing: AppSpace.md,
-                runSpacing: AppSpace.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
+        if (categoriaSelecionada != null || onLimparFiltros != null) ...[
+          const SizedBox(height: AppSpace.sm),
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: categoriaSelecionada == null
+                  ? WrapAlignment.end
+                  : WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpace.md,
+              runSpacing: AppSpace.xs,
+              children: [
+                if (categoriaSelecionada != null)
                   Text(
-                    'Categorias',
-                    style: TextStyle(
-                      color: AppColors.texto,
-                      fontWeight: FontWeight.w700,
+                    'Categoria: ${categoriaSelecionada!.nome}',
+                    style: const TextStyle(
+                      color: AppColors.verdeEscuro,
+                      fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
                   ),
-                  Text(
-                    'Deslize para ver mais',
-                    style: TextStyle(color: AppColors.textoSuave, fontSize: 12),
+                if (onLimparFiltros != null)
+                  TextButton.icon(
+                    onPressed: onLimparFiltros,
+                    style: TextButton.styleFrom(minimumSize: const Size(0, 48)),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Limpar filtros'),
                   ),
-                ],
-              ),
-              const SizedBox(height: AppSpace.sm),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final categoria in categorias)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpace.sm),
-                        child: FilterChip(
-                          label: Text(categoria.nome),
-                          selected: categoriaSelecionada?.id == categoria.id,
-                          onSelected: (_) => onCategoriaSelecionada(categoria),
-                          showCheckmark: false,
-                          avatar: categoriaSelecionada?.id == categoria.id
-                              ? const Icon(Icons.check_rounded, size: 18)
-                              : null,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-            if (categoriaSelecionada != null || onLimparFiltros != null) ...[
-              const SizedBox(height: AppSpace.sm),
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(
-                  alignment: categoriaSelecionada == null
-                      ? WrapAlignment.end
-                      : WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: AppSpace.md,
-                  runSpacing: AppSpace.xs,
-                  children: [
-                    if (categoriaSelecionada != null)
-                      Text(
-                        'Categoria: ${categoriaSelecionada!.nome}',
-                        style: const TextStyle(
-                          color: AppColors.verdeEscuro,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    if (onLimparFiltros != null)
-                      TextButton.icon(
-                        onPressed: onLimparFiltros,
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 48),
-                        ),
-                        icon: const Icon(Icons.close_rounded, size: 18),
-                        label: const Text('Limpar filtros'),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -371,21 +352,14 @@ class _CabecalhoResultados extends StatelessWidget {
       spacing: AppSpace.md,
       runSpacing: AppSpace.sm,
       children: [
-        Text(
-          'Resultados',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: AppColors.texto,
-            fontWeight: FontWeight.w800,
+        Semantics(
+          header: true,
+          child: Text(
+            'Resultados',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
         ),
-        Text(
-          texto,
-          style: const TextStyle(
-            color: AppColors.textoSuave,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(texto, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }

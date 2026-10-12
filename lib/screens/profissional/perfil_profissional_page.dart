@@ -40,7 +40,7 @@ class PerfilProfissionalPage extends StatelessWidget {
   }
 }
 
-class _PerfilProfissionalContent extends StatelessWidget {
+class _PerfilProfissionalContent extends StatefulWidget {
   const _PerfilProfissionalContent({
     required this.profissional,
     required this.store,
@@ -48,6 +48,31 @@ class _PerfilProfissionalContent extends StatelessWidget {
 
   final Profissional profissional;
   final ConectaLarMockStore store;
+
+  @override
+  State<_PerfilProfissionalContent> createState() =>
+      _PerfilProfissionalContentState();
+}
+
+class _PerfilProfissionalContentState
+    extends State<_PerfilProfissionalContent> {
+  final _sobreKey = GlobalKey();
+  final _servicosKey = GlobalKey();
+  final _avaliacoesKey = GlobalKey();
+
+  Profissional get profissional => widget.profissional;
+  ConectaLarMockStore get store => widget.store;
+
+  void _irPara(GlobalKey key) {
+    final sectionContext = key.currentContext;
+    if (sectionContext == null) return;
+    Scrollable.ensureVisible(
+      sectionContext,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+      alignment: 0.02,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,74 +109,112 @@ class _PerfilProfissionalContent extends StatelessWidget {
       }
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-      children: [
-        _CabecalhoPerfil(
-          profissional: profissional,
-          fotoAsset: foto,
-          favorito:
-              AppServices.instance.emDemonstracao &&
-              store.isFavorito(profissional.id),
-          onFavoritoTap: acoesCliente ? salvarFavorito : null,
-        ),
-        const SizedBox(height: 18),
-        _SecaoPerfil(
-          title: 'Serviços oferecidos',
-          child: profissional.servicos.isEmpty
-              ? Text(
-                  profissional.descricao,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                )
-              : Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final servico in profissional.servicos)
-                      Chip(
-                        label: Text(servico),
-                        avatar: const Icon(Icons.home_repair_service, size: 18),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final margem = constraints.maxWidth > 760
+            ? (constraints.maxWidth - 720) / 2
+            : AppSpace.pageGutter;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            margem,
+            AppSpace.lg,
+            margem,
+            AppSpace.xxl,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _CabecalhoPerfil(
+                profissional: profissional,
+                fotoAsset: foto,
+                favorito:
+                    AppServices.instance.emDemonstracao &&
+                    store.isFavorito(profissional.id),
+                onFavoritoTap: acoesCliente ? salvarFavorito : null,
+              ),
+              const SizedBox(height: AppSpace.sm),
+              Wrap(
+                spacing: AppSpace.sm,
+                runSpacing: AppSpace.xs,
+                children: [
+                  for (final atalho in [
+                    ('sobre', 'Sobre', _sobreKey),
+                    ('servicos', 'Serviços', _servicosKey),
+                    ('avaliacoes', 'Avaliações', _avaliacoesKey),
+                  ])
+                    TextButton(
+                      key: ValueKey('perfil-atalho-${atalho.$1}'),
+                      onPressed: () => _irPara(atalho.$3),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 48),
                       ),
+                      child: Text(atalho.$2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.md),
+              _SecaoPerfil(
+                key: _sobreKey,
+                title: 'Sobre o profissional',
+                child: Text(
+                  profissional.descricao.trim().isEmpty
+                      ? 'Apresentação não informada.'
+                      : profissional.descricao,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(height: AppSpace.lg),
+              _SecaoPerfil(
+                key: _servicosKey,
+                title: 'Serviços oferecidos',
+                child: _ServicosPerfil(profissional: profissional),
+              ),
+              const SizedBox(height: AppSpace.lg),
+              _SecaoPerfil(
+                title: 'Atendimento',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _InfoLinha(
+                      icon: Icons.location_on_outlined,
+                      text: 'Atende em ${profissional.bairro}',
+                    ),
+                    const SizedBox(height: AppSpace.md),
+                    _InfoLinha(
+                      icon: Icons.payments_outlined,
+                      text: _precoTexto(profissional.precoInicial),
+                    ),
+                    const SizedBox(height: AppSpace.md),
+                    const _InfoLinha(
+                      icon: Icons.handshake_outlined,
+                      text: 'Pagamento combinado diretamente entre as partes',
+                    ),
+                    const SizedBox(height: AppSpace.lg),
+                    Text(
+                      'Antes de solicitar',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    const Text(
+                      'A solicitação será enviada ao profissional e começará aguardando '
+                      'resposta. O serviço só fica agendado após aceite válido.',
+                    ),
                   ],
                 ),
-        ),
-        const SizedBox(height: 12),
-        _SecaoPerfil(
-          title: 'Atendimento',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _InfoLinha(
-                icon: Icons.location_on_outlined,
-                text: 'Atende em ${profissional.bairro}',
               ),
-              const SizedBox(height: 10),
-              _InfoLinha(
-                icon: Icons.payments_outlined,
-                text: _precoTexto(profissional.precoInicial),
-              ),
-              const SizedBox(height: 10),
-              const _InfoLinha(
-                icon: Icons.handshake_outlined,
-                text: 'Pagamento combinado diretamente entre as partes',
+              const SizedBox(height: AppSpace.xl),
+              _SecaoPerfil(
+                key: _avaliacoesKey,
+                title: 'Avaliações de clientes',
+                emCard: false,
+                child: AvaliacoesPublicadasView(
+                  profissionalId: profissional.id,
+                ),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 12),
-        const _SecaoPerfil(
-          title: 'Antes de solicitar',
-          child: Text(
-            'A solicitação será enviada ao profissional e começará aguardando '
-            'resposta. O serviço só fica agendado após aceite válido.',
-          ),
-        ),
-        const SizedBox(height: 12),
-        _SecaoPerfil(
-          title: 'Avaliações de clientes',
-          child: AvaliacoesPublicadasView(profissionalId: profissional.id),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -172,15 +235,7 @@ class _CabecalhoPerfil extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
-    final avatar = CircleAvatar(
-      radius: 42,
-      backgroundColor: AppColors.verdeClaro,
-      foregroundColor: AppColors.verde,
-      backgroundImage: fotoAsset == null ? null : AssetImage(fotoAsset!),
-      child: fotoAsset == null
-          ? const Icon(Icons.person_rounded, size: 42)
-          : null,
-    );
+    final avatar = _FotoPerfil(fotoAsset: fotoAsset, nome: profissional.nome);
     final identificacao = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -188,14 +243,11 @@ class _CabecalhoPerfil extends StatelessWidget {
           profissional.nome,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: AppColors.texto,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          profissional.descricao,
-          style: const TextStyle(color: AppColors.textoSuave),
-        ),
+        const SizedBox(height: AppSpace.sm),
+        Text(profissional.bairro, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
     final favoritoButton = onFavoritoTap == null
@@ -209,20 +261,9 @@ class _CabecalhoPerfil extends StatelessWidget {
               color: favorito ? const Color(0xFFC53030) : AppColors.texto,
             ),
           );
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10153B31),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
+    return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: AppInsets.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -233,16 +274,19 @@ class _CabecalhoPerfil extends StatelessWidget {
                 if (textoAmpliado)
                   const Spacer()
                 else
-                  const SizedBox(width: 14),
+                  const SizedBox(width: AppSpace.lg),
                 if (!textoAmpliado) Expanded(child: identificacao),
                 ?favoritoButton,
               ],
             ),
-            if (textoAmpliado) ...[const SizedBox(height: 12), identificacao],
-            const SizedBox(height: 12),
+            if (textoAmpliado) ...[
+              const SizedBox(height: AppSpace.md),
+              identificacao,
+            ],
+            const SizedBox(height: AppSpace.md),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: AppSpace.sm,
+              runSpacing: AppSpace.sm,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (profissional.notaMedia == null)
@@ -272,34 +316,124 @@ class _CabecalhoPerfil extends StatelessWidget {
 }
 
 class _SecaoPerfil extends StatelessWidget {
-  const _SecaoPerfil({required this.title, required this.child});
+  const _SecaoPerfil({
+    required this.title,
+    required this.child,
+    this.emCard = true,
+    super.key,
+  });
 
   final String title;
   final Widget child;
+  final bool emCard;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.texto,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
+    final conteudo = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
+        const SizedBox(height: AppSpace.md),
+        child,
+      ],
+    );
+    return emCard
+        ? Card(
+            child: Padding(padding: AppInsets.card, child: conteudo),
+          )
+        : conteudo;
+  }
+}
+
+class _ServicosPerfil extends StatelessWidget {
+  const _ServicosPerfil({required this.profissional});
+  final Profissional profissional;
+
+  @override
+  Widget build(BuildContext context) {
+    final itens = profissional.ofertas.isNotEmpty
+        ? [
+            for (final oferta in profissional.ofertas)
+              (oferta.nome, oferta.precoInicial),
+          ]
+        : [for (final nome in profissional.servicos) (nome, null)];
+    if (itens.isEmpty) {
+      return const Text(
+        'Consulte o profissional sobre os serviços oferecidos.',
+      );
+    }
+    return Column(
+      children: [
+        for (var index = 0; index < itens.length; index++) ...[
+          if (index > 0)
+            const Divider(height: AppSpace.xl, color: AppColors.borda),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.home_repair_service_outlined,
+                color: AppColors.verdeEscuro,
+                size: 20,
+              ),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      itens[index].$1,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    Text(
+                      _precoTexto(itens[index].$2),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _FotoPerfil extends StatelessWidget {
+  const _FotoPerfil({required this.fotoAsset, required this.nome});
+  final String? fotoAsset;
+  final String nome;
+
+  @override
+  Widget build(BuildContext context) {
+    final inicial = nome.trim().isEmpty ? '?' : nome.trim().characters.first;
+    final fallback = ColoredBox(
+      color: AppColors.verdeClaro,
+      child: Center(
+        child: Text(
+          inicial.toUpperCase(),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(color: AppColors.verde),
+        ),
+      ),
+    );
+    return ClipOval(
+      child: SizedBox.square(
+        dimension: 84,
+        child: fotoAsset == null
+            ? fallback
+            : Image.asset(
+                fotoAsset!,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                semanticLabel: 'Foto de $nome',
+                errorBuilder: (_, _, _) => fallback,
+              ),
       ),
     );
   }
@@ -316,10 +450,13 @@ class _ResumoChip extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 210),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.md,
+          vertical: AppSpace.sm,
+        ),
         decoration: BoxDecoration(
           color: AppColors.verdeClaro,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -355,7 +492,7 @@ class _InfoLinha extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, color: AppColors.verdeEscuro, size: 20),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpace.sm),
         Expanded(
           child: Text(
             text,
@@ -382,13 +519,7 @@ class _SolicitarServicoBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
         decoration: const BoxDecoration(
           color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Color(0x14153B31),
-              blurRadius: 18,
-              offset: Offset(0, -6),
-            ),
-          ],
+          border: Border(top: BorderSide(color: AppColors.borda)),
         ),
         child: FilledButton.icon(
           key: const ValueKey('perfil-solicitar-servico'),

@@ -1,3 +1,4 @@
+import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/models/profissional.dart';
 import 'package:conectarlar_app/screens/profissional/perfil_profissional_page.dart';
@@ -5,6 +6,8 @@ import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/frontend_helpers.dart';
 
 void main() {
   tearDown(() => AppServices.instance.api.close());
@@ -71,6 +74,165 @@ void main() {
         expect(tester.getSize(solicitar).height, greaterThanOrEqualTo(48));
         expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
       }
+    }
+  });
+
+  testWidgets('atalhos do perfil preservam avaliações e oferta ao solicitar', (
+    tester,
+  ) async {
+    var consultas = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/profissionais/44/avaliacoes') {
+          consultas++;
+          return jsonResponse({
+            'resumo': {'notaMedia': 4.8, 'quantidadeAvaliacoes': 1},
+            'avaliacoes': [
+              {
+                'nota': 5,
+                'comentario': 'Atendimento cuidadoso.',
+                'criadoEm': '2026-10-12T12:00:00Z',
+              },
+            ],
+          });
+        }
+        return null;
+      },
+    );
+    const profissional = Profissional(
+      id: 44,
+      usuarioId: 144,
+      nome: 'Maria Eduarda de Almeida e Souza',
+      descricao:
+          'Instalação e manutenção residencial com atendimento na região.',
+      bairro: 'Jardim das Flores',
+      precoInicial: 80,
+      verificado: true,
+      servicos: ['Nome antigo do catálogo'],
+      ofertas: [
+        OfertaProfissional(
+          id: 501,
+          nome: 'Instalação de equipamentos residenciais',
+          precoInicial: 250,
+        ),
+        OfertaProfissional(
+          id: 502,
+          nome: 'Manutenção de equipamentos residenciais',
+        ),
+      ],
+    );
+    for (final width in [360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      final antes = consultas;
+      Object? argumento;
+      await abrirFrontend(
+        tester,
+        AppRoutes.perfilProfissional,
+        arguments: profissional,
+        width: width,
+        textScale: 2,
+        overrides: {
+          AppRoutes.solicitarServico: (context) {
+            argumento = ModalRoute.of(context)!.settings.arguments;
+            return const Scaffold(body: Text('Formulário de solicitação'));
+          },
+        },
+      );
+      expect(consultas, antes + 1);
+      for (final atalho in [
+        ('servicos', 'Serviços oferecidos'),
+        ('avaliacoes', 'Avaliações de clientes'),
+        ('sobre', 'Sobre o profissional'),
+      ]) {
+        final botao = find.byKey(ValueKey('perfil-atalho-${atalho.$1}'));
+        await tester.ensureVisible(botao);
+        await tester.pumpAndSettle();
+        expect(tester.getSize(botao).height, greaterThanOrEqualTo(48));
+        await tester.tap(botao);
+        await tester.pumpAndSettle();
+        expect(find.text(atalho.$2).hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: '$width: ${atalho.$1}');
+      }
+      expect(
+        consultas,
+        antes + 1,
+        reason: 'Navegar nas seções não refaz a consulta.',
+      );
+      expect(find.text('A partir de R\$ 250,00'), findsOneWidget);
+      expect(find.text('Preço inicial sob consulta'), findsOneWidget);
+      expect(find.text('Nome antigo do catálogo'), findsNothing);
+      final solicitar = find.byKey(const ValueKey('perfil-solicitar-servico'));
+      expect(solicitar.hitTestable(), findsOneWidget);
+      await tester.tap(solicitar);
+      await tester.pumpAndSettle();
+      expect(identical(argumento, profissional), isTrue);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets(
+    'perfil sem foto ou preços por oferta mantém leitura e valores reais',
+    (tester) async {
+      await configurarFrontend();
+      const profissional = Profissional(
+        id: 44,
+        usuarioId: 144,
+        nome: 'Novo profissional',
+        descricao: 'Atendimento residencial',
+        bairro: 'Jardim das Flores',
+        fotoAsset: 'assets/images/home/foto-inexistente.png',
+        precoInicial: 80,
+        servicos: [
+          'Instalação de equipamentos residenciais com nome longo',
+          'Reparos',
+        ],
+      );
+      await abrirFrontend(
+        tester,
+        AppRoutes.perfilProfissional,
+        arguments: profissional,
+        width: 360,
+        textScale: 2,
+      );
+      expect(find.text('N'), findsOneWidget);
+      expect(find.text('Documentos verificados'), findsNothing);
+      expect(find.text('Preço inicial sob consulta'), findsNWidgets(2));
+      expect(find.text('A partir de R\$ 80,00'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('perfil público preserva ações conforme o papel autenticado', (
+    tester,
+  ) async {
+    const profissional = Profissional(
+      id: 44,
+      usuarioId: 144,
+      nome: 'Profissional',
+      descricao: 'Atendimento residencial',
+      bairro: 'Centro',
+    );
+    for (final papel in ['profissional', 'administrador']) {
+      await configurarFrontend(papel: papel);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.perfilProfissional,
+        arguments: profissional,
+        width: 360,
+        textScale: 2,
+      );
+      expect(
+        find.byKey(const ValueKey('perfil-solicitar-servico')),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('perfil-favorito-44')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('perfil-atalho-servicos')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      AppServices.instance.api.close();
     }
   });
 }
