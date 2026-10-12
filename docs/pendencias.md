@@ -1,80 +1,56 @@
 # Pendências do ConectaLar
 
-Estas pendências foram preservadas para não transformar propostas documentais em regras aprovadas. Nenhuma delas bloqueia a fundação técnica da Etapa 1.
+Estado revisado para main, commit 0264eab, em 11/10/2026. O app e a API já implementam o núcleo dos fluxos de demonstração; as listas abaixo distinguem ajustes técnicos, decisões de produto e requisitos de produção.
 
-## Fontes localizadas e status documental
+## Correções recentes já incorporadas
 
-Os materiais abaixo estão em `Downloads` e foram localizados em 9 de outubro de 2026:
+- Campo de envio do chat alinhado ao contrato.
+- Tela de denúncia do cliente adicionada.
+- Solicitação passou a exigir endereço cadastrado.
+- Validação de senha forte aplicada no Flutter e na API.
+- Selo do perfil profissional corrigido para texto longo.
+- Mensagem de busca vazia revisada.
 
-- `ConectaLar_Requisitos_Funcionais_v3_Revisado.docx`;
-- `ConectaLar_Requisitos_Nao_Funcionais_e_Regras_de_Negocio_Revisado.docx`;
-- `ConectaLar_Telas_Restantes_Administrativo.pdf`;
-- `Prototipo.pdf`;
-- `ConectaLar.zip`.
+## Ajustes técnicos que ainda merecem validação
 
-Os dois DOCX foram lidos para preparar o início da Etapa 2. Eles classificam RF001–RF030 como preservados e RF031–RF042 como propostas; RNF001–RNF026 e RB01–RB18 são preservados, enquanto complementos têm situação própria. P01–P18 e Q01–Q08 seguem para validação. O conteúdo desses documentos é fonte de requisitos, mas recomendações identificadas como propostas não são aprovações do usuário.
+- No formulário de solicitação, erro de rede ao carregar endereços pode parecer ausência de endereço; separar erro/retry do estado realmente vazio.
+- A troca de senha usa resposta 401; validar que senha atual incorreta não seja confundida com sessão expirada.
+- O favorito no perfil público deve refletir o estado salvo na API e permitir atualização coerente.
+- Reconsultar dados do perfil público ao abrir, se necessário para evitar informação desatualizada.
+- Garantir que a conversa em estado encerrado não sugira envio de mensagens que a API recusará.
+- Corrigir a preservação de preço nulo da oferta “a combinar”, caso diferente do preço inicial do perfil.
+- Completar a inspeção segura de documentos na moderação administrativa.
+- Tornar a emissão de notificações resiliente a falhas ocorridas após a operação principal.
+- Definir paginação para busca, histórico, chat e listas administrativas conforme volume esperado.
 
-Os PDFs ainda precisam de inspeção visual antes de implementar telas administrativas. Protótipos e imagens orientam apresentação, não substituem requisitos funcionais nem regras de negócio. O stack PHP/XAMPP mencionado nos DOCX é histórico e não prevalece sobre o prompt mestre atual.
+## Decisões de produto ainda abertas
 
-## Políticas a decidir nas etapas correspondentes
+- Duração, fuso, sobreposição e capacidade da agenda, inclusive empresas e múltiplos executores.
+- Prazo e exceções de cancelamento.
+- Política de snapshot, histórico, retenção e acesso ao endereço após encerramento/cancelamento.
+- Critérios para selo quando há vários documentos, reenvio e expiração documental.
+- Política de recuperação de senha, expiração de token e sessões concorrentes.
+- Conta administrativa principal, convites, permissões, revogação e MFA.
+- Cidades/cobertura, comparação de profissionais e escopo do catálogo.
+- Abertura e continuidade do chat, anexos, canais de notificação e preferências.
+- Retenção/descarte de dados pessoais, atendimento a titulares e conteúdo final dos termos.
 
-- Cidades, cobertura territorial e regras de atendimento por região.
-- Exceções e prevalência das condições do prestador diante da referência documental de cancelamento em 24 horas.
-- Momento de visibilidade do endereço completo já tem regra operacional no contrato atual: cliente, administrador e profissional vinculado podem ver o endereço completo após aceite do atendimento. Ainda falta decidir política de snapshot, histórico, retenção e acesso após cancelamento/encerramento.
-- Duração e capacidade de atendimento de profissionais/empresas. O aceite já bloqueia pedidos aceitos na mesma data e horário, inclusive em concorrência; sobreposição por duração e múltiplos executores ainda dependem de P06/P12.
-- Momento de abertura do chat, anexos, avaliações e reenvio de mensagens.
-- Retenção, descarte e solicitações de titulares para dados pessoais.
-- Permissões, justificativa e auditoria de decisões administrativas e denúncias.
-- Decisões P01–P18 listadas na seção 8 do DOCX funcional permanecem a validar; propostas não devem ser incluídas como regra aprovada.
-- Metas Q01–Q08 do DOCX de qualidade são propostas, sem valores aprovados para alegações ou testes de homologação.
-- Identificadores expostos pela API, convenção de data/hora e paginação precisam de proposta e registro antes de fechar os contratos de negócio.
+As decisões P01–P18 e Q01–Q08 têm situação individual na documentação de requisitos. Itens classificados como proposta não devem ser tratados como aprovados. O SQL em database/conectalar.sql é legado e não deve ser migrado para a estrutura TypeORM atual.
 
-### Gate explícito para o modelo e as migrations da Etapa 2
+## Preparação para produção
 
-Todos os itens abaixo seguem **a validar**. A descrição completa e as recomendações originais permanecem no DOCX funcional v3; esta lista serve para mostrar o que cada decisão desbloqueia.
+- Recuperação de senha com envio por contato verificado e MFA administrativo.
+- Storage privado gerenciado, validação do conteúdo dos documentos, antivírus e política de retenção.
+- HTTPS, configuração de proxies confiáveis e rate limit que funcione entre instâncias.
+- Backup/restauração testados, monitoramento, alertas, resposta a incidentes e pipeline de publicação.
+- Assinatura release Android, identificador final e ambiente macOS/conta de loja para iOS.
+- Homologação completa em aparelho real com API e MySQL.
 
-| Decisão | Tema para validar | Efeito direto no modelo/contrato |
-| --- | --- | --- |
-| P01 | Campos, visibilidade e identificador da conta/perfil | Colunas de conta, normalização, unicidade e IDs públicos |
-| P02 | Sessões, recuperação e revogação | Tabelas/expiração de sessão e desafios de recuperação |
-| P03 | Taxonomia, ofertas e preço | Categoria, serviço, oferta, preço e constraints de duplicidade |
-| P04 | Endereços e acesso ao local | Endereço salvo, snapshot por pedido e autorização após atendimento |
-| P05 | Cobertura e localidades de lançamento | Catálogo territorial e cobertura de prestador |
-| P06 | Duração, fuso, disponibilidade e concorrência | Tipos temporais, capacidade, bloqueios e índices de agenda |
-| P07 | Campos do pedido, recusa e ausência de resposta | Colunas de solicitação, limites e transições |
-| P08 | Cancelamento e exceções | Transições, prazos e registros de cancelamento |
-| P09 | Momento e recursos do chat | Conversa, mensagem, encerramento, anexos e leitura |
-| P10 | Documentos e critérios de verificação | Tipos, estados, metadados e renovação de documentos |
-| P11 | Denúncias, moderação e permissões administrativas | Alvos, medidas autorizadas, papéis e auditoria |
-| P12 | Empresa, integrantes e capacidade | Organização, vínculos, executor e atribuição de pedidos |
-| P13 | Retenção, encerramento e solicitações de titulares | Prazos, descarte, anonimização e snapshots históricos |
-| P14 | Canais, conteúdo e preferências de notificações | Avisos internos, push, destinatários e tentativas |
-| P15 | Papéis e ciclo de vida da conta | Relações de papéis, suspensão, troca e encerramento |
-| P16 | Visitantes, comparação, filtros e elementos adicionais | Visibilidade pública, limites e ordenação de busca |
-| P17 | Conclusão e política de avaliação | Elegibilidade, escala, unicidade, edição e moderação |
-| P18 | Avisos legais, versão e manifestação | Versões de documentos e registro de aceite quando aplicável |
+## Documentação relacionada
 
-A escolha TypeORM + `mysql2` já foi aprovada e registrada em `docs/decisoes.md`. As convenções de IDs, data/fuso e paginação continuam como propostas; o escopo e as políticas P ainda precisam ser definidos antes de gerar migrations executáveis. Nada desta tabela autoriza modificar ou migrar `database/conectalar.sql`.
-
-### Respostas recebidas para identidade
-
-- **P01 — parcialmente decidido:** login por e-mail ou telefone. Antes do contrato, confirmar se os dois contatos precisam ser verificados e definir normalização/campos obrigatórios e visibilidade do perfil.
-- **P02 — recomendação aprovada:** recuperação por contato verificado com prova de uso único; a troca de senha exige prova de titularidade e logout invalida a sessão encerrada. Falta definir o prazo de validade e a política de sessões simultâneas.
-- **P15 — parcialmente decidido:** haverá uma conta administrativa principal que cria contas administrativas separadas com seus próprios e-mails. O prompt mestre mantém MFA obrigatório e proíbe credenciais compartilhadas. Falta definir convite, permissões iniciais, revogação e recuperação da conta principal.
-- **Prompt mestre confirmado:** seguir a stack e as regras do prompt, inclusive contas administrativas individuais com MFA.
-- **MySQL:** o usuário vai criar a instância local. Ela deve ser exclusiva para desenvolvimento/teste e não conter os dados do SQL legado.
-
-## Restrições de operação
-
-### Limites dos módulos Flutter profissionais e administrativos
-
-- As telas profissionais P01–P07 e os módulos administrativos de usuários, documentos, denúncias, avaliações e categorias usam os endpoints disponíveis em `apps/api`. O selo continua condicionado à aprovação administrativa; o cliente não realiza essa aprovação.
-- A API atualiza as ofertas profissionais preservando os IDs enviados. Ofertas omitidas são desativadas, preservando o histórico; novas ofertas recebem novos IDs. O Flutter mantém os IDs ao editar perfil, serviços e região. A solicitação registra o ID e o nome da oferta escolhida no envio. Não foi criado um novo endpoint de exclusão individual.
-- O endpoint administrativo de usuários não informa o estado de verificação do perfil profissional. O painel conta documentos pendentes, mas não consegue separar profissionais pendentes de verificação de profissionais sem documentos enviados.
-- A API de categorias administra apenas nome e status. Cadastro de ícone/descrição, gerenciamento independente de serviços do catálogo e relatório/paginação administrativa não estão disponíveis; a interface não simula essas operações.
-- A solicitação agora aceita `enderecoId` e a API retorna o endereço completo apenas para atores autorizados: cliente dono, administrador e profissional vinculado depois do aceite. Antes do aceite, o profissional recebe somente dados protegidos do local. Permanecem pendentes as regras finais de snapshot, retenção, histórico e cancelamento.
-- O envio real de documentos profissionais foi implementado com seletor nativo no Flutter e upload Base64 para PDF, JPEG e PNG de até 5 MB. A API armazena o arquivo em diretório privado local de desenvolvimento e expõe o fluxo de moderação administrativa. Para produção ainda faltam armazenamento gerenciado privado, antivírus/verificação de conteúdo, política de retenção/descarte e trilha operacional de download/acesso.
-
-- O orçamento informado é de R$ 400 no total; desenvolvimento deve começar localmente e sem custos recorrentes assumidos.
-- A equipe não dispõe de Mac. Compilação e assinatura iOS dependem de ambiente macOS a escolher e aprovar antes da homologação.
-- Acesso a iPhone de teste, orçamento recorrente e contas das lojas ainda precisam ser confirmados antes de publicação.
+- [Progresso](progresso.md)
+- [Rastreabilidade](rastreabilidade.md)
+- [Segurança](seguranca.md)
+- [Checklist do cliente](checklist-homologacao-cliente.md)
+- [Checklist profissional](checklist-homologacao-profissional.md)
+- [Checklist admin](checklist-homologacao-admin.md)

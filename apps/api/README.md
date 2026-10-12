@@ -1,6 +1,6 @@
 # ConectaLar API foundation
 
-This is the new NestJS API workspace. The existing PHP backend remains legacy code and is not called by this foundation. The first MySQL-backed module is authentication, enabled only when the required database and token environment variables are present.
+This is the active NestJS API used by the Flutter app. It includes MySQL-backed modules for authentication, clients, professionals, categories, requests, chat, reviews, documents, notifications and administration. The PHP/XAMPP descriptions in the root README and the SQL schema are historical and are not used by this API.
 
 ## Runtime configuration
 
@@ -10,7 +10,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development`, `test`, or `production` |
 | `HOST` | `127.0.0.1` | IP address or DNS hostname |
-| `PORT` | `3000` | Integer from 1 through 65535 |
+| `PORT` | `3000` for direct start; the Windows local launcher sets `3012` | Integer from 1 through 65535 |
 | `DB_HOST` | none | Required to enable MySQL-backed routes |
 | `DB_PORT` | `3306` | Integer from 1 through 65535 |
 | `DB_USER` | none | Required to enable MySQL-backed routes |
@@ -24,7 +24,7 @@ The health check is `GET /health` and returns only `{ "status": "ok" }`. It does
 
 The OpenAPI contract in `openapi.yaml` covers the routes currently implemented by the API, including client profiles and addresses, professional availability and agenda, service requests, chat, reviews, reports, notifications, document moderation, administrative users, history, terms, and audit. It describes the current HTTP contract; it does not claim that every route has passed an integration or production test. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 
-For local troubleshooting, use `npm run diagnostico:local` after starting the API. The command checks `/health`, MySQL, pending migrations, demo logins, and the main demo endpoints. Use `npm run diagnostico:fluxo` for a deeper local end-to-end validation that creates temporary test data and exercises request creation, acceptance, chat, completion, reviews, reports, moderation, and audit. The full Windows workflow is documented in [`docs/ambiente-local.md`](../../docs/ambiente-local.md).
+For local troubleshooting, use `npm run diagnostico:local` after starting the API. The command checks `/health`, MySQL, pending migrations, demo logins, and the main demo endpoints. Use `npm run diagnostico:fluxo` for a deeper local end-to-end validation that creates temporary test data and exercises request creation, acceptance, chat, completion, reviews, reports, moderation, and audit. The full local workflow is documented in [`docs/ambiente-local.md`](../../docs/ambiente-local.md). The Flutter app defaults to port `3012`; direct API execution defaults to `3000`, so set `PORT` or the Flutter base URL when not using the Windows launcher.
 
 ## Logging and errors
 

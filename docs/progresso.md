@@ -1,67 +1,43 @@
 # Progresso do ConectaLar
 
-Atualizado em 2026-10-10, apos a integracao dos fluxos principais do app Flutter com a API NestJS/MySQL.
+Atualizado em 11/10/2026 para main, commit 0264eab.
 
-## Estado atual
+## Estado do produto
 
-O nucleo funcional de demo esta implementado no app e na API:
+O núcleo do app Flutter e da API NestJS/MySQL está implementado para demonstração local integrada:
 
-- cadastro e login de cliente, profissional e administrador;
-- perfil profissional, ofertas, disponibilidade e documentos de verificacao;
-- enderecos de cliente e solicitacoes com `enderecoId`;
-- protecao do endereco completo antes do aceite e liberacao apenas para atores autorizados apos aceite;
-- agenda/solicitacoes com estados formais `aguardando_resposta`, `aceita_agendada`, `recusada`, `cancelada` e `conclusao_confirmada`;
-- chat vinculado a solicitacao e restrito aos participantes autorizados;
-- conclusao de atendimento, avaliacoes e moderacao;
-- denuncias, moderacao administrativa e trilha de auditoria;
-- notificacoes internas;
-- modulos administrativos para usuarios, documentos, denuncias, avaliacoes, categorias e auditoria;
-- contrato OpenAPI atualizado para os fluxos principais.
+- cadastro, login, troca de senha e logout;
+- perfis de cliente, profissional e empresa, endereços e favoritos;
+- categorias, busca, ofertas e disponibilidade;
+- solicitações com endereço cadastrado, agenda e os cinco estados oficiais;
+- proteção do endereço antes do aceite;
+- chat por solicitação;
+- conclusão e avaliações dos participantes;
+- upload e moderação de documentos;
+- denúncias, notificações internas e auditoria administrativa;
+- módulos de administração para usuários, documentos, categorias, avaliações e denúncias.
 
-## Evidencias recentes
+As correções recentes também alinharam o campo enviado pelo chat, adicionaram o fluxo de denúncia do cliente, exigiram endereço cadastrado na solicitação, aplicaram senha forte no app e na API, corrigiram o overflow do selo profissional e melhoraram a mensagem de busca vazia.
 
-- `flutter analyze --no-pub`: aprovado.
-- `flutter test`: aprovado com 17 testes.
-- `npm.cmd run typecheck`: aprovado.
-- `npm.cmd test`: aprovado com 8 testes.
-- MySQL local + API em `127.0.0.1:3016`: fluxo integrado validado com cadastro, login, upload documental, moderacao, solicitacao com endereco protegido, aceite, liberacao de endereco, chat, conclusao, avaliacoes, denuncia e auditoria.
-- Commit publicado: `4e303d0 Corrige configuracao do body parser`.
+## Validações registradas
 
-Observacao: no Windows, `flutter analyze` sem `--no-pub` pode exigir Modo de Desenvolvedor por causa dos symlinks usados por plugins nativos como `file_picker`. Para analise rapida sem tentar recriar plugins, use `flutter analyze --no-pub`; para ambiente completo, habilite o Modo de Desenvolvedor do Windows.
+- Flutter: **90 testes aprovados**, conforme resultado mais recente informado pela equipe.
+- Flutter: análise estática sem problemas no último registro disponível.
+- API: existem testes unitários/contratuais, testes de integração com MySQL e scripts de diagnóstico local. Os resultados registrados anteriormente são anteriores ao commit 0264eab e devem ser repetidos antes de uma entrega.
+- Capturas Flutter Web em 360, 390 e 412 px estão em docs/evidencias. São prévias com dados fictícios.
 
-## Checklist de demo
+Não houve execução de testes ao atualizar este documento. Antes de usar estes resultados como evidência de release, registrar comando, data, commit, ambiente e resultado em um único lugar.
 
-A validacao integrada via contrato HTTP esta registrada em `docs/checklist-demo.md`. O que ela cobriu:
+## Ainda falta para homologar
 
-- envio real de PDF, JPEG e PNG pelo fluxo profissional;
-- listagem desses documentos no painel administrativo;
-- aprovacao e rejeicao de documentos pelo administrador;
-- retorno do status atualizado na area profissional;
-- cadastro de cliente;
-- cadastro de profissional;
-- criacao de solicitacao com endereco;
-- aceite pelo profissional;
-- endereco completo liberado apos aceite;
-- mensagens no chat;
-- conclusao do atendimento;
-- avaliacao;
-- denuncia;
-- moderacao administrativa;
-- auditoria administrativa.
+- Percorrer o fluxo cliente, profissional e admin no aparelho com API e MySQL atualizados.
+- Confirmar cadastro, endereço, busca, solicitação, aceite/recusa, chat, conclusão, avaliação, denúncia, documentos e moderação.
+- Conferir o seletor nativo, arquivos inválidos/maiores que 5 MB, teclado, fonte ampliada e retorno de erros.
+- Distinguir falha de rede de lista vazia no carregamento de dados da solicitação.
+- Reconciliar os números de testes nos relatórios antigos.
 
-Ainda falta a conferencia visual manual no Flutter do seletor nativo de arquivo, porque o clique abre uma interface do sistema operacional e nao foi automatizado neste roteiro.
+Roteiros: [cliente](checklist-homologacao-cliente.md), [profissional](checklist-homologacao-profissional.md) e [administração](checklist-homologacao-admin.md).
 
-## Pendencias para producao
+## Antes de produção
 
-Estes pontos nao bloqueiam demo local, mas bloqueiam uma publicacao profissional segura:
-
-- MFA para administradores;
-- recuperacao de senha com envio real por e-mail/contato verificado;
-- armazenamento privado gerenciado para documentos, com antivirus/verificacao de conteudo;
-- politica aprovada de retencao, descarte e atendimento a titulares de dados;
-- limite de requisicoes distribuido para ambiente com mais de uma instancia;
-- monitoramento, alertas e logs operacionais;
-- backup/restauracao testados;
-- pipeline de build/deploy;
-- testes de carga e homologacao;
-- ambiente macOS, aparelho de teste e contas de loja para iOS.
+MFA, recuperação por contato verificado, armazenamento gerenciado de documentos, validação de conteúdo, política de retenção, HTTPS, rate limit distribuído, backup/restauração, monitoramento, pipeline e assinatura dos aplicativos precisam ser definidos e demonstrados. Veja [pendências](pendencias.md) e [preparação Android](preparacao-android-release.md).

@@ -5,6 +5,8 @@
 **Versão analisada:** `6b66896ccc9af709f0fecd522246040844909ef8`.<br>
 **Abrangência:** trabalho registrado no Git até a coleta deste relatório; aplicativo Flutter, API NestJS, persistência, testes, documentos e configuração de entrega.
 
+> **Nota de atualização:** este relatório técnico foi fechado no commit 6b66896. O main avançou para 0264eab, recebeu correções no fluxo do cliente e a equipe informa 90 testes Flutter aprovados. Use este arquivo como registro histórico; para o estado corrente consulte [progresso](progresso.md), [rastreabilidade](rastreabilidade.md) e os checklists de homologação. Não considere os achados específicos de código como revalidados após 6b66896 sem nova inspeção.
+
 ## 1. Resumo
 
 O ConectaLar já tem um núcleo funcional para demonstração e desenvolvimento integrado: contas, busca, perfis, ofertas, disponibilidade, solicitações, chat, avaliações, documentos, denúncias, notificações e administração. A revisão de hoje melhorou o front-end, separou a prévia fictícia do uso real e ampliou a cobertura automatizada.

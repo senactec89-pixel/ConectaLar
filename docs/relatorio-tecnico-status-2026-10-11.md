@@ -32,6 +32,8 @@ O fluxo principal esta implementado no codigo e validado por diagnostico automat
 
 ## Diagnosticos disponiveis
 
+Os resultados 13/13 e 14/14 abaixo são registros da execução local anterior a 0264eab. Não foram repetidos após o pull e não devem ser tratados como validação do commit atual.
+
 ### Diagnostico rapido
 
 Com a API ligada:
@@ -68,18 +70,20 @@ Resultado registrado nesta data:
 
 ## Validacoes automatizadas
 
-Validacoes executadas nesta revisao:
+Atualização documental: a equipe informou que a suíte Flutter atual está com 90 testes aprovados. Este resultado não foi reexecutado durante esta atualização. Os números de API abaixo são registros da execução anterior e precisam ser repetidos após as mudanças incorporadas em 0264eab.
+
+Validacoes executadas na revisao anterior:
 
 - `node --check scripts/diagnostico-local.mjs`: OK;
 - `node --check scripts/diagnostico-fluxo-local.mjs`: OK;
 - `flutter analyze --no-pub`: OK, sem problemas;
-- `flutter test`: OK, 80 testes passaram;
+- `flutter test`: 90 testes aprovados no resultado mais recente informado pela equipe;
 - `npm.cmd test`: OK, 9 testes passaram;
 - `npm.cmd run test:integration`: OK, 11 testes passaram;
 - `npm.cmd run diagnostico:local`: OK;
 - `npm.cmd run diagnostico:fluxo`: OK.
 
-As validacoes completas recomendadas antes de uma entrega continuam:
+Os arquivos antigos ainda registram 80 ou menos testes Flutter e resultados diferentes para API; esses números são fotografias de execuções anteriores. Antes de uma entrega, executar as validações abaixo no mesmo commit e registrar um único resultado consolidado. As validacoes completas recomendadas antes de uma entrega continuam:
 
 ```powershell
 flutter analyze --no-pub
