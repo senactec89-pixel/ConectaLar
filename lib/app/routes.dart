@@ -6,6 +6,7 @@ import '../screens/auth/cadastro_page.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/auth/termos_page.dart';
 import '../screens/admin/admin_pages.dart';
+import '../screens/admin/criar_administrador_page.dart';
 import '../screens/busca/busca_page.dart';
 import '../screens/busca/resultado_page.dart';
 import '../screens/chat/chat_page.dart';
@@ -61,6 +62,7 @@ abstract final class AppRoutes {
   static const avaliacoesRecebidas = '/profissionais/avaliacoes';
   static const admin = '/admin';
   static const adminUsuarios = '/admin/usuarios';
+  static const adminCriarAdministrador = '/admin/usuarios/novo-administrador';
   static const adminDocumentos = '/admin/documentos';
   static const adminDenuncias = '/admin/denuncias';
   static const adminAvaliacoes = '/admin/avaliacoes';
@@ -99,6 +101,7 @@ abstract final class AppRoutes {
     avaliacoesRecebidas: (_) => const AvaliacoesRecebidasPage(),
     admin: (_) => const AdminPage(),
     adminUsuarios: (_) => const AdminPage(modulo: AdminModulo.usuarios),
+    adminCriarAdministrador: (_) => const CriarAdministradorPage(),
     adminDocumentos: (_) => const AdminPage(modulo: AdminModulo.documentos),
     adminDenuncias: (_) => const AdminPage(modulo: AdminModulo.denuncias),
     adminAvaliacoes: (_) => const AdminPage(modulo: AdminModulo.avaliacoes),
@@ -120,7 +123,9 @@ abstract final class AppRoutes {
       recuperacaoSenha,
     };
     if (publicas.contains(route)) return MapEntry(route, builder);
-    final Set<String>? papeis = route.startsWith('/profissionais/')
+    final Set<String>? papeis = route.startsWith('/admin')
+        ? {'administrador'}
+        : route.startsWith('/profissionais/')
         ? {'profissional', 'empresa'}
         : {favoritos, solicitarServico, enderecos, editarDados}.contains(route)
         ? {'cliente'}

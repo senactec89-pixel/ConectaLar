@@ -35,6 +35,21 @@ class AdminService {
   Future<Map<String, dynamic>> usuario(int id) =>
       _api.get('admin/usuarios/$id');
 
+  Future<Map<String, dynamic>> criarAdministrador({
+    required String nome,
+    required String email,
+    required String senha,
+    String? telefone,
+  }) => _api.post(
+    'admin/usuarios/administradores',
+    body: {
+      'nome': nome,
+      'email': email,
+      'senha': senha,
+      if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
+    },
+  );
+
   Future<Map<String, dynamic>> obterUsuario(int id) => usuario(id);
 
   Future<Map<String, dynamic>> atualizarStatus(

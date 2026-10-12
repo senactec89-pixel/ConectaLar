@@ -139,6 +139,12 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBarCustom(
         title: titulo,
         actions: [
+          if (_modulo == AdminModulo.usuarios)
+            IconButton(
+              tooltip: 'Criar administrador',
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              onPressed: _mutando ? null : _criarAdministrador,
+            ),
           IconButton(
             tooltip: 'Conta e segurança',
             icon: const Icon(Icons.account_circle_outlined),
@@ -372,6 +378,19 @@ class _AdminPageState extends State<AdminPage> {
 
   Map<String, dynamic> _map(Object? value) =>
       value is Map<String, dynamic> ? value : const {};
+
+  Future<void> _criarAdministrador() async {
+    final criado = await Navigator.pushNamed<bool>(
+      context,
+      AppRoutes.adminCriarAdministrador,
+    );
+    if (!mounted || criado != true) return;
+    _avisar('Administrador criado.');
+    setState(() {
+      _future = _carregar(_modulo);
+      _future.ignore();
+    });
+  }
 
   Widget _lista() => FutureBuilder<List<Map<String, dynamic>>>(
     future: _future,
