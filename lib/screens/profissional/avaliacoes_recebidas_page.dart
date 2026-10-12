@@ -101,28 +101,47 @@ class _AvaliacoesPublicadasViewState extends State<AvaliacoesPublicadasView> {
             )
           else
             for (final avaliacao in avaliacoes)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${avaliacao['nota']} de 5 estrelas',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      if ('${avaliacao['comentario'] ?? ''}'
-                          .trim()
-                          .isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Text('${avaliacao['comentario']}'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpace.md),
+                child: Card(
+                  child: Padding(
+                    padding: AppInsets.card,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.star_rounded,
+                              color: AppColors.estrela,
+                              size: 20,
+                            ),
+                            const SizedBox(width: AppSpace.sm),
+                            Expanded(
+                              child: Text(
+                                '${avaliacao['nota']} de 5 estrelas',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if ('${avaliacao['comentario'] ?? ''}'
+                            .trim()
+                            .isNotEmpty) ...[
+                          const SizedBox(height: AppSpace.md),
+                          Text(
+                            '${avaliacao['comentario']}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                        const SizedBox(height: AppSpace.sm),
+                        Text(
+                          _data(avaliacao['criadoEm']),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
-                      const SizedBox(height: 6),
-                      Text(
-                        _data(avaliacao['criadoEm']),
-                        style: const TextStyle(color: AppColors.textoSuave),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

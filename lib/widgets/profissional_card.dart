@@ -93,7 +93,11 @@ class ProfissionalCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: AppSpace.md),
+              const Divider(
+                height: AppSpace.lg,
+                thickness: 1,
+                color: AppColors.borda,
+              ),
               _RodapeProfissional(
                 textoPreco: preco == null
                     ? 'Preço sob consulta'
@@ -380,25 +384,30 @@ class _ServicoTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: textoAmpliado ? double.infinity : 180,
       ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpace.md,
-        vertical: AppSpace.xs,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F6F3),
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-      ),
-      child: Text(
-        servico,
-        maxLines: textoAmpliado ? null : 1,
-        overflow: textoAmpliado ? TextOverflow.clip : TextOverflow.ellipsis,
-        style: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(color: const Color(0xFF426257)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const ExcludeSemantics(
+            child: Icon(Icons.circle, size: 4, color: Color(0xFF426257)),
+          ),
+          const SizedBox(width: AppSpace.xs),
+          Flexible(
+            child: Text(
+              servico,
+              maxLines: textoAmpliado ? null : 1,
+              overflow: textoAmpliado
+                  ? TextOverflow.clip
+                  : TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: const Color(0xFF426257)),
+            ),
+          ),
+        ],
       ),
     );
   }
