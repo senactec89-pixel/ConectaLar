@@ -37,7 +37,7 @@ paths:
               $ref: '#/components/schemas/AuthCadastroRequest'
       responses:
         '201':
-          description: Account created and access token issued
+          description: Account created, access token issued, and e-mail verification code sent when SMTP is configured
           content:
             application/json:
               schema:
@@ -203,6 +203,63 @@ paths:
       responses:
         '201':
           $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/email/verificacao:
+    get:
+      operationId: getAuthEmailVerificacao
+      summary: Returns e-mail verification status for the authenticated account
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current e-mail verification status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEmailVerificacaoStatus'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/email/verificacao/enviar:
+    post:
+      operationId: postAuthEmailVerificacaoEnviar
+      summary: Sends a new six-digit e-mail verification code to the authenticated account
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Verification code requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEmailVerificacaoEnvio'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/email/verificacao/confirmar:
+    post:
+      operationId: postAuthEmailVerificacaoConfirmar
+      summary: Confirms the authenticated account e-mail with a valid six-digit code
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthEmailVerificacaoConfirmarRequest'
+      responses:
+        '201':
+          description: E-mail confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEmailVerificacaoStatus'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /auth/mfa/admin:
@@ -2242,6 +2299,49 @@ components:
           $ref: '#/components/schemas/UsuarioPublico'
         token:
           $ref: '#/components/schemas/AuthToken'
+        emailVerificationRequired:
+          type: boolean
+          description: Returned on registration when the account still needs e-mail confirmation.
+        emailVerificationSent:
+          type: boolean
+          description: Indicates whether SMTP delivery was attempted successfully for the verification code.
+        devCode:
+          type: string
+          description: Development-only e-mail verification code; never returned in production.
+    AuthEmailVerificacaoStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - emailVerificado
+      properties:
+        emailVerificado:
+          type: boolean
+    AuthEmailVerificacaoEnvio:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - emailVerificado
+      properties:
+        ok:
+          type: boolean
+          const: true
+        emailVerificado:
+          type: boolean
+        emailVerificationSent:
+          type: boolean
+        devCode:
+          type: string
+          description: Development-only e-mail verification code; never returned in production.
+    AuthEmailVerificacaoConfirmarRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - codigo
+      properties:
+        codigo:
+          type: string
+          pattern: '^\d{6}$'
     AuthMfaChallenge:
       type: object
       additionalProperties: false
@@ -2318,6 +2418,7 @@ components:
         - id
         - nome
         - email
+        - emailVerificado
         - telefone
         - tipo
       properties:
@@ -2329,6 +2430,8 @@ components:
         email:
           type: string
           format: email
+        emailVerificado:
+          type: boolean
         telefone:
           type:
             - string

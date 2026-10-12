@@ -18,7 +18,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
 | `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery e-mail delivery |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
 | `APP_PASSWORD_RESET_URL` | `conectalar://recuperar-senha` | Base URL used in password recovery e-mails |
@@ -65,6 +65,9 @@ Authentication routes:
 - `POST /auth/login/mfa`
 - `POST /auth/senha/recuperacao`
 - `POST /auth/senha/recuperacao/confirmar`
+- `GET /auth/email/verificacao` with `Authorization: Bearer <token>`
+- `POST /auth/email/verificacao/enviar` with `Authorization: Bearer <token>`
+- `POST /auth/email/verificacao/confirmar` with `Authorization: Bearer <token>`
 - `PATCH /auth/senha` with `Authorization: Bearer <token>`
 - `GET /auth/mfa/admin` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/mfa/admin/setup` with `Authorization: Bearer <token>` for `administrador`
@@ -72,7 +75,9 @@ Authentication routes:
 - `POST /auth/mfa/admin/desativar` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
-Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. When SMTP is configured, the reset link is sent by e-mail; in production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. When SMTP is configured, the reset link and recovery code are sent by e-mail; in production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+
+New public registrations start with `emailVerificado=false`. The API stores only a hash of the six-digit e-mail verification code, expires it after 15 minutes, invalidates previous unused codes when a new one is requested, and marks all open codes as used when the e-mail is confirmed. Existing users are marked as verified by the migration so current demo and test accounts keep working. In production, configure SMTP before enabling public registration. Local development can expose the verification `devCode` only when `EXPOSE_EMAIL_VERIFICATION_CODE=true`; do not enable that flag in production.
 
 Administrator MFA uses TOTP. Setup returns the standard `otpauth://` URL for an authenticator app, stores the secret encrypted in `usuarios.mfa_secret_encrypted`, and requires a six-digit code before issuing an admin access token after password login. Enabling or disabling MFA invalidates previous admin sessions through `token_version`.
 

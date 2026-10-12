@@ -61,6 +61,14 @@ class _CadastroPageState extends State<CadastroPage> {
       await _aceitarTermosAtuais();
 
       if (!mounted) return;
+      if (!services.auth.emailVerificado) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.verificacaoEmail,
+          (_) => false,
+        );
+        return;
+      }
       if (_tipo == TipoUsuario.cliente) {
         Navigator.pushNamedAndRemoveUntil(
           context,

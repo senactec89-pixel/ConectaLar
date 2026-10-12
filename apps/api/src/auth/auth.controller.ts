@@ -36,6 +36,27 @@ export class AuthController {
     return this.authService.confirmarRecuperacaoSenha(body);
   }
 
+  @Get('email/verificacao')
+  @UseGuards(AuthGuard)
+  statusVerificacaoEmail(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.statusVerificacaoEmail(user);
+  }
+
+  @Post('email/verificacao/enviar')
+  @UseGuards(AuthGuard)
+  solicitarVerificacaoEmail(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.solicitarVerificacaoEmail(user);
+  }
+
+  @Post('email/verificacao/confirmar')
+  @UseGuards(AuthGuard)
+  confirmarVerificacaoEmail(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.authService.confirmarVerificacaoEmail(user, body);
+  }
+
   @Patch('senha')
   @UseGuards(AuthGuard)
   alterarSenha(

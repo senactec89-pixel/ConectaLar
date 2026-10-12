@@ -1,5 +1,6 @@
 import {
   randomBytes,
+  randomInt,
   createHash,
   timingSafeEqual,
 } from 'node:crypto';
@@ -13,6 +14,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { AuthenticatedUser } from './authenticated-user.js';
+import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo, usuarioTiposPublicos } from '../domain/usuario-tipo.js';
@@ -44,6 +46,10 @@ interface ConfirmarRecuperacaoSenhaRequest {
   novaSenha: string;
 }
 
+interface ConfirmarEmailRequest {
+  codigo: string;
+}
+
 interface AlterarSenhaRequest {
   senhaAtual: string;
   novaSenha: string;
@@ -64,10 +70,13 @@ interface MfaDesativarRequest {
 }
 
 const resetTokenTtlMinutes = 30;
+const emailVerificationTtlMinutes = 15;
 
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(UsuarioEmailVerificacaoEntity)
+    private readonly emailVerificacoes: Repository<UsuarioEmailVerificacaoEntity>,
     @InjectRepository(UsuarioSenhaResetEntity)
     private readonly senhaResets: Repository<UsuarioSenhaResetEntity>,
     @InjectRepository(UsuarioEntity)
@@ -99,6 +108,12 @@ export class AuthService {
         });
       }
     }
+    if (process.env.NODE_ENV === 'production' && !this.mailService.configured()) {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_VERIFICACAO_INDISPONIVEL',
+        message: 'Servico de verificacao de e-mail indisponivel no momento.',
+      });
+    }
 
     const usuario = this.usuarios.create({
       nome: cadastro.nome.trim(),
@@ -107,12 +122,18 @@ export class AuthService {
       telefoneNormalizado: cadastro.telefoneNormalizado ?? null,
       tipo: cadastro.tipo,
       senhaHash: await this.passwordService.hash(cadastro.senha),
+      emailVerificado: false,
       ativo: true,
     });
 
     try {
       const saved = await this.usuarios.save(usuario);
-      return this.authResponse(saved);
+      const verificacao = await this.enviarCodigoVerificacaoEmail(saved);
+      return {
+        ...this.authResponse(saved),
+        emailVerificationRequired: true,
+        ...verificacao,
+      };
     } catch (error) {
       if (isDuplicateError(error)) {
         throw new ConflictException({
@@ -220,6 +241,60 @@ export class AuthService {
     }
 
     return recuperacaoSolicitadaResponse(token);
+  }
+
+  async statusVerificacaoEmail(user: AuthenticatedUser) {
+    const usuario = await this.usuarioAtivo(user.id);
+    return { emailVerificado: usuario.emailVerificado };
+  }
+
+  async solicitarVerificacaoEmail(user: AuthenticatedUser) {
+    const usuario = await this.usuarioAtivo(user.id);
+    if (usuario.emailVerificado) {
+      return { ok: true, emailVerificado: true };
+    }
+
+    return {
+      ok: true,
+      emailVerificado: false,
+      ...(await this.enviarCodigoVerificacaoEmail(usuario)),
+    };
+  }
+
+  async confirmarVerificacaoEmail(
+    user: AuthenticatedUser,
+    body: unknown,
+  ) {
+    const input = parseConfirmarEmail(body);
+    const usuario = await this.usuarioAtivo(user.id);
+    if (usuario.emailVerificado) {
+      return { ok: true, emailVerificado: true };
+    }
+
+    const codigoHash = hashEmailVerificationCode(usuario.id, input.codigo);
+    const verificacao = await this.emailVerificacoes
+      .createQueryBuilder('verificacao')
+      .where('verificacao.usuarioId = :usuarioId', { usuarioId: usuario.id })
+      .andWhere('verificacao.codigoHash = :codigoHash', { codigoHash })
+      .andWhere('verificacao.usadoEm IS NULL')
+      .orderBy('verificacao.criadoEm', 'DESC')
+      .getOne();
+
+    if (
+      verificacao === null ||
+      verificacao.expiraEm.getTime() <= Date.now()
+    ) {
+      throw invalidEmailVerificationCode();
+    }
+
+    usuario.emailVerificado = true;
+    await this.usuarios.save(usuario);
+    await this.emailVerificacoes.update(
+      { usuarioId: usuario.id, usadoEm: IsNull() },
+      { usadoEm: new Date() },
+    );
+
+    return { ok: true, emailVerificado: true };
   }
 
   async iniciarMfaAdmin(user: AuthenticatedUser) {
@@ -379,11 +454,66 @@ export class AuthService {
         id: usuario.id,
         nome: usuario.nome,
         email: usuario.email,
+        emailVerificado: usuario.emailVerificado,
         telefone: usuario.telefone,
         tipo: usuario.tipo,
       },
       token: this.tokenService.createAccessToken(usuario),
     };
+  }
+
+  private async usuarioAtivo(id: number): Promise<UsuarioEntity> {
+    const usuario = await this.usuarios.findOne({
+      where: { id, ativo: true },
+    });
+    if (usuario === null) {
+      throw new UnauthorizedException({
+        code: 'SESSAO_INVALIDA',
+        message: 'Sua sessao expirou. Entre novamente.',
+      });
+    }
+    return usuario;
+  }
+
+  private async enviarCodigoVerificacaoEmail(usuario: UsuarioEntity) {
+    const codigo = criarCodigoNumerico();
+    await this.emailVerificacoes.update(
+      { usuarioId: usuario.id, usadoEm: IsNull() },
+      { usadoEm: new Date() },
+    );
+    await this.emailVerificacoes.save(
+      this.emailVerificacoes.create({
+        usuarioId: usuario.id,
+        codigoHash: hashEmailVerificationCode(usuario.id, codigo),
+        expiraEm: new Date(
+          Date.now() + emailVerificationTtlMinutes * 60 * 1000,
+        ),
+        usadoEm: null,
+      }),
+    );
+
+    const delivered = await this.mailService.sendEmailVerificationCode(
+      usuario.email,
+      codigo,
+    );
+    if (!delivered && process.env.NODE_ENV === 'production') {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_VERIFICACAO_INDISPONIVEL',
+        message: 'Servico de verificacao de e-mail indisponivel no momento.',
+      });
+    }
+
+    const response: { emailVerificationSent: boolean; devCode?: string } = {
+      emailVerificationSent: delivered,
+    };
+    if (
+      !delivered &&
+      process.env.NODE_ENV !== 'production' &&
+      process.env.EXPOSE_EMAIL_VERIFICATION_CODE === 'true'
+    ) {
+      response.devCode = codigo;
+    }
+    return response;
   }
 
   private async usuarioAdminComMfa(id: number): Promise<UsuarioEntity> {
@@ -478,6 +608,15 @@ function parseConfirmarRecuperacaoSenha(
   }
 
   return { token, novaSenha };
+}
+
+function parseConfirmarEmail(body: unknown): ConfirmarEmailRequest {
+  const value = objectBody(body);
+  const codigo = stringField(value, 'codigo').replace(/\s/g, '');
+  if (!/^\d{6}$/.test(codigo)) {
+    throw invalidEmailVerificationCode();
+  }
+  return { codigo };
 }
 
 function parseMfaLogin(body: unknown): MfaLoginRequest {
@@ -590,6 +729,16 @@ function hashResetToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');
 }
 
+function hashEmailVerificationCode(usuarioId: number, codigo: string): string {
+  return createHash('sha256')
+    .update(`${usuarioId}:${codigo}`, 'utf8')
+    .digest('hex');
+}
+
+function criarCodigoNumerico(): string {
+  return randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
 function recuperacaoSolicitadaResponse(token: string | null) {
   const response: { ok: true; devToken?: string } = { ok: true };
   if (
@@ -628,6 +777,13 @@ function invalidResetToken(): BadRequestException {
 function invalidMfaCode(): UnauthorizedException {
   return new UnauthorizedException({
     code: 'MFA_INVALIDO',
+    message: 'Codigo de verificacao invalido ou expirado.',
+  });
+}
+
+function invalidEmailVerificationCode(): BadRequestException {
+  return new BadRequestException({
+    code: 'CODIGO_EMAIL_INVALIDO',
     message: 'Codigo de verificacao invalido ou expirado.',
   });
 }

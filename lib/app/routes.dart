@@ -5,6 +5,7 @@ import '../widgets/session_gate.dart';
 import '../screens/auth/cadastro_page.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/auth/termos_page.dart';
+import '../screens/auth/verificacao_email_page.dart';
 import '../screens/admin/admin_pages.dart';
 import '../screens/admin/criar_administrador_page.dart';
 import '../screens/busca/busca_page.dart';
@@ -51,6 +52,7 @@ abstract final class AppRoutes {
   static const editarDados = '/perfil/dados';
   static const seguranca = '/perfil/seguranca';
   static const recuperacaoSenha = '/senha/recuperacao';
+  static const verificacaoEmail = '/email/verificacao';
   static const notificacoes = '/notificacoes';
   static const disponibilidadeProfissional = '/profissionais/disponibilidade';
   static const documentosProfissional = '/profissionais/documentos';
@@ -90,6 +92,7 @@ abstract final class AppRoutes {
     editarDados: (_) => const EditarDadosPage(),
     seguranca: (_) => const SegurancaPage(),
     recuperacaoSenha: (_) => const RecuperacaoSenhaPage(),
+    verificacaoEmail: (_) => const VerificacaoEmailPage(),
     notificacoes: (_) => const NotificacoesPage(),
     disponibilidadeProfissional: (_) => const DisponibilidadePage(),
     documentosProfissional: (_) => const DocumentosVerificacaoPage(),

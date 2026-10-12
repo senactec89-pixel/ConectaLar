@@ -40,13 +40,7 @@ class _LoginPageState extends State<LoginPage> {
         senha: _senhaController.text,
       );
       if (!mounted) return;
-      final tipo = AppServices.instance.auth.usuarioAtual?['tipo'];
-      final rota = switch (tipo) {
-        'profissional' || 'empresa' => AppRoutes.areaProfissional,
-        'administrador' => AppRoutes.admin,
-        _ => AppRoutes.home,
-      };
-      Navigator.pushNamedAndRemoveUntil(context, rota, (_) => false);
+      Navigator.pushNamedAndRemoveUntil(context, _rotaPosLogin(), (_) => false);
     } on MfaRequiredException catch (mfa) {
       if (!mounted) return;
       await _confirmarMfa(mfa.mfaToken);
@@ -74,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
         codigo: codigo.trim(),
       );
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.admin, (_) => false);
+      Navigator.pushNamedAndRemoveUntil(context, _rotaPosLogin(), (_) => false);
     } on ApiException catch (error) {
       if (!mounted) return;
       _mostrarErro(error.message);
@@ -88,6 +82,17 @@ class _LoginPageState extends State<LoginPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(mensagem), behavior: SnackBarBehavior.floating),
     );
+  }
+
+  String _rotaPosLogin() {
+    final auth = AppServices.instance.auth;
+    if (!auth.emailVerificado) return AppRoutes.verificacaoEmail;
+    final tipo = auth.usuarioAtual?['tipo'];
+    return switch (tipo) {
+      'profissional' || 'empresa' => AppRoutes.areaProfissional,
+      'administrador' => AppRoutes.admin,
+      _ => AppRoutes.home,
+    };
   }
 
   @override

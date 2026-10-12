@@ -41,6 +41,9 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   );
 
   assert.match(openapi, /\/auth\/logout:/);
+  assert.match(openapi, /\/auth\/email\/verificacao:/);
+  assert.match(openapi, /\/auth\/email\/verificacao\/enviar:/);
+  assert.match(openapi, /\/auth\/email\/verificacao\/confirmar:/);
   assert.match(openapi, /\/profissionais\/me\/agenda:/);
   assert.match(openapi, /\/profissionais\/me\/documentos:/);
   assert.match(openapi, /\/admin\/painel\/auditoria:/);
@@ -82,4 +85,18 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /image\/png/);
   assert.match(verificacao, /storage/);
   assert.doesNotMatch(verificacao, /http:\/\/|https:\/\//);
+});
+
+test('authentication keeps e-mail verification codes hashed and expiring', async () => {
+  const auth = await source('dist/auth/auth.service.js');
+  const entity = await source(
+    'dist/database/entities/usuario-email-verificacao.entity.js',
+  );
+
+  assert.match(auth, /hashEmailVerificationCode/);
+  assert.match(auth, /emailVerificationTtlMinutes = 15/);
+  assert.match(auth, /sendEmailVerificationCode/);
+  assert.match(entity, /codigoHash/);
+  assert.match(entity, /expiraEm/);
+  assert.match(entity, /usadoEm/);
 });

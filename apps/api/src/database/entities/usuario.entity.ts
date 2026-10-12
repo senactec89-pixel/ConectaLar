@@ -22,6 +22,9 @@ export class UsuarioEntity {
   @Column({ type: 'varchar', length: 180, unique: true })
   email!: string;
 
+  @Column({ name: 'email_verificado', type: 'boolean', default: false })
+  emailVerificado!: boolean;
+
   @Column({ type: 'varchar', length: 32, nullable: true })
   telefone!: string | null;
 

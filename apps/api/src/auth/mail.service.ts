@@ -29,8 +29,30 @@ export class MailService {
       subject: 'Recuperacao de senha do ConectaLar',
       text:
         'Recebemos uma solicitacao para redefinir sua senha no ConectaLar.\n\n' +
+        `Codigo de recuperacao: ${token}\n\n` +
         `Use este link em ate 30 minutos: ${resetUrl}\n\n` +
-        'Se voce nao pediu isso, ignore este e-mail. Nunca compartilhe este link.',
+        'Se voce nao pediu isso, ignore este e-mail. Nunca compartilhe este codigo ou link.',
+    });
+
+    await sendSmtp(config, email, message);
+    return true;
+  }
+
+  async sendEmailVerificationCode(
+    email: string,
+    codigo: string,
+  ): Promise<boolean> {
+    const config = smtpConfig();
+    if (config === null) return false;
+
+    const message = buildMessage({
+      from: config.from,
+      to: email,
+      subject: 'Confirme seu e-mail no ConectaLar',
+      text:
+        'Use o codigo abaixo para confirmar seu e-mail no ConectaLar.\n\n' +
+        `Codigo de confirmacao: ${codigo}\n\n` +
+        'Esse codigo expira em 15 minutos. Se voce nao criou uma conta, ignore este e-mail.',
     });
 
     await sendSmtp(config, email, message);

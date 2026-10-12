@@ -23,6 +23,7 @@ Future<void> _abrir(WidgetTester tester, String route) async {
   addTearDown(tester.view.resetDevicePixelRatio);
   final routes = {
     ...AppRoutes.routes,
+    AppRoutes.home: (_) => const Scaffold(body: Text('Home verificada')),
     AppRoutes.cadastroProfissional: (_) =>
         const Scaffold(body: Text('Próxima etapa profissional')),
   };
@@ -178,5 +179,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Termos de teste'), findsOneWidget);
     expect(cadastros, 0);
+  });
+
+  testWidgets('cadastro exige confirmacao de e-mail antes de liberar o app', (
+    tester,
+  ) async {
+    AppServices.instance = AppServices(
+      api: ApiService(
+        client: MockClient((request) async {
+          if (request.url.path == '/auth/cadastro') {
+            return _json({
+              'token': {'accessToken': 'token-teste'},
+              'usuario': {
+                'id': 2,
+                'nome': 'Cliente Teste',
+                'email': 'cliente@example.invalid',
+                'emailVerificado': false,
+                'tipo': 'cliente',
+              },
+              'emailVerificationRequired': true,
+            });
+          }
+          if (request.url.path == '/termos/atuais') {
+            return _json({
+              'termos': {'versao': '2026.v1'},
+            });
+          }
+          if (request.url.path == '/termos/aceites/me') {
+            return _json({
+              'aceite': {'versao': '2026.v1'},
+            });
+          }
+          expect(request.headers['authorization'], 'Bearer token-teste');
+          expect(request.url.path, '/auth/email/verificacao/confirmar');
+          expect(jsonDecode(request.body), {'codigo': '123456'});
+          return _json({'ok': true, 'emailVerificado': true});
+        }),
+      ),
+    );
+
+    await _abrir(tester, AppRoutes.cadastro);
+    for (final campo in {
+      'cadastro-nome': 'Cliente Teste',
+      'cadastro-email': 'cliente@example.invalid',
+      'cadastro-telefone': '31999990001',
+      'cadastro-senha': 'Senha123!',
+      'cadastro-confirmar-senha': 'Senha123!',
+    }.entries) {
+      await tester.enterText(find.byKey(ValueKey(campo.key)), campo.value);
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('cadastro-termos')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('cadastro-termos')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('cadastro-criar-conta')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirme seu e-mail'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('email-verificacao-codigo')),
+      '123456',
+    );
+    await tester.tap(find.byKey(const ValueKey('email-verificacao-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home verificada'), findsOneWidget);
+    expect(AppServices.instance.auth.emailVerificado, isTrue);
+    expect(tester.takeException(), isNull);
   });
 }

@@ -13,15 +13,18 @@ class AuthService extends ChangeNotifier {
   final ApiService _api;
   final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
+  String? _accessTokenAtual;
   bool _sessaoExpirada = false;
 
   Map<String, dynamic>? get usuarioAtual => _usuarioAtual;
   bool get autenticado => _api.autenticado;
   bool get sessaoExpirada => _sessaoExpirada;
+  bool get emailVerificado => _usuarioAtual?['emailVerificado'] != false;
 
   Future<void> encerrarSessaoExpirada() async {
     if (!autenticado) return;
     _usuarioAtual = null;
+    _accessTokenAtual = null;
     _api.definirToken(null);
     _sessaoExpirada = true;
     notifyListeners();
@@ -53,6 +56,7 @@ class AuthService extends ChangeNotifier {
       }
 
       _api.definirToken(accessToken);
+      _accessTokenAtual = accessToken;
       _usuarioAtual = usuario;
     } on FormatException {
       await prefs.remove(_sessionKey);
@@ -126,6 +130,36 @@ class AuthService extends ChangeNotifier {
     );
   }
 
+  Future<Map<String, dynamic>> statusVerificacaoEmail() async {
+    final response = await _api.get('auth/email/verificacao');
+    final emailVerificado = response['emailVerificado'];
+    if (_usuarioAtual != null && emailVerificado is bool) {
+      _usuarioAtual = {..._usuarioAtual!, 'emailVerificado': emailVerificado};
+      await _persistirSessaoAtual();
+      notifyListeners();
+    }
+    return response;
+  }
+
+  Future<Map<String, dynamic>> solicitarVerificacaoEmail() {
+    return _api.post('auth/email/verificacao/enviar');
+  }
+
+  Future<Map<String, dynamic>> confirmarVerificacaoEmail({
+    required String codigo,
+  }) async {
+    final response = await _api.post(
+      'auth/email/verificacao/confirmar',
+      body: {'codigo': codigo},
+    );
+    if (response['emailVerificado'] == true && _usuarioAtual != null) {
+      _usuarioAtual = {..._usuarioAtual!, 'emailVerificado': true};
+      await _persistirSessaoAtual();
+      notifyListeners();
+    }
+    return response;
+  }
+
   Future<Map<String, dynamic>> alterarSenha({
     required String senhaAtual,
     required String novaSenha,
@@ -146,6 +180,7 @@ class AuthService extends ChangeNotifier {
       }
     }
     _usuarioAtual = null;
+    _accessTokenAtual = null;
     _api.definirToken(null);
     _sessaoExpirada = false;
     notifyListeners();
@@ -164,6 +199,7 @@ class AuthService extends ChangeNotifier {
       final tokenValue = token['accessToken'];
       if (tokenValue is String) {
         accessToken = tokenValue;
+        _accessTokenAtual = tokenValue;
         _api.definirToken(tokenValue);
       }
     }
@@ -172,13 +208,18 @@ class AuthService extends ChangeNotifier {
     }
     _sessaoExpirada = false;
     notifyListeners();
-    if (persistirSessao && accessToken != null && _usuarioAtual != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _sessionKey,
-        jsonEncode({'accessToken': accessToken, 'usuario': _usuarioAtual}),
-      );
-    }
+    await _persistirSessaoAtual(accessToken: accessToken);
+  }
+
+  Future<void> _persistirSessaoAtual({String? accessToken}) async {
+    if (!persistirSessao) return;
+    final token = accessToken ?? _accessTokenAtual;
+    if (token == null || _usuarioAtual == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _sessionKey,
+      jsonEncode({'accessToken': token, 'usuario': _usuarioAtual}),
+    );
   }
 }
 
