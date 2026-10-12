@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
 class EditarDadosPage extends StatefulWidget {
   const EditarDadosPage({super.key});
@@ -128,9 +129,9 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
       appBar: const AppBarCustom(title: 'Meus dados'),
       backgroundColor: AppColors.fundo,
       body: _carregando
-          ? const Center(child: CircularProgressIndicator())
+          ? const AsyncLoadingView(label: 'Carregando seus dados.')
           : _erro != null
-          ? _EstadoErro(mensagem: _erro!, onTentar: _carregar)
+          ? AsyncErrorView(message: _erro!, onRetry: _carregar)
           : SafeArea(
               top: false,
               child: ListView(
@@ -192,6 +193,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         prefixIcon: Icon(Icons.mail_outline),
                                         helperText:
                                             'Para alterar o e-mail, confirme a titularidade da conta.',
+                                        helperMaxLines: 10,
                                       ),
                                     ),
                                     const SizedBox(height: 14),
@@ -321,33 +323,3 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
 }
 
 String _valor(Object? value) => value?.toString() ?? '';
-
-class _EstadoErro extends StatelessWidget {
-  const _EstadoErro({required this.mensagem, required this.onTentar});
-
-  final String mensagem;
-  final VoidCallback onTentar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 40),
-            const SizedBox(height: 12),
-            Text(mensagem, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: onTentar,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Tentar novamente'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
