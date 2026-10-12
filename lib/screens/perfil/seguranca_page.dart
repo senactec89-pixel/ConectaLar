@@ -75,7 +75,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+          padding: AppInsets.page,
           children: [
             Center(
               child: ConstrainedBox(
@@ -87,19 +87,19 @@ class _SegurancaPageState extends State<SegurancaPage> {
                       'Cuide do acesso à sua conta',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: AppSpace.sm),
                     Text(
                       'Atualize sua senha periodicamente e não compartilhe seus dados de acesso.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textoSuave,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: AppSpace.lg),
                     const _DicaSeguranca(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpace.lg),
                     Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(18),
+                        padding: AppInsets.card,
                         child: Form(
                           key: _formKey,
                           child: Column(
@@ -109,7 +109,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                 'Alterar senha',
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpace.lg),
                               _CampoSenha(
                                 key: const ValueKey('seguranca-senha-atual'),
                                 controller: _senhaAtual,
@@ -120,7 +120,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                 ),
                                 validator: validarSenha,
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: AppSpace.md),
                               _CampoSenha(
                                 key: const ValueKey('seguranca-senha-nova'),
                                 controller: _novaSenha,
@@ -131,7 +131,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                 ),
                                 validator: validarSenhaForte,
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: AppSpace.md),
                               _CampoSenha(
                                 key: const ValueKey(
                                   'seguranca-confirmar-senha',
@@ -152,7 +152,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                   return null;
                                 },
                               ),
-                              const SizedBox(height: 18),
+                              const SizedBox(height: AppSpace.lg),
                               FilledButton.icon(
                                 key: const ValueKey('seguranca-salvar'),
                                 onPressed: _salvando ? null : _alterarSenha,
@@ -175,7 +175,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: AppSpace.md),
                     Card(
                       child: ListTile(
                         leading: const Icon(

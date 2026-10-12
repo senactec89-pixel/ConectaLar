@@ -135,7 +135,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
           : SafeArea(
               top: false,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                padding: AppInsets.page,
                 children: [
                   Center(
                     child: ConstrainedBox(
@@ -149,16 +149,16 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                               'Mantenha seu perfil atualizado',
                               style: Theme.of(context).textTheme.headlineSmall,
                             ),
-                            const SizedBox(height: 6),
+                            const SizedBox(height: AppSpace.sm),
                             Text(
                               'Essas informações ajudam a identificar sua conta e organizar seus atendimentos.',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppColors.textoSuave),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: AppSpace.xl),
                             Card(
                               child: Padding(
-                                padding: const EdgeInsets.all(18),
+                                padding: AppInsets.card,
                                 child: Column(
                                   children: [
                                     TextFormField(
@@ -182,7 +182,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         return null;
                                       },
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: AppSpace.md),
                                     TextFormField(
                                       key: const ValueKey('perfil-email'),
                                       controller: _email,
@@ -196,7 +196,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         helperMaxLines: 10,
                                       ),
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: AppSpace.md),
                                     TextFormField(
                                       key: const ValueKey('perfil-telefone'),
                                       controller: _telefone,
@@ -212,10 +212,10 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: AppSpace.md),
                             Card(
                               child: Padding(
-                                padding: const EdgeInsets.all(18),
+                                padding: AppInsets.card,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -225,7 +225,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         context,
                                       ).textTheme.titleMedium,
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: AppSpace.md),
                                     TextFormField(
                                       key: const ValueKey('perfil-bairro'),
                                       controller: _bairro,
@@ -239,7 +239,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: AppSpace.md),
                                     Row(
                                       children: [
                                         Expanded(
@@ -277,7 +277,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 14),
+                                    const SizedBox(height: AppSpace.md),
                                     TextFormField(
                                       key: const ValueKey('perfil-observacoes'),
                                       controller: _observacoes,
@@ -295,7 +295,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: AppSpace.xl),
                             FilledButton.icon(
                               key: const ValueKey('perfil-salvar'),
                               onPressed: _salvando ? null : _salvar,

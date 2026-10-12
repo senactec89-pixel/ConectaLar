@@ -181,7 +181,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
           : AnimatedBuilder(
               animation: store,
               builder: (context, _) => ListView(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                padding: AppInsets.page,
                 children: [
                   const Text(
                     'Profissional/Empresa',
@@ -191,12 +191,12 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: AppSpace.sm),
                   const Text(
                     'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
                     style: TextStyle(color: AppColors.textoSuave),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpace.lg),
                   _EtapasCadastro(
                     onServicos: () => Navigator.pushNamed(
                       context,
@@ -207,7 +207,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                       AppRoutes.documentosProfissional,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpace.lg),
                   _FormularioProfissional(
                     formKey: _formKey,
                     descricaoController: _descricaoController,
@@ -219,7 +219,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                     salvando: _salvando,
                     onContinuar: () => _continuar(),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpace.lg),
                   const Text(
                     'Solicitações recebidas',
                     style: TextStyle(
@@ -228,7 +228,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpace.md),
                   FutureBuilder<List<AtendimentoResumo>>(
                     future: _pendentesFuture,
                     builder: (context, snapshot) {
@@ -268,7 +268,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                                 _pendentesFuture.ignore();
                               }),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpace.md),
                           ],
                         ],
                       );
@@ -310,7 +310,7 @@ class _FormularioProfissional extends StatelessWidget {
       key: formKey,
       child: Card(
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: AppInsets.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -324,13 +324,12 @@ class _FormularioProfissional extends StatelessWidget {
                 ),
                 subtitle: const Text('Tipo de conta definido no cadastro.'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpace.sm),
               TextFormField(
                 controller: descricaoController,
                 decoration: const InputDecoration(
                   labelText: 'Descrição profissional',
                   hintText: 'Ex.: eletricista residencial',
-                  border: OutlineInputBorder(),
                 ),
                 maxLength: 280,
                 minLines: 2,
@@ -339,19 +338,18 @@ class _FormularioProfissional extends StatelessWidget {
                     ? 'Descreva sua atuação com pelo menos 20 caracteres.'
                     : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
               TextFormField(
                 controller: bairroController,
                 decoration: const InputDecoration(
                   labelText: 'Bairro/região de atuação',
-                  border: OutlineInputBorder(),
                 ),
                 maxLength: 120,
                 validator: (v) => (v ?? '').trim().length < 2
                     ? 'Informe o bairro ou região.'
                     : null,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
               TextFormField(
                 controller: precoController,
                 keyboardType: const TextInputType.numberWithOptions(
@@ -360,13 +358,12 @@ class _FormularioProfissional extends StatelessWidget {
                 decoration: const InputDecoration(
                   labelText: 'Preço inicial (opcional)',
                   prefixText: 'R\$ ',
-                  border: OutlineInputBorder(),
                 ),
                 validator: validarPrecoOpcional,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpace.md),
               const _DocumentoAviso(),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpace.md),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -389,7 +386,7 @@ class _FormularioProfissional extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpace.md),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -566,7 +563,7 @@ class _PedidoRecebidoCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
             Wrap(
               spacing: 8,
               runSpacing: 8,

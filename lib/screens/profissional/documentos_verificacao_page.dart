@@ -85,7 +85,7 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpace.md),
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(16),
@@ -96,7 +96,7 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                         'Documentos que você pode enviar',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: AppSpace.sm),
                       Text('• Documento de identificação'),
                       Text('• Comprovante de endereço'),
                       Text('• Certificados profissionais (opcionais)'),
@@ -104,7 +104,7 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpace.lg),
               if (documentos.isEmpty)
                 const EmptyStateView(
                   title: 'Nenhum documento enviado',
@@ -115,7 +115,7 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
               else
                 for (final documento in documentos) ...[
                   _DocumentoCard(documento: documento),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: AppSpace.md),
                 ],
             ],
           );
@@ -316,9 +316,22 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                 'Enviar documento',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpace.md),
               DropdownButtonFormField<String>(
                 initialValue: _tipo,
+                isExpanded: true,
+                itemHeight: null,
+                selectedItemBuilder: (context) => const [
+                  Text(
+                    'Identificação',
+                    semanticsLabel: 'Documento de identificação',
+                  ),
+                  Text('Endereço', semanticsLabel: 'Comprovante de endereço'),
+                  Text(
+                    'Certificado',
+                    semanticsLabel: 'Certificado profissional opcional',
+                  ),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Tipo de documento',
                 ),
@@ -338,7 +351,7 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                 ],
                 onChanged: (value) => setState(() => _tipo = value ?? _tipo),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpace.md),
               OutlinedButton.icon(
                 onPressed: _enviando || _selecionandoArquivo
                     ? null
@@ -357,7 +370,7 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                       : 'Trocar arquivo',
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: AppSpace.sm),
               Text(
                 _nomeArquivo == null
                     ? 'PDF, JPEG ou PNG • até 5 MB'
@@ -381,14 +394,14 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                       )
                     : const SizedBox.shrink(),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: AppSpace.md),
               TextFormField(
                 controller: _observacao,
                 minLines: 3,
                 maxLines: 4,
                 decoration: const InputDecoration(labelText: 'Observação'),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: AppSpace.md),
               FilledButton.icon(
                 onPressed: _enviando ? null : _enviar,
                 icon: _enviando

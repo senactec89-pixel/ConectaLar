@@ -119,6 +119,11 @@ abstract final class AppTheme {
       fillColor: AppColors.branco,
       contentPadding: const EdgeInsets.all(AppSpace.lg),
       labelStyle: const TextStyle(color: AppColors.textoSuave),
+      helperStyle: const TextStyle(fontSize: 12, height: 1.4),
+      errorStyle: const TextStyle(fontSize: 12, height: 1.4),
+      helperMaxLines: 4,
+      errorMaxLines: 8,
+      alignLabelWithHint: true,
       prefixIconColor: AppColors.textoSuave,
       suffixIconColor: AppColors.textoSuave,
       border: OutlineInputBorder(
@@ -154,6 +159,12 @@ abstract final class AppTheme {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.lg,
+          vertical: AppSpace.md,
+        ),
+        tapTargetSize: MaterialTapTargetSize.padded,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.field),
         ),
@@ -161,9 +172,28 @@ abstract final class AppTheme {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.lg,
+          vertical: AppSpace.md,
+        ),
+        tapTargetSize: MaterialTapTargetSize.padded,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.field),
         ),
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(48, 48),
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      insetPadding: const EdgeInsets.all(AppSpace.lg),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.field),
       ),
     ),
     chipTheme: const ChipThemeData(shape: StadiumBorder()),

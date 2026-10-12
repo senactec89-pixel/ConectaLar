@@ -116,7 +116,7 @@ class _CadastroPageState extends State<CadastroPage> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+          padding: AppInsets.page,
           children: [
             const Text(
               'Crie sua conta',
@@ -126,19 +126,19 @@ class _CadastroPageState extends State<CadastroPage> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: AppSpace.sm),
             Text(
               _tipo == TipoUsuario.cliente
                   ? 'Preencha os dados básicos da sua conta.'
                   : 'Crie sua conta e depois complete o perfil, os serviços e a documentação.',
               style: const TextStyle(color: AppColors.textoSuave),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpace.lg),
             Form(
               key: _formKey,
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: AppInsets.card,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -166,7 +166,7 @@ class _CadastroPageState extends State<CadastroPage> {
                             : (value) => setState(() => _tipo = value.first),
                       ),
                       if (_tipo != TipoUsuario.cliente) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpace.md),
                         DropdownButtonFormField<TipoUsuario>(
                           key: ValueKey(_tipo),
                           initialValue: _tipo,
@@ -192,7 +192,7 @@ class _CadastroPageState extends State<CadastroPage> {
                                 ),
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpace.lg),
                       TextFormField(
                         key: const ValueKey('cadastro-nome'),
                         enabled: !_enviando && !_contaCriada,
@@ -203,7 +203,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         textInputAction: TextInputAction.next,
                         validator: validarCampoObrigatorio,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       TextFormField(
                         key: const ValueKey('cadastro-email'),
                         enabled: !_enviando && !_contaCriada,
@@ -213,7 +213,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         textInputAction: TextInputAction.next,
                         validator: validarEmail,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       TextFormField(
                         key: const ValueKey('cadastro-telefone'),
                         enabled: !_enviando && !_contaCriada,
@@ -225,7 +225,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         textInputAction: TextInputAction.next,
                         validator: validarTelefoneObrigatorio,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       TextFormField(
                         key: const ValueKey('cadastro-senha'),
                         enabled: !_enviando && !_contaCriada,
@@ -234,7 +234,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         decoration: const InputDecoration(labelText: 'Senha'),
                         validator: validarSenhaForte,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       TextFormField(
                         key: const ValueKey('cadastro-confirmar-senha'),
                         enabled: !_enviando && !_contaCriada,
@@ -252,7 +252,7 @@ class _CadastroPageState extends State<CadastroPage> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: AppSpace.md),
                       CheckboxListTile(
                         key: const ValueKey('cadastro-termos'),
                         contentPadding: EdgeInsets.zero,
@@ -280,7 +280,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         icon: const Icon(Icons.description_outlined),
                         label: const Text('Ler termos e aviso de privacidade'),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(

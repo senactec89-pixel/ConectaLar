@@ -70,7 +70,7 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          padding: AppInsets.page.copyWith(top: AppSpace.xl),
           children: [
             const Text(
               'ConectaLar',
@@ -80,21 +80,22 @@ class _LoginPageState extends State<LoginPage> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpace.sm),
             const Text(
               'Acesse sua conta para acompanhar solicitações, conversas e favoritos.',
               style: TextStyle(color: AppColors.textoSuave, height: 1.35),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpace.xl),
             Form(
               key: _formKey,
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: AppInsets.card,
                   child: Column(
                     children: [
                       TextFormField(
                         key: const ValueKey('login-email'),
+                        enabled: !_enviando,
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
@@ -104,9 +105,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         validator: validarEmail,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       TextFormField(
                         key: const ValueKey('login-senha'),
+                        enabled: !_enviando,
                         controller: _senhaController,
                         obscureText: _ocultarSenha,
                         decoration: InputDecoration(
@@ -116,8 +118,11 @@ class _LoginPageState extends State<LoginPage> {
                             tooltip: _ocultarSenha
                                 ? 'Mostrar senha'
                                 : 'Ocultar senha',
-                            onPressed: () =>
-                                setState(() => _ocultarSenha = !_ocultarSenha),
+                            onPressed: _enviando
+                                ? null
+                                : () => setState(
+                                    () => _ocultarSenha = !_ocultarSenha,
+                                  ),
                             icon: Icon(
                               _ocultarSenha
                                   ? Icons.visibility_outlined
@@ -126,11 +131,11 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         validator: validarSenha,
-                        onFieldSubmitted: (_) => _entrar(),
+                        onFieldSubmitted: _enviando ? null : (_) => _entrar(),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: AppSpace.md),
                       const _AvisoSegurancaAuth(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpace.lg),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(

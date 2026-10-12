@@ -87,7 +87,7 @@ class _RecuperacaoSenhaPageState extends State<RecuperacaoSenhaPage> {
       body: SafeArea(
         top: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+          padding: AppInsets.page,
           children: [
             Center(
               child: ConstrainedBox(
@@ -155,10 +155,10 @@ class _FormularioEmail extends StatelessWidget {
             descricao:
                 'Informe o e-mail cadastrado. Se a conta estiver ativa, enviaremos as instruções para redefinir sua senha.',
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpace.xl),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: AppInsets.card,
               child: Column(
                 children: [
                   TextFormField(
@@ -174,7 +174,7 @@ class _FormularioEmail extends StatelessWidget {
                     validator: validarEmail,
                     onFieldSubmitted: (_) => onSolicitar(),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpace.lg),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -239,14 +239,14 @@ class _FormularioCodigo extends StatelessWidget {
             descricao:
                 'Digite o código recebido e escolha uma senha com pelo menos 8 caracteres.',
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpace.xl),
           if (tokenDemonstracao) ...[
             const _AvisoTokenDemonstracao(),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.md),
           ],
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: AppInsets.card,
               child: Column(
                 children: [
                   TextFormField(
@@ -261,7 +261,7 @@ class _FormularioCodigo extends StatelessWidget {
                     ),
                     validator: validarCampoObrigatorio,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpace.md),
                   TextFormField(
                     key: const ValueKey('recuperacao-nova-senha'),
                     controller: novaSenha,
@@ -283,7 +283,7 @@ class _FormularioCodigo extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpace.md),
                   TextFormField(
                     key: const ValueKey('recuperacao-confirmacao'),
                     obscureText: ocultarSenha,
@@ -301,7 +301,7 @@ class _FormularioCodigo extends StatelessWidget {
                       prefixIcon: Icon(Icons.lock_outline),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: AppSpace.lg),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
@@ -355,13 +355,13 @@ class _CabecalhoRecuperacao extends StatelessWidget {
           ),
           child: Icon(icone, color: AppColors.verdeEscuro, size: 34),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpace.lg),
         Text(
           titulo,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpace.sm),
         Text(
           descricao,
           textAlign: TextAlign.center,
@@ -417,17 +417,17 @@ class _SucessoRecuperacao extends StatelessWidget {
           color: AppColors.verde,
           size: 72,
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppSpace.lg),
         Text(
           'Senha redefinida',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpace.sm),
         const Text(
           'Agora você pode entrar usando sua nova senha.',
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: AppSpace.xl),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
