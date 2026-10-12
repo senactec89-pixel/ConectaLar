@@ -106,7 +106,7 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                   ),
                   const SizedBox(height: 18),
                   if (servicos.isEmpty)
-                    const _ListaVazia()
+                    _ListaVazia(filtro: _filtro)
                   else
                     for (final servico in servicos) ...[
                       _ServicoCard(
@@ -375,13 +375,33 @@ class _ResumoIcone extends StatelessWidget {
 }
 
 class _ListaVazia extends StatelessWidget {
-  const _ListaVazia();
+  const _ListaVazia({required this.filtro});
+
+  final _FiltroServicos filtro;
 
   @override
   Widget build(BuildContext context) {
-    return const EmptyStateView(
-      title: 'Nenhum atendimento encontrado',
-      message: 'Tente escolher outro filtro para ver seus serviços.',
+    final (titulo, mensagem) = switch (filtro) {
+      _FiltroServicos.todos => (
+        'Você ainda não tem solicitações',
+        'Seus pedidos aparecerão aqui após solicitar um atendimento.',
+      ),
+      _FiltroServicos.aguardando => (
+        'Nenhuma solicitação aguardando resposta',
+        'Pedidos enviados que ainda aguardam a decisão do profissional aparecem aqui.',
+      ),
+      _FiltroServicos.agendados => (
+        'Nenhum atendimento agendado',
+        'Quando o profissional aceitar uma solicitação, ela aparecerá neste filtro.',
+      ),
+      _FiltroServicos.historico => (
+        'Seu histórico ainda está vazio',
+        'Atendimentos concluídos, cancelados ou recusados aparecem aqui.',
+      ),
+    };
+    return EmptyStateView(
+      title: titulo,
+      message: mensagem,
       icon: Icons.event_busy_outlined,
     );
   }

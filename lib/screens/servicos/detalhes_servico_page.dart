@@ -8,18 +8,37 @@ import '../../services/api_mappers.dart';
 import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/async_state_view.dart';
 
-class DetalhesServicoPage extends StatelessWidget {
+class DetalhesServicoPage extends StatefulWidget {
   const DetalhesServicoPage({super.key});
 
-  int? _solicitacaoId(BuildContext context) {
+  @override
+  State<DetalhesServicoPage> createState() => _DetalhesServicoPageState();
+}
+
+class _DetalhesServicoPageState extends State<DetalhesServicoPage> {
+  int? _solicitacaoId;
+  bool _argumentosLidos = false;
+  late Future<AtendimentoResumo?> _atendimentoFuture;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argumentosLidos) return;
     final arguments = ModalRoute.of(context)?.settings.arguments;
-    if (arguments is int) return arguments;
-    if (arguments is Solicitacao) return arguments.id;
-    return null;
+    final id = arguments is Solicitacao
+        ? arguments.id
+        : arguments is int
+        ? arguments
+        : null;
+    _solicitacaoId = id != null && id > 0 ? id : null;
+    _atendimentoFuture = _carregarAtendimento();
+    _argumentosLidos = true;
   }
 
-  Future<AtendimentoResumo?> _carregarAtendimento(int? solicitacaoId) async {
+  Future<AtendimentoResumo?> _carregarAtendimento() async {
+    final solicitacaoId = _solicitacaoId;
     if (solicitacaoId == null) return null;
 
     final services = AppServices.instance;
@@ -27,62 +46,78 @@ class DetalhesServicoPage extends StatelessWidget {
       return ConectaLarMockStore.instance.atendimentoPorId(solicitacaoId);
     }
 
-    final response = await services.servicos.obter(solicitacaoId);
-    final solicitacao = response['solicitacao'];
-    return solicitacao is Map<String, dynamic>
-        ? atendimentoResumoFromApi(solicitacao)
-        : null;
+    try {
+      final response = await services.servicos.obter(solicitacaoId);
+      final solicitacao = response['solicitacao'];
+      if (solicitacao is! Map<String, dynamic> ||
+          intValue(solicitacao['id']) != solicitacaoId) {
+        throw const FormatException('Resposta da solicitação inválida.');
+      }
+      return atendimentoResumoFromApi(solicitacao);
+    } on ApiException catch (error) {
+      if (error.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  void _recarregar() {
+    setState(() {
+      _atendimentoFuture = _carregarAtendimento();
+      _atendimentoFuture.ignore();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
-    final solicitacaoId = _solicitacaoId(context);
-    if (AppServices.instance.emDemonstracao) {
-      return Scaffold(
-        appBar: const AppBarCustom(title: 'Detalhes do serviço'),
-        backgroundColor: AppColors.fundo,
-        body: SafeArea(
-          top: false,
-          child: AnimatedBuilder(
-            animation: store,
-            builder: (context, _) {
-              final atualizado = solicitacaoId == null
-                  ? null
-                  : store.atendimentoPorId(solicitacaoId);
-              return atualizado == null
-                  ? const _DetalhesVazio()
-                  : _DetalhesSolicitacao(atendimento: atualizado, store: store);
-            },
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: const AppBarCustom(title: 'Detalhes do serviço'),
       backgroundColor: AppColors.fundo,
       body: SafeArea(
         top: false,
-        child: AnimatedBuilder(
-          animation: store,
-          builder: (context, _) => FutureBuilder<AtendimentoResumo?>(
-            future: _carregarAtendimento(solicitacaoId),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) return const _DetalhesErro();
-              final atendimento = snapshot.data;
-              return atendimento == null
-                  ? const _DetalhesVazio()
-                  : _DetalhesSolicitacao(
-                      atendimento: atendimento,
-                      store: store,
+        child: _solicitacaoId == null
+            ? const _DetalhesVazio(selecionada: false)
+            : AppServices.instance.emDemonstracao
+            ? AnimatedBuilder(
+                animation: store,
+                builder: (context, _) {
+                  final atualizado = store.atendimentoPorId(_solicitacaoId!);
+                  return atualizado == null
+                      ? const _DetalhesVazio()
+                      : _DetalhesSolicitacao(
+                          atendimento: atualizado,
+                          store: store,
+                        );
+                },
+              )
+            : FutureBuilder<AtendimentoResumo?>(
+                future: _atendimentoFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const AsyncLoadingView(
+                      label: 'Carregando solicitação.',
                     );
-            },
-          ),
-        ),
+                  }
+                  if (snapshot.hasError) {
+                    final error = snapshot.error;
+                    return AsyncErrorView(
+                      message: error is FormatException
+                          ? 'Não foi possível ler os dados desta solicitação. Tente novamente.'
+                          : error is ApiException && error.statusCode == 403
+                          ? 'Sua conta não tem acesso a esta solicitação.'
+                          : 'Não foi possível carregar esta solicitação.',
+                      onRetry: _recarregar,
+                    );
+                  }
+                  final atendimento = snapshot.data;
+                  return atendimento == null
+                      ? const _DetalhesVazio()
+                      : _DetalhesSolicitacao(
+                          atendimento: atendimento,
+                          store: store,
+                        );
+                },
+              ),
       ),
     );
   }
@@ -654,43 +689,20 @@ class _RegraStatus extends StatelessWidget {
 }
 
 class _DetalhesVazio extends StatelessWidget {
-  const _DetalhesVazio();
+  const _DetalhesVazio({this.selecionada = true});
+
+  final bool selecionada;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'Nenhuma solicitação foi selecionada.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DetalhesErro extends StatelessWidget {
-  const _DetalhesErro();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text(
-          'Não foi possível carregar esta solicitação.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textoSuave,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+    return EmptyStateView(
+      title: selecionada
+          ? 'Solicitação não encontrada'
+          : 'Nenhuma solicitação foi selecionada.',
+      message: selecionada
+          ? 'Este atendimento não está disponível. Volte à lista de serviços para conferir seus pedidos.'
+          : 'Abra um atendimento na lista de serviços para ver os detalhes.',
+      icon: Icons.event_busy_outlined,
     );
   }
 }

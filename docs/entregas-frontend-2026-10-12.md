@@ -44,3 +44,14 @@ Verificação da etapa 4: `flutter analyze --no-pub` sem problemas; 17 testes se
 - Testes específicos cobrem estados, participantes, lista, falha de envio e texto ampliado em 360/390/412 px.
 
 Verificação da etapa 6: `flutter analyze --no-pub` sem problemas; 31 testes selecionados aprovados (`chat_encerrado_test.dart`, `chat_refresh_test.dart`, `fluxos_integrados_test.dart`). O teste a 200% revelou e corrigiu um overflow no aviso de conversa encerrada.
+
+## Etapa 7 — Estados de consulta na solicitação
+
+- Falha da disponibilidade passa a aparecer como erro com nova tentativa; ausência real de horários tem mensagem própria. O formulário preserva os dados digitados.
+- Consulta de endereços separa carregamento, erro e lista vazia. O envio não confunde falha de rede com falta de cadastro e aguarda consulta bem-sucedida.
+- Retentativa de endereços preserva a seleção existente quando ainda válida. Retentativa de disponibilidade limpa horários antigos da tela enquanto busca os atuais.
+- Detalhes do serviço usam Future estável, retry em falha e mensagens distintas para seleção ausente, atendimento não encontrado e resposta inválida.
+- Meus serviços descreve o estado vazio de cada filtro; o erro de rede mantém botão de tentar novamente.
+- Verificação específica cobre falha 503, retry, resposta vazia, ausência de POST indevido, responsividade em 360/390/412 px, texto 200% e teclado simulado. A autorização e a disponibilidade final seguem sendo decididas pela API.
+
+Verificação da etapa 7: `flutter analyze --no-pub` sem problemas; 22 testes selecionados aprovados (`solicitacoes_estados_test.dart`, `enderecos_visual_test.dart`, `meus_servicos_retorno_test.dart`, `fluxos_integrados_test.dart`).

@@ -45,6 +45,8 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   Future<List<Disponibilidade>>? _disponibilidadeFuture;
   List<ClienteEndereco> _enderecos = const [];
   List<Disponibilidade> _disponibilidades = const [];
+  bool _enderecosCarregados = false;
+  bool _erroEnderecos = false;
 
   @override
   void didChangeDependencies() {
@@ -63,33 +65,48 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   }
 
   Future<List<ClienteEndereco>> _carregarEnderecos() async {
+    _enderecosCarregados = false;
+    _erroEnderecos = false;
     if (!AppServices.instance.auth.autenticado) return const [];
     try {
       final response = await AppServices.instance.clientes.listarEnderecos();
+      if (response['enderecos'] is! List) {
+        throw const FormatException('Resposta de endereços inválida.');
+      }
       final enderecos = listFromApi(
         response['enderecos'],
         clienteEnderecoFromApi,
       );
-      if (mounted) {
-        setState(() => _enderecos = enderecos);
-      }
-      ClienteEndereco? principal;
+      ClienteEndereco? selecionado;
       for (final endereco in enderecos) {
-        if (endereco.principal) {
-          principal = endereco;
+        if (endereco.id == _enderecoSelecionadoId) {
+          selecionado = endereco;
           break;
         }
       }
-      if (principal != null && mounted) {
+      if (selecionado == null) {
+        for (final endereco in enderecos) {
+          if (endereco.principal) {
+            selecionado = endereco;
+            break;
+          }
+        }
+      }
+      if (mounted) {
         setState(() {
-          _enderecoSelecionadoId = principal!.id;
-          _bairroController.text = principal.bairro;
+          _enderecos = enderecos;
+          _enderecosCarregados = true;
+          _enderecoSelecionadoId = selecionado?.id;
+          if (selecionado != null) _bairroController.text = selecionado.bairro;
         });
       }
       return enderecos;
     } catch (_) {
       if (mounted) {
-        setState(() => _enderecos = const []);
+        setState(() {
+          _enderecos = const [];
+          _erroEnderecos = true;
+        });
       }
       rethrow;
     }
@@ -99,20 +116,19 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     int profissionalId,
   ) async {
     if (AppServices.instance.emDemonstracao) return const [];
-    try {
-      final response = await AppServices.instance.profissionais
-          .disponibilidadePublica(profissionalId);
-      final disponibilidades = listFromApi(
-        response['disponibilidades'],
-        disponibilidadeFromApi,
-      );
-      if (mounted) {
-        setState(() => _disponibilidades = disponibilidades);
-      }
-      return disponibilidades;
-    } catch (_) {
-      return const [];
+    final response = await AppServices.instance.profissionais
+        .disponibilidadePublica(profissionalId);
+    if (response['disponibilidades'] is! List) {
+      throw const FormatException('Resposta de disponibilidade inválida.');
     }
+    final disponibilidades = listFromApi(
+      response['disponibilidades'],
+      disponibilidadeFromApi,
+    );
+    if (mounted) {
+      setState(() => _disponibilidades = disponibilidades);
+    }
+    return disponibilidades;
   }
 
   @override
@@ -126,6 +142,14 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
 
   Future<void> _enviarSolicitacao() async {
     if (_enviando) return;
+    if (AppServices.instance.auth.autenticado && !_enderecosCarregados) {
+      _mostrarErro(
+        _erroEnderecos
+            ? 'Não foi possível consultar seus endereços. Tente novamente antes de enviar.'
+            : 'Aguarde o carregamento dos seus endereços antes de enviar.',
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     final profissional = _profissional;
@@ -234,6 +258,16 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     });
   }
 
+  void _recarregarDisponibilidade() {
+    final profissional = _profissional;
+    if (profissional == null) return;
+    setState(() {
+      _disponibilidades = const [];
+      _disponibilidadeFuture = _carregarDisponibilidade(profissional.id);
+      _disponibilidadeFuture?.ignore();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final profissional = _profissional;
@@ -280,6 +314,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                     }),
                     onCadastrarEndereco: _cadastrarEndereco,
                     onRetryEnderecos: _recarregarEnderecos,
+                    onRetryDisponibilidade: _recarregarDisponibilidade,
                     onSubmit: _enviarSolicitacao,
                     enviando: _enviando,
                   ),
@@ -364,6 +399,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.onEnderecoChanged,
     required this.onCadastrarEndereco,
     required this.onRetryEnderecos,
+    required this.onRetryDisponibilidade,
     required this.onSubmit,
     required this.enviando,
   });
@@ -382,6 +418,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   final ValueChanged<ClienteEndereco> onEnderecoChanged;
   final Future<void> Function() onCadastrarEndereco;
   final VoidCallback onRetryEnderecos;
+  final VoidCallback onRetryDisponibilidade;
   final Future<void> Function() onSubmit;
   final bool enviando;
 
@@ -444,7 +481,10 @@ class _FormularioSolicitacao extends StatelessWidget {
                     if (snapshot.connectionState != ConnectionState.done) {
                       return const Padding(
                         padding: EdgeInsets.only(bottom: 12),
-                        child: LinearProgressIndicator(),
+                        child: _ConsultaAviso(
+                          titulo: 'Carregando seus endereços…',
+                          carregando: true,
+                        ),
                       );
                     }
                     if (snapshot.hasError) {
@@ -515,8 +555,43 @@ class _FormularioSolicitacao extends StatelessWidget {
                 FutureBuilder<List<Disponibilidade>>(
                   future: disponibilidadeFuture,
                   builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: _ConsultaAviso(
+                          titulo: 'Consultando disponibilidade…',
+                          carregando: true,
+                        ),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ConsultaAviso(
+                          titulo:
+                              'Não foi possível consultar a disponibilidade.',
+                          mensagem:
+                              'Tente novamente para ver os horários informados pelo profissional.',
+                          icon: Icons.wifi_off_outlined,
+                          onRetry: onRetryDisponibilidade,
+                          retryKey: const ValueKey(
+                            'disponibilidade-tentar-novamente',
+                          ),
+                        ),
+                      );
+                    }
                     final itens = snapshot.data ?? const <Disponibilidade>[];
-                    if (itens.isEmpty) return const SizedBox.shrink();
+                    if (itens.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: _ConsultaAviso(
+                          titulo: 'Nenhum horário informado',
+                          mensagem:
+                              'O profissional ainda não informou sua disponibilidade. A data desejada depende do aceite dele.',
+                          icon: Icons.event_note_outlined,
+                        ),
+                      );
+                    }
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Column(
@@ -534,43 +609,50 @@ class _FormularioSolicitacao extends StatelessWidget {
                     );
                   },
                 ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      key: const ValueKey('solicitar-data'),
-                      controller: dataController,
-                      decoration: const InputDecoration(
-                        labelText: 'Data desejada',
-                        hintText: 'DD/MM/AAAA',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_month_outlined),
-                      ),
-                      keyboardType: TextInputType.datetime,
-                      textInputAction: TextInputAction.next,
-                      onTap: () => _selecionarData(context, dataController),
-                      validator: validarDataSolicitacao,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final data = TextFormField(
+                    key: const ValueKey('solicitar-data'),
+                    controller: dataController,
+                    decoration: const InputDecoration(
+                      labelText: 'Data desejada',
+                      hintText: 'DD/MM/AAAA',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.calendar_month_outlined),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      key: const ValueKey('solicitar-horario'),
-                      controller: horarioController,
-                      decoration: const InputDecoration(
-                        labelText: 'Horário',
-                        hintText: 'HH:MM',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.schedule_rounded),
-                      ),
-                      keyboardType: TextInputType.datetime,
-                      textInputAction: TextInputAction.next,
-                      onTap: () =>
-                          _selecionarHorario(context, horarioController),
-                      validator: validarHorarioSolicitacao,
+                    keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTap: () => _selecionarData(context, dataController),
+                    validator: validarDataSolicitacao,
+                  );
+                  final horario = TextFormField(
+                    key: const ValueKey('solicitar-horario'),
+                    controller: horarioController,
+                    decoration: const InputDecoration(
+                      labelText: 'Horário',
+                      hintText: 'HH:MM',
+                      border: OutlineInputBorder(),
+                      suffixIcon: Icon(Icons.schedule_rounded),
                     ),
-                  ),
-                ],
+                    keyboardType: TextInputType.datetime,
+                    textInputAction: TextInputAction.next,
+                    onTap: () => _selecionarHorario(context, horarioController),
+                    validator: validarHorarioSolicitacao,
+                  );
+                  if (constraints.maxWidth < 300 ||
+                      MediaQuery.textScalerOf(context).scale(16) > 20) {
+                    return Column(
+                      children: [data, const SizedBox(height: 12), horario],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: data),
+                      const SizedBox(width: 10),
+                      Expanded(child: horario),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -733,45 +815,91 @@ class _EnderecoErroAviso extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.verdePastel,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borda),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.wifi_off_outlined, color: AppColors.verdeEscuro),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
+    return _ConsultaAviso(
+      titulo: 'Não foi possível carregar seus endereços.',
+      mensagem:
+          'Confira a conexão e tente novamente antes de enviar a solicitação.',
+      icon: Icons.wifi_off_outlined,
+      onRetry: onRetry,
+      retryKey: const ValueKey('enderecos-tentar-novamente'),
+    );
+  }
+}
+
+class _ConsultaAviso extends StatelessWidget {
+  const _ConsultaAviso({
+    required this.titulo,
+    this.mensagem,
+    this.icon = Icons.info_outline_rounded,
+    this.carregando = false,
+    this.onRetry,
+    this.retryKey,
+  });
+
+  final String titulo;
+  final String? mensagem;
+  final IconData icon;
+  final bool carregando;
+  final VoidCallback? onRetry;
+  final Key? retryKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.verdePastel,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borda),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Nao foi possivel carregar seus enderecos.',
-                    style: TextStyle(
-                      color: AppColors.texto,
-                      fontWeight: FontWeight.w800,
+                  ExcludeSemantics(
+                    child: carregando
+                        ? const SizedBox.square(
+                            dimension: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(icon, color: AppColors.verdeEscuro),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      titulo,
+                      style: const TextStyle(
+                        color: AppColors.texto,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Confira a conexao antes de enviar a solicitacao.',
-                    style: TextStyle(color: AppColors.textoSuave),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: onRetry,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Tentar novamente'),
                   ),
                 ],
               ),
-            ),
-          ],
+              if (mensagem != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  mensagem!,
+                  style: const TextStyle(color: AppColors.textoSuave),
+                ),
+              ],
+              if (onRetry != null) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: retryKey,
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Tentar novamente'),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
