@@ -1,0 +1,22 @@
+{
+  "contexto": "Prévia Flutter Web, cliente, dados fictícios, texto padrão",
+  "browser": {
+    "exceptions": 0,
+    "errors": 0,
+    "warnings": 5
+  },
+  "viewports": {
+    "perfil-publico-360.png": [
+      360,
+      844
+    ],
+    "perfil-publico-390.png": [
+      390,
+      844
+    ],
+    "perfil-publico-412.png": [
+      412,
+      844
+    ]
+  }
+}
