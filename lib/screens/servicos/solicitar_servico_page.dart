@@ -43,6 +43,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   int? _enderecoSelecionadoId;
   Future<List<ClienteEndereco>>? _enderecosFuture;
   Future<List<Disponibilidade>>? _disponibilidadeFuture;
+  List<ClienteEndereco> _enderecos = const [];
   List<Disponibilidade> _disponibilidades = const [];
 
   @override
@@ -69,6 +70,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         response['enderecos'],
         clienteEnderecoFromApi,
       );
+      if (mounted) {
+        setState(() => _enderecos = enderecos);
+      }
       ClienteEndereco? principal;
       for (final endereco in enderecos) {
         if (endereco.principal) {
@@ -84,6 +88,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       }
       return enderecos;
     } catch (_) {
+      if (mounted) {
+        setState(() => _enderecos = const []);
+      }
       return const [];
     }
   }
@@ -123,6 +130,18 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
 
     final profissional = _profissional;
     if (profissional == null) return;
+    if (AppServices.instance.auth.autenticado && _enderecos.isEmpty) {
+      _mostrarErro(
+        'Cadastre um endereco antes de solicitar atendimento para liberar o local com seguranca apos o aceite.',
+      );
+      return;
+    }
+    if (AppServices.instance.auth.autenticado &&
+        _enderecos.isNotEmpty &&
+        _enderecoSelecionadoId == null) {
+      _mostrarErro('Selecione um endereco cadastrado.');
+      return;
+    }
     final data = _parseData(_dataController.text);
     if (data == null) {
       _mostrarErro('Informe uma data valida no formato DD/MM/AAAA.');
@@ -202,6 +221,15 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     );
   }
 
+  Future<void> _cadastrarEndereco() async {
+    await Navigator.pushNamed(context, AppRoutes.enderecos);
+    if (!mounted) return;
+    setState(() {
+      _enderecosFuture = _carregarEnderecos();
+      _enderecosFuture?.ignore();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final profissional = _profissional;
@@ -246,6 +274,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                       _enderecoSelecionadoId = endereco.id;
                       _bairroController.text = endereco.bairro;
                     }),
+                    onCadastrarEndereco: _cadastrarEndereco,
                     onSubmit: _enviarSolicitacao,
                     enviando: _enviando,
                   ),
@@ -328,6 +357,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.disponibilidadeFuture,
     required this.onOfertaChanged,
     required this.onEnderecoChanged,
+    required this.onCadastrarEndereco,
     required this.onSubmit,
     required this.enviando,
   });
@@ -344,6 +374,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   final Future<List<Disponibilidade>>? disponibilidadeFuture;
   final ValueChanged<int?> onOfertaChanged;
   final ValueChanged<ClienteEndereco> onEnderecoChanged;
+  final Future<void> Function() onCadastrarEndereco;
   final Future<void> Function() onSubmit;
   final bool enviando;
 
@@ -390,7 +421,7 @@ class _FormularioSolicitacao extends StatelessWidget {
                   for (final oferta in ofertas)
                     DropdownMenuItem(
                       value: oferta.id,
-                      child: Text(oferta.nome),
+                      child: Text(oferta.nome, overflow: TextOverflow.ellipsis),
                     ),
                 ],
                 onChanged: onOfertaChanged,
@@ -403,10 +434,24 @@ class _FormularioSolicitacao extends StatelessWidget {
                   builder: (context, snapshot) {
                     final enderecos =
                         snapshot.data ?? const <ClienteEndereco>[];
-                    if (enderecos.isEmpty) return const SizedBox.shrink();
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(),
+                      );
+                    }
+                    if (enderecos.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _EnderecoObrigatorioAviso(
+                          onCadastrar: onCadastrarEndereco,
+                        ),
+                      );
+                    }
                     return Column(
                       children: [
                         DropdownButtonFormField<int>(
+                          isExpanded: true,
                           initialValue:
                               enderecos.any(
                                 (endereco) =>
@@ -422,7 +467,10 @@ class _FormularioSolicitacao extends StatelessWidget {
                             for (final endereco in enderecos)
                               DropdownMenuItem(
                                 value: endereco.id,
-                                child: Text(endereco.resumo),
+                                child: Text(
+                                  endereco.resumo,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                           ],
                           onChanged: (id) {
@@ -613,6 +661,50 @@ class _DisponibilidadeResumo extends StatelessWidget {
                   )
                   .join(', '),
               style: const TextStyle(color: AppColors.textoSuave),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EnderecoObrigatorioAviso extends StatelessWidget {
+  const _EnderecoObrigatorioAviso({required this.onCadastrar});
+
+  final VoidCallback onCadastrar;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.verdePastel,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borda),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.lock_outline, color: AppColors.verdeEscuro),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Cadastre um endereco antes de solicitar atendimento. O profissional so ve o endereco completo depois do aceite.',
+                    style: TextStyle(color: AppColors.texto, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onCadastrar,
+              icon: const Icon(Icons.add_location_alt_outlined),
+              label: const Text('Cadastrar endereco'),
             ),
           ],
         ),

@@ -329,7 +329,23 @@ void main() {
           enviado = jsonDecode(request.body) as Map<String, dynamic>;
           return _json({'solicitacao': _pedido()});
         }
-        return _json({'enderecos': [], 'disponibilidades': []});
+        if (request.url.path.endsWith('/clientes/me/enderecos')) {
+          return _json({
+            'enderecos': [
+              {
+                'id': 90,
+                'apelido': 'Casa',
+                'logradouro': 'Rua Um',
+                'numero': '123',
+                'bairro': 'Centro',
+                'cidade': 'Belo Horizonte',
+                'uf': 'MG',
+                'principal': true,
+              },
+            ],
+          });
+        }
+        return _json({'disponibilidades': []});
       });
       await _abrir(
         tester,
@@ -362,6 +378,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(enviado?['servicoId'], 32);
       expect(enviado?['categoriaId'], 2);
+      expect(enviado?['enderecoId'], 90);
       expect(find.text('Solicitação enviada'), findsOneWidget);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);

@@ -266,7 +266,7 @@ class _FormularioCodigo extends StatelessWidget {
                     key: const ValueKey('recuperacao-nova-senha'),
                     controller: novaSenha,
                     obscureText: ocultarSenha,
-                    validator: validarSenha,
+                    validator: validarSenhaForte,
                     decoration: InputDecoration(
                       labelText: 'Nova senha',
                       prefixIcon: const Icon(Icons.lock_outline),
@@ -289,7 +289,7 @@ class _FormularioCodigo extends StatelessWidget {
                     obscureText: ocultarSenha,
                     controller: confirmacao,
                     validator: (valor) {
-                      final erro = validarSenha(valor);
+                      final erro = validarSenhaForte(valor);
                       if (erro != null) return erro;
                       if (valor != novaSenha.text) {
                         return 'As senhas não coincidem.';

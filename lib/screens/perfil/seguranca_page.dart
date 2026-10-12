@@ -129,7 +129,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                 onToggle: () => setState(
                                   () => _ocultarNova = !_ocultarNova,
                                 ),
-                                validator: validarSenha,
+                                validator: validarSenhaForte,
                               ),
                               const SizedBox(height: 14),
                               _CampoSenha(
@@ -144,7 +144,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                       !_ocultarConfirmacao,
                                 ),
                                 validator: (valor) {
-                                  final erro = validarSenha(valor);
+                                  final erro = validarSenhaForte(valor);
                                   if (erro != null) return erro;
                                   if (valor != _novaSenha.text) {
                                     return 'As senhas não coincidem.';

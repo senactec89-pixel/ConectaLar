@@ -242,9 +242,7 @@ function parseCadastro(body: unknown): CadastroRequest {
     throw badRequest('EMAIL_INVALIDO');
   }
 
-  if (senha.length < 8 || senha.length > 128) {
-    throw badRequest('SENHA_INVALIDA');
-  }
+  validarSenha(senha);
 
   if (!usuarioTiposPublicos.has(tipo)) {
     throw badRequest('TIPO_INVALIDO');
@@ -345,11 +343,20 @@ function normalizarEmail(email: string): string {
 }
 
 function emailValido(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(
+    email.trim(),
+  );
 }
 
 function validarSenha(senha: string): void {
-  if (senha.length < 8 || senha.length > 128) {
+  if (
+    senha.length < 8 ||
+    senha.length > 128 ||
+    !/[A-Z]/.test(senha) ||
+    !/[a-z]/.test(senha) ||
+    !/\d/.test(senha) ||
+    !/[^A-Za-z0-9]/.test(senha)
+  ) {
     throw badRequest('SENHA_INVALIDA');
   }
 }

@@ -147,7 +147,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.widget<FilterChip>(outrasCategorias).selected, isTrue);
       await tester.scrollUntilVisible(
-        find.text('Nenhum profissional encontrado.'),
+        find.text('Nenhum profissional corresponde a esta busca.'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
@@ -201,7 +201,7 @@ void main() {
         lessThanOrEqualTo(width - 40),
       );
       await tester.scrollUntilVisible(
-        find.text('Nenhum profissional encontrado.'),
+        find.text('Nenhum profissional corresponde a esta busca.'),
         200,
         scrollable: find.byType(Scrollable).first,
       );

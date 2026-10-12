@@ -25,6 +25,7 @@ import '../screens/profissional/perfil_profissional_page.dart';
 import '../screens/profissional/area_profissional_page.dart';
 import '../screens/profissional/avaliacoes_recebidas_page.dart';
 import '../screens/servicos/detalhes_servico_page.dart';
+import '../screens/servicos/denunciar_servico_page.dart';
 import '../screens/servicos/meus_servicos_page.dart';
 import '../screens/servicos/solicitar_servico_page.dart';
 
@@ -40,6 +41,7 @@ abstract final class AppRoutes {
   static const meusServicos = '/servicos';
   static const solicitarServico = '/servicos/solicitar';
   static const detalhesServico = '/servicos/detalhes';
+  static const denunciarServico = '/servicos/denunciar';
   static const favoritos = '/favoritos';
   static const chat = '/chat';
   static const conversa = '/chat/conversa';
@@ -77,6 +79,7 @@ abstract final class AppRoutes {
     meusServicos: (_) => const MeusServicosPage(),
     solicitarServico: (_) => const SolicitarServicoPage(),
     detalhesServico: (_) => const DetalhesServicoPage(),
+    denunciarServico: (_) => const DenunciarServicoPage(),
     favoritos: (_) => const FavoritosPage(),
     chat: (_) => const ChatPage(),
     conversa: (_) => const ConversaPage(),

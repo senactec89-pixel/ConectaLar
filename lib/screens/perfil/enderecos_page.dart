@@ -334,6 +334,8 @@ class _EnderecoFormState extends State<_EnderecoForm> {
               TextFormField(
                 controller: _cep,
                 decoration: const InputDecoration(labelText: 'CEP'),
+                keyboardType: TextInputType.number,
+                validator: validarCepOpcional,
               ),
               const SizedBox(height: 10),
               TextFormField(
@@ -356,7 +358,8 @@ class _EnderecoFormState extends State<_EnderecoForm> {
                     child: TextFormField(
                       controller: _uf,
                       decoration: const InputDecoration(labelText: 'UF'),
-                      validator: validarCampoObrigatorio,
+                      textCapitalization: TextCapitalization.characters,
+                      validator: validarUf,
                     ),
                   ),
                 ],

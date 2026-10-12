@@ -28,6 +28,13 @@ const publicErrors: Readonly<Record<string, string>> = {
   ENDERECO_INVALIDO: 'Selecione um endereço cadastrado válido.',
   CATEGORIA_INVALIDA: 'Selecione uma categoria ativa.',
   CAMPO_INVALIDO: 'Confira os campos preenchidos e tente novamente.',
+  EMAIL_INVALIDO: 'Informe um e-mail valido.',
+  SENHA_INVALIDA:
+    'Use uma senha com pelo menos 8 caracteres, maiuscula, minuscula, numero e caractere especial.',
+  CHAT_INDISPONIVEL: 'A conversa nao esta disponivel para este atendimento.',
+  MENSAGEM_INVALIDA: 'Digite uma mensagem entre 1 e 1000 caracteres.',
+  DENUNCIADO_INVALIDO: 'Nao foi possivel identificar quem sera denunciado.',
+  AUTO_DENUNCIA_INVALIDA: 'Nao e possivel denunciar a propria conta.',
   AVALIACAO_JA_REGISTRADA: 'Você já enviou uma avaliação deste atendimento.',
 };
 

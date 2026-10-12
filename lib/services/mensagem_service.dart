@@ -15,7 +15,7 @@ class MensagemService {
   }) {
     return _api.post(
       'solicitacoes/$solicitacaoId/mensagens',
-      body: {'texto': texto},
+      body: {'conteudo': texto},
     );
   }
 }

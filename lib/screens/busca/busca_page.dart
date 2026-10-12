@@ -412,7 +412,7 @@ class _EstadoVazioBusca extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Nenhum profissional encontrado.',
+            'Nenhum profissional corresponde a esta busca.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: AppColors.texto,

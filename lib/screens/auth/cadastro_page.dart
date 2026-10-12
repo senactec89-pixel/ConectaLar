@@ -232,7 +232,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         controller: _senhaController,
                         obscureText: true,
                         decoration: const InputDecoration(labelText: 'Senha'),
-                        validator: validarSenha,
+                        validator: validarSenhaForte,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -244,7 +244,7 @@ class _CadastroPageState extends State<CadastroPage> {
                           labelText: 'Confirmar senha',
                         ),
                         validator: (valor) {
-                          final erro = validarSenha(valor);
+                          final erro = validarSenhaForte(valor);
                           if (erro != null) return erro;
                           if (valor != _senhaController.text) {
                             return 'As senhas devem ser iguais.';

@@ -344,6 +344,11 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             AppRoutes.conversa,
             arguments: solicitacao.id,
           ),
+          onDenunciar: () => Navigator.pushNamed(
+            context,
+            AppRoutes.denunciarServico,
+            arguments: atendimento,
+          ),
           onCancelar: () => _cancelar(),
           onAceitar: () => _aceitar(),
           onRecusar: () => _recusar(),
@@ -375,6 +380,7 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.solicitacao,
     required this.avaliado,
     required this.onConversar,
+    required this.onDenunciar,
     required this.onCancelar,
     required this.onAceitar,
     required this.onRecusar,
@@ -387,6 +393,7 @@ class _AcoesAtendimento extends StatelessWidget {
   final Solicitacao solicitacao;
   final bool avaliado;
   final VoidCallback onConversar;
+  final VoidCallback onDenunciar;
   final VoidCallback onCancelar;
   final VoidCallback onAceitar;
   final VoidCallback onRecusar;
@@ -423,6 +430,15 @@ class _AcoesAtendimento extends StatelessWidget {
                     onPressed: ocupada ? null : onConversar,
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text('Conversar'),
+                  ),
+                if (cliente || profissional)
+                  OutlinedButton.icon(
+                    onPressed: ocupada ? null : onDenunciar,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.erro,
+                    ),
+                    icon: const Icon(Icons.flag_outlined),
+                    label: const Text('Denunciar'),
                   ),
                 if (profissional &&
                     solicitacao.status == StatusSolicitacao.aguardandoResposta)
