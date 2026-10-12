@@ -8,6 +8,7 @@ import '../screens/auth/termos_page.dart';
 import '../screens/auth/verificacao_email_page.dart';
 import '../screens/admin/admin_pages.dart';
 import '../screens/admin/criar_administrador_page.dart';
+import '../screens/admin/historico_admin_page.dart';
 import '../screens/busca/busca_page.dart';
 import '../screens/busca/resultado_page.dart';
 import '../screens/chat/chat_page.dart';
@@ -65,6 +66,7 @@ abstract final class AppRoutes {
   static const admin = '/admin';
   static const adminUsuarios = '/admin/usuarios';
   static const adminCriarAdministrador = '/admin/usuarios/novo-administrador';
+  static const adminHistorico = '/admin/historico';
   static const adminDocumentos = '/admin/documentos';
   static const adminDenuncias = '/admin/denuncias';
   static const adminAvaliacoes = '/admin/avaliacoes';
@@ -105,6 +107,7 @@ abstract final class AppRoutes {
     admin: (_) => const AdminPage(),
     adminUsuarios: (_) => const AdminPage(modulo: AdminModulo.usuarios),
     adminCriarAdministrador: (_) => const CriarAdministradorPage(),
+    adminHistorico: (_) => const HistoricoAdminPage(),
     adminDocumentos: (_) => const AdminPage(modulo: AdminModulo.documentos),
     adminDenuncias: (_) => const AdminPage(modulo: AdminModulo.denuncias),
     adminAvaliacoes: (_) => const AdminPage(modulo: AdminModulo.avaliacoes),

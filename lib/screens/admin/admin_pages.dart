@@ -367,6 +367,12 @@ class _AdminPageState extends State<AdminPage> {
           ),
           _AdminAtalho(
             icon: Icons.history,
+            title: 'Histórico de atendimentos',
+            subtitle: 'Consultar solicitações e filtrar por situação',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.adminHistorico),
+          ),
+          _AdminAtalho(
+            icon: Icons.manage_search_outlined,
             title: 'Registro de auditoria',
             subtitle: 'Consultar as ações administrativas recentes',
             onTap: () => _abrir(AdminModulo.auditoria),

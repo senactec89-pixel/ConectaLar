@@ -255,6 +255,43 @@ class FrontendPreviewClient extends http.BaseClient {
       },
       '/solicitacoes/me' => {'solicitacoes': pedidos},
       '/historico/atendimentos/me' => {'atendimentos': pedidos},
+      '/admin/historico/atendimentos' => {
+        'atendimentos': pedidos
+            .where((pedido) {
+              final status = query['status'];
+              final usuarioId = query['usuarioId'];
+              final finalizado = const {
+                'recusada',
+                'cancelada',
+                'conclusao_confirmada',
+              }.contains(pedido['status']);
+              return (status == null || pedido['status'] == status) &&
+                  (query['finalizados'] != 'true' || finalizado) &&
+                  (usuarioId == null ||
+                      '${pedido['cliente']['id']}' == usuarioId ||
+                      '${pedido['profissional']['usuarioId']}' == usuarioId);
+            })
+            .map(
+              (pedido) => {
+                for (final key in const [
+                  'id',
+                  'status',
+                  'cliente',
+                  'profissional',
+                  'categoria',
+                  'descricao',
+                  'bairroAtendimento',
+                  'dataServico',
+                  'horarioServico',
+                  'precoInicial',
+                  'criadoEm',
+                  'atualizadoEm',
+                ])
+                  key: pedido[key],
+              },
+            )
+            .toList(),
+      },
       '/clientes/me' => {
         'cliente': {...usuario, 'bairro': 'Centro'},
       },

@@ -10,6 +10,18 @@ class AdminService {
   Future<Map<String, dynamic>> auditoria() =>
       _api.get('admin/painel/auditoria');
 
+  Future<Map<String, dynamic>> historicoAtendimentos({
+    String? status,
+    bool? finalizados,
+    int? usuarioId,
+  }) {
+    final query = <String, String>{};
+    if (status != null) query['status'] = status;
+    if (finalizados != null) query['finalizados'] = '$finalizados';
+    if (usuarioId != null) query['usuarioId'] = '$usuarioId';
+    return _api.get('admin/historico/atendimentos', queryParameters: query);
+  }
+
   Future<Map<String, dynamic>> usuarios({String? tipo, String? termo}) =>
       _api.get(
         'admin/usuarios',
