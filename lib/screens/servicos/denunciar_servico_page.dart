@@ -76,7 +76,7 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
     if (_enviando || !_formKey.currentState!.validate()) return;
     final denunciadoId = _denunciadoId(atendimento);
     if (denunciadoId == null || denunciadoId <= 0) {
-      _snack('Nao foi possivel identificar a outra parte do atendimento.');
+      _snack('Não foi possível identificar a outra parte do atendimento.');
       return;
     }
 
@@ -89,12 +89,12 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
         descricao: _descricaoController.text,
       );
       if (!mounted) return;
-      _snack('Denuncia enviada para analise administrativa.');
+      _snack('Denúncia enviada para análise administrativa.');
       Navigator.pop(context, true);
     } on ApiException catch (error) {
       _snack(error.message);
     } catch (_) {
-      _snack('Nao foi possivel enviar a denuncia. Tente novamente.');
+      _snack('Não foi possível enviar a denúncia. Tente novamente.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -128,7 +128,7 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
           }
           if (snapshot.hasError) {
             return AsyncErrorView(
-              message: 'Nao foi possivel carregar este atendimento.',
+              message: 'Não foi possível carregar este atendimento.',
               onRetry: () => setState(() {
                 _future = _carregar(arguments);
                 _future?.ignore();
@@ -138,8 +138,8 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
           final atendimento = snapshot.data;
           if (atendimento == null) {
             return const EmptyStateView(
-              title: 'Atendimento indisponivel',
-              message: 'Abra a denuncia pelos detalhes de um atendimento.',
+              title: 'Atendimento indisponível',
+              message: 'Abra a denúncia pelos detalhes de um atendimento.',
               icon: Icons.flag_outlined,
             );
           }
@@ -153,12 +153,9 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Relato para moderacao',
-                        style: TextStyle(
-                          color: AppColors.texto,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      Text(
+                        'Relato para moderação',
+                        style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -167,7 +164,7 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        'Explique o que aconteceu com clareza. A equipe administrativa analisara o relato e podera solicitar mais informacoes.',
+                        'Explique o que aconteceu com clareza. A equipe administrativa analisará o relato e poderá solicitar mais informações.',
                         style: TextStyle(height: 1.35),
                       ),
                     ],
@@ -193,7 +190,11 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
                             for (final motivo in _motivos)
                               DropdownMenuItem(
                                 value: motivo,
-                                child: Text(motivo),
+                                child: Text(
+                                  motivo == 'Conteudo ofensivo'
+                                      ? 'Conteúdo ofensivo'
+                                      : motivo,
+                                ),
                               ),
                           ],
                           onChanged: _enviando
@@ -206,7 +207,7 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
                         TextFormField(
                           controller: _descricaoController,
                           decoration: const InputDecoration(
-                            labelText: 'Descricao',
+                            labelText: 'Descrição',
                             hintText:
                                 'Descreva o problema com pelo menos 20 caracteres.',
                             border: OutlineInputBorder(),
@@ -235,7 +236,7 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
                                 )
                               : const Icon(Icons.flag_outlined),
                           label: Text(
-                            _enviando ? 'Enviando...' : 'Enviar denuncia',
+                            _enviando ? 'Enviando...' : 'Enviar denúncia',
                           ),
                         ),
                       ],

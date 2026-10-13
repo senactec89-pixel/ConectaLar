@@ -156,24 +156,24 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     if (profissional == null) return;
     if (AppServices.instance.auth.autenticado && _enderecos.isEmpty) {
       _mostrarErro(
-        'Cadastre um endereco antes de solicitar atendimento para liberar o local com seguranca apos o aceite.',
+        'Cadastre um endereço antes de solicitar atendimento para liberar o local com segurança após o aceite.',
       );
       return;
     }
     if (AppServices.instance.auth.autenticado &&
         _enderecos.isNotEmpty &&
         _enderecoSelecionadoId == null) {
-      _mostrarErro('Selecione um endereco cadastrado.');
+      _mostrarErro('Selecione um endereço cadastrado.');
       return;
     }
     final data = _parseData(_dataController.text);
     if (data == null) {
-      _mostrarErro('Informe uma data valida no formato DD/MM/AAAA.');
+      _mostrarErro('Informe uma data válida no formato DD/MM/AAAA.');
       return;
     }
     final horario = _normalizarHorario(_horarioController.text);
     if (horario == null) {
-      _mostrarErro('Informe um horario valido no formato HH:MM.');
+      _mostrarErro('Informe um horário válido no formato HH:MM.');
       return;
     }
     if (!_dataNaoPassou(data)) {
@@ -183,7 +183,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     if (_disponibilidades.isNotEmpty &&
         !_horarioDentroDaDisponibilidade(data, horario, _disponibilidades)) {
       _mostrarErro(
-        'Escolha uma data e horario dentro da disponibilidade informada pelo profissional.',
+        'Escolha uma data e horário dentro da disponibilidade informada pelo profissional.',
       );
       return;
     }
@@ -216,7 +216,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     } on ApiException catch (error) {
       _mostrarErro(error.message);
     } catch (_) {
-      _mostrarErro('Nao foi possivel enviar a solicitacao. Tente novamente.');
+      _mostrarErro('Não foi possível enviar a solicitação. Tente novamente.');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -789,7 +789,7 @@ class _EnderecoObrigatorioAviso extends StatelessWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Cadastre um endereco antes de solicitar atendimento. O profissional so ve o endereco completo depois do aceite.',
+                    'Cadastre um endereço antes de solicitar atendimento. O profissional só vê o endereço completo depois do aceite.',
                     style: TextStyle(color: AppColors.texto, height: 1.35),
                   ),
                 ),
@@ -799,7 +799,7 @@ class _EnderecoObrigatorioAviso extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onCadastrar,
               icon: const Icon(Icons.add_location_alt_outlined),
-              label: const Text('Cadastrar endereco'),
+              label: const Text('Cadastrar endereço'),
             ),
           ],
         ),
@@ -1105,7 +1105,7 @@ String? validarDataSolicitacao(String? valor) {
   final erroObrigatorio = validarCampoObrigatorio(valor);
   if (erroObrigatorio != null) return erroObrigatorio;
   final data = _parseData(valor!);
-  if (data == null) return 'Informe uma data valida no formato DD/MM/AAAA.';
+  if (data == null) return 'Informe uma data válida no formato DD/MM/AAAA.';
   if (!_dataNaoPassou(data)) return 'Escolha uma data de hoje em diante.';
   return null;
 }
@@ -1114,7 +1114,7 @@ String? validarHorarioSolicitacao(String? valor) {
   final erroObrigatorio = validarCampoObrigatorio(valor);
   if (erroObrigatorio != null) return erroObrigatorio;
   return _normalizarHorario(valor!) == null
-      ? 'Informe um horario valido no formato HH:MM.'
+      ? 'Informe um horário válido no formato HH:MM.'
       : null;
 }
 
