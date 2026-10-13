@@ -549,8 +549,10 @@ class _DetalheSolicitacaoProfissionalPageState
                     ),
                     _InfoCard(
                       title: 'Data e horário',
-                      value:
-                          '${p['dataServico'] ?? ''} • ${p['horarioServico'] ?? ''}',
+                      value: _dataHoraPedido(
+                        p['dataServico'],
+                        p['horarioServico'],
+                      ),
                     ),
                     _InfoCard(
                       title: 'Região',
@@ -1144,7 +1146,7 @@ class _PedidoCard extends StatelessWidget {
               '${pedido['cliente']?['nome'] ?? 'Cliente'} • ${pedido['bairroAtendimento'] ?? 'Região não informada'}',
             ),
             Text(
-              '${pedido['dataServico'] ?? ''} • ${pedido['horarioServico'] ?? ''}',
+              _dataHoraPedido(pedido['dataServico'], pedido['horarioServico']),
               style: const TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 6),
@@ -1570,6 +1572,22 @@ class _DisponibilidadeDoDia extends StatelessWidget {
 
 String _chaveMes(DateTime data) =>
     '${data.year}-${data.month.toString().padLeft(2, '0')}';
+
+String _dataHoraPedido(Object? valorData, Object? valorHorario) {
+  final textoData = valorData?.toString() ?? '';
+  final data = DateTime.tryParse(
+    textoData.length >= 10 ? textoData.substring(0, 10) : textoData,
+  );
+  final dataFormatada = data == null
+      ? 'Data não informada'
+      : '${data.day.toString().padLeft(2, '0')}/'
+            '${data.month.toString().padLeft(2, '0')}/${data.year}';
+  final horario = valorHorario?.toString().trim() ?? '';
+  if (horario.isEmpty) return dataFormatada;
+  final horarioFormatado =
+      RegExp(r'^\d{2}:\d{2}').stringMatch(horario) ?? horario;
+  return '$dataFormatada às $horarioFormatado';
+}
 
 DateTime _dataDoServico(Object? valor) {
   final texto = '$valor';
