@@ -227,7 +227,7 @@ class _HistoricoAdminViewState extends State<_HistoricoAdminView> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      '${items.length} atendimento(s)',
+                      '${items.length} ${items.length == 1 ? 'atendimento' : 'atendimentos'}',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     if (items.length >= 200)

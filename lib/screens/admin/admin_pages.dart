@@ -664,12 +664,16 @@ class _AdminPageState extends State<AdminPage> {
           ),
         );
       case AdminModulo.avaliacoes:
+        final nota = num.tryParse('${item['nota']}');
+        final textoNota = nota == null
+            ? 'Nota não informada'
+            : '${item['nota']} ${nota == 1 ? 'estrela' : 'estrelas'}';
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
           child: ListTile(
             leading: const Icon(Icons.star_outline, color: AppColors.estrela),
             title: Text(
-              '${item['nota'] ?? '-'} estrelas • ${item['avaliador']?['nome'] ?? 'Usuário'}',
+              '$textoNota • ${item['avaliador']?['nome'] ?? 'Usuário'}',
             ),
             subtitle: Text(
               'Avaliação de ${item['avaliado']?['nome'] ?? 'usuário'}\n${item['comentario'] ?? 'Sem comentário'}',
