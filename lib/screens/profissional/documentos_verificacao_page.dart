@@ -142,7 +142,7 @@ class _DocumentoCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(Icons.description_outlined, color: color),
         title: Text(
-          documento.tipoDocumento,
+          _rotuloTipoDocumento(documento.tipoDocumento),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(
@@ -163,6 +163,13 @@ String _statusDocumento(String status) => switch (status) {
   'aprovado' => 'Aprovado',
   'rejeitado' => 'Rejeitado',
   _ => 'Enviado',
+};
+
+String _rotuloTipoDocumento(String tipo) => switch (tipo) {
+  'documento_identidade' => 'Documento de identificação',
+  'comprovante_endereco' => 'Comprovante de endereço',
+  'certificado_opcional' => 'Certificado profissional',
+  _ => 'Documento',
 };
 
 class _DocumentoForm extends StatefulWidget {

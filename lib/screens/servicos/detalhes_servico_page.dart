@@ -234,7 +234,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     return _executarTransicao(
       AppServices.instance.servicos.aceitar,
       widget.store.aceitarSolicitacaoComoProfissional,
-      'Solicitação aceita e registrada como aceita_agendada.',
+      'Solicitação aceita e agendada.',
       'Aceite não permitido para este status.',
     );
   }
@@ -253,7 +253,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       AppServices.instance.servicos.concluir,
       widget.store.confirmarConclusao,
       'Conclusão confirmada pelo cliente.',
-      'Conclusão só é permitida para aceita_agendada.',
+      'A conclusão só pode ser confirmada após o aceite e agendamento.',
     );
   }
 
@@ -364,7 +364,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                   label: 'Endereço',
                   value: solicitacao.status == StatusSolicitacao.aceitaAgendada
                       ? 'Endereço completo liberado somente ao participante autorizado.'
-                      : 'Bairro visível. Endereço completo protegido até aceita_agendada.',
+                      : 'Bairro visível. O endereço completo fica protegido até o aceite e agendamento.',
                 ),
                 _DetalheLinha(
                   icon: Icons.home_repair_service_outlined,
