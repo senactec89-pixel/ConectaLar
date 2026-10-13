@@ -245,7 +245,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Confirme seu e-mail'), findsOneWidget);
+    expect(find.text('Verifique sua caixa de entrada'), findsOneWidget);
     await tester.enterText(
       find.byKey(const ValueKey('email-verificacao-codigo')),
       '123456',

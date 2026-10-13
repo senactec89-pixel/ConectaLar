@@ -30,7 +30,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
     final codigo = _codigoController.text.replaceAll(RegExp(r'\s'), '');
     if (!RegExp(r'^\d{6}$').hasMatch(codigo)) {
       setState(
-        () => _mensagem = 'Digite o codigo de 6 numeros enviado por e-mail.',
+        () => _mensagem = 'Digite o código de 6 dígitos enviado por e-mail.',
       );
       return;
     }
@@ -54,7 +54,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
       if (!mounted) return;
       setState(
         () => _mensagem =
-            'Nao foi possivel confirmar o codigo. Verifique sua conexao.',
+            'Não foi possível confirmar o código. Verifique sua conexão.',
       );
     } finally {
       if (mounted) setState(() => _confirmando = false);
@@ -71,7 +71,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
       if (!mounted) return;
       setState(
         () => _mensagem =
-            'Enviamos um novo codigo. Confira sua caixa de entrada e spam.',
+            'Enviamos um novo código. Confira sua caixa de entrada e spam.',
       );
     } on ApiException catch (error) {
       if (!mounted) return;
@@ -80,7 +80,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
       if (!mounted) return;
       setState(
         () => _mensagem =
-            'Nao foi possivel reenviar agora. Verifique sua conexao.',
+            'Não foi possível reenviar agora. Verifique sua conexão.',
       );
     } finally {
       if (mounted) setState(() => _reenviando = false);
@@ -118,19 +118,15 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
               size: 48,
             ),
             const SizedBox(height: AppSpace.md),
-            const Text(
-              'Confirme seu e-mail',
-              style: TextStyle(
-                color: AppColors.texto,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-              ),
+            Text(
+              'Verifique sua caixa de entrada',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppSpace.sm),
             Text(
               email.isEmpty
-                  ? 'Digite o codigo de 6 numeros que enviamos para sua conta.'
-                  : 'Digite o codigo de 6 numeros enviado para $email.',
+                  ? 'Digite o código de 6 dígitos que enviamos para sua conta.'
+                  : 'Digite o código de 6 dígitos enviado para $email.',
               style: const TextStyle(color: AppColors.textoSuave, height: 1.35),
             ),
             const SizedBox(height: AppSpace.lg),
@@ -148,7 +144,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
                       maxLength: 6,
                       textInputAction: TextInputAction.done,
                       decoration: const InputDecoration(
-                        labelText: 'Codigo',
+                        labelText: 'Código de verificação',
                         prefixIcon: Icon(Icons.pin_outlined),
                       ),
                       onSubmitted: ocupado ? null : (_) => _confirmar(),
@@ -183,7 +179,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
                           : const Icon(Icons.refresh_outlined),
                       label: ActionLabel(
                         busy: _reenviando,
-                        text: _reenviando ? 'Enviando...' : 'Reenviar codigo',
+                        text: _reenviando ? 'Enviando...' : 'Reenviar código',
                       ),
                     ),
                   ],
