@@ -63,7 +63,10 @@ void main() {
           reason: 'Categoria em $largura px, $escala×',
         );
 
-        final verTodas = find.widgetWithText(TextButton, 'Ver todas');
+        final verTodas = find.ancestor(
+          of: find.text('Ver todas'),
+          matching: find.bySubtype<TextButton>(),
+        );
         expect(tester.getSize(verTodas).height, greaterThanOrEqualTo(48));
 
         await tester.scrollUntilVisible(

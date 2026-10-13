@@ -163,6 +163,14 @@ class _HomeContentView extends StatelessWidget {
                               final textoAmpliado =
                                   MediaQuery.textScalerOf(context).scale(10) >
                                   14;
+                              final larguraMinima = textoAmpliado
+                                  ? 160.0
+                                  : 140.0;
+                              final colunas =
+                                  ((constraints.maxWidth + 10) /
+                                          (larguraMinima + 10))
+                                      .floor()
+                                      .clamp(2, 4);
                               return GridView.builder(
                                 shrinkWrap: true,
                                 primary: false,
@@ -170,14 +178,10 @@ class _HomeContentView extends StatelessWidget {
                                 itemCount: content.categories.length,
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: textoAmpliado
-                                          ? 2
-                                          : constraints.maxWidth < 400
-                                          ? 3
-                                          : 4,
+                                      crossAxisCount: colunas,
                                       mainAxisSpacing: 12,
                                       crossAxisSpacing: 10,
-                                      mainAxisExtent: textoAmpliado ? 144 : 84,
+                                      mainAxisExtent: textoAmpliado ? 168 : 104,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = content.categories[index];
@@ -228,7 +232,9 @@ class _HomeContentView extends StatelessWidget {
                                 crossAxisSpacing: 12,
                                 mainAxisSpacing: 12,
                                 childAspectRatio: columns == 1
-                                    ? 0.92
+                                    ? textoAmpliado
+                                          ? 0.75
+                                          : 0.92
                                     : constraints.maxWidth > 600
                                     ? 1.2
                                     : 0.52,
@@ -343,10 +349,10 @@ class _HomeHero extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 380;
+        final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
+        final compact = constraints.maxWidth < 380 || textoAmpliado;
         final baseImageSize = (constraints.maxWidth * 0.43).clamp(144.0, 170.0);
         final imageSize = baseImageSize * (compact ? 1.06 : 1.1);
-        final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
         const fundo = Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -710,7 +716,6 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textoAmpliado = MediaQuery.textScalerOf(context).scale(10) > 14;
     return Semantics(
       button: true,
       label: category.nome,
@@ -729,7 +734,7 @@ class _CategoryTile extends StatelessWidget {
                 const SizedBox(height: 5),
                 Text(
                   category.nome,
-                  maxLines: textoAmpliado ? 3 : 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
