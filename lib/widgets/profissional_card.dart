@@ -190,10 +190,16 @@ class _RodapeProfissional extends StatelessWidget {
         TextButton.icon(
           onPressed: onTap,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.verde,
+            backgroundColor: AppColors.verde,
+            foregroundColor: AppColors.branco,
+            disabledBackgroundColor: AppColors.verdeClaro,
+            disabledForegroundColor: AppColors.textoSuave,
             padding: const EdgeInsets.all(AppSpace.sm),
             minimumSize: const Size(0, 48),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.field),
+            ),
           ),
           iconAlignment: IconAlignment.end,
           icon: const Icon(Icons.arrow_forward_rounded, size: 16),

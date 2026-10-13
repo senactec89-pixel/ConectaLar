@@ -130,7 +130,7 @@ class _BuscaPageState extends State<BuscaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.fundo,
-      appBar: const AppBarCustom(title: 'Buscar profissionais'),
+      appBar: const AppBarCustom(title: 'ConectaLar'),
       body: FutureBuilder<HomeContent>(
         future: _contentFuture,
         builder: (context, snapshot) {
@@ -161,8 +161,16 @@ class _BuscaPageState extends State<BuscaPage> {
                   AppSpace.xxl,
                 ),
                 children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Buscar profissionais',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.xs),
                   Text(
-                    'Pesquise por serviço, profissional ou bairro.',
+                    'Encontre o serviço ideal para seu lar.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppColors.textoSuave,
                     ),
@@ -272,7 +280,7 @@ class _FiltrosBusca extends StatelessWidget {
                 ).textTheme.titleSmall?.copyWith(color: AppColors.texto),
               ),
               Text(
-                'Deslize para ver mais',
+                'Deslize para ver mais →',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
