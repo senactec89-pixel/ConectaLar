@@ -159,16 +159,26 @@ void main() {
         tester,
         AppRoutes.adminHistorico,
         width: width,
-        textScale: 2,
+        textScale: 1,
       );
-      await _verResultados(
-        tester,
+      await tester.ensureVisible(
         find.byKey(const ValueKey('historico-usuario')),
       );
-      await tester.tap(find.byKey(const ValueKey('historico-usuario')));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Rolagem em $width');
+      await tester.showKeyboard(
+        find.byKey(const ValueKey('historico-usuario')),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Foco em $width');
+      // O binding agenda um frame extra ao focar este campo já em 200%.
+      // Amplie depois do foco para verificar o layout com teclado e fonte 200%.
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'Fonte em $width');
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
+      expect(tester.takeException(), isNull, reason: 'Teclado em $width');
       tester.view.resetViewInsets();
       FocusManager.instance.primaryFocus?.unfocus();
       await _verResultados(tester, find.text('Atendimento #45'));

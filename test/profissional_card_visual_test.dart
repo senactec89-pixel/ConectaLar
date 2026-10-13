@@ -78,7 +78,10 @@ void main() {
           await tester.pumpAndSettle();
           expect(favoritos, favoritosAntes + 1);
           expect(perfis, perfisAntes);
-          final perfil = find.widgetWithText(TextButton, 'Ver perfil');
+          final perfil = find.ancestor(
+            of: find.text('Ver perfil'),
+            matching: find.bySubtype<TextButton>(),
+          );
           await tester.ensureVisible(perfil);
           await tester.pumpAndSettle();
           expect(tester.getSize(perfil).height, greaterThanOrEqualTo(48));
@@ -120,7 +123,10 @@ void main() {
         expect(find.text('Verificado'), findsNothing);
         expect(find.byType(Image), findsNothing);
         expect(find.text('N'), findsOneWidget);
-        final perfil = find.widgetWithText(TextButton, 'Ver perfil');
+        final perfil = find.ancestor(
+          of: find.text('Ver perfil'),
+          matching: find.bySubtype<TextButton>(),
+        );
         await tester.ensureVisible(perfil);
         await tester.pumpAndSettle();
         expect(tester.widget<TextButton>(perfil).onPressed, isNull);

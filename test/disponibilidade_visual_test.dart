@@ -33,7 +33,10 @@ void main() {
         isNull,
         reason: 'Modal com teclado em $width',
       );
-      final adicionar = find.widgetWithText(FilledButton, 'Adicionar horário');
+      final adicionar = find.ancestor(
+        of: find.text('Adicionar horário'),
+        matching: find.bySubtype<FilledButton>(),
+      );
       await tester.ensureVisible(adicionar);
       await tester.pumpAndSettle();
       expect(adicionar.hitTestable(), findsOneWidget);

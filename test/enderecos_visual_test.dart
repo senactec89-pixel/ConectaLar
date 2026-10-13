@@ -41,7 +41,10 @@ void main() {
         );
         Navigator.of(tester.element(find.byType(TextFormField).first)).pop();
         await tester.pumpAndSettle();
-        final remover = find.widgetWithText(TextButton, 'Remover');
+        final remover = find.ancestor(
+          of: find.text('Remover'),
+          matching: find.bySubtype<TextButton>(),
+        );
         await tester.ensureVisible(remover);
         await tester.pumpAndSettle();
         expect(tester.getSize(remover).height, greaterThanOrEqualTo(48));

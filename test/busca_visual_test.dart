@@ -43,7 +43,10 @@ void main() {
           width: width,
         );
         final selecionada = find.text('Categoria: ${categoria.nome}');
-        final limpar = find.widgetWithText(TextButton, 'Limpar filtros');
+        final limpar = find.ancestor(
+          of: find.text('Limpar filtros'),
+          matching: find.bySubtype<TextButton>(),
+        );
         final campo = tester.getRect(find.byKey(const ValueKey('busca-termo')));
         expect(tester.getRect(selecionada).left, closeTo(campo.left, 1));
         expect(tester.getRect(limpar).right, lessThanOrEqualTo(campo.right));
@@ -82,14 +85,21 @@ void main() {
         textScale: 2,
       );
       final selecionada = find.text('Categoria: ${categoria.nome}');
-      await tester.ensureVisible(selecionada);
+      await tester.scrollUntilVisible(
+        selecionada,
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.pumpAndSettle();
       expect(tester.widget<Text>(selecionada).maxLines, isNull);
       expect(tester.getRect(selecionada).right, lessThanOrEqualTo(width));
       expect(tester.takeException(), isNull);
       tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       await tester.pumpAndSettle();
-      final limpar = find.widgetWithText(TextButton, 'Limpar filtros');
+      final limpar = find.ancestor(
+        of: find.text('Limpar filtros'),
+        matching: find.bySubtype<TextButton>(),
+      );
       await tester.ensureVisible(limpar);
       await tester.pumpAndSettle();
       expect(limpar.hitTestable(), findsOneWidget);
@@ -130,7 +140,10 @@ void main() {
       expect(tester.takeException(), isNull);
       FocusManager.instance.primaryFocus?.unfocus();
       tester.view.resetViewInsets();
-      final limpar = find.widgetWithText(TextButton, 'Limpar filtros');
+      final limpar = find.ancestor(
+        of: find.text('Limpar filtros'),
+        matching: find.bySubtype<TextButton>(),
+      );
       await tester.ensureVisible(limpar);
       await tester.pumpAndSettle();
       await tester.tap(limpar);
