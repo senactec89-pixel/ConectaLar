@@ -119,7 +119,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
         title: switch (_tab) {
           0 => 'ConectaLar Profissional',
           1 => 'Solicitações recebidas',
-          2 => 'Minha agenda',
+          2 => 'ConectaLar Profissional',
           _ => 'Área profissional',
         },
         actions: [
@@ -302,29 +302,6 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                         setState(() => _diaSelecionado = dia),
                     onMudarMes: _mudarMesAgenda,
                   ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.disponibilidadeProfissional,
-                    ),
-                    icon: const Icon(Icons.edit_calendar_outlined),
-                    label: const Text('Editar disponibilidade semanal'),
-                  ),
-                  const SizedBox(height: 8),
-                  _DisponibilidadeDoDia(
-                    itens: data['disponibilidade'] is List
-                        ? (data['disponibilidade'] as List)
-                              .whereType<Map<String, dynamic>>()
-                              .where(
-                                (item) =>
-                                    int.tryParse('${item['diaSemana']}') ==
-                                    diaSelecionado.weekday % 7,
-                              )
-                              .toList()
-                        : const [],
-                    dia: diaSelecionado,
-                  ),
                 ] else ...[
                   Text(
                     'Pedidos recebidos',
@@ -405,6 +382,31 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                           : null,
                     ),
                   ),
+                if (_tab == 2) ...[
+                  const SizedBox(height: AppSpace.md),
+                  _DisponibilidadeDoDia(
+                    itens: data['disponibilidade'] is List
+                        ? (data['disponibilidade'] as List)
+                              .whereType<Map<String, dynamic>>()
+                              .where(
+                                (item) =>
+                                    int.tryParse('${item['diaSemana']}') ==
+                                    diaSelecionado.weekday % 7,
+                              )
+                              .toList()
+                        : const [],
+                    dia: diaSelecionado,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.disponibilidadeProfissional,
+                    ),
+                    icon: const Icon(Icons.edit_calendar_outlined),
+                    label: const Text('Editar disponibilidade semanal'),
+                  ),
+                ],
                 if (!AppServices.instance.auth.autenticado)
                   const Padding(
                     padding: EdgeInsets.only(top: 12),
@@ -1391,13 +1393,17 @@ class _CalendarioAgenda extends StatelessWidget {
             ),
             Row(
               children: [
-                for (final dia in const ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'])
+                for (var indice = 0; indice < 7; indice++)
                   Expanded(
                     child: Center(
-                      child: Text(
-                        dia,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                      child: Semantics(
+                        label: _nomeDia(indice),
+                        child: ExcludeSemantics(
+                          child: Text(
+                            const ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][indice],
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
                         ),
                       ),
                     ),
@@ -1495,7 +1501,7 @@ class _CalendarioAgenda extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Expanded(child: Text('Atendimentos agendados')),
+                    const Expanded(child: Text('Dias com atendimento')),
                   ],
                 ),
                 Align(
@@ -1538,7 +1544,7 @@ class _DisponibilidadeDoDia extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Disponibilidade de $diaLabel',
+                    'Horários semanais de $diaLabel',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
