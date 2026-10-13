@@ -467,7 +467,7 @@ class _BrandHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textoAmpliado = MediaQuery.textScalerOf(context).scale(11) > 16.5;
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(12) > 18;
     return Row(
       children: [
         Container(
@@ -510,13 +510,13 @@ class _BrandHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Serviços residenciais mais perto de você',
-                maxLines: textoAmpliado ? null : 1,
+                maxLines: textoAmpliado ? null : 2,
                 overflow: textoAmpliado
                     ? TextOverflow.clip
                     : TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: AppColors.textoSuave,
-                  fontSize: compact ? 10 : 11,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -541,8 +541,8 @@ class _BrandHeader extends StatelessWidget {
                     right: 3,
                     top: 2,
                     child: Container(
-                      width: 17,
-                      height: 17,
+                      width: 19,
+                      height: 19,
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
                         color: Color(0xFFE84E55),
@@ -552,7 +552,7 @@ class _BrandHeader extends StatelessWidget {
                         total > 9 ? '9+' : '$total',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -648,11 +648,11 @@ class _SearchButton extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Digite o serviço ou categoria',
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.textoSuave,
-                          fontSize: compact ? 11 : 12,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -672,7 +672,7 @@ class _SearchButton extends StatelessWidget {
                       compact ? 'Bairro' : 'Seu bairro',
                       style: const TextStyle(
                         color: AppColors.texto,
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -734,7 +734,7 @@ class _CategoryTile extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: AppColors.texto,
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -810,7 +810,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                   if (professional.verificado)
                     Positioned(
                       left: 10,
-                      top: 10,
+                      bottom: 10,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 9,
@@ -833,7 +833,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                               'Verificado',
                               style: TextStyle(
                                 color: AppColors.texto,
-                                fontSize: 10,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -925,7 +925,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 10,
+                                        fontSize: 12,
                                         color: AppColors.textoSuave,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -953,7 +953,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 12,
                               color: AppColors.textoSuave,
                             ),
                           ),
@@ -964,21 +964,21 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                     if (professional.servicos.isNotEmpty)
                       Text(
                         'Serviços: ${professional.servicos.take(2).join(', ')}',
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.textoSuave,
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
                       )
                     else
                       Text(
                         professional.descricao,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           color: AppColors.textoSuave,
                         ),
                       ),
