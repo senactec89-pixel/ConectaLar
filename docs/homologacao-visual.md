@@ -2,6 +2,19 @@
 
 Este roteiro deve ser usado quando a integracao Flutter/API/MySQL estiver estavel. Ele registra verificacoes visuais sem alterar telas, servicos ou contratos da API.
 
+## Estado da revisão de 13/10/2026
+
+As verificações automatizadas passaram: `flutter test --no-pub` aprovou 146 testes e `flutter analyze --no-pub` não encontrou problemas. A [galeria de 45 capturas](evidencias/estilizacao-2026-10-13/README.md) cobre 360, 390 e 412 px, com cenas a 200% e diálogos administrativos. Esses resultados usam serviços fictícios locais e teclado simulado.
+
+`flutter devices` encontrou Windows, Chrome e Edge, sem Android conectado. `flutter emulators` encontrou o AVD `Pixel_7`, mas ele não substitui um aparelho físico para teclado nativo, TalkBack, arquivos e rede local. `flutter doctor -v` apontou ausência de `cmdline-tools` e licenças Android ainda não verificadas. **Nenhuma caixa deste roteiro foi marcada como homologada em Android.**
+
+Para concluir a execução em aparelho:
+
+1. Preparar o SDK Android (`cmdline-tools` e licenças), conectar um aparelho com depuração USB e confirmar seu identificador em `flutter devices`.
+2. Subir a API e o banco de teste; iniciar o app com `flutter run -d <id-do-aparelho> --dart-define=CONECTALAR_API_BASE_URL=http://<ip-do-computador>:3012`. O endereço deve ser alcançável pelo aparelho na mesma rede.
+3. Executar os fluxos abaixo com contas de teste de cliente, profissional e administrador, primeiro com fonte padrão e depois com fonte ampliada. Verificar teclado nativo, foco, rolagem, TalkBack, orientação prevista, seletor de arquivos e estados de carregamento, erro e vazio.
+4. Registrar commit, data, aparelho/versão Android, largura lógica, escala da fonte, URL da API de teste, perfil, resultado e capturas sem dados pessoais. Marcar somente os itens efetivamente executados.
+
 ## Escopo seguro durante integracao
 
 - Registrar problemas encontrados em documentacao ou issues.
