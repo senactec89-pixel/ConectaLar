@@ -210,13 +210,14 @@ class _AdminPageState extends State<AdminPage> {
           AdminModulo.painel => 0,
           AdminModulo.usuarios => 1,
           AdminModulo.categorias => 3,
-          AdminModulo.auditoria => 0,
+          AdminModulo.auditoria => 4,
           _ => 2,
         },
         onDestinationSelected: (i) => _abrir(switch (i) {
           1 => AdminModulo.usuarios,
           2 => AdminModulo.denuncias,
           3 => AdminModulo.categorias,
+          4 => AdminModulo.auditoria,
           _ => AdminModulo.painel,
         }),
         destinations: const [
@@ -235,6 +236,10 @@ class _AdminPageState extends State<AdminPage> {
           NavigationDestination(
             icon: Icon(Icons.category_outlined),
             label: 'Catálogo',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            label: 'Auditoria',
           ),
         ],
       ),
@@ -689,6 +694,7 @@ class _AdminPageState extends State<AdminPage> {
       case AdminModulo.auditoria:
         final ator = _map(item['ator']);
         final detalhe = '${item['detalhe'] ?? ''}'.trim();
+        final alvo = _rotuloAlvoAuditoria(item['alvoTipo']?.toString());
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
           child: ListTile(
@@ -702,9 +708,7 @@ class _AdminPageState extends State<AdminPage> {
                   Text(
                     'Por ${ator['nome'] ?? 'Administrador'} • ${ator['tipo'] ?? 'administrador'}',
                   ),
-                  Text(
-                    'Alvo: ${item['alvoTipo'] ?? 'registro'} #${item['alvoId'] ?? '—'}',
-                  ),
+                  Text('Alvo: $alvo #${item['alvoId'] ?? '—'}'),
                   if (detalhe.isNotEmpty) Text(detalhe),
                   Text(_dataAuditoria(item['criadoEm'])),
                 ],
@@ -1014,6 +1018,15 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
   'denuncia_moderada' => 'Denúncia moderada',
   'avaliacao_moderada' => 'Avaliação moderada',
   _ => 'Ação administrativa',
+};
+
+String _rotuloAlvoAuditoria(String? alvo) => switch (alvo) {
+  'usuario' => 'Usuário',
+  'documento_verificacao' => 'Documento',
+  'categoria' => 'Categoria',
+  'denuncia' => 'Denúncia',
+  'avaliacao' => 'Avaliação',
+  _ => alvo ?? 'Registro',
 };
 
 String _dataAuditoria(Object? valor) {
