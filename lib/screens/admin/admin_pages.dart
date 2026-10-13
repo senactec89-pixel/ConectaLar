@@ -622,7 +622,7 @@ class _AdminPageState extends State<AdminPage> {
             leading: const Icon(Icons.person_outline, color: AppColors.verde),
             title: Text('${item['nome'] ?? 'Usuário'}'),
             subtitle: Text(
-              '${item['email'] ?? ''}\n${item['tipo'] ?? ''} • ${ativo ? 'Ativo' : 'Desativado'}',
+              '${item['email'] ?? ''}\n${_rotuloTipoConta(item['tipo'])} • ${ativo ? 'Ativo' : 'Desativado'}',
             ),
             isThreeLine: true,
             onTap: () => _detalhesUsuario(item),
@@ -638,10 +638,10 @@ class _AdminPageState extends State<AdminPage> {
           child: ListTile(
             leading: const Icon(Icons.description_outlined),
             title: Text(
-              '${item['tipoDocumento'] ?? 'Documento'} • ${item['profissional']?['nome'] ?? 'Profissional'}',
+              '${_rotuloTipoDocumento(item['tipoDocumento'])} • ${item['profissional']?['nome'] ?? 'Profissional'}',
             ),
             subtitle: Text(
-              'Status: ${item['status']}\n${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}',
+              'Status: ${_rotuloStatusDocumento(item['status'])}\n${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}',
             ),
             isThreeLine: true,
             onTap: _mutando ? null : () => _analisarDocumento(item),
@@ -655,7 +655,9 @@ class _AdminPageState extends State<AdminPage> {
               Icons.report_outlined,
               color: Color(0xFFC53030),
             ),
-            title: Text('${item['motivo'] ?? 'Denúncia'} • ${item['status']}'),
+            title: Text(
+              '${_rotuloMotivoDenuncia(item['motivo'])} • ${_rotuloStatusDenuncia(item['status'])}',
+            ),
             subtitle: Text(
               'Relato: ${item['descricao'] ?? ''}\nSolicitação #${item['solicitacaoId'] ?? ''}',
             ),
@@ -710,7 +712,7 @@ class _AdminPageState extends State<AdminPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Por ${ator['nome'] ?? 'Administrador'} • ${ator['tipo'] ?? 'administrador'}',
+                    'Por ${ator['nome'] ?? 'Administrador'} • ${_rotuloTipoConta(ator['tipo'])}',
                   ),
                   Text('Alvo: $alvo #${item['alvoId'] ?? '—'}'),
                   if (detalhe.isNotEmpty) Text(detalhe),
@@ -740,7 +742,7 @@ class _AdminPageState extends State<AdminPage> {
           scrollable: true,
           title: Text('${usuario['nome'] ?? 'Usuário'}'),
           content: Text(
-            'Tipo: ${usuario['tipo']}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${usuario['criadoEm'] ?? '—'}',
+            'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${usuario['criadoEm'] ?? '—'}',
           ),
           actions: [
             TextButton(
@@ -816,8 +818,8 @@ class _AdminPageState extends State<AdminPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Profissional: ${item['profissional']?['nome'] ?? '—'}'),
-            Text('Tipo: ${item['tipoDocumento'] ?? '—'}'),
-            Text('Status atual: ${item['status'] ?? '—'}'),
+            Text('Tipo: ${_rotuloTipoDocumento(item['tipoDocumento'])}'),
+            Text('Status atual: ${_rotuloStatusDocumento(item['status'])}'),
             if (item['motivoRejeicao'] != null)
               Text('Motivo registrado: ${item['motivoRejeicao']}'),
             Text(
@@ -1031,6 +1033,43 @@ String _rotuloAlvoAuditoria(String? alvo) => switch (alvo) {
   'denuncia' => 'Denúncia',
   'avaliacao' => 'Avaliação',
   _ => alvo ?? 'Registro',
+};
+
+String _rotuloTipoConta(Object? tipo) => switch (tipo) {
+  'cliente' => 'Cliente',
+  'profissional' => 'Profissional',
+  'empresa' => 'Empresa',
+  'administrador' => 'Administrador',
+  _ => 'Tipo não informado',
+};
+
+String _rotuloTipoDocumento(Object? tipo) => switch (tipo) {
+  'documento_identidade' => 'Documento de identificação',
+  'comprovante_endereco' => 'Comprovante de endereço',
+  'certificado_opcional' => 'Certificado profissional',
+  _ => 'Documento',
+};
+
+String _rotuloStatusDocumento(Object? status) => switch (status) {
+  'pendente' => 'Em análise',
+  'aprovado' => 'Aprovado',
+  'rejeitado' => 'Rejeitado',
+  _ => 'Status não informado',
+};
+
+String _rotuloStatusDenuncia(Object? status) => switch (status) {
+  'pendente' => 'Pendente',
+  'aberta' => 'Aberta',
+  'em_analise' => 'Em análise',
+  'resolvida' => 'Resolvida',
+  'rejeitada' => 'Rejeitada',
+  _ => 'Status não informado',
+};
+
+String _rotuloMotivoDenuncia(Object? motivo) => switch (motivo) {
+  'Conteudo ofensivo' => 'Conteúdo ofensivo',
+  String texto when texto.trim().isNotEmpty => texto,
+  _ => 'Denúncia',
 };
 
 String _dataAuditoria(Object? valor) {
