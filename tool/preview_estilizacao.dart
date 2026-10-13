@@ -1,7 +1,12 @@
 // Galeria de conferência visual: usa apenas dados de demonstração.
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
+import 'package:conectarlar_app/screens/admin/admin_pages.dart';
+import 'package:conectarlar_app/screens/admin/categoria_form_page.dart';
+import 'package:conectarlar_app/screens/admin/historico_admin_page.dart';
 import 'package:conectarlar_app/screens/auth/login_page.dart';
+import 'package:conectarlar_app/screens/busca/busca_page.dart';
+import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
 import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
@@ -17,10 +22,14 @@ Future<void> main() async {
     throw StateError('Esta galeria exige CONECTALAR_DEMO=true.');
   }
   final tela = Uri.base.queryParameters['tela'] ?? 'carregando';
-  AppServices.instance = AppServices(
-    modoDemo: true,
-    papelDemo: tela == 'documentos' ? 'profissional' : 'cliente',
-  );
+  final escala = Uri.base.queryParameters['escala'] == '2' ? 2.0 : 1.0;
+  final papel =
+      tela.startsWith('admin-') || tela == 'categoria' || tela == 'historico'
+      ? 'administrador'
+      : tela == 'documentos'
+      ? 'profissional'
+      : 'cliente';
+  AppServices.instance = AppServices(modoDemo: true, papelDemo: papel);
   await AppServices.instance.inicializar();
   runApp(
     MaterialApp(
@@ -34,7 +43,12 @@ Future<void> main() async {
           builder: (_) => _TelaPreview(tela: tela),
         ),
       ],
-      builder: (context, child) => DemoBanner(child: child!),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(escala)),
+        child: DemoBanner(child: child!),
+      ),
     ),
   );
 }
@@ -45,6 +59,14 @@ class _TelaPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => switch (tela) {
+    'home' => const HomePage(),
+    'busca' => const BuscaPage(),
+    'categoria' => const CategoriaFormPage(),
+    'historico' => const HistoricoAdminPage(),
+    'admin-documentos' => const AdminPage(modulo: AdminModulo.documentos),
+    'admin-denuncias' => const AdminPage(modulo: AdminModulo.denuncias),
+    'admin-avaliacoes' => const AdminPage(modulo: AdminModulo.avaliacoes),
+    'admin-categorias' => const AdminPage(modulo: AdminModulo.categorias),
     'login' => const LoginPage(),
     'seguranca' => const SegurancaPage(),
     'documentos' => const DocumentosVerificacaoPage(),

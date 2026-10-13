@@ -365,7 +365,7 @@ class _HomeHero extends StatelessWidget {
           ),
         );
         final imagem = Positioned(
-          top: 128,
+          top: textoAmpliado && constraints.maxWidth < 380 ? 165 : 128,
           right: 8,
           child: SizedBox.square(
             dimension: imageSize,
@@ -626,6 +626,7 @@ class _SearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(12) > 18;
     return Semantics(
       button: true,
       label: 'Buscar serviço ou profissional e informar o bairro',
@@ -653,7 +654,9 @@ class _SearchButton extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Digite o serviço ou categoria',
+                        textoAmpliado
+                            ? 'Busca'
+                            : 'Digite o serviço ou categoria',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -682,12 +685,14 @@ class _SearchButton extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 3),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: AppColors.textoSuave,
-                      size: 18,
-                    ),
+                    if (!textoAmpliado) ...[
+                      const SizedBox(width: 3),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.textoSuave,
+                        size: 18,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1026,6 +1031,49 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(18) > 27;
+    final botao = action == null
+        ? null
+        : TextButton.icon(
+            onPressed: onActionTap,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.only(left: 8),
+              minimumSize: const Size(0, 48),
+              foregroundColor: const Color(0xFF15935F),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.chevron_right_rounded, size: 20),
+            label: Text(
+              action!,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          );
+    if (textoAmpliado) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: title,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                if (suffix != null)
+                  TextSpan(
+                    text: ' $suffix',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+              ],
+            ),
+            style: const TextStyle(fontSize: 18, color: AppColors.texto),
+          ),
+          if (botao != null)
+            Align(alignment: Alignment.centerRight, child: botao),
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(
@@ -1061,22 +1109,7 @@ class _SectionHeading extends StatelessWidget {
             ],
           ),
         ),
-        if (action != null)
-          TextButton.icon(
-            onPressed: onActionTap,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.only(left: 8),
-              minimumSize: const Size(0, 48),
-              foregroundColor: const Color(0xFF15935F),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            iconAlignment: IconAlignment.end,
-            icon: const Icon(Icons.chevron_right_rounded, size: 20),
-            label: Text(
-              action!,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
+        ?botao,
       ],
     );
   }

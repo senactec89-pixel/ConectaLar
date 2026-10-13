@@ -36,6 +36,18 @@ void main() {
         expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
 
         if (escala == 2) {
+          final buscaCompacta = find.descendant(
+            of: find.byKey(const ValueKey('home-search')),
+            matching: find.text('Busca'),
+          );
+          expect(buscaCompacta, findsOneWidget);
+          expect(
+            tester
+                .renderObject<RenderParagraph>(buscaCompacta)
+                .didExceedMaxLines,
+            isFalse,
+            reason: '${tester.getSize(buscaCompacta)} em $largura',
+          );
           final descricao = find.text(
             'Encontre profissionais para cuidar do seu lar',
           );
@@ -56,6 +68,19 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
+        if (escala == 2) {
+          final tituloCategorias = find.text(
+            'Categorias de serviços',
+            findRichText: true,
+          );
+          expect(tituloCategorias, findsOneWidget);
+          expect(
+            tester
+                .renderObject<RenderParagraph>(tituloCategorias)
+                .didExceedMaxLines,
+            isFalse,
+          );
+        }
         final texto = tester.renderObject<RenderParagraph>(categoria);
         expect(
           texto.didExceedMaxLines,
