@@ -405,6 +405,8 @@ class _CabecalhoPerfil extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final temFoto =
+        (fotoAsset?.isNotEmpty ?? false) || (fotoUrl?.isNotEmpty ?? false);
     final avatar = _FotoPerfil(
       fotoAsset: fotoAsset,
       fotoUrl: fotoUrl,
@@ -415,13 +417,13 @@ class _CabecalhoPerfil extends StatelessWidget {
       children: [
         Text(
           profissional.nome,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             color: AppColors.texto,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: AppSpace.sm),
-        Text(profissional.bairro, style: Theme.of(context).textTheme.bodySmall),
+        _InfoLinha(icon: Icons.location_on_outlined, text: profissional.bairro),
       ],
     );
     final favoritoButton = onFavoritoTap == null
@@ -441,54 +443,68 @@ class _CabecalhoPerfil extends StatelessWidget {
                   ),
           );
     return Card(
-      child: Padding(
-        padding: AppInsets.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (temFoto)
+            _FotoPerfil(
+              fotoAsset: fotoAsset,
+              fotoUrl: fotoUrl,
+              nome: profissional.nome,
+              destaque: true,
+            ),
+          Padding(
+            padding: AppInsets.card,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                avatar,
-                if (textoAmpliado)
-                  const Spacer()
-                else
-                  const SizedBox(width: AppSpace.lg),
-                if (!textoAmpliado) Expanded(child: identificacao),
-                ?favoritoButton,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!temFoto) avatar,
+                    if (!temFoto && textoAmpliado)
+                      const Spacer()
+                    else if (!temFoto)
+                      const SizedBox(width: AppSpace.lg),
+                    if (temFoto || !textoAmpliado)
+                      Expanded(child: identificacao),
+                    ?favoritoButton,
+                  ],
+                ),
+                if (!temFoto && textoAmpliado) ...[
+                  const SizedBox(height: AppSpace.md),
+                  identificacao,
+                ],
+                const SizedBox(height: AppSpace.md),
+                Wrap(
+                  spacing: AppSpace.sm,
+                  runSpacing: AppSpace.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (profissional.notaMedia == null)
+                      const _ResumoChip(
+                        icon: Icons.star_border_rounded,
+                        text: 'Novo profissional',
+                      )
+                    else
+                      _ResumoChip(
+                        icon: Icons.star_rounded,
+                        text:
+                            '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} '
+                            '(${profissional.quantidadeAvaliacoes ?? 0})',
+                      ),
+                    if (profissional.verificado)
+                      const _ResumoChip(
+                        icon: Icons.verified_rounded,
+                        text: 'Documentos verificados',
+                      ),
+                  ],
+                ),
               ],
             ),
-            if (textoAmpliado) ...[
-              const SizedBox(height: AppSpace.md),
-              identificacao,
-            ],
-            const SizedBox(height: AppSpace.md),
-            Wrap(
-              spacing: AppSpace.sm,
-              runSpacing: AppSpace.sm,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (profissional.notaMedia == null)
-                  const _ResumoChip(
-                    icon: Icons.star_border_rounded,
-                    text: 'Novo profissional',
-                  )
-                else
-                  _ResumoChip(
-                    icon: Icons.star_rounded,
-                    text:
-                        '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} '
-                        '(${profissional.quantidadeAvaliacoes ?? 0})',
-                  ),
-                if (profissional.verificado)
-                  const _ResumoChip(
-                    icon: Icons.verified_rounded,
-                    text: 'Documentos verificados',
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -587,10 +603,12 @@ class _FotoPerfil extends StatelessWidget {
     required this.fotoAsset,
     required this.fotoUrl,
     required this.nome,
+    this.destaque = false,
   });
   final String? fotoAsset;
   final String? fotoUrl;
   final String nome;
+  final bool destaque;
 
   @override
   Widget build(BuildContext context) {
@@ -606,28 +624,27 @@ class _FotoPerfil extends StatelessWidget {
         ),
       ),
     );
-    return ClipOval(
-      child: SizedBox.square(
-        dimension: 84,
-        child: fotoUrl != null
-            ? Image.network(
-                fotoUrl!,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                semanticLabel: 'Foto de $nome',
-                errorBuilder: (_, _, _) => fallback,
-              )
-            : fotoAsset == null
-            ? fallback
-            : Image.asset(
-                fotoAsset!,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                semanticLabel: 'Foto de $nome',
-                errorBuilder: (_, _, _) => fallback,
-              ),
-      ),
-    );
+    final imagem = fotoUrl != null
+        ? Image.network(
+            fotoUrl!,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            semanticLabel: 'Foto de $nome',
+            errorBuilder: (_, _, _) => fallback,
+          )
+        : fotoAsset == null
+        ? fallback
+        : Image.asset(
+            fotoAsset!,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            semanticLabel: 'Foto de $nome',
+            errorBuilder: (_, _, _) => fallback,
+          );
+    if (destaque) {
+      return AspectRatio(aspectRatio: 16 / 9, child: imagem);
+    }
+    return ClipOval(child: SizedBox.square(dimension: 84, child: imagem));
   }
 }
 
