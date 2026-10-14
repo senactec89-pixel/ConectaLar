@@ -25,7 +25,14 @@ try {
   console.log(`E-mail de teste enviado para ${to}.`);
 } catch (error) {
   console.error('Falha ao enviar e-mail de teste.');
-  console.error(error instanceof Error ? error.message : String(error));
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message);
+  if (message.includes('SMTP respondeu 534')) {
+    console.error(
+      'O Gmail recusou a autenticacao. Gere uma nova senha de aplicativo, ' +
+        'cole apenas as 16 letras e rode scripts/configurar-email-local.cmd novamente.',
+    );
+  }
   process.exit(1);
 }
 

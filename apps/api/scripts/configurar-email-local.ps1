@@ -33,8 +33,8 @@ try {
 }
 
 $password = ($password -replace "\s", "").Trim()
-if ($password.Length -lt 16) {
-  throw "Senha de aplicativo invalida. Use a senha de 16 caracteres gerada pelo Google."
+if ($password -notmatch "^[A-Za-z]{16}$") {
+  throw "Senha de aplicativo invalida. Depois de remover espacos, ela deve ter exatamente 16 letras."
 }
 
 $content = @(
