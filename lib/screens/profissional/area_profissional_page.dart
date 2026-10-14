@@ -259,7 +259,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   const SizedBox(height: 20),
                   _SectionTitle(
                     'Próximos atendimentos',
-                    onTap: () => _abrirTab(1),
+                    onTap: () => _abrirTab(2),
                   ),
                   const SizedBox(height: 8),
                   if (agendados.isEmpty)
