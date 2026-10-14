@@ -178,33 +178,29 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.documentos)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final filtro in const {
-                      'pendente': 'Pendentes',
-                      'aprovado': 'Aprovados',
-                      'rejeitado': 'Rejeitados',
-                      '': 'Todos',
-                    }.entries)
-                      Padding(
-                        padding: const EdgeInsets.only(right: AppSpace.sm),
-                        child: ChoiceChip(
-                          key: ValueKey('admin-documentos-${filtro.key}'),
-                          label: Text(filtro.value),
-                          selected: _statusDocumento == filtro.key,
-                          onSelected: _mutando
-                              ? null
-                              : (_) => setState(() {
-                                  _statusDocumento = filtro.key;
-                                  _future = _carregar(_modulo);
-                                  _future.ignore();
-                                }),
-                        ),
-                      ),
-                  ],
-                ),
+              child: Wrap(
+                spacing: AppSpace.sm,
+                runSpacing: AppSpace.xs,
+                children: [
+                  for (final filtro in const {
+                    'pendente': 'Pendentes',
+                    'aprovado': 'Aprovados',
+                    'rejeitado': 'Rejeitados',
+                    '': 'Todos',
+                  }.entries)
+                    ChoiceChip(
+                      key: ValueKey('admin-documentos-${filtro.key}'),
+                      label: Text(filtro.value),
+                      selected: _statusDocumento == filtro.key,
+                      onSelected: _mutando
+                          ? null
+                          : (_) => setState(() {
+                              _statusDocumento = filtro.key;
+                              _future = _carregar(_modulo);
+                              _future.ignore();
+                            }),
+                    ),
+                ],
               ),
             ),
           Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
