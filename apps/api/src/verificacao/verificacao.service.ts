@@ -211,13 +211,20 @@ function parseEnvioDocumento(body: unknown): EnviarDocumentoInput {
   if (arquivoBase64 !== null && !mimePermitido(mimeType)) {
     throw badRequest('TIPO_ARQUIVO_INVALIDO');
   }
+  const nomeArquivo = optionalText(value.nomeArquivo, 180);
+  if (
+    arquivoBase64 !== null &&
+    !nomeArquivoCompativelComMime(nomeArquivo, mimeType)
+  ) {
+    throw badRequest('NOME_ARQUIVO_INVALIDO');
+  }
 
   return {
     tipoDocumento,
     referenciaArquivo,
     arquivoBase64,
     mimeType,
-    nomeArquivo: optionalText(value.nomeArquivo, 180),
+    nomeArquivo,
     observacao: optionalText(value.observacao, 600),
   };
 }
@@ -227,7 +234,9 @@ async function resolverReferenciaArquivo(
   input: EnviarDocumentoInput,
 ): Promise<string> {
   if (input.arquivoBase64 === null) {
-    if (input.referenciaArquivo === null) throw badRequest('DOCUMENTO_OBRIGATORIO');
+    if (input.referenciaArquivo === null) {
+      throw badRequest('DOCUMENTO_OBRIGATORIO');
+    }
     return input.referenciaArquivo;
   }
 
@@ -240,9 +249,16 @@ async function resolverReferenciaArquivo(
   ) {
     throw badRequest('ARQUIVO_INVALIDO');
   }
+  if (!assinaturaCompativelComMime(conteudo, input.mimeType)) {
+    throw badRequest('ASSINATURA_ARQUIVO_INVALIDA');
+  }
 
   const extensao = extensaoMime(input.mimeType);
-  const pastaRelativa = join('storage', 'documentos-verificacao', String(profissionalId));
+  const pastaRelativa = join(
+    'storage',
+    'documentos-verificacao',
+    String(profissionalId),
+  );
   const nomeArquivo = `${randomUUID()}${extensao}`;
   const pastaAbsoluta = join(process.cwd(), pastaRelativa);
   await mkdir(pastaAbsoluta, { recursive: true });
@@ -259,6 +275,44 @@ function extensaoMime(value: string | null): string | null {
   if (value === 'image/jpeg') return '.jpg';
   if (value === 'image/png') return '.png';
   return null;
+}
+
+function nomeArquivoCompativelComMime(
+  nomeArquivo: string | null,
+  mimeType: string | null,
+): boolean {
+  if (nomeArquivo === null) return true;
+  const nome = nomeArquivo.toLowerCase();
+  if (/[\\/]/.test(nome)) return false;
+  if (mimeType === 'application/pdf') return nome.endsWith('.pdf');
+  if (mimeType === 'image/jpeg') {
+    return nome.endsWith('.jpg') || nome.endsWith('.jpeg');
+  }
+  if (mimeType === 'image/png') return nome.endsWith('.png');
+  return false;
+}
+
+function assinaturaCompativelComMime(
+  conteudo: Buffer,
+  mimeType: string | null,
+): boolean {
+  if (mimeType === 'application/pdf') {
+    return conteudo.subarray(0, 5).equals(Buffer.from('%PDF-'));
+  }
+  if (mimeType === 'image/png') {
+    return conteudo.subarray(0, 8).equals(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    );
+  }
+  if (mimeType === 'image/jpeg') {
+    return (
+      conteudo.length >= 4 &&
+      conteudo[0] === 0xff &&
+      conteudo[1] === 0xd8 &&
+      conteudo[2] === 0xff
+    );
+  }
+  return false;
 }
 
 function parseAnaliseDocumento(body: unknown): AnaliseDocumentoInput {

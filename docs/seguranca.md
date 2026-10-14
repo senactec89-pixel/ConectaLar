@@ -1,6 +1,6 @@
 # Segurança — estado atual e pendências
 
-Atualizado para o código disponível em main, commit 0264eab, em 11/10/2026. Este documento registra controles técnicos observados no repositório; não é certificação de segurança ou conformidade legal.
+Atualizado em 14/10/2026 para o código disponível em main. Este documento registra controles técnicos observados no repositório; não é certificação de segurança ou conformidade legal.
 
 ## Controles existentes
 
@@ -12,7 +12,7 @@ Atualizado para o código disponível em main, commit 0264eab, em 11/10/2026. Es
 - Logs HTTP não registram corpo, token ou cabeçalhos de autorização.
 - O rate limit existe em memória para uma instância.
 - Endereço completo é protegido na API antes das condições autorizadas.
-- Upload de documentos limita o tamanho e aceita PDF, JPEG e PNG pelo contrato. Os arquivos são armazenados em diretório privado local; não há URL pública de arquivo.
+- Upload de documentos limita o tamanho, aceita PDF, JPEG e PNG pelo contrato, confere assinatura/magic bytes do conteúdo e rejeita nome de arquivo incompatível com o MIME informado. Os arquivos são armazenados em diretório privado local; não há URL pública de arquivo.
 
 ## Limites que precisam ser resolvidos
 
@@ -20,7 +20,7 @@ Atualizado para o código disponível em main, commit 0264eab, em 11/10/2026. Es
 - MFA administrativo foi implementado com TOTP para contas administradoras. O segredo fica criptografado no banco e o login admin passa por desafio curto antes de emitir token de sessão.
 - O rate limit em memória não coordena instâncias. A identificação por cabeçalho de proxy depende de uma configuração confiável na borda.
 - A aplicação persiste a sessão Flutter com SharedPreferences; definir armazenamento seguro, expiração e política de sessões antes de publicar.
-- O armazenamento local de documentos ainda não oferece antivírus, retenção aprovada ou backup gerenciado. Para produção, use storage privado gerenciado, varredura de arquivo e política formal de descarte.
+- A validação de assinatura dos documentos reduz arquivo disfarçado, mas não substitui antivírus/sandbox. O armazenamento local de documentos ainda não oferece antivírus, retenção aprovada ou backup gerenciado. Para produção, use storage privado gerenciado, varredura de arquivo e política formal de descarte.
 - O launcher local versionado contém valores de desenvolvimento para iniciar a API. Não reutilize esses valores em ambiente compartilhado ou produção; mover segredos para configuração externa antes de publicar.
 - HTTPS, origens de produção, backup/restauração, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.
 - Não há evidência de scanner dedicado de segredos executado antes da publicação.

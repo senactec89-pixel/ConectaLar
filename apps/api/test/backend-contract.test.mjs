@@ -83,6 +83,12 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /application\/pdf/);
   assert.match(verificacao, /image\/jpeg/);
   assert.match(verificacao, /image\/png/);
+  assert.match(verificacao, /assinaturaCompativelComMime/);
+  assert.match(verificacao, /nomeArquivoCompativelComMime/);
+  assert.match(verificacao, /ASSINATURA_ARQUIVO_INVALIDA/);
+  assert.match(verificacao, /NOME_ARQUIVO_INVALIDO/);
+  assert.match(verificacao, /%PDF-/);
+  assert.match(verificacao, /0x89,\s*0x50,\s*0x4e,\s*0x47/);
   assert.match(verificacao, /storage/);
   assert.doesNotMatch(verificacao, /http:\/\/|https:\/\//);
 });
