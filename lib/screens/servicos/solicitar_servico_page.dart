@@ -507,12 +507,10 @@ class _FormularioSolicitacao extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Dados da solicitação',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.texto,
-                  fontWeight: FontWeight.w800,
-                ),
+              const _FormularioSecaoTitulo(
+                icon: Icons.home_repair_service_outlined,
+                titulo: 'Serviço e local',
+                descricao: 'Escolha o serviço e onde ele será realizado.',
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<int>(
@@ -612,7 +610,15 @@ class _FormularioSolicitacao extends StatelessWidget {
                 textInputAction: TextInputAction.next,
                 validator: validarCampoObrigatorio,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
+              const Divider(),
+              const SizedBox(height: 16),
+              const _FormularioSecaoTitulo(
+                icon: Icons.event_available_outlined,
+                titulo: 'Quando',
+                descricao: 'Consulte os horários e informe sua preferência.',
+              ),
+              const SizedBox(height: 14),
               if (disponibilidadeFuture != null)
                 FutureBuilder<List<Disponibilidade>>(
                   future: disponibilidadeFuture,
@@ -716,7 +722,15 @@ class _FormularioSolicitacao extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
+              const Divider(),
+              const SizedBox(height: 16),
+              const _FormularioSecaoTitulo(
+                icon: Icons.notes_rounded,
+                titulo: 'Detalhes do serviço',
+                descricao: 'Explique o que precisa ser feito.',
+              ),
+              const SizedBox(height: 14),
               TextFormField(
                 key: const ValueKey('solicitar-descricao'),
                 controller: descricaoController,
@@ -751,6 +765,54 @@ class _FormularioSolicitacao extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FormularioSecaoTitulo extends StatelessWidget {
+  const _FormularioSecaoTitulo({
+    required this.icon,
+    required this.titulo,
+    required this.descricao,
+  });
+
+  final IconData icon;
+  final String titulo;
+  final String descricao;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.verdeEscuro, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  titulo,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: AppColors.texto,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                descricao,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textoSuave,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
