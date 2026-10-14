@@ -192,7 +192,7 @@ class _BuscaPageState extends State<BuscaPage> {
                     retrying:
                         snapshot.connectionState == ConnectionState.waiting,
                   ),
-                  const SizedBox(height: AppSpace.xl),
+                  const SizedBox(height: AppSpace.lg),
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !snapshot.hasData)
                     const AsyncLoadingView(label: 'Carregando profissionais.')

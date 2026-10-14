@@ -19,13 +19,14 @@ class ProfissionalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final preco = profissional.precoInicial;
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final espacamento = textoAmpliado ? AppSpace.md : AppSpace.sm;
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: AppInsets.card,
+          padding: EdgeInsets.all(textoAmpliado ? AppSpace.lg : AppSpace.md),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -59,14 +60,14 @@ class ProfissionalCard extends StatelessWidget {
                 ],
               ),
               if (textoAmpliado) ...[
-                const SizedBox(height: AppSpace.md),
+                SizedBox(height: espacamento),
                 _InformacoesProfissional(
                   profissional: profissional,
                   textoAmpliado: true,
                 ),
               ],
               if (profissional.descricao.trim().isNotEmpty) ...[
-                const SizedBox(height: AppSpace.md),
+                SizedBox(height: espacamento),
                 Text(
                   profissional.descricao,
                   maxLines: textoAmpliado ? null : 2,
@@ -80,7 +81,7 @@ class ProfissionalCard extends StatelessWidget {
                 ),
               ],
               if (profissional.servicos.isNotEmpty) ...[
-                const SizedBox(height: AppSpace.md),
+                SizedBox(height: espacamento),
                 Wrap(
                   spacing: AppSpace.sm,
                   runSpacing: AppSpace.sm,
@@ -133,7 +134,10 @@ class _InformacoesProfissional extends StatelessWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             if (profissional.verificado) const _SeloVerificado(),
-            _AvaliacaoProfissional(profissional: profissional),
+            _AvaliacaoProfissional(
+              profissional: profissional,
+              compacta: !textoAmpliado,
+            ),
           ],
         ),
         const SizedBox(height: AppSpace.sm),
@@ -365,29 +369,51 @@ class _SeloVerificado extends StatelessWidget {
 }
 
 class _AvaliacaoProfissional extends StatelessWidget {
-  const _AvaliacaoProfissional({required this.profissional});
+  const _AvaliacaoProfissional({
+    required this.profissional,
+    required this.compacta,
+  });
 
   final Profissional profissional;
+  final bool compacta;
 
   @override
   Widget build(BuildContext context) {
     final nota = profissional.notaMedia;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.star_rounded, color: AppColors.estrela, size: 17),
-        const SizedBox(width: AppSpace.xs),
-        Flexible(
-          child: Text(
-            nota == null
-                ? 'Novo profissional'
-                : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · ${profissional.quantidadeAvaliacoes ?? 0} avaliações',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+    final quantidade = profissional.quantidadeAvaliacoes ?? 0;
+    final resumo = nota == null
+        ? 'Novo profissional'
+        : '${nota.toStringAsFixed(1).replaceAll('.', ',')} · $quantidade';
+    final descricao = nota == null
+        ? 'Novo profissional'
+        : '$resumo ${quantidade == 1 ? 'avaliação' : 'avaliações'}';
+    return Tooltip(
+      message: descricao,
+      excludeFromSemantics: true,
+      child: Semantics(
+        label: descricao,
+        child: ExcludeSemantics(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.star_rounded,
+                color: AppColors.estrela,
+                size: 17,
+              ),
+              const SizedBox(width: AppSpace.xs),
+              Flexible(
+                child: Text(
+                  compacta ? resumo : descricao,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
