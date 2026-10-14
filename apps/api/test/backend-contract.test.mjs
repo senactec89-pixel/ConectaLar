@@ -92,6 +92,7 @@ test('authentication keeps e-mail verification codes hashed and expiring', async
   const entity = await source(
     'dist/database/entities/usuario-email-verificacao.entity.js',
   );
+  const guard = await source('dist/auth/auth.guard.js');
 
   assert.match(auth, /hashEmailVerificationCode/);
   assert.match(auth, /emailVerificationTtlMinutes = 15/);
@@ -99,4 +100,6 @@ test('authentication keeps e-mail verification codes hashed and expiring', async
   assert.match(entity, /codigoHash/);
   assert.match(entity, /expiraEm/);
   assert.match(entity, /usadoEm/);
+  assert.match(guard, /EMAIL_NAO_VERIFICADO/);
+  assert.match(guard, /auth\/email\/verificacao/);
 });

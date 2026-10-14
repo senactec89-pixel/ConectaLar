@@ -7,5 +7,9 @@ export interface AuthenticatedUser {
 
 export interface RequestWithUser {
   readonly headers: Record<string, string | string[] | undefined>;
+  readonly method?: string;
+  readonly originalUrl?: string;
+  readonly url?: string;
+  readonly path?: string;
   user?: AuthenticatedUser;
 }

@@ -129,6 +129,13 @@ abstract final class AppRoutes {
       recuperacaoSenha,
     };
     if (publicas.contains(route)) return MapEntry(route, builder);
+    if (route == verificacaoEmail) {
+      return MapEntry(
+        route,
+        (context) =>
+            SessionGate(builder: builder, permitirEmailNaoVerificado: true),
+      );
+    }
     final Set<String>? papeis = route.startsWith('/admin')
         ? {'administrador'}
         : route.startsWith('/profissionais/')

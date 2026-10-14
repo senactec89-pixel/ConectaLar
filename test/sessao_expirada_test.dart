@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:conectarlar_app/app/app.dart';
+import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/frontend_helpers.dart';
@@ -14,6 +16,66 @@ import 'support/frontend_helpers.dart';
 void main() {
   const sessionKey = 'conectalar.auth.session.v1';
   tearDown(() => AppServices.instance.api.close());
+
+  testWidgets('sessao salva sem e-mail verificado abre confirmacao de e-mail', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      sessionKey: jsonEncode({
+        'accessToken': 'token-nao-verificado',
+        'usuario': {
+          'id': 77,
+          'nome': 'Conta sem verificacao',
+          'email': 'sem-verificacao@example.invalid',
+          'tipo': 'cliente',
+          'emailVerificado': false,
+        },
+      }),
+    });
+    AppServices.instance = AppServices(
+      modoDemo: false,
+      api: ApiService(client: MockClient((request) async => jsonResponse({}))),
+    );
+    await AppServices.instance.inicializar();
+
+    await tester.pumpWidget(const ConectaLarApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verifique sua caixa de entrada'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('email-verificacao-codigo')),
+      findsOneWidget,
+    );
+    expect(AppServices.instance.auth.autenticado, isTrue);
+    expect(AppServices.instance.auth.emailVerificado, isFalse);
+  });
+
+  testWidgets('area privada bloqueia conta autenticada sem e-mail verificado', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      sessionKey: jsonEncode({
+        'accessToken': 'token-nao-verificado',
+        'usuario': {
+          'id': 78,
+          'nome': 'Conta sem verificacao',
+          'email': 'sem-verificacao2@example.invalid',
+          'tipo': 'cliente',
+          'emailVerificado': false,
+        },
+      }),
+    });
+    AppServices.instance = AppServices(
+      modoDemo: false,
+      api: ApiService(client: MockClient((request) async => jsonResponse({}))),
+    );
+    await AppServices.instance.inicializar();
+
+    await abrirFrontend(tester, AppRoutes.favoritos);
+
+    expect(find.text('Confirme seu e-mail'), findsWidgets);
+    expect(find.text('Confirmar agora'), findsOneWidget);
+  });
 
   testWidgets(
     '401 autenticado limpa sessão e leva ao login sem retorno à tela privada',

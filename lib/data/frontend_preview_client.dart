@@ -33,6 +33,7 @@ class FrontendPreviewClient extends http.BaseClient {
       _ => 'Cliente — demonstração',
     },
     'email': 'previa@example.invalid',
+    'emailVerificado': true,
     'telefone': '(00) 00000-0000',
     'tipo': papel,
     'ativo': true,

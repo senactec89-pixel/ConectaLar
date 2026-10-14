@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -41,9 +42,30 @@ export class AuthGuard implements CanActivate {
       throw unauthorized();
     }
 
+    if (!usuario.emailVerificado && !permiteEmailNaoVerificado(request)) {
+      throw new ForbiddenException({
+        code: 'EMAIL_NAO_VERIFICADO',
+        message: 'Confirme seu e-mail para continuar.',
+      });
+    }
+
     request.user = { id: usuario.id, tipo: usuario.tipo };
     return true;
   }
+}
+
+function permiteEmailNaoVerificado(request: RequestWithUser): boolean {
+  const path = normalizarPath(request.originalUrl ?? request.url ?? request.path ?? '');
+  if (request.method === 'POST' && path === '/auth/logout') return true;
+  if (path === '/auth/email/verificacao') return true;
+  if (path.startsWith('/auth/email/verificacao/')) return true;
+  if (path === '/termos/aceites/me') return true;
+  return false;
+}
+
+function normalizarPath(value: string): string {
+  const semQuery = value.split('?')[0] ?? '';
+  return semQuery.startsWith('/') ? semQuery : `/${semQuery}`;
 }
 
 function bearerToken(header: string | string[] | undefined): string | null {

@@ -5,10 +5,16 @@ import '../services/service_registry.dart';
 import 'async_state_view.dart';
 
 class SessionGate extends StatelessWidget {
-  const SessionGate({required this.builder, this.papeis, super.key});
+  const SessionGate({
+    required this.builder,
+    this.papeis,
+    this.permitirEmailNaoVerificado = false,
+    super.key,
+  });
 
   final WidgetBuilder builder;
   final Set<String>? papeis;
+  final bool permitirEmailNaoVerificado;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +40,26 @@ class SessionGate extends StatelessWidget {
                 child: const Text('Criar conta'),
               ),
             ],
+          ),
+        ),
+      );
+    }
+    if (!permitirEmailNaoVerificado && !services.auth.emailVerificado) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Confirme seu e-mail')),
+        body: EmptyStateView(
+          title: 'Confirme seu e-mail',
+          message:
+              'Para proteger sua conta, confirme o código enviado por e-mail antes de continuar.',
+          icon: Icons.mark_email_unread_outlined,
+          action: FilledButton.icon(
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.verificacaoEmail,
+              (_) => false,
+            ),
+            icon: const Icon(Icons.verified_user_outlined),
+            label: const Text('Confirmar agora'),
           ),
         ),
       );
