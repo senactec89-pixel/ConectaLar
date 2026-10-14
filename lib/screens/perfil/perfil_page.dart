@@ -264,6 +264,8 @@ class _PerfilPageState extends State<PerfilPage> {
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.seguranca),
                 ),
+                _ContaDetalhes(usuario: usuario),
+                const SizedBox(height: 14),
                 _PerfilOpcao(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacidade',
@@ -310,6 +312,13 @@ String? _mimeDaFoto(String nomeArquivo) {
   if (nome.endsWith('.webp')) return 'image/webp';
   return null;
 }
+
+String _tipoConta(Usuario usuario) => switch (usuario.tipo) {
+  TipoUsuario.cliente => 'Cliente',
+  TipoUsuario.profissional => 'Profissional',
+  TipoUsuario.empresa => 'Empresa',
+  TipoUsuario.administrador => 'Administrador',
+};
 
 class _FotoPerfilUsuario extends StatelessWidget {
   const _FotoPerfilUsuario({
@@ -425,6 +434,85 @@ class _DadosProtegidos extends StatelessWidget {
                 color: AppColors.texto,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContaDetalhes extends StatelessWidget {
+  const _ContaDetalhes({required this.usuario});
+
+  final Usuario usuario;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.badge_outlined, color: AppColors.verdeEscuro),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Dados da conta',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.md),
+            _ContaLinha(rotulo: 'E-mail', valor: usuario.email),
+            _ContaLinha(
+              rotulo: 'Telefone',
+              valor: usuario.telefone ?? 'Não informado',
+            ),
+            _ContaLinha(rotulo: 'Tipo de conta', valor: _tipoConta(usuario)),
+            if (usuario.bairro != null && usuario.bairro!.trim().isNotEmpty)
+              _ContaLinha(rotulo: 'Região principal', valor: usuario.bairro!),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ContaLinha extends StatelessWidget {
+  const _ContaLinha({required this.rotulo, required this.valor});
+
+  final String rotulo;
+  final String valor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 112,
+            child: Text(
+              rotulo,
+              style: const TextStyle(
+                color: AppColors.textoSuave,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              valor,
+              style: const TextStyle(
+                color: AppColors.texto,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

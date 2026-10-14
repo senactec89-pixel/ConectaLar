@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
-import '../../models/solicitacao.dart';
-import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -31,12 +29,10 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   bool _editando = false;
   String? _erroPerfil;
   List<Map<String, dynamic>> _ofertasAtuais = [];
-  late Future<List<AtendimentoResumo>> _pendentesFuture;
 
   @override
   void initState() {
     super.initState();
-    _pendentesFuture = _carregarPendentes();
     _empresa = AppServices.instance.auth.usuarioAtual?['tipo'] == 'empresa';
     _carregarPerfil();
   }
@@ -75,28 +71,6 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
     _bairroController.dispose();
     _precoController.dispose();
     super.dispose();
-  }
-
-  Future<List<AtendimentoResumo>> _carregarPendentes() async {
-    final services = AppServices.instance;
-    if (services.emDemonstracao) {
-      return ConectaLarMockStore.instance.servicos
-          .where(
-            (servico) =>
-                servico.solicitacao.status ==
-                StatusSolicitacao.aguardandoResposta,
-          )
-          .toList(growable: false);
-    }
-
-    final response = await services.servicos.minhas();
-    return listFromApi(response['solicitacoes'], atendimentoResumoFromApi)
-        .where(
-          (servico) =>
-              servico.solicitacao.status ==
-              StatusSolicitacao.aguardandoResposta,
-        )
-        .toList(growable: false);
   }
 
   Future<void> _continuar() async {
@@ -221,60 +195,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                     onContinuar: () => _continuar(),
                   ),
                   const SizedBox(height: AppSpace.lg),
-                  const Text(
-                    'Solicitações recebidas',
-                    style: TextStyle(
-                      color: AppColors.texto,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.md),
-                  FutureBuilder<List<AtendimentoResumo>>(
-                    future: _pendentesFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState != ConnectionState.done) {
-                        return const AsyncLoadingView(
-                          label: 'Carregando solicitações recebidas.',
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return AsyncErrorView(
-                          message: 'Não foi possível carregar as solicitações.',
-                          icon: Icons.inbox_outlined,
-                          onRetry: () => setState(() {
-                            _pendentesFuture = _carregarPendentes();
-                            _pendentesFuture.ignore();
-                          }),
-                        );
-                      }
-                      final pendentes =
-                          snapshot.data ?? const <AtendimentoResumo>[];
-                      if (pendentes.isEmpty) {
-                        return const EmptyStateView(
-                          title: 'Nenhuma solicitação nova',
-                          message:
-                              'Quando um cliente enviar um pedido, ele aparecerá aqui para sua análise.',
-                          icon: Icons.inbox_outlined,
-                        );
-                      }
-                      return Column(
-                        children: [
-                          for (final atendimento in pendentes) ...[
-                            _PedidoRecebidoCard(
-                              atendimento: atendimento,
-                              store: store,
-                              onAtualizado: () => setState(() {
-                                _pendentesFuture = _carregarPendentes();
-                                _pendentesFuture.ignore();
-                              }),
-                            ),
-                            const SizedBox(height: AppSpace.md),
-                          ],
-                        ],
-                      );
-                    },
-                  ),
+                  const _PedidosNoPerfilRemovidos(),
                 ],
               ),
             ),
@@ -501,106 +422,34 @@ class _DocumentoAviso extends StatelessWidget {
   }
 }
 
-class _PedidoRecebidoCard extends StatelessWidget {
-  const _PedidoRecebidoCard({
-    required this.atendimento,
-    required this.store,
-    required this.onAtualizado,
-  });
-
-  final AtendimentoResumo atendimento;
-  final ConectaLarMockStore store;
-  final VoidCallback onAtualizado;
+class _PedidosNoPerfilRemovidos extends StatelessWidget {
+  const _PedidosNoPerfilRemovidos();
 
   @override
   Widget build(BuildContext context) {
-    Future<void> transicionar({
-      required Future<Map<String, dynamic>> Function(int id) api,
-      required bool Function(int id) mock,
-      required String sucesso,
-    }) async {
-      if (AppServices.instance.auth.autenticado) {
-        try {
-          await api(atendimento.solicitacao.id);
-          onAtualizado();
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(sucesso)));
-        } catch (_) {
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Não foi possível atualizar a solicitação.'),
-            ),
-          );
-        }
-        return;
-      }
-
-      mock(atendimento.solicitacao.id);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(sucesso)));
-    }
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              atendimento.categoria,
-              style: const TextStyle(
-                color: AppColors.textoSuave,
-                fontWeight: FontWeight.w700,
+            const Icon(Icons.inbox_outlined, color: AppColors.verde),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pedidos ficam na área profissional',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Aceitar, recusar e conversar com clientes aparece em Pedidos ou Agenda. Esta tela fica dedicada aos seus dados profissionais.',
+                    style: TextStyle(color: AppColors.textoSuave, height: 1.35),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              atendimento.solicitacao.descricao,
-              style: const TextStyle(
-                color: AppColors.texto,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: AppSpace.md),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  key: ValueKey(
-                    'profissional-aceitar-${atendimento.solicitacao.id}',
-                  ),
-                  onPressed: () => transicionar(
-                    api: AppServices.instance.servicos.aceitar,
-                    mock: store.aceitarSolicitacaoComoProfissional,
-                    sucesso: 'Solicitação aceita.',
-                  ),
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Aceitar'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => transicionar(
-                    api: AppServices.instance.servicos.recusar,
-                    mock: store.recusarSolicitacaoComoProfissional,
-                    sucesso: 'Solicitação recusada.',
-                  ),
-                  icon: const Icon(Icons.close_rounded),
-                  label: const Text('Recusar'),
-                ),
-                TextButton.icon(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    AppRoutes.conversa,
-                    arguments: atendimento.solicitacao.id,
-                  ),
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Conversar'),
-                ),
-              ],
             ),
           ],
         ),
