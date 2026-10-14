@@ -289,7 +289,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Acompanhe seus atendimentos e horários disponíveis.',
+                    'Acompanhe seus atendimentos e a disponibilidade semanal informada.',
                   ),
                   const SizedBox(height: 14),
                   _CalendarioAgenda(
@@ -298,6 +298,17 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     diasComAtendimento: atendimentosDoMes
                         .map((p) => _dataDoServico(p['dataServico']))
                         .toSet(),
+                    diasSemanaComDisponibilidade:
+                        data['disponibilidade'] is List
+                        ? (data['disponibilidade'] as List)
+                              .whereType<Map<String, dynamic>>()
+                              .where((item) => item['ativo'] != false)
+                              .map(
+                                (item) => int.tryParse('${item['diaSemana']}'),
+                              )
+                              .whereType<int>()
+                              .toSet()
+                        : const {},
                     onDiaSelecionado: (dia) =>
                         setState(() => _diaSelecionado = dia),
                     onMudarMes: _mudarMesAgenda,
@@ -1349,6 +1360,7 @@ class _CalendarioAgenda extends StatelessWidget {
     required this.mes,
     required this.diaSelecionado,
     required this.diasComAtendimento,
+    required this.diasSemanaComDisponibilidade,
     required this.onDiaSelecionado,
     required this.onMudarMes,
   });
@@ -1356,6 +1368,7 @@ class _CalendarioAgenda extends StatelessWidget {
   final DateTime mes;
   final DateTime diaSelecionado;
   final Set<DateTime> diasComAtendimento;
+  final Set<int> diasSemanaComDisponibilidade;
   final ValueChanged<DateTime> onDiaSelecionado;
   final ValueChanged<int> onMudarMes;
 
@@ -1365,7 +1378,7 @@ class _CalendarioAgenda extends StatelessWidget {
     final deslocamento = primeiroDia.weekday % 7;
     final totalDias = DateTime(mes.year, mes.month + 1, 0).day;
     final escala = MediaQuery.textScalerOf(context).scale(1);
-    final alturaCelula = 40 * escala.clamp(1.0, 1.5);
+    final alturaCelula = 48 * escala.clamp(1.0, 1.5);
 
     return Card(
       child: Padding(
@@ -1431,56 +1444,75 @@ class _CalendarioAgenda extends StatelessWidget {
                 final temAtendimento = diasComAtendimento.any(
                   (item) => _mesmoDia(item, dia),
                 );
-                return Center(
-                  child: Semantics(
-                    button: true,
-                    selected: selecionado,
-                    label:
-                        '$diaDoMes de ${_nomeMes(mes)}'
-                        '${temAtendimento ? ', com atendimento' : ''}',
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => onDiaSelecionado(dia),
-                      child: SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (selecionado)
-                              const CircleAvatar(
-                                radius: 17,
-                                backgroundColor: AppColors.verde,
-                              ),
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 3),
-                              child: Text(
-                                '$diaDoMes',
-                                style: TextStyle(
-                                  color: selecionado
-                                      ? Colors.white
-                                      : AppColors.texto,
-                                  fontWeight: selecionado
-                                      ? FontWeight.w800
-                                      : FontWeight.w500,
+                final horarioSemanal = diasSemanaComDisponibilidade.contains(
+                  dia.weekday % 7,
+                );
+                return Semantics(
+                  button: true,
+                  selected: selecionado,
+                  label:
+                      '$diaDoMes de ${_nomeMes(mes)}'
+                      '${temAtendimento ? ', com atendimento' : ''}'
+                      '${horarioSemanal ? ', com disponibilidade semanal' : ''}',
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => onDiaSelecionado(dia),
+                    child: Center(
+                      child: ExcludeSemantics(
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (selecionado)
+                                const CircleAvatar(
+                                  radius: 19,
+                                  backgroundColor: AppColors.verde,
                                 ),
-                              ),
-                            ),
-                            if (temAtendimento)
-                              Positioned(
-                                bottom: 3,
-                                child: Container(
-                                  width: 4,
-                                  height: 4,
-                                  decoration: BoxDecoration(
+                              if (!selecionado && horarioSemanal)
+                                Positioned.fill(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.verdeClaro,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: AppColors.verde,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text(
+                                  '$diaDoMes',
+                                  style: TextStyle(
                                     color: selecionado
-                                        ? Colors.white
-                                        : AppColors.verde,
-                                    shape: BoxShape.circle,
+                                        ? AppColors.branco
+                                        : AppColors.texto,
+                                    height: 1,
+                                    fontWeight: selecionado
+                                        ? FontWeight.w800
+                                        : FontWeight.w500,
                                   ),
                                 ),
                               ),
-                          ],
+                              if (temAtendimento)
+                                Positioned(
+                                  bottom: 2,
+                                  child: Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: selecionado
+                                          ? AppColors.branco
+                                          : AppColors.verde,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1492,20 +1524,16 @@ class _CalendarioAgenda extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
+                const Wrap(
+                  spacing: AppSpace.md,
+                  runSpacing: AppSpace.sm,
                   children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: AppColors.verde,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Expanded(child: Text('Dias com atendimento')),
+                    _LegendaAgenda(label: 'Selecionado'),
+                    _LegendaAgenda(label: 'Atendimento', ponto: true),
+                    _LegendaAgenda(label: 'Horário semanal', contorno: true),
                   ],
                 ),
+                const Divider(height: AppSpace.xl),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
@@ -1519,6 +1547,40 @@ class _CalendarioAgenda extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LegendaAgenda extends StatelessWidget {
+  const _LegendaAgenda({
+    required this.label,
+    this.ponto = false,
+    this.contorno = false,
+  });
+
+  final String label;
+  final bool ponto;
+  final bool contorno;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: ponto ? 6 : 12,
+          height: ponto ? 6 : 12,
+          decoration: BoxDecoration(
+            color: contorno ? AppColors.verdeClaro : AppColors.verde,
+            shape: BoxShape.circle,
+            border: contorno ? Border.all(color: AppColors.verde) : null,
+          ),
+        ),
+        const SizedBox(width: AppSpace.sm),
+        Flexible(
+          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ),
+      ],
     );
   }
 }
