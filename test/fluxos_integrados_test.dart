@@ -178,7 +178,7 @@ void main() {
         await _sessao(tipo, (_) async => _json({'solicitacao': _pedido()}));
         await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
         await tester.scrollUntilVisible(
-          find.text('Ações do fluxo'),
+          find.text('Ações do atendimento'),
           300,
           scrollable: find.byType(Scrollable).first,
         );

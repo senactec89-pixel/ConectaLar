@@ -467,6 +467,21 @@ class _AcoesAtendimento extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final aguardando =
+        solicitacao.status == StatusSolicitacao.aguardandoResposta;
+    final agendada = solicitacao.status == StatusSolicitacao.aceitaAgendada;
+    final concluida =
+        solicitacao.status == StatusSolicitacao.conclusaoConfirmada;
+    final participante = cliente || profissional;
+    final podeConversar = participante && (aguardando || agendada);
+    final podeAceitar = profissional && aguardando;
+    final podeRecusar = profissional && aguardando;
+    final podeCancelar = cliente && (aguardando || agendada);
+    final podeConcluir = cliente && agendada;
+    final temAcaoPrincipal = podeAceitar || podeConcluir;
+    final temAcoesSecundarias =
+        podeConversar || podeRecusar || podeCancelar || participante;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -474,76 +489,96 @@ class _AcoesAtendimento extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Ações do fluxo',
+              'Ações do atendimento',
               style: TextStyle(
                 color: AppColors.texto,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if ((cliente || profissional) &&
-                    (solicitacao.status ==
-                            StatusSolicitacao.aguardandoResposta ||
-                        solicitacao.status == StatusSolicitacao.aceitaAgendada))
-                  OutlinedButton.icon(
-                    onPressed: ocupada ? null : onConversar,
-                    icon: const Icon(Icons.chat_bubble_outline),
-                    label: const Text('Conversar'),
-                  ),
-                if (cliente || profissional)
-                  OutlinedButton.icon(
-                    onPressed: ocupada ? null : onDenunciar,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.erro,
-                    ),
-                    icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Denunciar'),
-                  ),
-                if (profissional &&
-                    solicitacao.status == StatusSolicitacao.aguardandoResposta)
-                  FilledButton.icon(
-                    key: const ValueKey('detalhes-aceitar'),
-                    onPressed: ocupada ? null : onAceitar,
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('Aceitar solicitação'),
-                  ),
-                if (profissional &&
-                    solicitacao.status == StatusSolicitacao.aguardandoResposta)
-                  OutlinedButton.icon(
-                    onPressed: ocupada ? null : onRecusar,
-                    icon: const Icon(Icons.close_rounded),
-                    label: const Text('Recusar'),
-                  ),
-                if (cliente &&
-                    (solicitacao.status ==
-                            StatusSolicitacao.aguardandoResposta ||
-                        solicitacao.status == StatusSolicitacao.aceitaAgendada))
-                  OutlinedButton.icon(
-                    onPressed: ocupada ? null : onCancelar,
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Cancelar'),
-                  ),
-                if (cliente &&
-                    solicitacao.status == StatusSolicitacao.aceitaAgendada)
-                  FilledButton.icon(
-                    key: const ValueKey('detalhes-concluir'),
-                    onPressed: ocupada ? null : onConcluir,
-                    icon: const Icon(Icons.task_alt_rounded),
-                    label: const Text('Confirmar conclusão'),
-                  ),
-                if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada)
-                  Chip(
-                    avatar: Icon(
-                      avaliado ? Icons.star : Icons.rate_review_outlined,
-                    ),
-                    label: Text(avaliado ? 'Avaliado' : 'Avaliação liberada'),
-                  ),
+            if (temAcaoPrincipal) ...[
+              const SizedBox(height: 12),
+              Text(
+                podeAceitar ? 'Próxima ação' : 'Após realizar o serviço',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textoSuave,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: podeAceitar
+                    ? FilledButton.icon(
+                        key: const ValueKey('detalhes-aceitar'),
+                        onPressed: ocupada ? null : onAceitar,
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Aceitar solicitação'),
+                      )
+                    : FilledButton.icon(
+                        key: const ValueKey('detalhes-concluir'),
+                        onPressed: ocupada ? null : onConcluir,
+                        icon: const Icon(Icons.task_alt_rounded),
+                        label: const Text('Confirmar conclusão'),
+                      ),
+              ),
+            ],
+            if (concluida) ...[
+              const SizedBox(height: 12),
+              Chip(
+                avatar: Icon(
+                  avaliado ? Icons.star : Icons.rate_review_outlined,
+                ),
+                label: Text(avaliado ? 'Avaliado' : 'Avaliação liberada'),
+              ),
+            ],
+            if (temAcoesSecundarias) ...[
+              if (temAcaoPrincipal || concluida) ...[
+                const SizedBox(height: 14),
+                const Divider(),
               ],
-            ),
+              const SizedBox(height: 10),
+              Text(
+                temAcaoPrincipal ? 'Outras opções' : 'Opções disponíveis',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: AppColors.texto,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (podeConversar)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onConversar,
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Conversar'),
+                    ),
+                  if (podeRecusar)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onRecusar,
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Recusar'),
+                    ),
+                  if (podeCancelar)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onCancelar,
+                      icon: const Icon(Icons.cancel_outlined),
+                      label: const Text('Cancelar'),
+                    ),
+                  if (participante)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onDenunciar,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.erro,
+                      ),
+                      icon: const Icon(Icons.flag_outlined),
+                      label: const Text('Denunciar'),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
