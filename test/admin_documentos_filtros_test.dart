@@ -123,7 +123,8 @@ void main() {
 
     expect(carregamentos, 1);
     expect(find.text('Arquivo do documento'), findsOneWidget);
-    expect(find.textContaining('PDF foi carregado'), findsOneWidget);
+    expect(find.text('documento-ficticio-1.pdf'), findsWidgets);
+    expect(find.textContaining('application/pdf'), findsOneWidget);
 
     await tester.tap(find.text('Conferido'));
     await tester.pump(const Duration(milliseconds: 300));

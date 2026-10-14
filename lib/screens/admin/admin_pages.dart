@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
@@ -1108,6 +1109,7 @@ class _DocumentoPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tamanhoKb = (bytes.length / 1024).toStringAsFixed(1);
+    final metadata = '$contentType • $tamanhoKb KB';
     if (contentType == 'image/jpeg' || contentType == 'image/png') {
       return ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -1117,7 +1119,7 @@ class _DocumentoPreview extends StatelessWidget {
           children: [
             Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text('$contentType • $tamanhoKb KB'),
+            Text(metadata),
             const SizedBox(height: 12),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -1125,6 +1127,35 @@ class _DocumentoPreview extends StatelessWidget {
                 bytes,
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const _ArquivoNaoVisualizavel(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (contentType == 'application/pdf') {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(metadata),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: MediaQuery.sizeOf(context).height * 0.62,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.borda),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: PdfViewer.data(bytes, sourceName: fileName),
+                ),
               ),
             ),
           ],
@@ -1146,10 +1177,10 @@ class _DocumentoPreview extends StatelessWidget {
           const SizedBox(height: 12),
           Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text('$contentType • $tamanhoKb KB'),
+          Text(metadata),
           const SizedBox(height: 12),
           const Text(
-            'O PDF foi carregado por rota administrativa autenticada. Esta versão ainda não renderiza páginas PDF dentro do app; confira o nome, tipo e origem antes de decidir.',
+            'O arquivo foi carregado por rota administrativa autenticada, mas este tipo ainda não tem visualização interna.',
             style: TextStyle(height: 1.35),
           ),
         ],
