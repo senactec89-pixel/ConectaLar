@@ -574,6 +574,8 @@ class _FormularioSolicitacao extends StatelessWidget {
                               : null,
                           decoration: const InputDecoration(
                             labelText: 'Endereço cadastrado',
+                            helperText:
+                                'O endereço completo permanece protegido até o aceite.',
                             border: OutlineInputBorder(),
                           ),
                           items: [
@@ -605,6 +607,8 @@ class _FormularioSolicitacao extends StatelessWidget {
                 controller: bairroController,
                 decoration: const InputDecoration(
                   labelText: 'Bairro do atendimento',
+                  helperText:
+                      'Este bairro identifica a região enquanto o endereço completo está protegido.',
                   border: OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
