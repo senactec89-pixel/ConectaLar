@@ -173,8 +173,8 @@ class _HomeContentView extends StatelessWidget {
                               final larguraMinima = textoAmpliado
                                   ? 160.0
                                   : tamanhoTexto > 13.2
-                                  ? 92.0
-                                  : 68.0;
+                                  ? 86.0
+                                  : 76.0;
                               final colunas =
                                   ((constraints.maxWidth + espacoHorizontal) /
                                           (larguraMinima + espacoHorizontal))
@@ -193,8 +193,10 @@ class _HomeContentView extends StatelessWidget {
                                       mainAxisExtent: textoAmpliado
                                           ? 190
                                           : tamanhoTexto > 13.2
-                                          ? 158
-                                          : 128,
+                                          ? 140
+                                          : colunas == 3
+                                          ? 104
+                                          : 124,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = content.categories[index];
@@ -207,6 +209,7 @@ class _HomeContentView extends StatelessWidget {
                                     icon: style.icon,
                                     background: style.background,
                                     color: style.foreground,
+                                    compact: colunas == 3,
                                     onTap: () => onCategoryTap(category),
                                   );
                                 },
@@ -871,6 +874,7 @@ class _CategoryTile extends StatelessWidget {
     required this.icon,
     required this.background,
     required this.color,
+    required this.compact,
     required this.onTap,
   });
 
@@ -878,6 +882,7 @@ class _CategoryTile extends StatelessWidget {
   final IconData icon;
   final Color background;
   final Color color;
+  final bool compact;
   final VoidCallback onTap;
 
   @override
@@ -892,7 +897,10 @@ class _CategoryTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadii.card),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: 0,
+              vertical: compact ? 4 : 8,
+            ),
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(AppRadii.card),
@@ -900,16 +908,24 @@ class _CategoryTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: color, size: 30),
-                const SizedBox(height: 8),
+                Container(
+                  width: compact ? 36 : 44,
+                  height: compact ? 36 : 44,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: color, size: compact ? 22 : 25),
+                ),
+                SizedBox(height: compact ? 4 : 8),
                 Text(
-                  category.nome,
+                  category.nome.replaceAll('-', '-\n'),
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.texto,
-                    fontSize: 12,
+                    fontSize: compact ? 11 : 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

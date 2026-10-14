@@ -61,7 +61,7 @@ void main() {
           );
         }
 
-        final categoria = find.text('Ar-condicionado');
+        final categoria = find.text('Ar-\ncondicionado');
         await tester.scrollUntilVisible(
           categoria,
           160,
@@ -89,7 +89,6 @@ void main() {
           isFalse,
           reason: 'Categoria em $largura px, $escala×',
         );
-
         final verTodas = find.ancestor(
           of: find.text('Ver todas'),
           matching: find.bySubtype<TextButton>(),
