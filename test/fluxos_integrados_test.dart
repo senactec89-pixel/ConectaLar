@@ -143,14 +143,14 @@ void main() {
       );
       await _abrir(tester, AppRoutes.home);
       expect(find.text('Carlos Silva'), findsNothing);
-      expect(find.text('Tentar novamente'), findsOneWidget);
-      await tester.tap(find.text('Tentar novamente'));
+      expect(find.text('Tentar novamente'), findsNWidgets(2));
+      await tester.tap(find.text('Tentar novamente').first);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await _abrir(tester, AppRoutes.busca);
       expect(find.text('Carlos Silva'), findsNothing);
-      expect(find.text('Tentar novamente'), findsOneWidget);
-      await tester.tap(find.text('Tentar novamente'));
+      expect(find.text('Tentar novamente'), findsNWidgets(2));
+      await tester.tap(find.text('Tentar novamente').first);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       await _abrir(tester, AppRoutes.meusServicos);
