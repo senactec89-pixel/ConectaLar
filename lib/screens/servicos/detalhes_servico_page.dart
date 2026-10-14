@@ -154,6 +154,21 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       {'profissional', 'empresa'}.contains(_ator['tipo']) &&
       _atendimento.solicitacao.profissionalUsuarioId == intValue(_ator['id']);
 
+  String _enderecoTexto(Solicitacao solicitacao) {
+    final endereco = solicitacao.enderecoAtendimento;
+    if (solicitacao.enderecoCompletoLiberado &&
+        (_clienteParticipante || _profissionalParticipante) &&
+        endereco != null &&
+        endereco.logradouro.trim().isNotEmpty) {
+      return endereco.completo;
+    }
+    final bairro = solicitacao.bairroAtendimento.trim();
+    final aviso = solicitacao.status == StatusSolicitacao.aguardandoResposta
+        ? 'Endereço completo protegido até o aceite e agendamento.'
+        : 'Endereço completo não disponível para esta conta.';
+    return bairro.isEmpty ? aviso : '$bairro. $aviso';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -362,9 +377,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 _DetalheLinha(
                   icon: Icons.location_on_outlined,
                   label: 'Endereço',
-                  value: solicitacao.status == StatusSolicitacao.aceitaAgendada
-                      ? 'Endereço completo liberado somente ao participante autorizado.'
-                      : 'Bairro visível. O endereço completo fica protegido até o aceite e agendamento.',
+                  value: _enderecoTexto(solicitacao),
                 ),
                 _DetalheLinha(
                   icon: Icons.home_repair_service_outlined,
