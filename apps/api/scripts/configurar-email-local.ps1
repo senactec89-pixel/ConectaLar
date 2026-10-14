@@ -1,9 +1,21 @@
 param(
   [string]$Email = "conectalar.suporte@gmail.com",
-  [string]$FromName = "ConectaLar"
+  [string]$FromName = "ConectaLar",
+  [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Help) {
+  Write-Host "Uso:"
+  Write-Host "  .\scripts\configurar-email-local.ps1"
+  Write-Host "  scripts\configurar-email-local.cmd"
+  Write-Host ""
+  Write-Host "Opcoes:"
+  Write-Host "  -Email conectalar.suporte@gmail.com"
+  Write-Host "  -FromName ConectaLar"
+  exit 0
+}
 
 $apiDir = Resolve-Path (Join-Path $PSScriptRoot "..")
 $envPath = Join-Path $apiDir ".env.local"

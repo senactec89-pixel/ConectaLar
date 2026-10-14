@@ -57,6 +57,12 @@ cd C:\Users\User\Downloads\ConectaLar-main\ConectaLar-main\apps\api
 .\scripts\configurar-email-local.ps1
 ```
 
+Se o PowerShell bloquear scripts, use o `.cmd`:
+
+```bat
+scripts\configurar-email-local.cmd
+```
+
 Cole a senha de aplicativo do Google quando o terminal pedir. O script remove
 espacos automaticamente e cria `apps/api/.env.local`. Esse arquivo e ignorado
 pelo Git e nao deve ser enviado para o repositorio.

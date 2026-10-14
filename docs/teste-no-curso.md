@@ -35,6 +35,12 @@ npm.cmd run email:test -- seu-email-de-teste@gmail.com
 npm.cmd run dev:local
 ```
 
+Se o PowerShell bloquear scripts, troque a segunda linha por:
+
+```bat
+scripts\configurar-email-local.cmd
+```
+
 O script cria `apps/api/.env.local`, que e carregado automaticamente pelo
 `start-local.cmd` e fica fora do Git.
 
