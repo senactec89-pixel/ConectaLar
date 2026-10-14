@@ -33,6 +33,10 @@ void main() {
         expect(consultas.last, 'pendente');
         expect(find.textContaining('documento-ficticio-1.pdf'), findsOneWidget);
         for (final entry in {'aprovado': 2, 'rejeitado': 3, '': 0}.entries) {
+          await tester.ensureVisible(
+            find.byKey(ValueKey('admin-documentos-${entry.key}')),
+          );
+          await tester.pumpAndSettle();
           await tester.tap(
             find.byKey(ValueKey('admin-documentos-${entry.key}')),
           );

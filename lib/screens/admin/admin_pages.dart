@@ -178,11 +178,9 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.documentos)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
                     for (final filtro in const {
                       'pendente': 'Pendentes',
@@ -190,17 +188,20 @@ class _AdminPageState extends State<AdminPage> {
                       'rejeitado': 'Rejeitados',
                       '': 'Todos',
                     }.entries)
-                      ChoiceChip(
-                        key: ValueKey('admin-documentos-${filtro.key}'),
-                        label: Text(filtro.value),
-                        selected: _statusDocumento == filtro.key,
-                        onSelected: _mutando
-                            ? null
-                            : (_) => setState(() {
-                                _statusDocumento = filtro.key;
-                                _future = _carregar(_modulo);
-                                _future.ignore();
-                              }),
+                      Padding(
+                        padding: const EdgeInsets.only(right: AppSpace.sm),
+                        child: ChoiceChip(
+                          key: ValueKey('admin-documentos-${filtro.key}'),
+                          label: Text(filtro.value),
+                          selected: _statusDocumento == filtro.key,
+                          onSelected: _mutando
+                              ? null
+                              : (_) => setState(() {
+                                  _statusDocumento = filtro.key;
+                                  _future = _carregar(_modulo);
+                                  _future.ignore();
+                                }),
+                        ),
                       ),
                   ],
                 ),
@@ -845,19 +846,31 @@ class _AdminPageState extends State<AdminPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Profissional: ${item['profissional']?['nome'] ?? '—'}'),
+            Text(
+              'Profissional: ${item['profissional']?['nome'] ?? '—'}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpace.sm),
             Text('Tipo: ${_rotuloTipoDocumento(item['tipoDocumento'])}'),
+            const SizedBox(height: AppSpace.xs),
             Text('Status atual: ${_rotuloStatusDocumento(item['status'])}'),
-            if (item['motivoRejeicao'] != null)
+            if (item['motivoRejeicao'] != null) ...[
+              const SizedBox(height: AppSpace.sm),
               Text('Motivo registrado: ${item['motivoRejeicao']}'),
+            ],
+            const SizedBox(height: AppSpace.sm),
             Text(
               'Arquivo: ${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? '—'}',
             ),
-            const SizedBox(height: 8),
+            const Divider(height: AppSpace.xl),
             TextField(
               controller: motivo,
+              minLines: 2,
+              maxLines: 4,
               decoration: const InputDecoration(
                 labelText: 'Motivo da rejeição',
+                helperText:
+                    'Preencha este campo se decidir rejeitar o documento.',
               ),
             ),
           ],
@@ -869,6 +882,7 @@ class _AdminPageState extends State<AdminPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, 'rejeitado'),
+            style: TextButton.styleFrom(foregroundColor: AppColors.erro),
             child: const Text('Rejeitar'),
           ),
           FilledButton(
@@ -921,6 +935,14 @@ class _AdminPageState extends State<AdminPage> {
         context: context,
         builder: (context) => AlertDialog(
           scrollable: true,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.md,
+            vertical: AppSpace.xl,
+          ),
+          constraints: const BoxConstraints(maxWidth: 600),
+          titlePadding: AppInsets.card,
+          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+          actionsPadding: AppInsets.card,
           title: const Text('Arquivo do documento'),
           content: _DocumentoPreview(
             bytes: arquivo.bytes,
@@ -1110,6 +1132,29 @@ class _DocumentoPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final tamanhoKb = (bytes.length / 1024).toStringAsFixed(1);
     final metadata = '$contentType • $tamanhoKb KB';
+    final cabecalho = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          contentType == 'application/pdf'
+              ? Icons.picture_as_pdf_outlined
+              : Icons.description_outlined,
+          color: AppColors.verdeEscuro,
+          size: 24,
+        ),
+        const SizedBox(width: AppSpace.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(fileName, style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: AppSpace.xs),
+              Text(metadata, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ],
+    );
     if (contentType == 'image/jpeg' || contentType == 'image/png') {
       return ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
@@ -1117,12 +1162,10 @@ class _DocumentoPreview extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(metadata),
-            const SizedBox(height: 12),
+            cabecalho,
+            const SizedBox(height: AppSpace.md),
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.field),
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
@@ -1141,19 +1184,18 @@ class _DocumentoPreview extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(metadata),
-            const SizedBox(height: 12),
+            cabecalho,
+            const SizedBox(height: AppSpace.md),
             SizedBox(
-              height: MediaQuery.sizeOf(context).height * 0.62,
+              height: (MediaQuery.sizeOf(context).height * 0.5).clamp(180, 520),
+              width: double.maxFinite,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.borda),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.field),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.field),
                   child: PdfViewer.data(bytes, sourceName: fileName),
                 ),
               ),
@@ -1169,16 +1211,8 @@ class _DocumentoPreview extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.picture_as_pdf_outlined,
-            color: Color(0xFFC53030),
-            size: 42,
-          ),
-          const SizedBox(height: 12),
-          Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(metadata),
-          const SizedBox(height: 12),
+          cabecalho,
+          const SizedBox(height: AppSpace.md),
           const Text(
             'O arquivo foi carregado por rota administrativa autenticada, mas este tipo ainda não tem visualização interna.',
             style: TextStyle(height: 1.35),
