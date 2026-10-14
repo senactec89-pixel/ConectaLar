@@ -38,7 +38,7 @@ class BottomNavigationCustom extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month),
-            label: 'Serviços',
+            label: 'Pedidos',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

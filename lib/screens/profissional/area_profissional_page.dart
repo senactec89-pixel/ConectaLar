@@ -430,7 +430,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           ),
           NavigationDestination(
             icon: Icon(Icons.inbox_outlined),
-            label: 'Pedidos',
+            label: 'Solicitações',
           ),
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
