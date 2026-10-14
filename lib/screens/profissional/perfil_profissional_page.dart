@@ -675,9 +675,8 @@ class _ResumoChip extends StatelessWidget {
             Flexible(
               child: Text(
                 text,
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: AppColors.texto,
-                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),

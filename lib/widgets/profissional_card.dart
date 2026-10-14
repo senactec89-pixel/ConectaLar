@@ -75,7 +75,7 @@ class ProfissionalCard extends StatelessWidget {
                       ? TextOverflow.clip
                       : TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF586B63),
+                    color: AppColors.textoSuave,
                     height: 1.35,
                   ),
                 ),
@@ -316,11 +316,9 @@ class _FotoAusente extends StatelessWidget {
       child: Center(
         child: Text(
           inicial.toUpperCase(),
-          style: const TextStyle(
-            color: AppColors.verdeEscuro,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(color: AppColors.verdeEscuro),
         ),
       ),
     );
@@ -434,7 +432,7 @@ class _ServicoTag extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const ExcludeSemantics(
-            child: Icon(Icons.circle, size: 4, color: Color(0xFF426257)),
+            child: Icon(Icons.circle, size: 4, color: AppColors.textoSuave),
           ),
           const SizedBox(width: AppSpace.xs),
           Flexible(
@@ -446,7 +444,7 @@ class _ServicoTag extends StatelessWidget {
                   : TextOverflow.ellipsis,
               style: Theme.of(
                 context,
-              ).textTheme.labelMedium?.copyWith(color: const Color(0xFF426257)),
+              ).textTheme.labelMedium?.copyWith(color: AppColors.textoSuave),
             ),
           ),
         ],
