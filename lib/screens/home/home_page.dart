@@ -136,7 +136,10 @@ class _HomeContentView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.sm,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(25),
@@ -168,14 +171,17 @@ class _HomeContentView extends StatelessWidget {
                                 context,
                               ).scale(12);
                               final textoAmpliado = tamanhoTexto > 16.8;
+                              final espacoHorizontal = textoAmpliado
+                                  ? 10.0
+                                  : 6.0;
                               final larguraMinima = textoAmpliado
                                   ? 160.0
                                   : tamanhoTexto > 13.2
                                   ? 92.0
                                   : 64.0;
                               final colunas =
-                                  ((constraints.maxWidth + 10) /
-                                          (larguraMinima + 10))
+                                  ((constraints.maxWidth + espacoHorizontal) /
+                                          (larguraMinima + espacoHorizontal))
                                       .floor()
                                       .clamp(2, 4);
                               return GridView.builder(
@@ -187,7 +193,7 @@ class _HomeContentView extends StatelessWidget {
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: colunas,
                                       mainAxisSpacing: 12,
-                                      crossAxisSpacing: 10,
+                                      crossAxisSpacing: espacoHorizontal,
                                       mainAxisExtent: textoAmpliado
                                           ? 168
                                           : tamanhoTexto > 13.2
