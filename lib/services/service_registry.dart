@@ -73,13 +73,31 @@ class AppServices {
   }
 
   Future<HomeContent> carregarHome() async {
-    final responses = await Future.wait([
-      categorias.listar(),
-      profissionais.listar(),
+    Future<Map<String, dynamic>?> consultarSecao(
+      Future<Map<String, dynamic>> Function() consulta,
+      String chave,
+    ) async {
+      try {
+        final resposta = await consulta();
+        return resposta[chave] is List ? resposta : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final responses = await Future.wait<Map<String, dynamic>?>([
+      consultarSecao(categorias.listar, 'categorias'),
+      consultarSecao(profissionais.listar, 'profissionais'),
     ]);
-    return homeContentFromApi(
-      categoriasResponse: responses[0],
-      profissionaisResponse: responses[1],
+    final content = homeContentFromApi(
+      categoriasResponse: responses[0] ?? const {'categorias': []},
+      profissionaisResponse: responses[1] ?? const {'profissionais': []},
+    );
+    return HomeContent(
+      categories: content.categories,
+      featuredProfessionals: content.featuredProfessionals,
+      categoriesLoadFailed: responses[0] == null,
+      professionalsLoadFailed: responses[1] == null,
     );
   }
 }

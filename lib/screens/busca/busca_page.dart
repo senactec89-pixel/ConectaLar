@@ -60,6 +60,11 @@ class _BuscaPageState extends State<BuscaPage> {
     return AppServices.instance.carregarHome();
   }
 
+  void _recarregarConteudo() => setState(() {
+    _contentFuture = _carregarConteudo();
+    _contentFuture.ignore();
+  });
+
   List<Profissional> get _resultados {
     final termo = _normalizar(_termoController.text);
     final bairro = _normalizar(_bairroController.text);
@@ -137,10 +142,7 @@ class _BuscaPageState extends State<BuscaPage> {
           if (snapshot.hasError) {
             return AsyncErrorView(
               message: 'Não foi possível carregar os profissionais.',
-              onRetry: () => setState(() {
-                _contentFuture = _carregarConteudo();
-                _contentFuture.ignore();
-              }),
+              onRetry: _recarregarConteudo,
             );
           }
           if (snapshot.hasData) {
@@ -184,10 +186,23 @@ class _BuscaPageState extends State<BuscaPage> {
                     onTextoAlterado: (_) => setState(() {}),
                     onCategoriaSelecionada: _selecionarCategoria,
                     onLimparFiltros: _temFiltros ? _limparFiltros : null,
+                    categoriesLoadFailed:
+                        snapshot.data?.categoriesLoadFailed ?? false,
+                    onRetry: _recarregarConteudo,
+                    retrying:
+                        snapshot.connectionState == ConnectionState.waiting,
                   ),
                   const SizedBox(height: AppSpace.xl),
-                  if (snapshot.connectionState == ConnectionState.waiting)
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData)
                     const AsyncLoadingView(label: 'Carregando profissionais.')
+                  else if (snapshot.data?.professionalsLoadFailed ?? false)
+                    SectionErrorView(
+                      message: 'Não foi possível carregar os profissionais.',
+                      onRetry: _recarregarConteudo,
+                      retrying:
+                          snapshot.connectionState == ConnectionState.waiting,
+                    )
                   else ...[
                     _CabecalhoResultados(total: resultados.length),
                     const SizedBox(height: AppSpace.md),
@@ -228,6 +243,9 @@ class _FiltrosBusca extends StatelessWidget {
     required this.onTextoAlterado,
     required this.onCategoriaSelecionada,
     required this.onLimparFiltros,
+    required this.categoriesLoadFailed,
+    required this.onRetry,
+    required this.retrying,
   });
 
   final TextEditingController termoController;
@@ -237,6 +255,9 @@ class _FiltrosBusca extends StatelessWidget {
   final ValueChanged<String> onTextoAlterado;
   final ValueChanged<Categoria> onCategoriaSelecionada;
   final VoidCallback? onLimparFiltros;
+  final bool categoriesLoadFailed;
+  final VoidCallback onRetry;
+  final bool retrying;
 
   @override
   Widget build(BuildContext context) {
@@ -267,7 +288,13 @@ class _FiltrosBusca extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpace.md),
-        if (categorias.isNotEmpty) ...[
+        if (categoriesLoadFailed)
+          SectionErrorView(
+            message: 'Não foi possível carregar as categorias.',
+            onRetry: onRetry,
+            retrying: retrying,
+          )
+        else if (categorias.isNotEmpty) ...[
           Wrap(
             spacing: AppSpace.md,
             runSpacing: AppSpace.xs,

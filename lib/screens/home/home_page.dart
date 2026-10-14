@@ -73,7 +73,8 @@ class _HomePageState extends State<HomePage> {
         child: FutureBuilder<HomeContent>(
           future: _contentFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const AsyncLoadingView(
                 label: 'Carregando conteúdo da página inicial',
               );
@@ -85,6 +86,8 @@ class _HomePageState extends State<HomePage> {
 
             return _HomeContentView(
               content: snapshot.data ?? const HomeContent(),
+              onRetry: _retry,
+              retrying: snapshot.connectionState == ConnectionState.waiting,
               onSearchTap: () => _openRoute(AppRoutes.busca),
               onNotificationsTap: () => _openRoute(AppRoutes.notificacoes),
               onCategoryTap: (category) =>
@@ -108,6 +111,8 @@ class _HomePageState extends State<HomePage> {
 class _HomeContentView extends StatelessWidget {
   const _HomeContentView({
     required this.content,
+    required this.onRetry,
+    required this.retrying,
     required this.onSearchTap,
     required this.onNotificationsTap,
     required this.onCategoryTap,
@@ -115,6 +120,8 @@ class _HomeContentView extends StatelessWidget {
   });
 
   final HomeContent content;
+  final VoidCallback onRetry;
+  final bool retrying;
   final VoidCallback onSearchTap;
   final VoidCallback onNotificationsTap;
   final ValueChanged<Categoria> onCategoryTap;
@@ -153,7 +160,13 @@ class _HomeContentView extends StatelessWidget {
                           onActionTap: onSearchTap,
                         ),
                         const SizedBox(height: 16),
-                        if (content.categories.isEmpty)
+                        if (content.categoriesLoadFailed)
+                          SectionErrorView(
+                            message: 'Não foi possível carregar as categorias.',
+                            onRetry: onRetry,
+                            retrying: retrying,
+                          )
+                        else if (content.categories.isEmpty)
                           const _EmptySectionMessage(
                             message: 'Nenhuma categoria disponível.',
                           )
@@ -210,7 +223,13 @@ class _HomeContentView extends StatelessWidget {
                     onActionTap: onSearchTap,
                   ),
                   const SizedBox(height: 14),
-                  if (content.featuredProfessionals.isEmpty)
+                  if (content.professionalsLoadFailed)
+                    SectionErrorView(
+                      message: 'Não foi possível carregar os profissionais.',
+                      onRetry: onRetry,
+                      retrying: retrying,
+                    )
+                  else if (content.featuredProfessionals.isEmpty)
                     const _EmptySectionMessage(
                       message: 'Nenhum profissional disponível no momento.',
                     )

@@ -84,6 +84,33 @@ class AsyncErrorView extends StatelessWidget {
   }
 }
 
+class SectionErrorView extends StatelessWidget {
+  const SectionErrorView({
+    required this.message,
+    required this.onRetry,
+    this.retrying = false,
+    super.key,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+  final bool retrying;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(message, style: Theme.of(context).textTheme.bodyMedium),
+      const SizedBox(height: AppSpace.sm),
+      OutlinedButton.icon(
+        onPressed: retrying ? null : onRetry,
+        icon: const Icon(Icons.refresh_rounded),
+        label: const Text('Tentar novamente'),
+      ),
+    ],
+  );
+}
+
 class EmptyStateView extends StatelessWidget {
   const EmptyStateView({
     required this.title,
