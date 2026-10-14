@@ -14,6 +14,7 @@ import { FavoritoProfissionalEntity } from '../database/entities/favorito-profis
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 
 @Injectable()
 export class ClientesService {
@@ -272,6 +273,7 @@ function clienteResponse(
     email: usuario.email,
     telefone: usuario.telefone,
     tipo: usuario.tipo,
+    fotoPerfilUrl: fotoPerfilUrl(usuario),
     bairroPrincipal: perfil?.bairroPrincipal ?? null,
     cidade: perfil?.cidade ?? null,
     uf: perfil?.uf ?? null,
@@ -308,6 +310,7 @@ function profissionalPublico(profissional: ProfissionalPerfilEntity) {
     usuarioId: profissional.usuarioId,
     nome: profissional.usuario.nome,
     tipo: profissional.usuario.tipo,
+    fotoPerfilUrl: fotoPerfilUrl(profissional.usuario),
     descricao: profissional.descricao,
     bairro: profissional.bairro,
     precoInicial: numberOrNull(profissional.precoInicial),

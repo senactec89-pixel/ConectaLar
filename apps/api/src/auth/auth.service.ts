@@ -13,6 +13,11 @@ import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-emai
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo, usuarioTiposPublicos } from '../domain/usuario-tipo.js';
+import {
+  fotoPerfilUrl,
+  removerFotoPerfilArquivo,
+  salvarFotoPerfil,
+} from '../usuarios/foto-perfil.storage.js';
 import { MailService } from './mail.service.js';
 import { MfaService } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
@@ -434,6 +439,24 @@ export class AuthService {
     return { ok: true };
   }
 
+  async atualizarFotoPerfil(user: AuthenticatedUser, body: unknown) {
+    const usuario = await this.usuarioAtivo(user.id);
+    const fotoAnterior = usuario.fotoPerfil;
+    usuario.fotoPerfil = await salvarFotoPerfil(usuario.id, body);
+    const saved = await this.usuarios.save(usuario);
+    await removerFotoPerfilArquivo(fotoAnterior);
+    return this.authResponse(saved);
+  }
+
+  async removerFotoPerfil(user: AuthenticatedUser) {
+    const usuario = await this.usuarioAtivo(user.id);
+    const fotoAnterior = usuario.fotoPerfil;
+    usuario.fotoPerfil = null;
+    const saved = await this.usuarios.save(usuario);
+    await removerFotoPerfilArquivo(fotoAnterior);
+    return this.authResponse(saved);
+  }
+
   async logout(user: AuthenticatedUser) {
     const usuario = await this.usuarios.findOne({
       where: { id: user.id, ativo: true },
@@ -455,6 +478,7 @@ export class AuthService {
         emailVerificado: usuario.emailVerificado,
         telefone: usuario.telefone,
         tipo: usuario.tipo,
+        fotoPerfilUrl: fotoPerfilUrl(usuario),
       },
       token: this.tokenService.createAccessToken(usuario),
     };

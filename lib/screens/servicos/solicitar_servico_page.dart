@@ -405,10 +405,13 @@ class _ResumoProfissional extends StatelessWidget {
               radius: 28,
               backgroundColor: AppColors.verdeClaro,
               foregroundColor: AppColors.verde,
-              backgroundImage: profissional.fotoAsset == null
+              backgroundImage: profissional.fotoUrl != null
+                  ? NetworkImage(profissional.fotoUrl!)
+                  : profissional.fotoAsset == null
                   ? null
                   : AssetImage(profissional.fotoAsset!),
-              child: profissional.fotoAsset == null
+              child:
+                  profissional.fotoUrl == null && profissional.fotoAsset == null
                   ? const Icon(Icons.person_rounded)
                   : null,
             ),

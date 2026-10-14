@@ -36,6 +36,14 @@ export class UsuarioEntity {
   })
   telefoneNormalizado!: string | null;
 
+  @Column({
+    name: 'foto_perfil',
+    type: 'varchar',
+    length: 180,
+    nullable: true,
+  })
+  fotoPerfil!: string | null;
+
   @Column({ type: 'varchar', length: 24 })
   tipo!: UsuarioTipo;
 

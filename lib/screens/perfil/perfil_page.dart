@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
@@ -20,6 +23,7 @@ class PerfilPage extends StatefulWidget {
 class _PerfilPageState extends State<PerfilPage> {
   late Future<Usuario> _usuarioFuture;
   bool _saindo = false;
+  bool _alterandoFoto = false;
 
   @override
   void initState() {
@@ -54,6 +58,76 @@ class _PerfilPageState extends State<PerfilPage> {
     Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (_) => false);
   }
 
+  Future<void> _selecionarFoto() async {
+    if (_alterandoFoto || AppServices.instance.emDemonstracao) return;
+    setState(() => _alterandoFoto = true);
+    try {
+      final arquivo = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'JPEG, PNG ou WebP',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+            uniformTypeIdentifiers: [
+              'public.jpeg',
+              'public.png',
+              'org.webmproject.webp',
+            ],
+          ),
+        ],
+        confirmButtonText: 'Selecionar',
+      );
+      if (arquivo == null) return;
+      final bytes = await arquivo.readAsBytes();
+      if (!mounted) return;
+      if (bytes.length > 2 * 1024 * 1024) {
+        _mostrarInfo(context, 'A foto precisa ter no maximo 2 MB.');
+        return;
+      }
+      final mimeType = _mimeDaFoto(arquivo.name);
+      if (mimeType == null) {
+        _mostrarInfo(context, 'Use uma foto JPEG, PNG ou WebP.');
+        return;
+      }
+      await AppServices.instance.auth.atualizarFotoPerfil(
+        arquivoBase64: base64Encode(bytes),
+        mimeType: mimeType,
+        nomeArquivo: arquivo.name,
+      );
+      if (!mounted) return;
+      setState(() {
+        _usuarioFuture = _carregarUsuario();
+        _usuarioFuture.ignore();
+      });
+      _mostrarInfo(context, 'Foto de perfil atualizada.');
+    } catch (_) {
+      if (mounted) {
+        _mostrarInfo(context, 'Nao foi possivel atualizar a foto.');
+      }
+    } finally {
+      if (mounted) setState(() => _alterandoFoto = false);
+    }
+  }
+
+  Future<void> _removerFoto() async {
+    if (_alterandoFoto || AppServices.instance.emDemonstracao) return;
+    setState(() => _alterandoFoto = true);
+    try {
+      await AppServices.instance.auth.removerFotoPerfil();
+      if (!mounted) return;
+      setState(() {
+        _usuarioFuture = _carregarUsuario();
+        _usuarioFuture.ignore();
+      });
+      _mostrarInfo(context, 'Foto de perfil removida.');
+    } catch (_) {
+      if (mounted) {
+        _mostrarInfo(context, 'Nao foi possivel remover a foto.');
+      }
+    } finally {
+      if (mounted) setState(() => _alterandoFoto = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = ConectaLarMockStore.instance;
@@ -86,17 +160,13 @@ class _PerfilPageState extends State<PerfilPage> {
                     padding: const EdgeInsets.all(18),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 34,
-                          backgroundColor: AppColors.verdeClaro,
-                          foregroundColor: AppColors.verdeEscuro,
-                          child: Text(
-                            usuario.nome.characters.first.toUpperCase(),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 24,
-                            ),
-                          ),
+                        _FotoPerfilUsuario(
+                          usuario: usuario,
+                          alterando: _alterandoFoto,
+                          onAlterar: _selecionarFoto,
+                          onRemover: usuario.fotoPerfilUrl == null
+                              ? null
+                              : _removerFoto,
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -223,6 +293,105 @@ class _PerfilPageState extends State<PerfilPage> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(mensagem)));
+  }
+}
+
+String? _mimeDaFoto(String nomeArquivo) {
+  final nome = nomeArquivo.toLowerCase();
+  if (nome.endsWith('.jpg') || nome.endsWith('.jpeg')) return 'image/jpeg';
+  if (nome.endsWith('.png')) return 'image/png';
+  if (nome.endsWith('.webp')) return 'image/webp';
+  return null;
+}
+
+class _FotoPerfilUsuario extends StatelessWidget {
+  const _FotoPerfilUsuario({
+    required this.usuario,
+    required this.alterando,
+    required this.onAlterar,
+    required this.onRemover,
+  });
+
+  final Usuario usuario;
+  final bool alterando;
+  final VoidCallback onAlterar;
+  final VoidCallback? onRemover;
+
+  @override
+  Widget build(BuildContext context) {
+    final inicial = usuario.nome.trim().isEmpty
+        ? '?'
+        : usuario.nome.characters.first.toUpperCase();
+    final fallback = ColoredBox(
+      color: AppColors.verdeClaro,
+      child: Center(
+        child: Text(
+          inicial,
+          style: const TextStyle(
+            color: AppColors.verdeEscuro,
+            fontWeight: FontWeight.w900,
+            fontSize: 24,
+          ),
+        ),
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ClipOval(
+              child: SizedBox.square(
+                dimension: 68,
+                child: usuario.fotoPerfilUrl == null
+                    ? fallback
+                    : Image.network(
+                        usuario.fotoPerfilUrl!,
+                        fit: BoxFit.cover,
+                        semanticLabel: 'Foto de ${usuario.nome}',
+                        errorBuilder: (_, _, _) => fallback,
+                      ),
+              ),
+            ),
+            Positioned(
+              right: -8,
+              bottom: -8,
+              child: Material(
+                color: AppColors.verde,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  constraints: const BoxConstraints.tightFor(
+                    width: 42,
+                    height: 42,
+                  ),
+                  tooltip: 'Alterar foto',
+                  onPressed: alterando ? null : onAlterar,
+                  icon: alterando
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.branco,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.photo_camera_outlined,
+                          color: AppColors.branco,
+                          size: 19,
+                        ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (onRemover != null)
+          TextButton(
+            onPressed: alterando ? null : onRemover,
+            child: const Text('Remover'),
+          ),
+      ],
+    );
   }
 }
 

@@ -265,7 +265,8 @@ class _PerfilProfissionalContentState
 
   @override
   Widget build(BuildContext context) {
-    final foto = profissional.fotoAsset;
+    final fotoAsset = profissional.fotoAsset;
+    final fotoUrl = profissional.fotoUrl;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -284,7 +285,8 @@ class _PerfilProfissionalContentState
             children: [
               _CabecalhoPerfil(
                 profissional: profissional,
-                fotoAsset: foto,
+                fotoAsset: fotoAsset,
+                fotoUrl: fotoUrl,
                 favorito: data.favorito,
                 favoritoCarregando: widget.mutandoFavorito,
                 onFavoritoTap: widget.onFavoritoTap,
@@ -387,6 +389,7 @@ class _CabecalhoPerfil extends StatelessWidget {
   const _CabecalhoPerfil({
     required this.profissional,
     required this.fotoAsset,
+    required this.fotoUrl,
     required this.favorito,
     required this.favoritoCarregando,
     required this.onFavoritoTap,
@@ -394,6 +397,7 @@ class _CabecalhoPerfil extends StatelessWidget {
 
   final Profissional profissional;
   final String? fotoAsset;
+  final String? fotoUrl;
   final bool favorito;
   final bool favoritoCarregando;
   final VoidCallback? onFavoritoTap;
@@ -401,7 +405,11 @@ class _CabecalhoPerfil extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
-    final avatar = _FotoPerfil(fotoAsset: fotoAsset, nome: profissional.nome);
+    final avatar = _FotoPerfil(
+      fotoAsset: fotoAsset,
+      fotoUrl: fotoUrl,
+      nome: profissional.nome,
+    );
     final identificacao = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -575,8 +583,13 @@ class _ServicosPerfil extends StatelessWidget {
 }
 
 class _FotoPerfil extends StatelessWidget {
-  const _FotoPerfil({required this.fotoAsset, required this.nome});
+  const _FotoPerfil({
+    required this.fotoAsset,
+    required this.fotoUrl,
+    required this.nome,
+  });
   final String? fotoAsset;
+  final String? fotoUrl;
   final String nome;
 
   @override
@@ -596,7 +609,15 @@ class _FotoPerfil extends StatelessWidget {
     return ClipOval(
       child: SizedBox.square(
         dimension: 84,
-        child: fotoAsset == null
+        child: fotoUrl != null
+            ? Image.network(
+                fotoUrl!,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                semanticLabel: 'Foto de $nome',
+                errorBuilder: (_, _, _) => fallback,
+              )
+            : fotoAsset == null
             ? fallback
             : Image.asset(
                 fotoAsset!,

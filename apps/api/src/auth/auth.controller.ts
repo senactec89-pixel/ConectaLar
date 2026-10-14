@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { AuthGuard } from './auth.guard.js';
 import { AuthenticatedUser } from './authenticated-user.js';
@@ -64,6 +73,21 @@ export class AuthController {
     @Body() body: unknown,
   ) {
     return this.authService.alterarSenha(user, body);
+  }
+
+  @Put('me/foto')
+  @UseGuards(AuthGuard)
+  atualizarFotoPerfil(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.authService.atualizarFotoPerfil(user, body);
+  }
+
+  @Delete('me/foto')
+  @UseGuards(AuthGuard)
+  removerFotoPerfil(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.authService.removerFotoPerfil(user);
   }
 
   @Get('mfa/admin')

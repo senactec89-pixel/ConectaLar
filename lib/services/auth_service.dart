@@ -171,6 +171,30 @@ class AuthService extends ChangeNotifier {
     );
   }
 
+  Future<Map<String, dynamic>> atualizarFotoPerfil({
+    required String arquivoBase64,
+    required String mimeType,
+    String? nomeArquivo,
+  }) async {
+    final response = await _api.put(
+      'auth/me/foto',
+      body: {
+        'arquivoBase64': arquivoBase64,
+        'mimeType': mimeType,
+        if (nomeArquivo != null && nomeArquivo.isNotEmpty)
+          'nomeArquivo': nomeArquivo,
+      },
+    );
+    await _registrarSessao(response);
+    return response;
+  }
+
+  Future<Map<String, dynamic>> removerFotoPerfil() async {
+    final response = await _api.delete('auth/me/foto');
+    await _registrarSessao(response);
+    return response;
+  }
+
   Future<Map<String, dynamic>> logout() async {
     Map<String, dynamic> response = {'ok': true};
     if (_api.autenticado) {

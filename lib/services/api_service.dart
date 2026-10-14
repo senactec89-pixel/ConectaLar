@@ -25,6 +25,8 @@ class ApiService {
 
   bool get autenticado => _accessToken != null;
 
+  String absoluteUrl(String endpoint) => _buildUri(endpoint, null).toString();
+
   void definirToken(String? token) {
     _sessionRevision++;
     _accessToken = token == null || token.trim().isEmpty ? null : token.trim();

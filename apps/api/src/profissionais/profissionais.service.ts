@@ -17,6 +17,7 @@ import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 
 interface ProfissionalServicoInput {
   readonly id?: number | null;
@@ -562,6 +563,7 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     usuarioId: perfil.usuarioId,
     nome: perfil.usuario.nome,
     tipo: perfil.usuario.tipo,
+    fotoPerfilUrl: fotoPerfilUrl(perfil.usuario),
     descricao: perfil.descricao,
     bairro: perfil.bairro,
     precoInicial: numberOrNull(perfil.precoInicial),

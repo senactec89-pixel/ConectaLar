@@ -44,6 +44,8 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/auth\/email\/verificacao:/);
   assert.match(openapi, /\/auth\/email\/verificacao\/enviar:/);
   assert.match(openapi, /\/auth\/email\/verificacao\/confirmar:/);
+  assert.match(openapi, /\/auth\/me\/foto:/);
+  assert.match(openapi, /\/usuarios\/\{id\}\/foto:/);
   assert.match(openapi, /\/profissionais\/me\/agenda:/);
   assert.match(openapi, /\/profissionais\/me\/documentos:/);
   assert.match(openapi, /\/admin\/painel\/auditoria:/);
@@ -53,6 +55,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/profissionais\/\{id\}\/avaliacoes:/);
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /nomeServico/);
+  assert.match(openapi, /fotoPerfilUrl/);
 });
 
 test('civil dates remain strings while timestamps keep their timezone', () => {
@@ -91,6 +94,27 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /0x89,\s*0x50,\s*0x4e,\s*0x47/);
   assert.match(verificacao, /storage/);
   assert.doesNotMatch(verificacao, /http:\/\/|https:\/\//);
+});
+
+test('profile photos validate real image bytes before serving public URLs', async () => {
+  const storage = await source('dist/usuarios/foto-perfil.storage.js');
+  const auth = await source('dist/auth/auth.service.js');
+  const usuarios = await source('dist/usuarios/usuarios.controller.js');
+
+  assert.match(storage, /maxFotoPerfilBytes = 2 \* 1024 \* 1024/);
+  assert.match(storage, /image\/jpeg/);
+  assert.match(storage, /image\/png/);
+  assert.match(storage, /image\/webp/);
+  assert.match(storage, /assinaturaCompativelComMime/);
+  assert.match(storage, /NOME_FOTO_INVALIDO/);
+  assert.match(storage, /ASSINATURA_FOTO_INVALIDA/);
+  assert.match(storage, /RIFF/);
+  assert.match(storage, /WEBP/);
+  assert.match(auth, /atualizarFotoPerfil/);
+  assert.match(auth, /removerFotoPerfil/);
+  assert.match(auth, /fotoPerfilUrl/);
+  assert.match(usuarios, /Content-Type/);
+  assert.match(usuarios, /Cache-Control/);
 });
 
 test('authentication keeps e-mail verification codes hashed and expiring', async () => {

@@ -789,6 +789,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
     final professional = widget.professional;
     final price = professional.precoInicial;
     final image = professional.fotoAsset;
+    final imageUrl = professional.fotoUrl;
 
     return Material(
       color: Colors.white,
@@ -804,7 +805,21 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (image != null)
+                  if (imageUrl != null)
+                    Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      errorBuilder: (_, _, _) => const ColoredBox(
+                        color: AppColors.verdeClaro,
+                        child: Icon(
+                          Icons.person_outline_rounded,
+                          color: AppColors.verde,
+                          size: 50,
+                        ),
+                      ),
+                    )
+                  else if (image != null)
                     Image.asset(
                       image,
                       fit: BoxFit.cover,
@@ -902,10 +917,12 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                         CircleAvatar(
                           radius: 17,
                           backgroundColor: AppColors.verdeClaro,
-                          backgroundImage: image == null
+                          backgroundImage: imageUrl != null
+                              ? NetworkImage(imageUrl)
+                              : image == null
                               ? null
                               : AssetImage(image),
-                          child: image == null
+                          child: imageUrl == null && image == null
                               ? const Icon(
                                   Icons.person_outline_rounded,
                                   color: AppColors.verde,

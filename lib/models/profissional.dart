@@ -9,6 +9,7 @@ class Profissional {
     this.categoriaIds = const [],
     this.verificado = false,
     this.fotoAsset,
+    this.fotoUrl,
     this.notaMedia,
     this.quantidadeAvaliacoes,
     this.servicos = const [],
@@ -23,6 +24,7 @@ class Profissional {
   final double? precoInicial;
   final List<int> categoriaIds;
   final String? fotoAsset;
+  final String? fotoUrl;
   final double? notaMedia;
   final int? quantidadeAvaliacoes;
   final List<String> servicos;

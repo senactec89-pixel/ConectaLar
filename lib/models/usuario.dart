@@ -17,6 +17,7 @@ class Usuario {
     required this.tipo,
     this.telefone,
     this.bairro,
+    this.fotoPerfilUrl,
   });
 
   final int id;
@@ -25,4 +26,5 @@ class Usuario {
   final TipoUsuario tipo;
   final String? telefone;
   final String? bairro;
+  final String? fotoPerfilUrl;
 }

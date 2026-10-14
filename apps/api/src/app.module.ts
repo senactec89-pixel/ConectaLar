@@ -19,6 +19,7 @@ import { HealthController } from './health/health.controller.js';
 import { ProfissionaisModule } from './profissionais/profissionais.module.js';
 import { SolicitacoesModule } from './solicitacoes/solicitacoes.module.js';
 import { TermosModule } from './termos/termos.module.js';
+import { UsuariosModule } from './usuarios/usuarios.module.js';
 import { VerificacaoModule } from './verificacao/verificacao.module.js';
 
 const runtimeImports = isAuthRuntimeConfigured()
@@ -39,6 +40,7 @@ const runtimeImports = isAuthRuntimeConfigured()
       AdminUsuariosModule,
       HistoricoModule,
       TermosModule,
+      UsuariosModule,
     ]
   : [];
 

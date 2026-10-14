@@ -141,6 +141,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /auth/me/foto:
+    put:
+      operationId: putAuthMeFoto
+      summary: Uploads or replaces the authenticated account profile photo
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FotoPerfilUploadRequest'
+      responses:
+        '200':
+          description: Profile photo updated and session user returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    delete:
+      operationId: deleteAuthMeFoto
+      summary: Removes the authenticated account profile photo
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile photo removed and session user returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /usuarios/{id}/foto:
+    get:
+      operationId: getUsuarioFotoPerfil
+      summary: Returns a user's public profile photo when available
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Profile photo bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /auth/senha/recuperacao:
     post:
       operationId: postAuthRecuperarSenha
@@ -2425,6 +2495,7 @@ components:
         - emailVerificado
         - telefone
         - tipo
+        - fotoPerfilUrl
       properties:
         id:
           type: integer
@@ -2442,6 +2513,11 @@ components:
             - 'null'
         tipo:
           $ref: '#/components/schemas/UsuarioTipo'
+        fotoPerfilUrl:
+          type:
+            - string
+            - 'null'
+          description: Relative API path for the public profile photo, when present.
     UsuarioTipoPublico:
       type: string
       enum:
@@ -2510,6 +2586,7 @@ components:
         - bairro
         - precoInicial
         - verificado
+        - fotoPerfilUrl
         - servicos
         - notaMedia
         - quantidadeAvaliacoes
@@ -2534,6 +2611,11 @@ components:
             - 'null'
         verificado:
           type: boolean
+        fotoPerfilUrl:
+          type:
+            - string
+            - 'null'
+          description: Relative API path for the public profile photo, when present.
         servicos:
           type: array
           items:
@@ -2546,6 +2628,26 @@ components:
         quantidadeAvaliacoes:
           type: integer
           minimum: 0
+    FotoPerfilUploadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - arquivoBase64
+        - mimeType
+      properties:
+        arquivoBase64:
+          type: string
+          contentEncoding: base64
+          description: JPEG, PNG, or WebP file encoded as Base64. Maximum decoded size is 2 MB.
+        mimeType:
+          type: string
+          enum:
+            - image/jpeg
+            - image/png
+            - image/webp
+        nomeArquivo:
+          type: string
+          maxLength: 180
     Categoria:
       type: object
       additionalProperties: false

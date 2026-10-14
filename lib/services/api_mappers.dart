@@ -1,4 +1,5 @@
 import '../data/conectalar_mock_store.dart';
+import '../utils/constants.dart';
 import '../models/categoria.dart';
 import '../models/cliente_endereco.dart';
 import '../models/disponibilidade.dart';
@@ -59,6 +60,7 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
     precoInicial: doubleValueOrNull(json['precoInicial']),
     categoriaIds: categoriaIds,
     verificado: boolValue(json['verificado']),
+    fotoUrl: apiUrlOrNull(json['fotoPerfilUrl']),
     servicos: servicos,
     ofertas: listFromApi(
       json['servicos'],
@@ -150,6 +152,7 @@ Usuario usuarioFromApi(Map<String, dynamic> json) {
     tipo: tipoUsuarioFromApi(stringValue(json['tipo'])),
     telefone: nullableString(json['telefone']),
     bairro: nullableString(json['bairroPrincipal'] ?? json['bairro']),
+    fotoPerfilUrl: apiUrlOrNull(json['fotoPerfilUrl']),
   );
 }
 
@@ -256,6 +259,15 @@ String stringValue(Object? value) => value?.toString() ?? '';
 String? nullableString(Object? value) {
   final text = stringValue(value).trim();
   return text.isEmpty ? null : text;
+}
+
+String? apiUrlOrNull(Object? value) {
+  final path = nullableString(value);
+  if (path == null) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  final baseUrl = AppConstants.apiBaseUrl.replaceFirst(RegExp(r'/+$'), '');
+  final normalizedPath = path.replaceFirst(RegExp(r'^/+'), '');
+  return '$baseUrl/$normalizedPath';
 }
 
 DateTime dateValue(Object? value) {

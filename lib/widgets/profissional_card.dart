@@ -268,16 +268,26 @@ class _FotoProfissional extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foto = profissional.fotoAsset;
+    final fotoAsset = profissional.fotoAsset;
+    final fotoUrl = profissional.fotoUrl;
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadii.field),
       child: SizedBox(
         width: 76,
         height: 94,
-        child: foto == null
+        child: fotoUrl != null
+            ? Image.network(
+                fotoUrl,
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
+                semanticLabel: 'Foto de ${profissional.nome}',
+                errorBuilder: (_, _, _) =>
+                    _FotoAusente(nome: profissional.nome),
+              )
+            : fotoAsset == null
             ? _FotoAusente(nome: profissional.nome)
             : Image.asset(
-                foto,
+                fotoAsset,
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
                 semanticLabel: 'Foto de ${profissional.nome}',
