@@ -356,6 +356,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                     _FormularioSolicitacao(
                       formKey: _formKey,
                       profissional: profissional,
+                      ofertaSelecionada: _ofertaSelecionada,
                       ofertaSelecionadaId: _ofertaSelecionadaId,
                       descricaoController: _descricaoController,
                       bairroController: _bairroController,
@@ -449,6 +450,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   const _FormularioSolicitacao({
     required this.formKey,
     required this.profissional,
+    required this.ofertaSelecionada,
     required this.ofertaSelecionadaId,
     required this.descricaoController,
     required this.bairroController,
@@ -468,6 +470,7 @@ class _FormularioSolicitacao extends StatelessWidget {
 
   final GlobalKey<FormState> formKey;
   final Profissional profissional;
+  final OfertaProfissional? ofertaSelecionada;
   final int? ofertaSelecionadaId;
   final TextEditingController descricaoController;
   final TextEditingController bairroController;
@@ -749,6 +752,14 @@ class _FormularioSolicitacao extends StatelessWidget {
                 validator: validarCampoObrigatorio,
               ),
               const SizedBox(height: 14),
+              _ResumoSolicitacaoPreview(
+                profissional: profissional,
+                oferta: ofertaSelecionada,
+                bairroController: bairroController,
+                dataController: dataController,
+                horarioController: horarioController,
+              ),
+              const SizedBox(height: 14),
               const _AvisoSolicitacao(),
               const SizedBox(height: 16),
               SizedBox(
@@ -848,6 +859,116 @@ class _AvisoSolicitacao extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ResumoSolicitacaoPreview extends StatelessWidget {
+  const _ResumoSolicitacaoPreview({
+    required this.profissional,
+    required this.oferta,
+    required this.bairroController,
+    required this.dataController,
+    required this.horarioController,
+  });
+
+  final Profissional profissional;
+  final OfertaProfissional? oferta;
+  final TextEditingController bairroController;
+  final TextEditingController dataController;
+  final TextEditingController horarioController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        bairroController,
+        dataController,
+        horarioController,
+      ]),
+      builder: (context, _) {
+        final data = dataController.text.trim();
+        final horario = horarioController.text.trim();
+        final bairro = bairroController.text.trim();
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.verdePastel,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(color: AppColors.borda),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.fact_check_outlined,
+                      color: AppColors.verdeEscuro,
+                    ),
+                    const SizedBox(width: AppSpace.sm),
+                    Expanded(
+                      child: Text(
+                        'Resumo antes de enviar',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.sm),
+                _ResumoLinha(label: 'Profissional', value: profissional.nome),
+                _ResumoLinha(
+                  label: 'Serviço',
+                  value: oferta?.nome ?? 'Selecione um serviço',
+                ),
+                _ResumoLinha(
+                  label: 'Quando',
+                  value: data.isEmpty && horario.isEmpty
+                      ? 'Escolha data e horário'
+                      : '${data.isEmpty ? 'Data pendente' : data} às ${horario.isEmpty ? '--:--' : horario}',
+                ),
+                _ResumoLinha(
+                  label: 'Região',
+                  value: bairro.isEmpty ? 'Informe o bairro' : bairro,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ResumoLinha extends StatelessWidget {
+  const _ResumoLinha({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpace.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.texto,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

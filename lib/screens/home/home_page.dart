@@ -137,12 +137,13 @@ class _HomeContentView extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.sm,
-                      vertical: 14,
+                      horizontal: AppSpace.md,
+                      vertical: AppSpace.lg,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(AppRadii.panel),
+                      border: Border.all(color: AppColors.borda),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,10 +196,10 @@ class _HomeContentView extends StatelessWidget {
                                       mainAxisSpacing: 12,
                                       crossAxisSpacing: espacoHorizontal,
                                       mainAxisExtent: textoAmpliado
-                                          ? 168
+                                          ? 190
                                           : tamanhoTexto > 13.2
-                                          ? 124
-                                          : 104,
+                                          ? 164
+                                          : 148,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = content.categories[index];
@@ -748,21 +749,33 @@ class _CategoryTile extends StatelessWidget {
       button: true,
       label: category.nome,
       child: Material(
-        color: background,
-        borderRadius: BorderRadius.circular(21),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppRadii.card),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(21),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(color: AppColors.borda),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: color, size: 29),
-                const SizedBox(height: 5),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(icon, color: color, size: 25),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   category.nome,
-                  maxLines: 3,
+                  maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -1162,9 +1175,23 @@ class _EmptySectionMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+    return Card(
+      child: Padding(
+        padding: AppInsets.card,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.inbox_outlined, color: AppColors.verde),
+            const SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

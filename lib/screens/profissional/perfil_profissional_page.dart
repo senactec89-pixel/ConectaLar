@@ -298,6 +298,8 @@ class _PerfilProfissionalContentState
                   onRetry: widget.onRetryFavoritos,
                 ),
               ],
+              const SizedBox(height: AppSpace.md),
+              _DestaquesPerfil(profissional: profissional),
               const SizedBox(height: AppSpace.sm),
               Wrap(
                 spacing: AppSpace.sm,
@@ -505,6 +507,122 @@ class _CabecalhoPerfil extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DestaquesPerfil extends StatelessWidget {
+  const _DestaquesPerfil({required this.profissional});
+
+  final Profissional profissional;
+
+  @override
+  Widget build(BuildContext context) {
+    final nota = profissional.notaMedia;
+    final avaliacoes = profissional.quantidadeAvaliacoes ?? 0;
+    final servicos = profissional.ofertas.isNotEmpty
+        ? profissional.ofertas.length
+        : profissional.servicos.length;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final estreito =
+            constraints.maxWidth < 520 ||
+            MediaQuery.textScalerOf(context).scale(14) > 21;
+        final cards = [
+          _DestaqueInfo(
+            icon: Icons.star_rounded,
+            label: 'Avaliação',
+            value: nota == null
+                ? 'Novo'
+                : nota.toStringAsFixed(1).replaceAll('.', ','),
+            helper: avaliacoes == 1 ? '1 avaliação' : '$avaliacoes avaliações',
+          ),
+          _DestaqueInfo(
+            icon: Icons.payments_outlined,
+            label: 'Preço inicial',
+            value: profissional.precoInicial == null
+                ? 'Sob consulta'
+                : 'R\$ ${profissional.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')}',
+            helper: 'Referência informada',
+          ),
+          _DestaqueInfo(
+            icon: profissional.verificado
+                ? Icons.verified_rounded
+                : Icons.verified_user_outlined,
+            label: 'Documentos',
+            value: profissional.verificado ? 'Verificado' : 'Pendente',
+            helper: 'Análise administrativa',
+          ),
+          _DestaqueInfo(
+            icon: Icons.home_repair_service_outlined,
+            label: 'Serviços',
+            value: '$servicos',
+            helper: servicos == 1 ? 'oferta ativa' : 'ofertas ativas',
+          ),
+        ];
+        if (estreito) {
+          return Column(
+            children: [
+              for (final card in cards) ...[
+                card,
+                const SizedBox(height: AppSpace.sm),
+              ],
+            ],
+          );
+        }
+        return Wrap(
+          spacing: AppSpace.sm,
+          runSpacing: AppSpace.sm,
+          children: [
+            for (final card in cards)
+              SizedBox(
+                width: (constraints.maxWidth - AppSpace.sm) / 2,
+                child: card,
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DestaqueInfo extends StatelessWidget {
+  const _DestaqueInfo({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.helper,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String helper;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.verde),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 2),
+                  Text(value, style: Theme.of(context).textTheme.titleSmall),
+                  Text(helper, style: Theme.of(context).textTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -47,6 +47,11 @@ class ProfissionalCard extends StatelessWidget {
                               : TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
+                        const SizedBox(height: AppSpace.xs),
+                        _LinhaPrincipalProfissional(
+                          profissional: profissional,
+                          compacta: !textoAmpliado,
+                        ),
                         if (!textoAmpliado) ...[
                           const SizedBox(height: AppSpace.sm),
                           _InformacoesProfissional(
@@ -128,19 +133,6 @@ class _InformacoesProfissional extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: AppSpace.sm,
-          runSpacing: AppSpace.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (profissional.verificado) const _SeloVerificado(),
-            _AvaliacaoProfissional(
-              profissional: profissional,
-              compacta: !textoAmpliado,
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpace.sm),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -167,6 +159,29 @@ class _InformacoesProfissional extends StatelessWidget {
   }
 }
 
+class _LinhaPrincipalProfissional extends StatelessWidget {
+  const _LinhaPrincipalProfissional({
+    required this.profissional,
+    required this.compacta,
+  });
+
+  final Profissional profissional;
+  final bool compacta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpace.sm,
+      runSpacing: AppSpace.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _AvaliacaoProfissional(profissional: profissional, compacta: compacta),
+        if (profissional.verificado) const _SeloVerificado(),
+      ],
+    );
+  }
+}
+
 class _RodapeProfissional extends StatelessWidget {
   const _RodapeProfissional({
     required this.textoPreco,
@@ -183,7 +198,20 @@ class _RodapeProfissional extends StatelessWidget {
     final estiloPreco = Theme.of(
       context,
     ).textTheme.titleSmall!.copyWith(color: AppColors.verde);
-    final preco = Text(textoPreco, style: estiloPreco);
+    final preco = DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.verdePastel,
+        borderRadius: BorderRadius.circular(AppRadii.field),
+        border: Border.all(color: AppColors.borda),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.md,
+          vertical: AppSpace.sm,
+        ),
+        child: Text(textoPreco, style: estiloPreco),
+      ),
+    );
     final acoes = Wrap(
       alignment: WrapAlignment.end,
       spacing: AppSpace.xs,
@@ -274,30 +302,58 @@ class _FotoProfissional extends StatelessWidget {
   Widget build(BuildContext context) {
     final fotoAsset = profissional.fotoAsset;
     final fotoUrl = profissional.fotoUrl;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.field),
-      child: SizedBox(
-        width: 76,
-        height: 94,
-        child: fotoUrl != null
-            ? Image.network(
-                fotoUrl,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                semanticLabel: 'Foto de ${profissional.nome}',
-                errorBuilder: (_, _, _) =>
-                    _FotoAusente(nome: profissional.nome),
-              )
-            : fotoAsset == null
-            ? _FotoAusente(nome: profissional.nome)
-            : Image.asset(
-                fotoAsset,
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
-                semanticLabel: 'Foto de ${profissional.nome}',
-                errorBuilder: (_, _, _) =>
-                    _FotoAusente(nome: profissional.nome),
+    final imagem = fotoUrl != null
+        ? Image.network(
+            fotoUrl,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            semanticLabel: 'Foto de ${profissional.nome}',
+            errorBuilder: (_, _, _) => _FotoAusente(nome: profissional.nome),
+          )
+        : fotoAsset == null
+        ? _FotoAusente(nome: profissional.nome)
+        : Image.asset(
+            fotoAsset,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            semanticLabel: 'Foto de ${profissional.nome}',
+            errorBuilder: (_, _, _) => _FotoAusente(nome: profissional.nome),
+          );
+    return SizedBox(
+      width: 76,
+      height: 94,
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.field),
+              child: imagem,
+            ),
+          ),
+          if (profissional.verificado)
+            Positioned(
+              right: 4,
+              bottom: 4,
+              child: Tooltip(
+                message: 'Documentos verificados',
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: AppColors.branco,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.borda),
+                  ),
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    color: AppColors.verde,
+                    size: 18,
+                  ),
+                ),
               ),
+            ),
+        ],
       ),
     );
   }
@@ -352,7 +408,7 @@ class _SeloVerificado extends StatelessWidget {
             const SizedBox(width: AppSpace.xs),
             Flexible(
               child: Text(
-                'Verificado',
+                'Doc. verificado',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: AppColors.verdeEscuro,
                   fontWeight: FontWeight.w700,

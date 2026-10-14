@@ -178,19 +178,24 @@ class _BuscaPageState extends State<BuscaPage> {
                     ),
                   ),
                   const SizedBox(height: AppSpace.lg),
-                  _FiltrosBusca(
-                    termoController: _termoController,
-                    bairroController: _bairroController,
-                    categorias: _categorias,
-                    categoriaSelecionada: _categoriaSelecionada,
-                    onTextoAlterado: (_) => setState(() {}),
-                    onCategoriaSelecionada: _selecionarCategoria,
-                    onLimparFiltros: _temFiltros ? _limparFiltros : null,
-                    categoriesLoadFailed:
-                        snapshot.data?.categoriesLoadFailed ?? false,
-                    onRetry: _recarregarConteudo,
-                    retrying:
-                        snapshot.connectionState == ConnectionState.waiting,
+                  Card(
+                    child: Padding(
+                      padding: AppInsets.card,
+                      child: _FiltrosBusca(
+                        termoController: _termoController,
+                        bairroController: _bairroController,
+                        categorias: _categorias,
+                        categoriaSelecionada: _categoriaSelecionada,
+                        onTextoAlterado: (_) => setState(() {}),
+                        onCategoriaSelecionada: _selecionarCategoria,
+                        onLimparFiltros: _temFiltros ? _limparFiltros : null,
+                        categoriesLoadFailed:
+                            snapshot.data?.categoriesLoadFailed ?? false,
+                        onRetry: _recarregarConteudo,
+                        retrying:
+                            snapshot.connectionState == ConnectionState.waiting,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: AppSpace.lg),
                   if (snapshot.connectionState == ConnectionState.waiting &&

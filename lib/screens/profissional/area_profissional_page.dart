@@ -1185,15 +1185,17 @@ class _PedidoCard extends StatelessWidget {
                 ),
                 if (aguardando) ...[
                   const SizedBox(width: 8),
-                  IconButton(
-                    tooltip: 'Recusar',
+                  IconButton.outlined(
+                    tooltip: 'Recusar solicitação',
                     onPressed: onDecline,
                     icon: const Icon(Icons.close, color: Color(0xFFC53030)),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton(
+                    child: FilledButton.icon(
                       onPressed: onAccept,
-                      child: const Text('Aceitar'),
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Aceitar'),
                     ),
                   ),
                 ],
@@ -1219,19 +1221,31 @@ class _ResumoCard extends StatelessWidget {
   Widget build(BuildContext context) => Expanded(
     child: Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 13),
+        padding: const EdgeInsets.all(12),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: AppColors.verde),
-            const SizedBox(height: 4),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: AppColors.verdeClaro,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: AppColors.verde, size: 19),
+            ),
+            const SizedBox(height: 8),
             Text(
               '$valor',
               style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
             ),
             Text(
               label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textoSuave,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

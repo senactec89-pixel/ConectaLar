@@ -641,30 +641,12 @@ class _AdminPageState extends State<AdminPage> {
         final documentoId = int.tryParse('${item['id']}');
         final documentoCarregado =
             documentoId != null && _documentosCarregados.contains(documentoId);
-        return Card(
-          margin: const EdgeInsets.only(bottom: 9),
-          child: ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: Text(
-              '${_rotuloTipoDocumento(item['tipoDocumento'])} • ${item['profissional']?['nome'] ?? 'Profissional'}',
-            ),
-            subtitle: Text(
-              'Status: ${_rotuloStatusDocumento(item['status'])}\n'
-              '${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}\n'
-              '${documentoCarregado ? 'Arquivo carregado para conferência' : 'Toque para carregar e analisar'}',
-            ),
-            isThreeLine: true,
-            onTap: _mutando ? null : () => _analisarDocumento(item),
-            trailing: IconButton(
-              tooltip: 'Visualizar arquivo',
-              onPressed: _mutando ? null : () => _visualizarDocumento(item),
-              icon: Icon(
-                documentoCarregado
-                    ? Icons.visibility_rounded
-                    : Icons.visibility_outlined,
-              ),
-            ),
-          ),
+        return _DocumentoModeracaoCard(
+          item: item,
+          documentoCarregado: documentoCarregado,
+          desabilitado: _mutando,
+          onVisualizar: () => _visualizarDocumento(item),
+          onAnalisar: () => _analisarDocumento(item),
         );
       case AdminModulo.denuncias:
         return Card(
@@ -880,14 +862,16 @@ class _AdminPageState extends State<AdminPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Voltar'),
           ),
-          TextButton(
+          OutlinedButton.icon(
             onPressed: () => Navigator.pop(context, 'rejeitado'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.erro),
-            child: const Text('Rejeitar'),
+            style: OutlinedButton.styleFrom(foregroundColor: AppColors.erro),
+            icon: const Icon(Icons.close_rounded),
+            label: const Text('Rejeitar'),
           ),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => Navigator.pop(context, 'aprovado'),
-            child: const Text('Aprovar'),
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Aprovar'),
           ),
         ],
       ),
@@ -1115,6 +1099,163 @@ class _AdminPageState extends State<AdminPage> {
 
   void _avisar(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+}
+
+class _DocumentoModeracaoCard extends StatelessWidget {
+  const _DocumentoModeracaoCard({
+    required this.item,
+    required this.documentoCarregado,
+    required this.desabilitado,
+    required this.onVisualizar,
+    required this.onAnalisar,
+  });
+
+  final Map<String, dynamic> item;
+  final bool documentoCarregado;
+  final bool desabilitado;
+  final VoidCallback onVisualizar;
+  final VoidCallback onAnalisar;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = '${item['status'] ?? ''}';
+    final pendente = status == 'pendente';
+    final arquivo = '${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}'
+        .trim();
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpace.md),
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: pendente
+                        ? const Color(0xFFFFF7E6)
+                        : AppColors.verdeClaro,
+                    borderRadius: BorderRadius.circular(AppRadii.field),
+                  ),
+                  child: Icon(
+                    pendente
+                        ? Icons.pending_actions_outlined
+                        : Icons.description_outlined,
+                    color: pendente ? const Color(0xFF98680F) : AppColors.verde,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['profissional']?['nome']?.toString() ??
+                            'Profissional',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _rotuloTipoDocumento(item['tipoDocumento']),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                _StatusDocumentoChip(status: status),
+              ],
+            ),
+            if (arquivo.isNotEmpty) ...[
+              const SizedBox(height: AppSpace.md),
+              Text(
+                arquivo,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              documentoCarregado
+                  ? 'Arquivo carregado para conferência. Faça a análise com base no documento visualizado.'
+                  : 'Visualize o arquivo antes de aprovar ou rejeitar.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textoSuave),
+            ),
+            const SizedBox(height: AppSpace.md),
+            Wrap(
+              spacing: AppSpace.sm,
+              runSpacing: AppSpace.sm,
+              children: [
+                Tooltip(
+                  message: 'Visualizar arquivo',
+                  child: OutlinedButton.icon(
+                    onPressed: desabilitado ? null : onVisualizar,
+                    icon: Icon(
+                      documentoCarregado
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_outlined,
+                    ),
+                    label: const Text('Visualizar'),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: desabilitado ? null : onAnalisar,
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: Text(pendente ? 'Analisar' : 'Revisar análise'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusDocumentoChip extends StatelessWidget {
+  const _StatusDocumentoChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final aprovado = status == 'aprovado';
+    final rejeitado = status == 'rejeitado';
+    final cor = aprovado
+        ? AppColors.verdeClaro
+        : rejeitado
+        ? const Color(0xFFFFECEB)
+        : const Color(0xFFFFF7E6);
+    final textoCor = aprovado
+        ? AppColors.verdeEscuro
+        : rejeitado
+        ? AppColors.erro
+        : const Color(0xFF98680F);
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.sm,
+        vertical: AppSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: cor,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+      ),
+      child: Text(
+        _rotuloStatusDocumento(status),
+        style: TextStyle(
+          color: textoCor,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
 }
 
 class _DocumentoPreview extends StatelessWidget {
