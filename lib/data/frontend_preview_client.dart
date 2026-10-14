@@ -49,7 +49,7 @@ class FrontendPreviewClient extends http.BaseClient {
       {
         'id': p.id,
         'usuarioId': p.usuarioId,
-        'nome': '${p.nome} — demonstração',
+        'nome': p.nome,
         'descricao': p.descricao,
         'bairro': p.bairro,
         'precoInicial': p.precoInicial,

@@ -44,7 +44,7 @@ void main() {
             await tester.pumpAndSettle();
             expect(find.text('Tentar novamente'), findsNothing);
             expect(tester.takeException(), isNull, reason: 'Agenda em $width');
-            await tester.tap(find.text('Solicitações').last);
+            await tester.tap(find.text('Pedidos').last);
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: 'Pedidos em $width');
           }

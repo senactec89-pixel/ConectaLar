@@ -261,7 +261,7 @@ void main() {
       arguments: profissional,
     );
 
-    expect(find.text('Carlos Silva — demonstração'), findsOneWidget);
+    expect(find.text('Carlos Silva'), findsOneWidget);
     expect(
       find.text('Não foi possível verificar seus favoritos.'),
       findsOneWidget,

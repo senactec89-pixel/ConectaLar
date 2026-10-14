@@ -27,11 +27,11 @@ void main() {
       findsOneWidget,
     );
     await tester.scrollUntilVisible(
-      find.text('Carlos Silva — demonstração'),
+      find.text('Carlos Silva'),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Carlos Silva — demonstração'), findsOneWidget);
+    expect(find.text('Carlos Silva'), findsOneWidget);
 
     falharCategorias = false;
     await tester.scrollUntilVisible(
