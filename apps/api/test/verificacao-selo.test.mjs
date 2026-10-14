@@ -43,6 +43,18 @@ function criarServico(documentos) {
       return input;
     },
   };
+  const storage = {
+    async salvar() {
+      return 'storage/documentos-verificacao/10/teste.pdf';
+    },
+    async carregar() {
+      return {
+        bytes: Buffer.from('%PDF- teste'),
+        mimeType: 'application/pdf',
+        nomeSeguro: 'teste.pdf',
+      };
+    },
+  };
   const malwareScanner = {
     required() {
       return false;
@@ -58,6 +70,7 @@ function criarServico(documentos) {
       documentosRepo,
       perfisRepo,
       notificacoesService,
+      storage,
       malwareScanner,
     ),
     auditorias,

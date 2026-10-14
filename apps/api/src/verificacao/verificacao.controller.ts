@@ -10,7 +10,6 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { createReadStream } from 'node:fs';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -66,7 +65,7 @@ export class VerificacaoController {
     );
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('X-Content-Type-Options', 'nosniff');
-    return new StreamableFile(createReadStream(arquivo.caminho));
+    return new StreamableFile(arquivo.bytes);
   }
 
   @Patch('documentos-verificacao/:id/analisar')

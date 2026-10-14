@@ -3,9 +3,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { mkdir, stat, writeFile } from 'node:fs/promises';
-import { extname, join, resolve, sep } from 'node:path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
@@ -17,6 +14,7 @@ import { DocumentoVerificacaoStatus } from '../domain/documento-verificacao-stat
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
+import { DocumentoStorageService } from './documento-storage.service.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
 
 interface EnviarDocumentoInput {
@@ -29,7 +27,6 @@ interface EnviarDocumentoInput {
 }
 
 const maxDocumentoBytes = 5 * 1024 * 1024;
-const pastaDocumentosRelativa = join('storage', 'documentos-verificacao');
 const tipoDocumentoIdentidade = 'documento_identidade';
 
 interface AnaliseDocumentoInput {
@@ -49,6 +46,7 @@ export class VerificacaoService {
     @InjectRepository(ProfissionalPerfilEntity)
     private readonly perfis: Repository<ProfissionalPerfilEntity>,
     private readonly notificacoes: NotificacoesService,
+    private readonly storage: DocumentoStorageService,
     private readonly malwareScanner: MalwareScannerService,
   ) {}
 
@@ -75,6 +73,7 @@ export class VerificacaoService {
       perfil.id,
       input,
       this.malwareScanner,
+      this.storage,
     );
     const documento = await this.documentos.save(
       this.documentos.create({
@@ -132,33 +131,11 @@ export class VerificacaoService {
       });
     }
 
-    const caminho = caminhoDocumentoSeguro(documento.referenciaArquivo);
-    if (caminho === null) {
-      throw new NotFoundException({
-        code: 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
-        message: 'Arquivo do documento indisponivel para visualizacao segura.',
-      });
-    }
-    try {
-      const arquivo = await stat(caminho);
-      if (!arquivo.isFile()) throw new Error('Not a file.');
-    } catch {
-      throw new NotFoundException({
-        code: 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
-        message: 'Arquivo do documento indisponivel para visualizacao segura.',
-      });
-    }
-
-    const mimeType = mimeExtensao(extname(caminho).toLowerCase());
-    if (mimeType === null) {
-      throw badRequest('TIPO_ARQUIVO_INVALIDO');
-    }
-
-    return {
-      caminho,
-      mimeType,
-      nomeSeguro: nomeSeguroDocumento(documento.id, documento.nomeArquivo, caminho),
-    };
+    return this.storage.carregar(
+      documento.id,
+      documento.referenciaArquivo,
+      documento.nomeArquivo,
+    );
   }
 
   async analisarDocumento(
@@ -301,6 +278,7 @@ async function resolverReferenciaArquivo(
   profissionalId: number,
   input: EnviarDocumentoInput,
   malwareScanner: MalwareScannerService,
+  storage: DocumentoStorageService,
 ): Promise<string> {
   if (input.arquivoBase64 === null) {
     if (input.referenciaArquivo === null) {
@@ -329,16 +307,8 @@ async function resolverReferenciaArquivo(
     throw badRequest('AMEACA_DOCUMENTO_DETECTADA');
   }
 
-  const extensao = extensaoMime(input.mimeType);
-  const pastaRelativa = join(
-    pastaDocumentosRelativa,
-    String(profissionalId),
-  );
-  const nomeArquivo = `${randomUUID()}${extensao}`;
-  const pastaAbsoluta = join(process.cwd(), pastaRelativa);
-  await mkdir(pastaAbsoluta, { recursive: true });
-  await writeFile(join(pastaAbsoluta, nomeArquivo), conteudo, { flag: 'wx' });
-  return join(pastaRelativa, nomeArquivo).replace(/\\/g, '/');
+  if (input.mimeType === null) throw badRequest('TIPO_ARQUIVO_INVALIDO');
+  return storage.salvar(profissionalId, conteudo, input.mimeType);
 }
 
 function mimePermitido(value: string | null): boolean {
@@ -350,40 +320,6 @@ function extensaoMime(value: string | null): string | null {
   if (value === 'image/jpeg') return '.jpg';
   if (value === 'image/png') return '.png';
   return null;
-}
-
-function mimeExtensao(value: string): string | null {
-  if (value === '.pdf') return 'application/pdf';
-  if (value === '.jpg' || value === '.jpeg') return 'image/jpeg';
-  if (value === '.png') return 'image/png';
-  return null;
-}
-
-function caminhoDocumentoSeguro(referencia: string): string | null {
-  const root = resolve(process.cwd(), pastaDocumentosRelativa);
-  const caminho = resolve(process.cwd(), referencia);
-  if (caminho !== root && !caminho.startsWith(`${root}${sep}`)) return null;
-  return caminho;
-}
-
-function nomeSeguroDocumento(
-  id: number,
-  nomeArquivo: string | null,
-  caminho: string,
-): string {
-  const extensao = extname(caminho).toLowerCase();
-  const nome = nomeArquivo?.toLowerCase() ?? '';
-  if (nomeArquivo !== null && !/[\\/"\r\n]/.test(nomeArquivo)) {
-    if (
-      (extensao === '.pdf' && nome.endsWith('.pdf')) ||
-      (extensao === '.png' && nome.endsWith('.png')) ||
-      (extensao === '.jpg' &&
-        (nome.endsWith('.jpg') || nome.endsWith('.jpeg')))
-    ) {
-      return nomeArquivo;
-    }
-  }
-  return `documento-verificacao-${id}${extensao}`;
 }
 
 function nomeArquivoCompativelComMime(

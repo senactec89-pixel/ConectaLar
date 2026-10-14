@@ -17,7 +17,7 @@ Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento regi
 - Endereco completo e protegido na API antes das condicoes autorizadas.
 - Upload de documentos limita tamanho, aceita PDF/JPEG/PNG, confere assinatura/magic bytes e rejeita nome incompativel com o MIME informado.
 - Upload de documentos pode executar varredura ClamAV antes de gravar o arquivo. Em `MALWARE_SCAN_MODE=required`, deteccao de ameaca ou falha do scanner bloqueia o upload.
-- Documentos ficam em diretorio privado local, sem URL publica direta.
+- Documentos ficam em storage privado local ou Cloudflare R2, sem URL publica direta.
 - A leitura de documentos para moderacao exige token administrativo e retorna arquivo por rota autenticada.
 - O app administrativo renderiza imagens e PDFs carregados pela rota privada.
 - O selo profissional e recalculado pelo conjunto de documentos e depende de documento de identidade aprovado.
@@ -26,7 +26,7 @@ Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento regi
 ## Limites que precisam ser resolvidos
 
 - A varredura depende de ClamAV ou servico compativel estar instalado, atualizado e acessivel no ambiente. Isso ainda precisa ser configurado e homologado na hospedagem.
-- O armazenamento local de documentos nao e arquitetura adequada para producao com multiplas instancias, backup gerenciado e retencao formal.
+- O suporte a Cloudflare R2 precisa de bucket, credenciais, politicas de acesso e backup/retencao configurados no ambiente real.
 - Ainda falta politica aprovada de retencao, expiracao, descarte e atendimento a titulares para documentos e dados pessoais.
 - O rate limit em memoria nao coordena multiplas instancias.
 - A identificacao por cabecalho de proxy depende de configuracao confiavel na borda.

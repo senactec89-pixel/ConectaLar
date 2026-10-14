@@ -83,6 +83,7 @@ test('civil dates remain strings while timestamps keep their timezone', () => {
 test('verification upload keeps files private and validates size and type', async () => {
   const verificacao = await source('dist/verificacao/verificacao.service.js');
   const scanner = await source('dist/verificacao/malware-scanner.service.js');
+  const storage = await source('dist/verificacao/documento-storage.service.js');
 
   assert.match(verificacao, /maxDocumentoBytes/);
   assert.match(verificacao, /application\/pdf/);
@@ -93,13 +94,19 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /ASSINATURA_ARQUIVO_INVALIDA/);
   assert.match(verificacao, /NOME_ARQUIVO_INVALIDO/);
   assert.match(verificacao, /arquivoParaAnalise/);
-  assert.match(verificacao, /caminhoDocumentoSeguro/);
+  assert.match(storage, /caminhoDocumentoSeguro/);
   assert.match(verificacao, /AMEACA_DOCUMENTO_DETECTADA/);
   assert.match(verificacao, /VARREDURA_DOCUMENTO_OBRIGATORIA/);
   assert.match(scanner, /MALWARE_SCAN_MODE/);
   assert.match(scanner, /CLAMAV_HOST/);
   assert.match(scanner, /INSTREAM/);
   assert.match(scanner, /FOUND/);
+  assert.match(storage, /S3Client/);
+  assert.match(storage, /FILE_STORAGE_DRIVER/);
+  assert.match(storage, /R2_ACCOUNT_ID/);
+  assert.match(storage, /R2_BUCKET/);
+  assert.match(storage, /R2_ACCESS_KEY_ID/);
+  assert.match(storage, /R2_SECRET_ACCESS_KEY/);
   assert.match(verificacao, /%PDF-/);
   assert.match(verificacao, /0x89,\s*0x50,\s*0x4e,\s*0x47/);
   assert.match(verificacao, /storage/);

@@ -13,6 +13,7 @@ Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Foto de perfil para usuarios adicionada.
 - Upload documental com validacao de tamanho, extensao e assinatura do arquivo.
 - Varredura ClamAV configuravel para documentos antes da gravacao.
+- Storage documental configuravel: local em desenvolvimento ou Cloudflare R2 em producao.
 - Rota administrativa privada para leitura de documento.
 - Preview administrativo de JPEG, PNG e PDF no app.
 - Regra do selo profissional recalculada pelo conjunto de documentos: o selo depende de documento de identidade aprovado.
@@ -20,7 +21,8 @@ Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 ## Ajustes tecnicos ainda pendentes
 
 - Instalar, configurar e homologar ClamAV no ambiente de hospedagem com `MALWARE_SCAN_MODE=required`.
-- Migrar documentos e fotos para storage privado gerenciado antes de producao.
+- Criar bucket Cloudflare R2 real, configurar credenciais de producao e homologar upload/download na hospedagem.
+- Migrar fotos de perfil para storage privado/gerenciado ou definir se continuarao em storage local/publico por rota da API.
 - Definir e implementar politica de retencao, expiracao e descarte de documentos.
 - Trocar rate limit em memoria por solucao adequada se houver multiplas instancias.
 - Avaliar armazenamento seguro da sessao no Flutter, expiracao e politica de sessoes simultaneas.
