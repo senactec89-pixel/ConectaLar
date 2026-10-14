@@ -31,7 +31,7 @@ void main() {
     for (final aba in [
       ('Buscar', AppRoutes.busca),
       ('Favoritos', AppRoutes.favoritos),
-      ('Serviços', AppRoutes.meusServicos),
+      ('Pedidos', AppRoutes.meusServicos),
       ('Perfil', AppRoutes.perfil),
     ]) {
       await selecionarAba(tester, aba.$1);

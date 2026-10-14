@@ -115,7 +115,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Solicitar serviço'), findsOneWidget);
-    expect(find.text('Dados da solicitação'), findsOneWidget);
+    expect(find.text('Serviço e local'), findsOneWidget);
     expect(find.textContaining('O envio não confirma'), findsOneWidget);
   });
 
