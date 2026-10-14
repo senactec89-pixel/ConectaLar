@@ -29,6 +29,7 @@ interface EnviarDocumentoInput {
 
 const maxDocumentoBytes = 5 * 1024 * 1024;
 const pastaDocumentosRelativa = join('storage', 'documentos-verificacao');
+const tipoDocumentoIdentidade = 'documento_identidade';
 
 interface AnaliseDocumentoInput {
   readonly status:
@@ -179,7 +180,7 @@ export class VerificacaoService {
     const saved = await this.documentos.save(documento);
 
     documento.profissional.verificado =
-      input.status === DocumentoVerificacaoStatus.Aprovado;
+      await this.profissionalTemIdentidadeAprovada(documento.profissionalId);
     await this.perfis.save(documento.profissional);
 
     await this.registrarAuditoria(
@@ -187,7 +188,11 @@ export class VerificacaoService {
       saved.id,
       `Resultado: ${saved.status}`,
     );
-    await this.notificarResultadoSeguro(saved, documento.profissional.usuarioId);
+    await this.notificarResultadoSeguro(
+      saved,
+      documento.profissional.usuarioId,
+      documento.profissional.verificado,
+    );
 
     saved.profissional = documento.profissional;
     saved.enviadoPor = documento.enviadoPor;
@@ -213,8 +218,13 @@ export class VerificacaoService {
   private async notificarResultadoSeguro(
     documento: ProfissionalDocumentoVerificacaoEntity,
     usuarioId: number,
+    seloAtivo: boolean,
   ) {
     const aprovado = documento.status === DocumentoVerificacaoStatus.Aprovado;
+    const ativouSelo =
+      aprovado &&
+      seloAtivo &&
+      documento.tipoDocumento === tipoDocumentoIdentidade;
     try {
       await this.notificacoes.criar({
         usuarioId,
@@ -223,7 +233,9 @@ export class VerificacaoService {
           : NotificacaoTipo.DocumentoRejeitado,
         titulo: aprovado ? 'Documento aprovado' : 'Documento precisa de ajuste',
         mensagem: aprovado
-          ? 'Seu selo de verificacao foi ativado pela administracao.'
+          ? ativouSelo
+            ? 'Seu selo de verificacao foi ativado pela administracao.'
+            : 'Seu documento foi aprovado pela administracao.'
           : 'Revise o motivo informado e envie uma nova verificacao.',
         recursoTipo: 'documento_verificacao',
         recursoId: documento.id,
@@ -231,6 +243,17 @@ export class VerificacaoService {
     } catch {
       // Falha de notificacao nao pode reverter analise documental.
     }
+  }
+
+  private async profissionalTemIdentidadeAprovada(profissionalId: number) {
+    const total = await this.documentos.count({
+      where: {
+        profissionalId,
+        tipoDocumento: tipoDocumentoIdentidade,
+        status: DocumentoVerificacaoStatus.Aprovado,
+      },
+    });
+    return total > 0;
   }
 }
 

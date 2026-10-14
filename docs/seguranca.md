@@ -1,32 +1,43 @@
-# Segurança — estado atual e pendências
+# Seguranca - estado atual e pendencias
 
-Atualizado em 14/10/2026 para o código disponível em main. Este documento registra controles técnicos observados no repositório; não é certificação de segurança ou conformidade legal.
+Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
 
 ## Controles existentes
 
-- Senhas são armazenadas com hash scrypt.
-- A API autentica com token, aplica papéis nas rotas e invalida tokens após logout ou troca de senha.
-- A senha nova exige maiúscula, minúscula, número e caractere especial, além do mínimo e máximo de tamanho.
-- O filtro HTTP evita retornar stack traces e mensagens internas. Erros públicos conhecidos recebem mensagens tratadas.
-- CORS usa lista permitida; há cabeçalhos básicos de segurança.
-- Logs HTTP não registram corpo, token ou cabeçalhos de autorização.
-- O rate limit existe em memória para uma instância.
-- Endereço completo é protegido na API antes das condições autorizadas.
-- Upload de documentos limita o tamanho, aceita PDF, JPEG e PNG pelo contrato, confere assinatura/magic bytes do conteúdo e rejeita nome de arquivo incompatível com o MIME informado. Os arquivos são armazenados em diretório privado local; não há URL pública de arquivo.
+- Senhas sao armazenadas com hash `scrypt`.
+- A API autentica com token, aplica papeis nas rotas e invalida tokens apos logout ou troca de senha.
+- A senha nova exige maiuscula, minuscula, numero, caractere especial e limites de tamanho.
+- Confirmacao de e-mail usa codigo com hash e expiracao.
+- Recuperacao de senha usa codigo numerico curto, com hash, expiracao e envio SMTP configuravel.
+- MFA administrativo usa TOTP; o segredo fica criptografado no banco.
+- O filtro HTTP evita retornar stack traces e mensagens internas.
+- CORS usa lista permitida; ha cabecalhos basicos de seguranca.
+- Logs HTTP nao registram corpo, token ou cabecalhos de autorizacao.
+- Rate limit existe em memoria para uma instancia.
+- Endereco completo e protegido na API antes das condicoes autorizadas.
+- Upload de documentos limita tamanho, aceita PDF/JPEG/PNG, confere assinatura/magic bytes e rejeita nome incompativel com o MIME informado.
+- Documentos ficam em diretorio privado local, sem URL publica direta.
+- A leitura de documentos para moderacao exige token administrativo e retorna arquivo por rota autenticada.
+- O app administrativo renderiza imagens e PDFs carregados pela rota privada.
+- O selo profissional e recalculado pelo conjunto de documentos e depende de documento de identidade aprovado.
+- Profissionais nao conseguem aprovar o proprio selo.
 
 ## Limites que precisam ser resolvidos
 
-- Recuperação de senha tem integração SMTP configurável por ambiente. Em produção, a API exige entrega configurada para não depender de token de desenvolvimento.
-- MFA administrativo foi implementado com TOTP para contas administradoras. O segredo fica criptografado no banco e o login admin passa por desafio curto antes de emitir token de sessão.
-- O rate limit em memória não coordena instâncias. A identificação por cabeçalho de proxy depende de uma configuração confiável na borda.
-- A aplicação persiste a sessão Flutter com SharedPreferences; definir armazenamento seguro, expiração e política de sessões antes de publicar.
-- A validação de assinatura dos documentos reduz arquivo disfarçado, mas não substitui antivírus/sandbox. O armazenamento local de documentos ainda não oferece antivírus, retenção aprovada ou backup gerenciado. Para produção, use storage privado gerenciado, varredura de arquivo e política formal de descarte.
-- O launcher local versionado contém valores de desenvolvimento para iniciar a API. Não reutilize esses valores em ambiente compartilhado ou produção; mover segredos para configuração externa antes de publicar.
-- HTTPS, origens de produção, backup/restauração, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.
-- Não há evidência de scanner dedicado de segredos executado antes da publicação.
+- A validacao de assinatura reduz arquivo disfarcado, mas nao substitui antivirus, sandbox ou varredura dedicada.
+- O armazenamento local de documentos nao e arquitetura adequada para producao com multiplas instancias, backup gerenciado e retencao formal.
+- Ainda falta politica aprovada de retencao, expiracao, descarte e atendimento a titulares para documentos e dados pessoais.
+- O rate limit em memoria nao coordena multiplas instancias.
+- A identificacao por cabecalho de proxy depende de configuracao confiavel na borda.
+- A sessao Flutter usa `SharedPreferences`; avaliar armazenamento seguro, expiracao e politica de sessoes antes da publicacao.
+- O launcher local versionado contem valores de desenvolvimento para iniciar a API. Nao reutilize esses valores em ambiente compartilhado ou producao.
+- HTTPS, origens de producao, backup/restauracao, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.
+- Nao ha evidencia de scanner dedicado de segredos executado antes da publicacao.
 
 ## Regras para desenvolvimento
 
-Use somente contas e dados fictícios nos ambientes locais. Não coloque tokens, senhas reais, documentos pessoais ou endereços reais em commits, capturas ou logs. O seed e os diagnósticos de fluxo são exclusivos de desenvolvimento/teste. Nunca execute migrations ou seed contra o banco legado ou produção sem processo próprio de revisão e backup.
+Use somente contas e dados ficticios nos ambientes locais. Nao coloque tokens, senhas reais, documentos pessoais ou enderecos reais em commits, capturas ou logs.
 
-Veja também [operação e segurança da API](operacao-producao.md) e [ambiente local](ambiente-local.md).
+O seed e os diagnosticos de fluxo sao exclusivos de desenvolvimento/teste. Nunca execute migrations ou seed contra banco de producao sem processo proprio de revisao, janela de manutencao e backup validado.
+
+Veja tambem [operacao e seguranca da API](operacao-producao.md) e [ambiente local](ambiente-local.md).
