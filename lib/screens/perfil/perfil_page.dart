@@ -201,8 +201,15 @@ class _PerfilPageState extends State<PerfilPage> {
                 const SizedBox(height: 14),
                 _PerfilOpcao(
                   icon: Icons.badge_outlined,
-                  title: 'Meus dados',
-                  subtitle: 'Nome, e-mail e telefone',
+                  title: usuario.tipo.valorBanco == 'cliente'
+                      ? 'Meus dados'
+                      : 'Dados da conta',
+                  subtitle: usuario.tipo.valorBanco == 'cliente'
+                      ? 'Nome, e-mail e telefone'
+                      : 'Consultar nome, e-mail e telefone',
+                  trailingIcon: usuario.tipo.valorBanco == 'cliente'
+                      ? Icons.chevron_right
+                      : Icons.visibility_outlined,
                   onTap: () async {
                     if (usuario.tipo.valorBanco != 'cliente') {
                       await showDialog<void>(
@@ -433,12 +440,14 @@ class _PerfilOpcao extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.trailingIcon = Icons.chevron_right,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final IconData trailingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -448,7 +457,7 @@ class _PerfilOpcao extends StatelessWidget {
         leading: Icon(icon, color: AppColors.verdeEscuro),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(trailingIcon),
       ),
     );
   }
