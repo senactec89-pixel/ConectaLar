@@ -41,6 +41,10 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   bool _enviando = false;
   int? _solicitacaoId;
   int? _enderecoSelecionadoId;
+  int? _enderecoInicialId;
+  int? _ofertaInicialId;
+  String _bairroInicial = '';
+  bool _confirmandoSaida = false;
   Future<List<ClienteEndereco>>? _enderecosFuture;
   Future<List<Disponibilidade>>? _disponibilidadeFuture;
   List<ClienteEndereco> _enderecos = const [];
@@ -57,7 +61,9 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     if (arguments is Profissional) {
       _profissional = arguments;
       _ofertaSelecionadaId = arguments.ofertasParaSolicitacao.first.id;
+      _ofertaInicialId = _ofertaSelecionadaId;
       _bairroController.text = arguments.bairro;
+      _bairroInicial = arguments.bairro;
       _enderecosFuture = _carregarEnderecos();
       _disponibilidadeFuture = _carregarDisponibilidade(arguments.id);
     }
@@ -97,7 +103,11 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
           _enderecos = enderecos;
           _enderecosCarregados = true;
           _enderecoSelecionadoId = selecionado?.id;
-          if (selecionado != null) _bairroController.text = selecionado.bairro;
+          _enderecoInicialId ??= selecionado?.id;
+          if (selecionado != null) {
+            _bairroController.text = selecionado.bairro;
+            _bairroInicial = selecionado.bairro;
+          }
         });
       }
       return enderecos;
@@ -245,6 +255,48 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
     );
   }
 
+  bool get _temRascunho =>
+      _descricaoController.text.trim().isNotEmpty ||
+      _dataController.text.trim().isNotEmpty ||
+      _horarioController.text.trim().isNotEmpty ||
+      _bairroController.text.trim() != _bairroInicial.trim() ||
+      _ofertaSelecionadaId != _ofertaInicialId ||
+      _enderecoSelecionadoId != _enderecoInicialId;
+
+  Future<void> _confirmarSaida() async {
+    if (_confirmandoSaida) return;
+    if (_enviando) {
+      _mostrarErro('Aguarde o envio da solicitação antes de sair.');
+      return;
+    }
+    if (_solicitacaoEnviada || !_temRascunho) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _confirmandoSaida = true;
+    final descartar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Descartar solicitação?'),
+        content: const Text(
+          'Os dados preenchidos serão perdidos se você sair agora.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Continuar preenchendo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    _confirmandoSaida = false;
+    if (mounted && descartar == true) Navigator.of(context).pop();
+  }
+
   Future<void> _cadastrarEndereco() async {
     await Navigator.pushNamed(context, AppRoutes.enderecos);
     if (!mounted) return;
@@ -271,55 +323,62 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   @override
   Widget build(BuildContext context) {
     final profissional = _profissional;
-    return Scaffold(
-      backgroundColor: AppColors.fundo,
-      appBar: const AppBarCustom(title: 'Solicitar serviço'),
-      body: profissional == null
-          ? const _SolicitacaoIndisponivel()
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-              children: [
-                _ResumoProfissional(
-                  profissional: profissional,
-                  precoInicial: _ofertaSelecionada == null
-                      ? profissional.precoInicial
-                      : _ofertaSelecionada!.precoInicial,
-                ),
-                const SizedBox(height: 14),
-                if (_solicitacaoEnviada)
-                  _SolicitacaoEnviada(
+    return PopScope(
+      canPop: _solicitacaoEnviada,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmarSaida();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.fundo,
+        appBar: const AppBarCustom(title: 'Solicitar serviço'),
+        body: profissional == null
+            ? const _SolicitacaoIndisponivel()
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                children: [
+                  _ResumoProfissional(
                     profissional: profissional,
-                    servico: _ofertaSelecionada?.nome ?? profissional.descricao,
-                    solicitacaoId: _solicitacaoId,
-                    onVerServicos: () =>
-                        Navigator.pushNamed(context, AppRoutes.meusServicos),
-                  )
-                else
-                  _FormularioSolicitacao(
-                    formKey: _formKey,
-                    profissional: profissional,
-                    ofertaSelecionadaId: _ofertaSelecionadaId,
-                    descricaoController: _descricaoController,
-                    bairroController: _bairroController,
-                    dataController: _dataController,
-                    horarioController: _horarioController,
-                    enderecoSelecionadoId: _enderecoSelecionadoId,
-                    enderecosFuture: _enderecosFuture,
-                    disponibilidadeFuture: _disponibilidadeFuture,
-                    onOfertaChanged: (id) =>
-                        setState(() => _ofertaSelecionadaId = id),
-                    onEnderecoChanged: (endereco) => setState(() {
-                      _enderecoSelecionadoId = endereco.id;
-                      _bairroController.text = endereco.bairro;
-                    }),
-                    onCadastrarEndereco: _cadastrarEndereco,
-                    onRetryEnderecos: _recarregarEnderecos,
-                    onRetryDisponibilidade: _recarregarDisponibilidade,
-                    onSubmit: _enviarSolicitacao,
-                    enviando: _enviando,
+                    precoInicial: _ofertaSelecionada == null
+                        ? profissional.precoInicial
+                        : _ofertaSelecionada!.precoInicial,
                   ),
-              ],
-            ),
+                  const SizedBox(height: 14),
+                  if (_solicitacaoEnviada)
+                    _SolicitacaoEnviada(
+                      profissional: profissional,
+                      servico:
+                          _ofertaSelecionada?.nome ?? profissional.descricao,
+                      solicitacaoId: _solicitacaoId,
+                      onVerServicos: () =>
+                          Navigator.pushNamed(context, AppRoutes.meusServicos),
+                    )
+                  else
+                    _FormularioSolicitacao(
+                      formKey: _formKey,
+                      profissional: profissional,
+                      ofertaSelecionadaId: _ofertaSelecionadaId,
+                      descricaoController: _descricaoController,
+                      bairroController: _bairroController,
+                      dataController: _dataController,
+                      horarioController: _horarioController,
+                      enderecoSelecionadoId: _enderecoSelecionadoId,
+                      enderecosFuture: _enderecosFuture,
+                      disponibilidadeFuture: _disponibilidadeFuture,
+                      onOfertaChanged: (id) =>
+                          setState(() => _ofertaSelecionadaId = id),
+                      onEnderecoChanged: (endereco) => setState(() {
+                        _enderecoSelecionadoId = endereco.id;
+                        _bairroController.text = endereco.bairro;
+                      }),
+                      onCadastrarEndereco: _cadastrarEndereco,
+                      onRetryEnderecos: _recarregarEnderecos,
+                      onRetryDisponibilidade: _recarregarDisponibilidade,
+                      onSubmit: _enviarSolicitacao,
+                      enviando: _enviando,
+                    ),
+                ],
+              ),
+      ),
     );
   }
 }
