@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
@@ -5,6 +7,7 @@ import '../../app/theme.dart';
 import '../../models/categoria.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
+import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -22,10 +25,16 @@ class BuscaPage extends StatefulWidget {
 class _BuscaPageState extends State<BuscaPage> {
   final _termoController = TextEditingController();
   final _bairroController = TextEditingController();
+  final _cidadeController = TextEditingController();
 
   Categoria? _categoriaSelecionada;
   bool _argumentosLidos = false;
   late Future<HomeContent> _contentFuture;
+  Timer? _debounceBusca;
+  int _versaoBusca = 0;
+  bool _buscaServidorAplicada = false;
+  bool _buscando = false;
+  String? _erroBusca;
 
   List<Categoria> _categorias = const [];
   List<Profissional> _profissionais = const [];
@@ -50,8 +59,10 @@ class _BuscaPageState extends State<BuscaPage> {
 
   @override
   void dispose() {
+    _debounceBusca?.cancel();
     _termoController.dispose();
     _bairroController.dispose();
+    _cidadeController.dispose();
     super.dispose();
   }
 
@@ -68,6 +79,11 @@ class _BuscaPageState extends State<BuscaPage> {
   List<Profissional> get _resultados {
     final termo = _normalizar(_termoController.text);
     final bairro = _normalizar(_bairroController.text);
+    final cidade = _normalizar(_cidadeController.text);
+
+    if (_buscaServidorAplicada && !AppServices.instance.emDemonstracao) {
+      return _profissionais;
+    }
 
     return _profissionais
         .where((profissional) {
@@ -77,6 +93,9 @@ class _BuscaPageState extends State<BuscaPage> {
           final correspondeBairro =
               bairro.isEmpty ||
               _normalizar(profissional.bairro).contains(bairro);
+          final correspondeCidade =
+              cidade.isEmpty ||
+              _normalizar(profissional.cidade ?? '').contains(cidade);
           final correspondeTermo =
               termo.isEmpty ||
               _normalizar(profissional.nome).contains(termo) ||
@@ -90,9 +109,64 @@ class _BuscaPageState extends State<BuscaPage> {
                     _normalizar(categoria.nome).contains(termo);
               });
 
-          return correspondeCategoria && correspondeBairro && correspondeTermo;
+          return correspondeCategoria &&
+              correspondeBairro &&
+              correspondeCidade &&
+              correspondeTermo;
         })
         .toList(growable: false);
+  }
+
+  void _filtrosAlterados(String _) {
+    setState(() {});
+    _agendarBuscaRemota();
+  }
+
+  void _agendarBuscaRemota({bool imediata = false}) {
+    if (AppServices.instance.emDemonstracao) return;
+
+    _debounceBusca?.cancel();
+    final versao = ++_versaoBusca;
+    setState(() {
+      _buscando = true;
+      _erroBusca = null;
+    });
+
+    if (imediata) {
+      _buscarProfissionais(versao);
+      return;
+    }
+    _debounceBusca = Timer(const Duration(milliseconds: 350), () {
+      _buscarProfissionais(versao);
+    });
+  }
+
+  Future<void> _buscarProfissionais(int versao) async {
+    try {
+      final resposta = await AppServices.instance.profissionais.buscar(
+        termo: _termoController.text.trim(),
+        categoriaId: _categoriaSelecionada?.id.toString(),
+        bairro: _bairroController.text.trim(),
+        cidade: _cidadeController.text.trim(),
+      );
+      final lista = resposta['profissionais'];
+      if (lista is! List) throw const FormatException();
+      final profissionais = listFromApi(lista, profissionalFromApi);
+
+      if (!mounted || versao != _versaoBusca) return;
+      setState(() {
+        _profissionais = profissionais;
+        _buscaServidorAplicada = true;
+        _buscando = false;
+        _erroBusca = null;
+      });
+    } catch (_) {
+      if (!mounted || versao != _versaoBusca) return;
+      setState(() {
+        _buscando = false;
+        _erroBusca = 'Não foi possível atualizar a busca.';
+      });
+    }
   }
 
   Categoria? _categoriaPorId(int id) {
@@ -108,14 +182,17 @@ class _BuscaPageState extends State<BuscaPage> {
           ? null
           : categoria;
     });
+    _agendarBuscaRemota();
   }
 
   void _limparFiltros() {
     setState(() {
       _termoController.clear();
       _bairroController.clear();
+      _cidadeController.clear();
       _categoriaSelecionada = null;
     });
+    _agendarBuscaRemota();
   }
 
   void _abrirProfissional(Profissional profissional) {
@@ -129,6 +206,7 @@ class _BuscaPageState extends State<BuscaPage> {
   bool get _temFiltros =>
       _termoController.text.trim().isNotEmpty ||
       _bairroController.text.trim().isNotEmpty ||
+      _cidadeController.text.trim().isNotEmpty ||
       _categoriaSelecionada != null;
 
   @override
@@ -147,7 +225,9 @@ class _BuscaPageState extends State<BuscaPage> {
           }
           if (snapshot.hasData) {
             _categorias = snapshot.data!.categories;
-            _profissionais = snapshot.data!.featuredProfessionals;
+            if (!_buscaServidorAplicada) {
+              _profissionais = snapshot.data!.featuredProfessionals;
+            }
           }
           final resultados = _resultados;
           return LayoutBuilder(
@@ -184,9 +264,10 @@ class _BuscaPageState extends State<BuscaPage> {
                       child: _FiltrosBusca(
                         termoController: _termoController,
                         bairroController: _bairroController,
+                        cidadeController: _cidadeController,
                         categorias: _categorias,
                         categoriaSelecionada: _categoriaSelecionada,
-                        onTextoAlterado: (_) => setState(() {}),
+                        onTextoAlterado: _filtrosAlterados,
                         onCategoriaSelecionada: _selecionarCategoria,
                         onLimparFiltros: _temFiltros ? _limparFiltros : null,
                         categoriesLoadFailed:
@@ -201,7 +282,14 @@ class _BuscaPageState extends State<BuscaPage> {
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !snapshot.hasData)
                     const AsyncLoadingView(label: 'Carregando profissionais.')
-                  else if (snapshot.data?.professionalsLoadFailed ?? false)
+                  else if (_erroBusca != null)
+                    SectionErrorView(
+                      message: _erroBusca!,
+                      onRetry: () => _agendarBuscaRemota(imediata: true),
+                      retrying: _buscando,
+                    )
+                  else if ((snapshot.data?.professionalsLoadFailed ?? false) &&
+                      !_buscaServidorAplicada)
                     SectionErrorView(
                       message: 'Não foi possível carregar os profissionais.',
                       onRetry: _recarregarConteudo,
@@ -209,6 +297,10 @@ class _BuscaPageState extends State<BuscaPage> {
                           snapshot.connectionState == ConnectionState.waiting,
                     )
                   else ...[
+                    if (_buscando) ...[
+                      const LinearProgressIndicator(),
+                      const SizedBox(height: AppSpace.sm),
+                    ],
                     _CabecalhoResultados(total: resultados.length),
                     const SizedBox(height: AppSpace.md),
                     if (resultados.isEmpty)
@@ -243,6 +335,7 @@ class _FiltrosBusca extends StatelessWidget {
   const _FiltrosBusca({
     required this.termoController,
     required this.bairroController,
+    required this.cidadeController,
     required this.categorias,
     required this.categoriaSelecionada,
     required this.onTextoAlterado,
@@ -255,6 +348,7 @@ class _FiltrosBusca extends StatelessWidget {
 
   final TextEditingController termoController;
   final TextEditingController bairroController;
+  final TextEditingController cidadeController;
   final List<Categoria> categorias;
   final Categoria? categoriaSelecionada;
   final ValueChanged<String> onTextoAlterado;
@@ -290,6 +384,18 @@ class _FiltrosBusca extends StatelessWidget {
             prefixIcon: Icon(Icons.location_on_outlined),
             labelText: 'Bairro',
             hintText: 'Ex.: Vila Nova',
+          ),
+        ),
+        const SizedBox(height: AppSpace.md),
+        TextField(
+          key: const ValueKey('busca-cidade'),
+          controller: cidadeController,
+          onChanged: onTextoAlterado,
+          textInputAction: TextInputAction.search,
+          decoration: const InputDecoration(
+            prefixIcon: Icon(Icons.location_city_outlined),
+            labelText: 'Cidade',
+            hintText: 'Ex.: Belo Horizonte',
           ),
         ),
         const SizedBox(height: AppSpace.md),
