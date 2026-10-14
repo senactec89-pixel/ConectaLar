@@ -21,7 +21,6 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
-| `APP_PASSWORD_RESET_URL` | `conectalar://recuperar-senha` | Base URL used in password recovery e-mails |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Positive integer window, in milliseconds |
 | `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
@@ -75,7 +74,7 @@ Authentication routes:
 - `POST /auth/mfa/admin/desativar` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
-Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset stores only a SHA-256 hash of the recovery token, expires tokens after 30 minutes, invalidates prior unused reset tokens, and marks tokens as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. When SMTP is configured, the reset link and recovery code are sent by e-mail; in production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset sends a 6-digit recovery code by e-mail, stores only a SHA-256 hash scoped to the user, expires codes after 30 minutes, invalidates prior unused reset codes, and marks codes as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. In production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
 
 New public registrations start with `emailVerificado=false`. The API stores only a hash of the six-digit e-mail verification code, expires it after 15 minutes, invalidates previous unused codes when a new one is requested, and marks all open codes as used when the e-mail is confirmed. Existing users are marked as verified by the migration so current demo and test accounts keep working. In production, configure SMTP before enabling public registration. Local development can expose the verification `devCode` only when `EXPOSE_EMAIL_VERIFICATION_CODE=true`; do not enable that flag in production.
 

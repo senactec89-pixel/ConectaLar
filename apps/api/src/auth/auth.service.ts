@@ -1,9 +1,4 @@
-import {
-  randomBytes,
-  randomInt,
-  createHash,
-  timingSafeEqual,
-} from 'node:crypto';
+import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -42,6 +37,7 @@ interface RecuperacaoSenhaRequest {
 }
 
 interface ConfirmarRecuperacaoSenhaRequest {
+  email: string;
   token: string;
   novaSenha: string;
 }
@@ -214,8 +210,8 @@ export class AuthService {
       return recuperacaoSolicitadaResponse(null);
     }
 
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = hashResetToken(token);
+    const codigo = criarCodigoNumerico();
+    const tokenHash = hashResetCode(usuario.id, codigo);
     await this.senhaResets.update(
       { usuarioId: usuario.id, usadoEm: IsNull() },
       { usadoEm: new Date() },
@@ -230,7 +226,7 @@ export class AuthService {
     );
 
     const delivered = await this.enviarEmailComFalhaControlada(() =>
-      this.mailService.sendPasswordResetEmail(usuario.email, token),
+      this.mailService.sendPasswordResetEmail(usuario.email, codigo),
     );
     if (!delivered && process.env.NODE_ENV === 'production') {
       throw new ServiceUnavailableException({
@@ -239,7 +235,7 @@ export class AuthService {
       });
     }
 
-    return recuperacaoSolicitadaResponse(token);
+    return recuperacaoSolicitadaResponse(codigo);
   }
 
   async statusVerificacaoEmail(user: AuthenticatedUser) {
@@ -371,23 +367,26 @@ export class AuthService {
 
   async confirmarRecuperacaoSenha(body: unknown) {
     const input = parseConfirmarRecuperacaoSenha(body);
-    const tokenHash = hashResetToken(input.token);
-    const reset = await this.senhaResets.findOne({ where: { tokenHash } });
+    const email = normalizarEmail(input.email);
+    const usuario = await this.usuarios
+      .createQueryBuilder('usuario')
+      .addSelect('usuario.senhaHash')
+      .where('usuario.email = :email', { email })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .getOne();
+    if (usuario === null) {
+      throw invalidResetToken();
+    }
+
+    const tokenHash = hashResetCode(usuario.id, input.token);
+    const reset = await this.senhaResets.findOne({
+      where: { usuarioId: usuario.id, tokenHash },
+    });
     if (
       reset === null ||
       reset.usadoEm !== null ||
       reset.expiraEm.getTime() <= Date.now()
     ) {
-      throw invalidResetToken();
-    }
-
-    const usuario = await this.usuarios
-      .createQueryBuilder('usuario')
-      .addSelect('usuario.senhaHash')
-      .where('usuario.id = :id', { id: reset.usuarioId })
-      .andWhere('usuario.ativo = :ativo', { ativo: true })
-      .getOne();
-    if (usuario === null) {
       throw invalidResetToken();
     }
 
@@ -614,14 +613,15 @@ function parseConfirmarRecuperacaoSenha(
   body: unknown,
 ): ConfirmarRecuperacaoSenhaRequest {
   const value = objectBody(body);
-  const token = stringField(value, 'token');
+  const email = stringField(value, 'email');
+  const token = stringField(value, 'token').replace(/\s/g, '');
   const novaSenha = stringField(value, 'novaSenha');
   validarSenha(novaSenha);
-  if (token.length < 32 || token.length > 160) {
+  if (!emailValido(email) || !/^\d{6}$/.test(token)) {
     throw invalidResetToken();
   }
 
-  return { token, novaSenha };
+  return { email, token, novaSenha };
 }
 
 function parseConfirmarEmail(body: unknown): ConfirmarEmailRequest {
@@ -739,8 +739,10 @@ function validarSenha(senha: string): void {
   }
 }
 
-function hashResetToken(token: string): string {
-  return createHash('sha256').update(token, 'utf8').digest('hex');
+function hashResetCode(usuarioId: number, codigo: string): string {
+  return createHash('sha256')
+    .update(`${usuarioId}:${codigo}`, 'utf8')
+    .digest('hex');
 }
 
 function hashEmailVerificationCode(usuarioId: number, codigo: string): string {
@@ -753,14 +755,14 @@ function criarCodigoNumerico(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
 
-function recuperacaoSolicitadaResponse(token: string | null) {
+function recuperacaoSolicitadaResponse(codigo: string | null) {
   const response: { ok: true; devToken?: string } = { ok: true };
   if (
-    token !== null &&
+    codigo !== null &&
     process.env.NODE_ENV !== 'production' &&
     process.env.EXPOSE_PASSWORD_RESET_TOKEN === 'true'
   ) {
-    response.devToken = token;
+    response.devToken = codigo;
   }
 
   return response;
@@ -784,7 +786,7 @@ function isDuplicateError(error: unknown): boolean {
 function invalidResetToken(): BadRequestException {
   return new BadRequestException({
     code: 'TOKEN_RECUPERACAO_INVALIDO',
-    message: 'Token de recuperacao invalido ou expirado.',
+    message: 'Codigo de recuperacao invalido ou expirado.',
   });
 }
 

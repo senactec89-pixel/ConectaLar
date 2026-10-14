@@ -18,19 +18,18 @@ export class MailService {
     return smtpConfig() !== null;
   }
 
-  async sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
+  async sendPasswordResetEmail(email: string, codigo: string): Promise<boolean> {
     const config = smtpConfig();
     if (config === null) return false;
 
-    const resetUrl = passwordResetUrl(token);
     const message = buildMessage({
       from: config.from,
       to: email,
       subject: 'Recuperacao de senha do ConectaLar',
       text:
         'Recebemos uma solicitacao para redefinir sua senha no ConectaLar.\n\n' +
-        `Codigo de recuperacao: ${token}\n\n` +
-        `Use este link em ate 30 minutos: ${resetUrl}\n\n` +
+        `Codigo de recuperacao: ${codigo}\n\n` +
+        'Esse codigo expira em 30 minutos.\n\n' +
         'Se voce nao pediu isso, ignore este e-mail. Nunca compartilhe este codigo ou link.',
     });
 
@@ -77,16 +76,6 @@ function smtpConfig(): SmtpConfig | null {
     password,
     from,
   };
-}
-
-function passwordResetUrl(token: string): string {
-  const base = process.env.APP_PASSWORD_RESET_URL?.trim();
-  if (base === undefined || base.length === 0) {
-    return `conectalar://recuperar-senha?token=${encodeURIComponent(token)}`;
-  }
-  const url = new URL(base);
-  url.searchParams.set('token', token);
-  return url.toString();
 }
 
 function buildMessage(input: {

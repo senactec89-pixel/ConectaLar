@@ -60,6 +60,7 @@ class _RecuperacaoSenhaPageState extends State<RecuperacaoSenhaPage> {
     setState(() => _enviando = true);
     try {
       await AppServices.instance.auth.confirmarRecuperacaoSenha(
+        email: _email.text.trim(),
         token: _token.text.trim(),
         novaSenha: _novaSenha.text,
       );
@@ -252,13 +253,22 @@ class _FormularioCodigo extends StatelessWidget {
                     key: const ValueKey('recuperacao-token'),
                     controller: token,
                     textInputAction: TextInputAction.next,
+                    keyboardType: TextInputType.number,
                     autocorrect: false,
                     enableSuggestions: false,
+                    maxLength: 6,
                     decoration: const InputDecoration(
                       labelText: 'Código de recuperação',
+                      counterText: '',
                       prefixIcon: Icon(Icons.key_outlined),
                     ),
-                    validator: validarCampoObrigatorio,
+                    validator: (valor) {
+                      final codigo = valor?.replaceAll(RegExp(r'\s'), '') ?? '';
+                      if (!RegExp(r'^\d{6}$').hasMatch(codigo)) {
+                        return 'Informe o código de 6 dígitos.';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: AppSpace.md),
                   TextFormField(

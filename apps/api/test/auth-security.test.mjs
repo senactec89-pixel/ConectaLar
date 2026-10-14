@@ -29,7 +29,7 @@ test('MFA secrets are encrypted and can be recovered only with the configured ke
   assert.match(service.createOtpAuthUrl(secret, 'admin@example.invalid'), /^otpauth:\/\/totp\//);
 });
 
-test('mail service does not expose reset tokens when SMTP is not configured', async () => {
+test('mail service does not expose reset codes when SMTP is not configured', async () => {
   delete process.env.SMTP_HOST;
   delete process.env.SMTP_FROM;
   const service = new MailService();

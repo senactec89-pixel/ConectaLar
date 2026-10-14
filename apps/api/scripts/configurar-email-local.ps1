@@ -45,8 +45,7 @@ $content = @(
   "SMTP_STARTTLS=true",
   "SMTP_USER=$Email",
   "SMTP_PASSWORD=$password",
-  "SMTP_FROM=$FromName <$Email>",
-  "APP_PASSWORD_RESET_URL=conectalar://recuperar-senha"
+  "SMTP_FROM=$FromName <$Email>"
 )
 
 Set-Content -Path $envPath -Value $content -Encoding UTF8

@@ -161,7 +161,7 @@ paths:
                   format: email
       responses:
         '201':
-          description: Generic success; devToken is returned only when explicitly enabled outside production
+          description: Generic success; devToken contains a 6-digit development-only code only when explicitly enabled outside production
           content:
             application/json:
               schema:
@@ -174,13 +174,14 @@ paths:
                     const: true
                   devToken:
                     type: string
-                    description: Development-only recovery token; never returned in production.
+                    pattern: '^\d{6}$'
+                    description: Development-only recovery code; never returned in production.
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /auth/senha/recuperacao/confirmar:
     post:
       operationId: postAuthConfirmarRecuperacaoSenha
-      summary: Confirms password recovery with a valid one-time token
+      summary: Confirms password recovery with a valid one-time code
       tags:
         - Auth
       requestBody:
@@ -190,11 +191,14 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [token, novaSenha]
+              required: [email, token, novaSenha]
               properties:
+                email:
+                  type: string
+                  format: email
                 token:
                   type: string
-                  minLength: 1
+                  pattern: '^\d{6}$'
                 novaSenha:
                   type: string
                   minLength: 8

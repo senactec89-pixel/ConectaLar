@@ -103,3 +103,17 @@ test('authentication keeps e-mail verification codes hashed and expiring', async
   assert.match(guard, /EMAIL_NAO_VERIFICADO/);
   assert.match(guard, /auth\/email\/verificacao/);
 });
+
+test('password recovery uses short user-scoped codes without reset links', async () => {
+  const auth = await source('dist/auth/auth.service.js');
+  const mail = await source('dist/auth/mail.service.js');
+  const openapi = await readFile(new URL('../openapi.yaml', import.meta.url), 'utf8');
+
+  assert.match(auth, /hashResetCode/);
+  assert.match(auth, /resetTokenTtlMinutes = 30/);
+  assert.match(auth, /criarCodigoNumerico/);
+  assert.match(auth, /usuario\.id, input\.token/);
+  assert.match(openapi, /required: \[email, token, novaSenha\]/);
+  assert.doesNotMatch(mail, /passwordResetUrl/);
+  assert.doesNotMatch(mail, /conectalar:\/\/recuperar-senha/);
+});

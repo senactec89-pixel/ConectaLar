@@ -121,12 +121,13 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> confirmarRecuperacaoSenha({
+    required String email,
     required String token,
     required String novaSenha,
   }) {
     return _api.post(
       'auth/senha/recuperacao/confirmar',
-      body: {'token': token, 'novaSenha': novaSenha},
+      body: {'email': email, 'token': token, 'novaSenha': novaSenha},
     );
   }
 
