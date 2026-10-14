@@ -235,4 +235,51 @@ void main() {
       AppServices.instance.api.close();
     }
   });
+
+  testWidgets('falha nos favoritos não impede abrir o perfil público', (
+    tester,
+  ) async {
+    var falharFavoritos = true;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/clientes/me/favoritos' && falharFavoritos) {
+          return jsonResponse({'message': 'Falha temporária'}, 503);
+        }
+        return null;
+      },
+    );
+    final profissional = const Profissional(
+      id: 1,
+      usuarioId: 101,
+      nome: 'Carlos Silva',
+      descricao: 'Atendimento residencial',
+      bairro: 'Centro',
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.perfilProfissional,
+      arguments: profissional,
+    );
+
+    expect(find.text('Carlos Silva — demonstração'), findsOneWidget);
+    expect(
+      find.text('Não foi possível verificar seus favoritos.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('perfil-solicitar-servico')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('perfil-favorito-1')), findsNothing);
+
+    falharFavoritos = false;
+    await tester.tap(find.text('Tentar novamente'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Não foi possível verificar seus favoritos.'),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('perfil-favorito-1')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

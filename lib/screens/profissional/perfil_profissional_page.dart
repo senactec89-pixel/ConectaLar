@@ -47,18 +47,21 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
 
     Profissional profissional = argumento;
     bool favorito = false;
+    bool favoritosIndisponiveis = false;
     if (services.auth.autenticado) {
       final tipo = services.auth.usuarioAtual?['tipo'];
-      final responses = await Future.wait([
-        services.profissionais.obter(argumento.id),
-        if (tipo == 'cliente') services.clientes.listarFavoritos(),
-      ]);
-      final perfil = responses[0]['profissional'];
+      final response = await services.profissionais.obter(argumento.id);
+      final perfil = response['profissional'];
       if (perfil is Map<String, dynamic>) {
         profissional = profissionalFromApi(perfil);
       }
-      if (tipo == 'cliente' && responses.length > 1) {
-        favorito = _favoritosContem(responses[1], profissional.id);
+      if (tipo == 'cliente') {
+        try {
+          final response = await services.clientes.listarFavoritos();
+          favorito = _favoritosContem(response, profissional.id);
+        } catch (_) {
+          favoritosIndisponiveis = true;
+        }
       }
     } else {
       final response = await services.profissionais.obter(argumento.id);
@@ -71,6 +74,7 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
     return _PerfilProfissionalData(
       profissional: profissional,
       favorito: favorito,
+      favoritosIndisponiveis: favoritosIndisponiveis,
     );
   }
 
@@ -165,7 +169,8 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
             return _PerfilProfissionalContent(
               data: data,
               mutandoFavorito: _mutandoFavorito,
-              onFavoritoTap: acoesCliente
+              onRetryFavoritos: _recarregar,
+              onFavoritoTap: acoesCliente && !data.favoritosIndisponiveis
                   ? () => _alternarFavorito(data)
                   : null,
             );
@@ -190,15 +195,18 @@ class _PerfilProfissionalData {
   const _PerfilProfissionalData({
     required this.profissional,
     required this.favorito,
+    this.favoritosIndisponiveis = false,
   });
 
   final Profissional profissional;
   final bool favorito;
+  final bool favoritosIndisponiveis;
 
   _PerfilProfissionalData copyWith({bool? favorito}) {
     return _PerfilProfissionalData(
       profissional: profissional,
       favorito: favorito ?? this.favorito,
+      favoritosIndisponiveis: favoritosIndisponiveis,
     );
   }
 }
@@ -222,11 +230,13 @@ class _PerfilProfissionalContent extends StatefulWidget {
     required this.data,
     required this.mutandoFavorito,
     required this.onFavoritoTap,
+    required this.onRetryFavoritos,
   });
 
   final _PerfilProfissionalData data;
   final bool mutandoFavorito;
   final VoidCallback? onFavoritoTap;
+  final VoidCallback onRetryFavoritos;
 
   @override
   State<_PerfilProfissionalContent> createState() =>
@@ -279,6 +289,13 @@ class _PerfilProfissionalContentState
                 favoritoCarregando: widget.mutandoFavorito,
                 onFavoritoTap: widget.onFavoritoTap,
               ),
+              if (data.favoritosIndisponiveis) ...[
+                const SizedBox(height: AppSpace.sm),
+                SectionErrorView(
+                  message: 'Não foi possível verificar seus favoritos.',
+                  onRetry: widget.onRetryFavoritos,
+                ),
+              ],
               const SizedBox(height: AppSpace.sm),
               Wrap(
                 spacing: AppSpace.sm,
