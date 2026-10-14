@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
@@ -34,6 +36,7 @@ class _AdminPageState extends State<AdminPage> {
   final _buscaLocalController = TextEditingController();
   String _statusCategoria = '';
   String _statusDocumento = 'pendente';
+  final Set<int> _documentosCarregados = {};
   bool _mutando = false;
 
   @override
@@ -633,6 +636,9 @@ class _AdminPageState extends State<AdminPage> {
           ),
         );
       case AdminModulo.documentos:
+        final documentoId = int.tryParse('${item['id']}');
+        final documentoCarregado =
+            documentoId != null && _documentosCarregados.contains(documentoId);
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
           child: ListTile(
@@ -641,10 +647,21 @@ class _AdminPageState extends State<AdminPage> {
               '${_rotuloTipoDocumento(item['tipoDocumento'])} • ${item['profissional']?['nome'] ?? 'Profissional'}',
             ),
             subtitle: Text(
-              'Status: ${_rotuloStatusDocumento(item['status'])}\n${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}',
+              'Status: ${_rotuloStatusDocumento(item['status'])}\n'
+              '${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}\n'
+              '${documentoCarregado ? 'Arquivo carregado para conferência' : 'Toque para carregar e analisar'}',
             ),
             isThreeLine: true,
             onTap: _mutando ? null : () => _analisarDocumento(item),
+            trailing: IconButton(
+              tooltip: 'Visualizar arquivo',
+              onPressed: _mutando ? null : () => _visualizarDocumento(item),
+              icon: Icon(
+                documentoCarregado
+                    ? Icons.visibility_rounded
+                    : Icons.visibility_outlined,
+              ),
+            ),
           ),
         );
       case AdminModulo.denuncias:
@@ -807,6 +824,16 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _analisarDocumento(Map<String, dynamic> item) async {
     if (_mutando) return;
+    final documentoId = int.tryParse('${item['id']}');
+    if (documentoId == null) {
+      _avisar('Documento inválido.');
+      return;
+    }
+    if (!_documentosCarregados.contains(documentoId)) {
+      final carregou = await _visualizarDocumento(item);
+      if (!carregou) return;
+    }
+    if (!mounted) return;
     final motivo = TextEditingController();
     final acao = await showDialog<String>(
       context: context,
@@ -858,7 +885,7 @@ class _AdminPageState extends State<AdminPage> {
     setState(() => _mutando = true);
     try {
       await AppServices.instance.admin.analisarDocumento(
-        int.parse('${item['id']}'),
+        documentoId,
         acao,
         motivo: motivo.text.trim(),
       );
@@ -871,6 +898,59 @@ class _AdminPageState extends State<AdminPage> {
       }
     } catch (_) {
       if (mounted) _avisar('Não foi possível registrar a análise documental.');
+    } finally {
+      if (mounted) setState(() => _mutando = false);
+    }
+  }
+
+  Future<bool> _visualizarDocumento(Map<String, dynamic> item) async {
+    final documentoId = int.tryParse('${item['id']}');
+    if (documentoId == null) {
+      _avisar('Documento inválido.');
+      return false;
+    }
+
+    setState(() => _mutando = true);
+    try {
+      final arquivo = await AppServices.instance.admin.arquivoDocumento(
+        documentoId,
+      );
+      if (!mounted) return false;
+      final carregou = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          scrollable: true,
+          title: const Text('Arquivo do documento'),
+          content: _DocumentoPreview(
+            bytes: arquivo.bytes,
+            contentType: arquivo.contentType,
+            fileName:
+                arquivo.fileName ??
+                '${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? 'documento'}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Fechar'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(context, true),
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('Conferido'),
+            ),
+          ],
+        ),
+      );
+      if (carregou == true && mounted) {
+        setState(() => _documentosCarregados.add(documentoId));
+        return true;
+      }
+      return false;
+    } catch (_) {
+      if (mounted) {
+        _avisar('Não foi possível carregar o arquivo do documento.');
+      }
+      return false;
     } finally {
       if (mounted) setState(() => _mutando = false);
     }
@@ -1012,6 +1092,83 @@ class _AdminPageState extends State<AdminPage> {
 
   void _avisar(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+}
+
+class _DocumentoPreview extends StatelessWidget {
+  const _DocumentoPreview({
+    required this.bytes,
+    required this.contentType,
+    required this.fileName,
+  });
+
+  final Uint8List bytes;
+  final String contentType;
+  final String fileName;
+
+  @override
+  Widget build(BuildContext context) {
+    final tamanhoKb = (bytes.length / 1024).toStringAsFixed(1);
+    if (contentType == 'image/jpeg' || contentType == 'image/png') {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('$contentType • $tamanhoKb KB'),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const _ArquivoNaoVisualizavel(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.picture_as_pdf_outlined,
+            color: Color(0xFFC53030),
+            size: 42,
+          ),
+          const SizedBox(height: 12),
+          Text(fileName, style: const TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('$contentType • $tamanhoKb KB'),
+          const SizedBox(height: 12),
+          const Text(
+            'O PDF foi carregado por rota administrativa autenticada. Esta versão ainda não renderiza páginas PDF dentro do app; confira o nome, tipo e origem antes de decidir.',
+            style: TextStyle(height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArquivoNaoVisualizavel extends StatelessWidget {
+  const _ArquivoNaoVisualizavel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppColors.verdeClaro,
+      child: const Text('Não foi possível renderizar a imagem.'),
+    );
+  }
 }
 
 String _rotuloAcaoAuditoria(String? acao) => switch (acao) {

@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { extname, join, resolve, sep } from 'node:path';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
@@ -28,6 +28,7 @@ interface EnviarDocumentoInput {
 }
 
 const maxDocumentoBytes = 5 * 1024 * 1024;
+const pastaDocumentosRelativa = join('storage', 'documentos-verificacao');
 
 interface AnaliseDocumentoInput {
   readonly status:
@@ -113,6 +114,44 @@ export class VerificacaoService {
     });
 
     return { documentos: documentos.map(documentoAdminResponse) };
+  }
+
+  async arquivoParaAnalise(id: number) {
+    const documento = await this.documentos.findOne({ where: { id } });
+    if (documento === null) {
+      throw new NotFoundException({
+        code: 'DOCUMENTO_NAO_ENCONTRADO',
+        message: 'Documento de verificacao nao encontrado.',
+      });
+    }
+
+    const caminho = caminhoDocumentoSeguro(documento.referenciaArquivo);
+    if (caminho === null) {
+      throw new NotFoundException({
+        code: 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
+        message: 'Arquivo do documento indisponivel para visualizacao segura.',
+      });
+    }
+    try {
+      const arquivo = await stat(caminho);
+      if (!arquivo.isFile()) throw new Error('Not a file.');
+    } catch {
+      throw new NotFoundException({
+        code: 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
+        message: 'Arquivo do documento indisponivel para visualizacao segura.',
+      });
+    }
+
+    const mimeType = mimeExtensao(extname(caminho).toLowerCase());
+    if (mimeType === null) {
+      throw badRequest('TIPO_ARQUIVO_INVALIDO');
+    }
+
+    return {
+      caminho,
+      mimeType,
+      nomeSeguro: nomeSeguroDocumento(documento.id, documento.nomeArquivo, caminho),
+    };
   }
 
   async analisarDocumento(
@@ -255,8 +294,7 @@ async function resolverReferenciaArquivo(
 
   const extensao = extensaoMime(input.mimeType);
   const pastaRelativa = join(
-    'storage',
-    'documentos-verificacao',
+    pastaDocumentosRelativa,
     String(profissionalId),
   );
   const nomeArquivo = `${randomUUID()}${extensao}`;
@@ -275,6 +313,40 @@ function extensaoMime(value: string | null): string | null {
   if (value === 'image/jpeg') return '.jpg';
   if (value === 'image/png') return '.png';
   return null;
+}
+
+function mimeExtensao(value: string): string | null {
+  if (value === '.pdf') return 'application/pdf';
+  if (value === '.jpg' || value === '.jpeg') return 'image/jpeg';
+  if (value === '.png') return 'image/png';
+  return null;
+}
+
+function caminhoDocumentoSeguro(referencia: string): string | null {
+  const root = resolve(process.cwd(), pastaDocumentosRelativa);
+  const caminho = resolve(process.cwd(), referencia);
+  if (caminho !== root && !caminho.startsWith(`${root}${sep}`)) return null;
+  return caminho;
+}
+
+function nomeSeguroDocumento(
+  id: number,
+  nomeArquivo: string | null,
+  caminho: string,
+): string {
+  const extensao = extname(caminho).toLowerCase();
+  const nome = nomeArquivo?.toLowerCase() ?? '';
+  if (nomeArquivo !== null && !/[\\/"\r\n]/.test(nomeArquivo)) {
+    if (
+      (extensao === '.pdf' && nome.endsWith('.pdf')) ||
+      (extensao === '.png' && nome.endsWith('.png')) ||
+      (extensao === '.jpg' &&
+        (nome.endsWith('.jpg') || nome.endsWith('.jpeg')))
+    ) {
+      return nomeArquivo;
+    }
+  }
+  return `documento-verificacao-${id}${extensao}`;
 }
 
 function nomeArquivoCompativelComMime(

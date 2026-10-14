@@ -88,6 +88,9 @@ class AdminService {
     },
   );
 
+  Future<ApiBinaryResponse> arquivoDocumento(int id) =>
+      _api.getBinary('documentos-verificacao/$id/arquivo');
+
   Future<Map<String, dynamic>> analisarDocumento(
     int id,
     String status, {

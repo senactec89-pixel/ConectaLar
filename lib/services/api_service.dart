@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -13,6 +14,18 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class ApiBinaryResponse {
+  const ApiBinaryResponse({
+    required this.bytes,
+    required this.contentType,
+    this.fileName,
+  });
+
+  final Uint8List bytes;
+  final String contentType;
+  final String? fileName;
 }
 
 class ApiService {
@@ -62,6 +75,58 @@ class ApiService {
 
   Future<Map<String, dynamic>> delete(String endpoint) {
     return _request('DELETE', endpoint);
+  }
+
+  Future<ApiBinaryResponse> getBinary(String endpoint) async {
+    final uri = _buildUri(endpoint, null);
+    final requestToken = _accessToken;
+    final requestRevision = _sessionRevision;
+    final request = http.Request('GET', uri)..headers['Accept'] = '*/*';
+
+    if (requestToken != null) {
+      request.headers['Authorization'] = 'Bearer $requestToken';
+    }
+
+    final timeout = Duration(seconds: AppConstants.apiTimeoutSeconds);
+    final http.Response response;
+    try {
+      final streamedResponse = await _client.send(request).timeout(timeout);
+      response = await http.Response.fromStream(
+        streamedResponse,
+      ).timeout(timeout);
+    } on TimeoutException {
+      throw const ApiException(
+        'A API demorou para responder. Verifique se ela esta ligada e tente novamente.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Nao foi possivel conectar a API. Confira sua rede e o endereco configurado.',
+      );
+    }
+
+    if (response.statusCode == 401 &&
+        requestToken != null &&
+        requestRevision == _sessionRevision) {
+      await onSessionExpired?.call();
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        _mensagemErroBinario(response) ??
+            _mensagemPadraoStatus(response.statusCode),
+        statusCode: response.statusCode,
+      );
+    }
+
+    return ApiBinaryResponse(
+      bytes: response.bodyBytes,
+      contentType:
+          response.headers['content-type']?.split(';').first.trim() ??
+          'application/octet-stream',
+      fileName: _fileNameFromDisposition(
+        response.headers['content-disposition'],
+      ),
+    );
   }
 
   void close() => _client.close();
@@ -179,5 +244,25 @@ class ApiService {
       return true;
     }
     return code == 'SENHA_ATUAL_INVALIDA';
+  }
+
+  String? _mensagemErroBinario(http.Response response) {
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('application/json')) return null;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic> && decoded['message'] is String) {
+        return decoded['message'] as String;
+      }
+    } on FormatException {
+      return null;
+    }
+    return null;
+  }
+
+  String? _fileNameFromDisposition(String? value) {
+    if (value == null) return null;
+    final match = RegExp(r'filename="([^"]+)"').firstMatch(value);
+    return match?.group(1);
   }
 }

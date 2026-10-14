@@ -1629,6 +1629,42 @@ paths:
                       $ref: '#/components/schemas/DocumentoVerificacaoAdmin'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /documentos-verificacao/{id}/arquivo:
+    get:
+      operationId: getDocumentoVerificacaoArquivoAdmin
+      summary: Streams a private verification document for administrative review
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ResourceId'
+      responses:
+        '200':
+          description: Private document bytes; only administrators can access this route
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            X-Content-Type-Options:
+              schema:
+                type: string
+                const: nosniff
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /documentos-verificacao/{id}/analisar:
     patch:
       operationId: patchAnalisarDocumentoVerificacao

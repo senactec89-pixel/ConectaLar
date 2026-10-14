@@ -48,6 +48,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/usuarios\/\{id\}\/foto:/);
   assert.match(openapi, /\/profissionais\/me\/agenda:/);
   assert.match(openapi, /\/profissionais\/me\/documentos:/);
+  assert.match(openapi, /\/documentos-verificacao\/\{id\}\/arquivo:/);
   assert.match(openapi, /\/admin\/painel\/auditoria:/);
   assert.match(openapi, /enderecoProtegido/);
   assert.match(openapi, /enderecoAtendimento/);
@@ -90,6 +91,8 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /nomeArquivoCompativelComMime/);
   assert.match(verificacao, /ASSINATURA_ARQUIVO_INVALIDA/);
   assert.match(verificacao, /NOME_ARQUIVO_INVALIDO/);
+  assert.match(verificacao, /arquivoParaAnalise/);
+  assert.match(verificacao, /caminhoDocumentoSeguro/);
   assert.match(verificacao, /%PDF-/);
   assert.match(verificacao, /0x89,\s*0x50,\s*0x4e,\s*0x47/);
   assert.match(verificacao, /storage/);

@@ -2,6 +2,7 @@ import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 
 import 'support/frontend_helpers.dart';
 
@@ -89,6 +90,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(aprovados, 2);
     expect(find.text('Nenhum documento neste filtro'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('visualizacao documental usa rota privada antes da analise', (
+    tester,
+  ) async {
+    var carregamentos = 0;
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async {
+        if (request.url.path == '/documentos-verificacao/1/arquivo') {
+          carregamentos++;
+          expect(request.headers['authorization'], startsWith('Bearer '));
+          return http.Response.bytes(
+            '%PDF-1.4 teste'.codeUnits,
+            200,
+            headers: {
+              'content-type': 'application/pdf',
+              'content-disposition':
+                  'inline; filename="documento-ficticio-1.pdf"',
+            },
+          );
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.adminDocumentos);
+    await tester.tap(find.byTooltip('Visualizar arquivo').first);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(carregamentos, 1);
+    expect(find.text('Arquivo do documento'), findsOneWidget);
+    expect(find.textContaining('PDF foi carregado'), findsOneWidget);
+
+    await tester.tap(find.text('Conferido'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.textContaining('Arquivo carregado para conferência'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }
