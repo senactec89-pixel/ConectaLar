@@ -26,6 +26,18 @@ Se for testar envio real de e-mail, configure as variaveis SMTP no mesmo
 terminal antes de ligar a API. Nao coloque a senha de app do Gmail em arquivos
 versionados.
 
+No ambiente atual, o jeito mais simples e:
+
+```powershell
+cd C:\Users\User\Downloads\ConectaLar-main\ConectaLar-main\apps\api
+.\scripts\configurar-email-local.ps1
+npm.cmd run email:test -- seu-email-de-teste@gmail.com
+npm.cmd run dev:local
+```
+
+O script cria `apps/api/.env.local`, que e carregado automaticamente pelo
+`start-local.cmd` e fica fora do Git.
+
 ## 3. Gerar o APK com o IP da rede
 
 Na raiz do projeto:

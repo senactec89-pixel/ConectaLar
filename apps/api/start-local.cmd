@@ -16,6 +16,12 @@ set "DB_PASSWORD=ConectaLarDev123!"
 set "DB_NAME=conectalar_dev"
 set "AUTH_TOKEN_SECRET=local-dev-secret-change-before-production-123456"
 
+if exist "%~dp0.env.local" (
+  for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%~dp0.env.local") do (
+    if not "%%A"=="" set "%%A=%%~B"
+  )
+)
+
 if /I "%~1"=="--no-build" goto start_api
 
 call npm.cmd run build

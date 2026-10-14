@@ -20,6 +20,7 @@
     "diagnostico:local": "node scripts/diagnostico-local.mjs",
     "diagnostico:fluxo": "node scripts/diagnostico-fluxo-local.mjs",
     "diagnostico:mfa": "node scripts/diagnostico-mfa-local.mjs",
+    "email:test": "npm run build && node scripts/test-email-local.mjs",
     "test": "npm run build && node --test test/*.test.mjs",
     "test:integration": "node --test test/integration/*.test.mjs"
   },

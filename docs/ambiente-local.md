@@ -45,6 +45,46 @@ Resultado esperado:
 {"status":"ok"}
 ```
 
+### Configurar envio real de e-mail no ambiente local
+
+Use este passo quando for testar confirmacao de e-mail e recuperacao de senha
+com o Gmail remetente do ConectaLar.
+
+No terminal do VS Code:
+
+```powershell
+cd C:\Users\User\Downloads\ConectaLar-main\ConectaLar-main\apps\api
+.\scripts\configurar-email-local.ps1
+```
+
+Cole a senha de aplicativo do Google quando o terminal pedir. O script remove
+espacos automaticamente e cria `apps/api/.env.local`. Esse arquivo e ignorado
+pelo Git e nao deve ser enviado para o repositorio.
+
+Depois teste o envio antes de abrir o app:
+
+```powershell
+npm.cmd run email:test -- seu-email-de-teste@gmail.com
+```
+
+Se o e-mail chegar, ligue a API normalmente:
+
+```powershell
+npm.cmd run dev:local
+```
+
+O `start-local.cmd` carrega `apps/api/.env.local` automaticamente. Assim, o
+cadastro envia o codigo de confirmacao e a recuperacao de senha envia o codigo
+para o e-mail informado.
+
+Se o envio falhar, confira:
+
+- se a verificacao em duas etapas esta ativada na conta Google;
+- se a senha colada e a senha de aplicativo, nao a senha normal do Gmail;
+- se o arquivo `apps/api/.env.local` existe;
+- se a API foi reiniciada depois da configuracao;
+- se o e-mail nao caiu em spam ou promocao.
+
 ## 3. Diagnostico automatico
 
 Com a API ligada, rode:
