@@ -264,6 +264,16 @@ class _HistoricoCard extends StatelessWidget {
     return '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
   }
 
+  String _dataHora(Object? value) {
+    final data = DateTime.tryParse('$value')?.toLocal();
+    if (data == null) return 'Não informada';
+    final dia =
+        '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+    final hora =
+        '${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
+    return '$dia às $hora';
+  }
+
   @override
   Widget build(BuildContext context) {
     final rotulos = {
@@ -312,7 +322,7 @@ class _HistoricoCard extends StatelessWidget {
             ),
             const SizedBox(height: AppSpace.sm),
             Text(
-              'Criado em ${_data(item['criadoEm'])} • Atualizado em ${_data(item['atualizadoEm'])}',
+              'Criado em ${_dataHora(item['criadoEm'])} • Atualizado em ${_dataHora(item['atualizadoEm'])}',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

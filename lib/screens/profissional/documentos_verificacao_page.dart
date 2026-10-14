@@ -295,11 +295,11 @@ class _DocumentoFormState extends State<_DocumentoForm> {
       );
       if (!mounted) return;
       Navigator.pop(context, true);
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível enviar o documento.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_mensagemErroDocumento(error))));
     } finally {
       if (mounted) setState(() => _enviando = false);
     }
@@ -428,3 +428,11 @@ class _DocumentoFormState extends State<_DocumentoForm> {
 
 String _formatarTamanho(int bytes) =>
     '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+
+String _mensagemErroDocumento(Object error) {
+  final mensagem = error.toString().trim();
+  if (mensagem.isEmpty || mensagem == 'Exception') {
+    return 'Não foi possível enviar o documento.';
+  }
+  return mensagem;
+}

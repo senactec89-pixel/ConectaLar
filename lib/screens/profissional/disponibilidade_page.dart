@@ -289,15 +289,27 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
 
   void _salvar() {
     if (!_formKey.currentState!.validate()) return;
+    final inicio = _normalizarHorario(_inicio.text);
+    final fim = _normalizarHorario(_fim.text);
+    if (inicio == null || fim == null) return;
     Navigator.pop(
       context,
-      Disponibilidade(
-        id: 0,
-        diaSemana: _dia,
-        horaInicio: _inicio.text.trim(),
-        horaFim: _fim.text.trim(),
-      ),
+      Disponibilidade(id: 0, diaSemana: _dia, horaInicio: inicio, horaFim: fim),
     );
+  }
+
+  Future<void> _selecionarHorario(TextEditingController controller) async {
+    final minutos = _minutos(controller.text);
+    final horario = await showTimePicker(
+      context: context,
+      initialTime: minutos == null
+          ? const TimeOfDay(hour: 9, minute: 0)
+          : TimeOfDay(hour: minutos ~/ 60, minute: minutos % 60),
+    );
+    if (horario == null) return;
+    controller.text =
+        '${horario.hour.toString().padLeft(2, '0')}:${horario.minute.toString().padLeft(2, '0')}';
+    _formKey.currentState?.validate();
   }
 
   @override
@@ -346,16 +358,41 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                     Expanded(
                       child: TextFormField(
                         controller: _inicio,
-                        decoration: const InputDecoration(labelText: 'Início'),
-                        validator: validarCampoObrigatorio,
+                        decoration: const InputDecoration(
+                          labelText: 'Início',
+                          hintText: 'HH:MM',
+                          suffixIcon: Icon(Icons.schedule_rounded),
+                        ),
+                        keyboardType: TextInputType.datetime,
+                        textInputAction: TextInputAction.next,
+                        onTap: () => _selecionarHorario(_inicio),
+                        validator: validarHorarioDisponibilidade,
                       ),
                     ),
                     const SizedBox(width: AppSpace.md),
                     Expanded(
                       child: TextFormField(
                         controller: _fim,
-                        decoration: const InputDecoration(labelText: 'Fim'),
-                        validator: validarCampoObrigatorio,
+                        decoration: const InputDecoration(
+                          labelText: 'Fim',
+                          hintText: 'HH:MM',
+                          suffixIcon: Icon(Icons.schedule_rounded),
+                        ),
+                        keyboardType: TextInputType.datetime,
+                        textInputAction: TextInputAction.done,
+                        onTap: () => _selecionarHorario(_fim),
+                        validator: (value) {
+                          final erro = validarHorarioDisponibilidade(value);
+                          if (erro != null) return erro;
+                          final inicio = _normalizarHorario(_inicio.text);
+                          final fim = _normalizarHorario(value ?? '');
+                          if (inicio != null &&
+                              fim != null &&
+                              inicio.compareTo(fim) >= 0) {
+                            return 'O fim deve ser depois do início.';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ],
@@ -386,4 +423,26 @@ String _diaLabel(int dia) {
     6 => 'Sábado',
     _ => 'Dia inválido',
   };
+}
+
+String? validarHorarioDisponibilidade(String? valor) {
+  final erroObrigatorio = validarCampoObrigatorio(valor);
+  if (erroObrigatorio != null) return erroObrigatorio;
+  return _normalizarHorario(valor!) == null
+      ? 'Informe no formato HH:MM, como 09:00.'
+      : null;
+}
+
+String? _normalizarHorario(String valor) {
+  final texto = valor.trim();
+  final match = RegExp(r'^([01]?\d|2[0-3]):([0-5]\d)$').firstMatch(texto);
+  if (match == null) return null;
+  return '${match.group(1)!.padLeft(2, '0')}:${match.group(2)!}';
+}
+
+int? _minutos(String horario) {
+  final normalizado = _normalizarHorario(horario);
+  if (normalizado == null) return null;
+  final partes = normalizado.split(':');
+  return int.parse(partes[0]) * 60 + int.parse(partes[1]);
 }

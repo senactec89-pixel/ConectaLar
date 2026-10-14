@@ -25,6 +25,12 @@ const publicErrors: Readonly<Record<string, string>> = {
     'O profissional ainda não cadastrou disponibilidade para receber solicitações.',
   DATA_INVALIDA: 'Informe uma data válida para o atendimento.',
   HORARIO_INVALIDO: 'Informe o horário no formato HH:MM.',
+  INTERVALO_INVALIDO:
+    'O horário inicial deve ser menor que o horário final.',
+  DISPONIBILIDADE_INVALIDA:
+    'Confira os horários cadastrados e tente novamente.',
+  DISPONIBILIDADE_SOBREPOSTA:
+    'Existem horários sobrepostos no mesmo dia. Ajuste antes de salvar.',
   ENDERECO_INVALIDO: 'Selecione um endereço cadastrado válido.',
   CATEGORIA_INVALIDA: 'Selecione uma categoria ativa.',
   CAMPO_INVALIDO: 'Confira os campos preenchidos e tente novamente.',
@@ -40,6 +46,18 @@ const publicErrors: Readonly<Record<string, string>> = {
   DENUNCIADO_INVALIDO: 'Nao foi possivel identificar quem sera denunciado.',
   AUTO_DENUNCIA_INVALIDA: 'Nao e possivel denunciar a propria conta.',
   AVALIACAO_JA_REGISTRADA: 'Você já enviou uma avaliação deste atendimento.',
+  DOCUMENTO_OBRIGATORIO: 'Selecione um arquivo para enviar.',
+  TIPO_ARQUIVO_INVALIDO: 'Envie um arquivo PDF, JPEG ou PNG.',
+  NOME_ARQUIVO_INVALIDO:
+    'O nome do arquivo precisa combinar com o tipo selecionado.',
+  ARQUIVO_INVALIDO:
+    'O arquivo está vazio, corrompido ou ultrapassa o limite de 5 MB.',
+  ASSINATURA_ARQUIVO_INVALIDA:
+    'O conteúdo do arquivo não corresponde ao tipo informado.',
+  AMEACA_DOCUMENTO_DETECTADA:
+    'O arquivo foi bloqueado pela verificação de segurança.',
+  VARREDURA_DOCUMENTO_OBRIGATORIA:
+    'A verificação de segurança de documentos não está disponível agora.',
 };
 
 @Catch()

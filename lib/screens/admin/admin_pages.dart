@@ -743,7 +743,7 @@ class _AdminPageState extends State<AdminPage> {
           scrollable: true,
           title: Text('${usuario['nome'] ?? 'Usuário'}'),
           content: Text(
-            'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${usuario['criadoEm'] ?? '—'}',
+            'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${_dataAuditoria(usuario['criadoEm'])}',
           ),
           actions: [
             TextButton(
