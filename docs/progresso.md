@@ -13,14 +13,14 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 - protecao do endereco completo antes das condicoes autorizadas;
 - chat por solicitacao, com bloqueio visual quando a conversa esta encerrada;
 - conclusao e avaliacoes dos participantes;
-- upload de documentos PDF/JPEG/PNG, armazenamento privado local, leitura administrativa autenticada e preview de imagem/PDF no app;
+- upload de documentos PDF/JPEG/PNG, varredura ClamAV configuravel, armazenamento privado local, leitura administrativa autenticada e preview de imagem/PDF no app;
 - regra de selo profissional baseada em documento de identidade aprovado;
 - denuncias, notificacoes internas e auditoria administrativa;
 - modulos administrativos para usuarios, documentos, categorias, avaliacoes, denuncias e auditoria.
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 14/10/2026 com 16 testes.
+- API: `npm.cmd test` aprovado em 14/10/2026 com 19 testes.
 - Flutter: `flutter analyze` aprovado em 14/10/2026.
 - Flutter: `flutter test` aprovado em 14/10/2026 com 159 testes.
 - Android debug: `flutter build apk --debug --dart-define=CONECTALAR_API_BASE_URL=http://192.168.0.3:3012` aprovado em 14/10/2026.
@@ -47,7 +47,7 @@ Roteiros relacionados:
 Antes de hospedar/publicar, ainda precisam ser definidos e demonstrados:
 
 - storage privado gerenciado para arquivos;
-- antivirus ou varredura equivalente para documentos enviados;
+- ClamAV instalado, atualizado e homologado no ambiente de hospedagem;
 - politica de retencao e descarte de documentos e dados pessoais;
 - HTTPS, dominio, variaveis de ambiente e origens CORS de producao;
 - rate limit distribuido, caso exista mais de uma instancia;

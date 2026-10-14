@@ -17,6 +17,7 @@ import { DocumentoVerificacaoStatus } from '../domain/documento-verificacao-stat
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
+import { MalwareScannerService } from './malware-scanner.service.js';
 
 interface EnviarDocumentoInput {
   readonly tipoDocumento: string;
@@ -48,6 +49,7 @@ export class VerificacaoService {
     @InjectRepository(ProfissionalPerfilEntity)
     private readonly perfis: Repository<ProfissionalPerfilEntity>,
     private readonly notificacoes: NotificacoesService,
+    private readonly malwareScanner: MalwareScannerService,
   ) {}
 
   async enviarMeuDocumento(user: AuthenticatedUser, body: unknown) {
@@ -69,7 +71,11 @@ export class VerificacaoService {
       });
     }
 
-    const referenciaArquivo = await resolverReferenciaArquivo(perfil.id, input);
+    const referenciaArquivo = await resolverReferenciaArquivo(
+      perfil.id,
+      input,
+      this.malwareScanner,
+    );
     const documento = await this.documentos.save(
       this.documentos.create({
         profissionalId: perfil.id,
@@ -294,10 +300,14 @@ function parseEnvioDocumento(body: unknown): EnviarDocumentoInput {
 async function resolverReferenciaArquivo(
   profissionalId: number,
   input: EnviarDocumentoInput,
+  malwareScanner: MalwareScannerService,
 ): Promise<string> {
   if (input.arquivoBase64 === null) {
     if (input.referenciaArquivo === null) {
       throw badRequest('DOCUMENTO_OBRIGATORIO');
+    }
+    if (malwareScanner.required()) {
+      throw badRequest('VARREDURA_DOCUMENTO_OBRIGATORIA');
     }
     return input.referenciaArquivo;
   }
@@ -313,6 +323,10 @@ async function resolverReferenciaArquivo(
   }
   if (!assinaturaCompativelComMime(conteudo, input.mimeType)) {
     throw badRequest('ASSINATURA_ARQUIVO_INVALIDA');
+  }
+  const scan = await malwareScanner.scanBuffer(conteudo);
+  if (!scan.clean) {
+    throw badRequest('AMEACA_DOCUMENTO_DETECTADA');
   }
 
   const extensao = extensaoMime(input.mimeType);

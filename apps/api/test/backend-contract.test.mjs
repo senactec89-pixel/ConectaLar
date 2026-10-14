@@ -82,6 +82,7 @@ test('civil dates remain strings while timestamps keep their timezone', () => {
 
 test('verification upload keeps files private and validates size and type', async () => {
   const verificacao = await source('dist/verificacao/verificacao.service.js');
+  const scanner = await source('dist/verificacao/malware-scanner.service.js');
 
   assert.match(verificacao, /maxDocumentoBytes/);
   assert.match(verificacao, /application\/pdf/);
@@ -93,6 +94,12 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /NOME_ARQUIVO_INVALIDO/);
   assert.match(verificacao, /arquivoParaAnalise/);
   assert.match(verificacao, /caminhoDocumentoSeguro/);
+  assert.match(verificacao, /AMEACA_DOCUMENTO_DETECTADA/);
+  assert.match(verificacao, /VARREDURA_DOCUMENTO_OBRIGATORIA/);
+  assert.match(scanner, /MALWARE_SCAN_MODE/);
+  assert.match(scanner, /CLAMAV_HOST/);
+  assert.match(scanner, /INSTREAM/);
+  assert.match(scanner, /FOUND/);
   assert.match(verificacao, /%PDF-/);
   assert.match(verificacao, /0x89,\s*0x50,\s*0x4e,\s*0x47/);
   assert.match(verificacao, /storage/);

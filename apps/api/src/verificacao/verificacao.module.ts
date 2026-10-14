@@ -5,6 +5,7 @@ import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entit
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
+import { MalwareScannerService } from './malware-scanner.service.js';
 import { VerificacaoController } from './verificacao.controller.js';
 import { VerificacaoService } from './verificacao.service.js';
 
@@ -19,6 +20,6 @@ import { VerificacaoService } from './verificacao.service.js';
     ]),
   ],
   controllers: [VerificacaoController],
-  providers: [VerificacaoService],
+  providers: [MalwareScannerService, VerificacaoService],
 })
 export class VerificacaoModule {}

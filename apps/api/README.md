@@ -21,6 +21,9 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
+| `MALWARE_SCAN_MODE` | `required` in production, `disabled` otherwise | `disabled`, `log-only`, or `required`; use `required` with ClamAV before production uploads |
+| `CLAMAV_HOST` / `CLAMAV_PORT` | `127.0.0.1` / `3310` | ClamAV TCP service used by document upload scanning |
+| `CLAMAV_TIMEOUT_MS` | `10000` | Positive integer timeout for ClamAV scan requests |
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Positive integer window, in milliseconds |
 | `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
@@ -34,7 +37,7 @@ For local troubleshooting, use `npm run diagnostico:local` after starting the AP
 
 Request bodies and headers are not logged. The global exception filter returns a generic response and emits only a structured event, HTTP status, and broad exception type; it omits exception messages, stacks, URLs, and request data. Add request logging only with an explicit redaction and retention policy.
 
-The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. It currently has local private document storage for verification uploads, but no public file serving, external storage provider, payment, or push notification module. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
+The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. Verification uploads validate file type and can scan bytes through ClamAV before writing to local private storage. It currently has no public document serving, external storage provider, payment, or push notification module. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
 
 ## Database foundation
 

@@ -12,13 +12,14 @@ Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - MFA administrativo por TOTP implementado.
 - Foto de perfil para usuarios adicionada.
 - Upload documental com validacao de tamanho, extensao e assinatura do arquivo.
+- Varredura ClamAV configuravel para documentos antes da gravacao.
 - Rota administrativa privada para leitura de documento.
 - Preview administrativo de JPEG, PNG e PDF no app.
 - Regra do selo profissional recalculada pelo conjunto de documentos: o selo depende de documento de identidade aprovado.
 
 ## Ajustes tecnicos ainda pendentes
 
-- Integrar antivirus ou varredura equivalente para arquivos enviados.
+- Instalar, configurar e homologar ClamAV no ambiente de hospedagem com `MALWARE_SCAN_MODE=required`.
 - Migrar documentos e fotos para storage privado gerenciado antes de producao.
 - Definir e implementar politica de retencao, expiracao e descarte de documentos.
 - Trocar rate limit em memoria por solucao adequada se houver multiplas instancias.

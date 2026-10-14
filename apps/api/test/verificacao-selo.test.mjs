@@ -43,6 +43,14 @@ function criarServico(documentos) {
       return input;
     },
   };
+  const malwareScanner = {
+    required() {
+      return false;
+    },
+    async scanBuffer() {
+      return { clean: true };
+    },
+  };
 
   return {
     service: new VerificacaoService(
@@ -50,6 +58,7 @@ function criarServico(documentos) {
       documentosRepo,
       perfisRepo,
       notificacoesService,
+      malwareScanner,
     ),
     auditorias,
     notificacoes,
