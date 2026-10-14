@@ -4,6 +4,7 @@ import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../services/service_registry.dart';
+import '../../services/api_service.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
@@ -21,6 +22,10 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   final _formKey = GlobalKey<FormState>();
   final _descricaoController = TextEditingController();
   final _bairroController = TextEditingController();
+  final _cepController = TextEditingController();
+  final _cidadeController = TextEditingController();
+  final _ufController = TextEditingController();
+  final _raioController = TextEditingController(text: '15');
   final _precoController = TextEditingController();
   bool _empresa = false;
   bool _perfilSalvo = false;
@@ -29,6 +34,8 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   bool _editando = false;
   String? _erroPerfil;
   List<Map<String, dynamic>> _ofertasAtuais = [];
+  bool _consultandoCep = false;
+  String? _ultimoCepConsultado;
 
   @override
   void initState() {
@@ -51,6 +58,10 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
           _editando = true;
           _descricaoController.text = '${perfil['descricao'] ?? ''}';
           _bairroController.text = '${perfil['bairro'] ?? ''}';
+          _cepController.text = '${perfil['cep'] ?? ''}';
+          _cidadeController.text = '${perfil['cidade'] ?? ''}';
+          _ufController.text = '${perfil['uf'] ?? ''}';
+          _raioController.text = '${perfil['raioAtendimentoKm'] ?? 15}';
           _precoController.text = '${perfil['precoInicial'] ?? ''}'.replaceAll(
             '.',
             ',',
@@ -69,6 +80,10 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   void dispose() {
     _descricaoController.dispose();
     _bairroController.dispose();
+    _cepController.dispose();
+    _cidadeController.dispose();
+    _ufController.dispose();
+    _raioController.dispose();
     _precoController.dispose();
     super.dispose();
   }
@@ -76,6 +91,21 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   Future<void> _continuar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_salvando) return;
+    final cep = _cepController.text.replaceAll(RegExp(r'\D'), '');
+    final uf = _ufController.text.trim();
+    final raio = int.tryParse(_raioController.text.trim());
+    if ((cep.isNotEmpty && cep.length != 8) ||
+        (uf.isNotEmpty && uf.length != 2) ||
+        raio == null ||
+        raio < 1 ||
+        raio > 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Confira o CEP, a UF e o raio de atendimento.'),
+        ),
+      );
+      return;
+    }
     final precoInicial = parsePrecoInicial(_precoController.text);
     if (_precoController.text.trim().isNotEmpty && precoInicial == null) return;
 
@@ -88,6 +118,16 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
         await profissionais.salvarMeuPerfil({
           'descricao': _descricaoController.text.trim(),
           'bairro': _bairroController.text.trim(),
+          'cep': _cepController.text.trim().isEmpty
+              ? null
+              : _cepController.text.trim(),
+          'cidade': _cidadeController.text.trim().isEmpty
+              ? null
+              : _cidadeController.text.trim(),
+          'uf': _ufController.text.trim().isEmpty
+              ? null
+              : _ufController.text.trim().toUpperCase(),
+          'raioAtendimentoKm': raio,
           'precoInicial': precoInicial,
           'servicos': _ofertasAtuais,
         });
@@ -113,6 +153,36 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
       );
     } finally {
       if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  Future<void> _consultarCep([String? valor]) async {
+    final cep = (valor ?? _cepController.text).replaceAll(RegExp(r'\D'), '');
+    if (cep.length != 8 || _consultandoCep || cep == _ultimoCepConsultado) {
+      return;
+    }
+    setState(() => _consultandoCep = true);
+    try {
+      final endereco = await AppServices.instance.localizacao.consultarCep(cep);
+      if (!mounted) return;
+      _ultimoCepConsultado = cep;
+      _cepController.text = '${endereco['cep'] ?? cep}';
+      _bairroController.text = '${endereco['bairro'] ?? ''}';
+      _cidadeController.text = '${endereco['cidade'] ?? ''}';
+      _ufController.text = '${endereco['uf'] ?? ''}';
+      FocusScope.of(context).unfocus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Região de atendimento preenchida pelo CEP.'),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _consultandoCep = false);
     }
   }
 
@@ -187,11 +257,17 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                     formKey: _formKey,
                     descricaoController: _descricaoController,
                     bairroController: _bairroController,
+                    cepController: _cepController,
+                    cidadeController: _cidadeController,
+                    ufController: _ufController,
+                    raioController: _raioController,
                     precoController: _precoController,
                     empresa: _empresa,
                     editando: _editando,
                     perfilSalvo: _perfilSalvo,
                     salvando: _salvando,
+                    consultandoCep: _consultandoCep,
+                    onConsultarCep: _consultarCep,
                     onContinuar: () => _continuar(),
                   ),
                   const SizedBox(height: AppSpace.lg),
@@ -208,22 +284,34 @@ class _FormularioProfissional extends StatelessWidget {
     required this.formKey,
     required this.descricaoController,
     required this.bairroController,
+    required this.cepController,
+    required this.cidadeController,
+    required this.ufController,
+    required this.raioController,
     required this.precoController,
     required this.empresa,
     required this.editando,
     required this.perfilSalvo,
     required this.salvando,
+    required this.consultandoCep,
+    required this.onConsultarCep,
     required this.onContinuar,
   });
 
   final GlobalKey<FormState> formKey;
   final TextEditingController descricaoController;
   final TextEditingController bairroController;
+  final TextEditingController cepController;
+  final TextEditingController cidadeController;
+  final TextEditingController ufController;
+  final TextEditingController raioController;
   final TextEditingController precoController;
   final bool empresa;
   final bool editando;
   final bool perfilSalvo;
   final bool salvando;
+  final bool consultandoCep;
+  final ValueChanged<String?> onConsultarCep;
   final VoidCallback onContinuar;
 
   @override
@@ -261,6 +349,36 @@ class _FormularioProfissional extends StatelessWidget {
                     : null,
               ),
               const SizedBox(height: AppSpace.md),
+              TextField(
+                controller: cepController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  labelText: 'CEP da região de atendimento',
+                  hintText: '00000-000',
+                  helperText: 'O endereço exato não será exibido publicamente.',
+                  suffixIcon: consultandoCep
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Buscar CEP',
+                          onPressed: () => onConsultarCep(cepController.text),
+                          icon: const Icon(Icons.search_rounded),
+                        ),
+                ),
+                onChanged: (value) {
+                  if (value.replaceAll(RegExp(r'\D'), '').length == 8) {
+                    onConsultarCep(value);
+                  }
+                },
+                onSubmitted: onConsultarCep,
+              ),
+              const SizedBox(height: AppSpace.md),
               TextFormField(
                 controller: bairroController,
                 decoration: const InputDecoration(
@@ -270,6 +388,36 @@ class _FormularioProfissional extends StatelessWidget {
                 validator: (v) => (v ?? '').trim().length < 2
                     ? 'Informe o bairro ou região.'
                     : null,
+              ),
+              const SizedBox(height: AppSpace.md),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: cidadeController,
+                      decoration: const InputDecoration(labelText: 'Cidade'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(
+                    child: TextField(
+                      controller: ufController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(labelText: 'UF'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.md),
+              TextField(
+                controller: raioController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Raio de atendimento',
+                  suffixText: 'km',
+                  helperText: 'De 1 a 200 km a partir da região informada.',
+                ),
               ),
               const SizedBox(height: AppSpace.md),
               TextFormField(

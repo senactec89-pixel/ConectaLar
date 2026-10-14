@@ -5,6 +5,12 @@ class Profissional {
     required this.nome,
     required this.descricao,
     required this.bairro,
+    this.cidade,
+    this.uf,
+    this.raioAtendimentoKm = 15,
+    this.latitudeAproximada,
+    this.longitudeAproximada,
+    this.distanciaKm,
     this.precoInicial,
     this.categoriaIds = const [],
     this.verificado = false,
@@ -21,6 +27,12 @@ class Profissional {
   final String nome;
   final String descricao;
   final String bairro;
+  final String? cidade;
+  final String? uf;
+  final int raioAtendimentoKm;
+  final double? latitudeAproximada;
+  final double? longitudeAproximada;
+  final double? distanciaKm;
   final double? precoInicial;
   final List<int> categoriaIds;
   final String? fotoAsset;

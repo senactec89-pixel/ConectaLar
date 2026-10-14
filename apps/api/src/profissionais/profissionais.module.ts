@@ -8,12 +8,14 @@ import { ProfissionalPerfilEntity } from '../database/entities/profissional-perf
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { LocalizacaoModule } from '../localizacao/localizacao.module.js';
 import { ProfissionaisController } from './profissionais.controller.js';
 import { ProfissionaisService } from './profissionais.service.js';
 
 @Module({
   imports: [
     AuthModule,
+    LocalizacaoModule,
     TypeOrmModule.forFeature([
       CategoriaEntity,
       AvaliacaoEntity,

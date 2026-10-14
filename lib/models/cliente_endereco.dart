@@ -8,6 +8,8 @@ class ClienteEndereco {
     required this.cidade,
     required this.uf,
     this.cep,
+    this.latitude,
+    this.longitude,
     this.complemento,
     this.principal = false,
   });
@@ -15,6 +17,8 @@ class ClienteEndereco {
   final int id;
   final String apelido;
   final String? cep;
+  final double? latitude;
+  final double? longitude;
   final String logradouro;
   final String numero;
   final String? complemento;

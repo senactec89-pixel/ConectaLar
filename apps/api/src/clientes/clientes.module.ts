@@ -6,12 +6,14 @@ import { ClientePerfilEntity } from '../database/entities/cliente-perfil.entity.
 import { FavoritoProfissionalEntity } from '../database/entities/favorito-profissional.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { LocalizacaoModule } from '../localizacao/localizacao.module.js';
 import { ClientesController } from './clientes.controller.js';
 import { ClientesService } from './clientes.service.js';
 
 @Module({
   imports: [
     AuthModule,
+    LocalizacaoModule,
     TypeOrmModule.forFeature([
       ClienteEnderecoEntity,
       ClientePerfilEntity,

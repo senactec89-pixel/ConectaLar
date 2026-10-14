@@ -14,6 +14,7 @@ import { FavoritoProfissionalEntity } from '../database/entities/favorito-profis
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 
 @Injectable()
@@ -29,6 +30,7 @@ export class ClientesService {
     private readonly profissionais: Repository<ProfissionalPerfilEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    private readonly localizacao: LocalizacaoService,
   ) {}
 
   async meuPerfil(user: AuthenticatedUser) {
@@ -103,6 +105,7 @@ export class ClientesService {
   async criarEndereco(user: AuthenticatedUser, body: unknown) {
     await this.assertClienteAtivo(user);
     const input = parseEndereco(body, true);
+    const geo = await this.localizacao.geocodificar(input);
     if (input.principal) {
       await this.limparPrincipal(user.id);
     }
@@ -111,6 +114,9 @@ export class ClientesService {
       this.enderecos.create({
         usuarioId: user.id,
         ...input,
+        latitude: decimalOuNulo(geo.latitude),
+        longitude: decimalOuNulo(geo.longitude),
+        precisaoGeografica: geo.precisao,
         ativo: true,
       }),
     );
@@ -131,6 +137,10 @@ export class ClientesService {
     }
 
     Object.assign(endereco, input);
+    const geo = await this.localizacao.geocodificar(endereco);
+    endereco.latitude = decimalOuNulo(geo.latitude);
+    endereco.longitude = decimalOuNulo(geo.longitude);
+    endereco.precisaoGeografica = geo.precisao;
     const saved = await this.enderecos.save(endereco);
     return { endereco: enderecoResponse(saved) };
   }
@@ -292,6 +302,8 @@ function enderecoResponse(endereco: ClienteEnderecoEntity) {
     bairro: endereco.bairro,
     cidade: endereco.cidade,
     uf: endereco.uf,
+    latitude: numeroOuNulo(endereco.latitude),
+    longitude: numeroOuNulo(endereco.longitude),
     principal: endereco.principal,
   };
 }
@@ -381,6 +393,14 @@ function parseEndereco(body: unknown, requireAll: boolean) {
   }
 
   return endereco;
+}
+
+function decimalOuNulo(value: number | null): string | null {
+  return value === null ? null : value.toFixed(7);
+}
+
+function numeroOuNulo(value: string | null): number | null {
+  return value === null ? null : Number(value);
 }
 
 function objectBody(body: unknown): Record<string, unknown> {

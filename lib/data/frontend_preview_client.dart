@@ -212,6 +212,21 @@ class FrontendPreviewClient extends http.BaseClient {
       final id = path.split('/').last;
       return {'profissional': _profissionalPorId(id)};
     }
+    if (RegExp(r'^/localizacao/cep/\d{8}$').hasMatch(path)) {
+      return {
+        'cep': path.split('/').last,
+        'logradouro': 'Rua de exemplo',
+        'complemento': null,
+        'bairro': 'Centro',
+        'cidade': 'Cidade de exemplo',
+        'uf': 'MG',
+        'regiao': 'Sudeste',
+        'ibge': '0000000',
+        'latitude': null,
+        'longitude': null,
+        'precisao': null,
+      };
+    }
     if (RegExp(r'^/solicitacoes/\d+/mensagens$').hasMatch(path)) {
       return {
         'mensagens': [

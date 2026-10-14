@@ -438,6 +438,36 @@ paths:
           $ref: '#/components/responses/OkResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /localizacao/cep/{cep}:
+    get:
+      summary: Consulta um CEP brasileiro e retorna endereco e coordenadas opcionais
+      parameters:
+        - in: path
+          name: cep
+          required: true
+          schema: {type: string, pattern: '^\\d{8}$'}
+      responses:
+        '200':
+          description: CEP localizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cep, logradouro, bairro, cidade, uf]
+                properties:
+                  cep: {type: string}
+                  logradouro: {type: string}
+                  complemento: {type: string, nullable: true}
+                  bairro: {type: string}
+                  cidade: {type: string}
+                  uf: {type: string}
+                  regiao: {type: string, nullable: true}
+                  ibge: {type: string, nullable: true}
+                  latitude: {type: number, nullable: true}
+                  longitude: {type: number, nullable: true}
+                  precisao: {type: string, nullable: true}
+        '400': {description: CEP invalido ou inexistente}
+        '502': {description: Consulta de CEP temporariamente indisponivel}
   /profissionais:
     get:
       operationId: getProfissionais

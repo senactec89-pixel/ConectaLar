@@ -31,6 +31,27 @@ export class ProfissionalPerfilEntity {
   @Column({ type: 'varchar', length: 120 })
   bairro!: string;
 
+  @Column({ type: 'varchar', length: 12, nullable: true })
+  cep!: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  cidade!: string | null;
+
+  @Column({ type: 'char', length: 2, nullable: true })
+  uf!: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  longitude!: string | null;
+
+  @Column({ name: 'precisao_geografica', type: 'varchar', length: 32, nullable: true })
+  precisaoGeografica!: string | null;
+
+  @Column({ name: 'raio_atendimento_km', type: 'smallint', unsigned: true, default: 15 })
+  raioAtendimentoKm!: number;
+
   @Column({
     name: 'preco_inicial',
     type: 'decimal',

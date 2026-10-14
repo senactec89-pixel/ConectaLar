@@ -18,6 +18,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
 | `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
+| `GOOGLE_MAPS_SERVER_API_KEY` | none | Optional restricted server key for geocoding; CEP lookup and regional fallback continue without it |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
@@ -32,6 +33,8 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
 The health check is `GET /health` and returns only `{ "status": "ok" }`. It does not report dependency, database, version, or environment details.
+
+`GET /localizacao/cep/{cep}` validates an eight-digit Brazilian CEP and fills address components through ViaCEP. When `GOOGLE_MAPS_SERVER_API_KEY` is configured, the API also geocodes the result. Restrict that key in Google Cloud to the VPS public IP and only the Geocoding API. Exact client coordinates and the professional's raw coordinates are not returned publicly; professional map coordinates are rounded and intended only for approximate regional display.
 
 The OpenAPI contract in `openapi.yaml` covers the routes currently implemented by the API, including client profiles and addresses, professional availability and agenda, service requests, chat, reviews, reports, notifications, document moderation, administrative users, history, terms, and audit. It describes the current HTTP contract; it does not claim that every route has passed an integration or production test. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 

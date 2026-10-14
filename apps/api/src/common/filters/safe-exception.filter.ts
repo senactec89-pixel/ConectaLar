@@ -56,6 +56,14 @@ const publicErrors: Readonly<Record<string, string>> = {
     'O conteúdo do arquivo não corresponde ao tipo informado.',
   AMEACA_DOCUMENTO_DETECTADA:
     'O arquivo foi bloqueado pela verificação de segurança.',
+  CEP_INVALIDO: 'Informe um CEP com 8 numeros.',
+  CEP_NAO_ENCONTRADO: 'CEP nao encontrado.',
+  SERVICO_CEP_INDISPONIVEL:
+    'A consulta de CEP esta indisponivel. Tente novamente.',
+  UF_INVALIDA: 'Informe uma UF valida.',
+  RAIO_ATENDIMENTO_INVALIDO:
+    'Escolha um raio de atendimento entre 1 e 200 km.',
+  COORDENADA_INVALIDA: 'Nao foi possivel identificar esta localizacao.',
   VARREDURA_DOCUMENTO_OBRIGATORIA:
     'A verificação de segurança de documentos não está disponível agora.',
 };

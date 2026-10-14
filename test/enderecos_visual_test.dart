@@ -53,4 +53,27 @@ void main() {
       }
     },
   );
+
+  testWidgets('CEP preenche rua, bairro, cidade e UF automaticamente', (
+    tester,
+  ) async {
+    await configurarFrontend();
+    await abrirFrontend(tester, AppRoutes.enderecos);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Editar'));
+    await tester.pumpAndSettle();
+
+    final cep = find.widgetWithText(TextFormField, 'CEP');
+    await tester.enterText(cep, '01001000');
+    await tester.pumpAndSettle();
+
+    String valor(String label) => tester
+        .widget<TextFormField>(find.widgetWithText(TextFormField, label))
+        .controller!
+        .text;
+    expect(valor('Logradouro'), 'Rua de exemplo');
+    expect(valor('Bairro'), 'Centro');
+    expect(valor('Cidade'), 'Cidade de exemplo');
+    expect(valor('UF'), 'MG');
+    expect(tester.takeException(), isNull);
+  });
 }

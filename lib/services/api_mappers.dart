@@ -57,6 +57,14 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
     nome: stringValue(json['nome']),
     descricao: stringValue(json['descricao']),
     bairro: stringValue(json['bairro']),
+    cidade: nullableString(json['cidade']),
+    uf: nullableString(json['uf']),
+    raioAtendimentoKm: json['raioAtendimentoKm'] == null
+        ? 15
+        : intValue(json['raioAtendimentoKm']),
+    latitudeAproximada: doubleValueOrNull(json['latitudeAproximada']),
+    longitudeAproximada: doubleValueOrNull(json['longitudeAproximada']),
+    distanciaKm: doubleValueOrNull(json['distanciaKm']),
     precoInicial: doubleValueOrNull(json['precoInicial']),
     categoriaIds: categoriaIds,
     verificado: boolValue(json['verificado']),
@@ -161,6 +169,8 @@ ClienteEndereco clienteEnderecoFromApi(Map<String, dynamic> json) {
     id: intValue(json['id']),
     apelido: stringValue(json['apelido']),
     cep: nullableString(json['cep']),
+    latitude: doubleValueOrNull(json['latitude']),
+    longitude: doubleValueOrNull(json['longitude']),
     logradouro: stringValue(json['logradouro']),
     numero: stringValue(json['numero']),
     complemento: nullableString(json['complemento']),

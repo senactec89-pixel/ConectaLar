@@ -17,6 +17,7 @@ import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 
 interface ProfissionalServicoInput {
@@ -29,6 +30,10 @@ interface ProfissionalServicoInput {
 interface UpsertPerfilInput {
   readonly descricao: string;
   readonly bairro: string;
+  readonly cep: string | null;
+  readonly cidade: string | null;
+  readonly uf: string | null;
+  readonly raioAtendimentoKm: number;
   readonly precoInicial?: number | null;
   readonly servicos: readonly ProfissionalServicoInput[];
 }
@@ -37,6 +42,8 @@ interface ProfissionaisFiltros {
   readonly termo: string | null;
   readonly bairro: string | null;
   readonly categoriaId: number | null;
+  readonly cidade: string | null;
+  readonly uf: string | null;
 }
 
 @Injectable()
@@ -56,12 +63,18 @@ export class ProfissionaisService {
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    private readonly localizacao: LocalizacaoService,
   ) {}
 
   async listar(query: Record<string, unknown>) {
     const termo = optionalText(query.termo, 80);
     const bairro = optionalText(query.bairro, 80);
     const categoriaId = optionalId(query.categoriaId);
+    const cidade = optionalText(query.cidade, 120);
+    const uf = optionalText(query.uf, 2)?.toUpperCase() ?? null;
+    const latitude = optionalCoordinate(query.latitude, -90, 90);
+    const longitude = optionalCoordinate(query.longitude, -180, 180);
+    const raioKm = optionalRadius(query.raioKm);
 
     const builder = this.perfis
       .createQueryBuilder('perfil')
@@ -82,16 +95,36 @@ export class ProfissionaisService {
       .addOrderBy('usuario.nome', 'ASC');
 
     const perfis = await builder.getMany();
-    const filtrados = perfis.filter((perfil) =>
-      correspondeFiltros(perfil, { termo, bairro, categoriaId }),
-    );
+    const filtrados = perfis
+      .map((perfil) => ({
+        perfil,
+        distanciaKm:
+          latitude === null || longitude === null
+            ? null
+            : distanciaDoPerfil(perfil, latitude, longitude),
+      }))
+      .filter(({ perfil, distanciaKm }) =>
+        correspondeFiltros(
+          perfil,
+          { termo, bairro, categoriaId, cidade, uf },
+          distanciaKm,
+          raioKm,
+        ),
+      )
+      .sort((a, b) => {
+        if (a.distanciaKm === null) return b.distanciaKm === null ? 0 : 1;
+        if (b.distanciaKm === null) return -1;
+        return a.distanciaKm - b.distanciaKm;
+      });
     const resumos = await this.resumosAvaliacoes(
-      filtrados.map((p) => p.usuarioId),
+      filtrados.map(({ perfil }) => perfil.usuarioId),
     );
     return {
-      profissionais: filtrados.map((p) => ({
-        ...perfilPublico(p),
-        ...resumos.get(p.usuarioId),
+      profissionais: filtrados.map(({ perfil, distanciaKm }) => ({
+        ...perfilPublico(perfil),
+        ...resumos.get(perfil.usuarioId),
+        distanciaKm:
+          distanciaKm === null ? null : Math.round(distanciaKm * 10) / 10,
       })),
     };
   }
@@ -123,8 +156,12 @@ export class ProfissionaisService {
       relations: { usuario: true, servicos: { categoria: true } },
     });
 
+    if (perfil === null) return { profissional: null };
     return {
-      profissional: perfil === null ? null : await this.comResumo(perfil),
+      profissional: {
+        ...(await this.comResumo(perfil)),
+        cep: perfil.cep,
+      },
     };
   }
 
@@ -132,6 +169,7 @@ export class ProfissionaisService {
     const input = parseUpsertPerfil(body);
     await this.carregarUsuarioProfissional(user);
     await this.validarCategorias(input.servicos);
+    const geo = await this.localizacao.geocodificar(input);
 
     const saved = await this.perfis.manager.transaction(async (manager) => {
       const perfil =
@@ -145,6 +183,13 @@ export class ProfissionaisService {
         });
       perfil.descricao = input.descricao;
       perfil.bairro = input.bairro;
+      perfil.cep = input.cep;
+      perfil.cidade = input.cidade;
+      perfil.uf = input.uf;
+      perfil.latitude = decimalOrNull(geo.latitude);
+      perfil.longitude = decimalOrNull(geo.longitude);
+      perfil.precisaoGeografica = geo.precisao;
+      perfil.raioAtendimentoKm = input.raioAtendimentoKm;
       perfil.precoInicial = decimalOrNull(input.precoInicial);
       perfil.ativo = true;
       const saved = await manager.save(ProfissionalPerfilEntity, perfil);
@@ -566,6 +611,11 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     fotoPerfilUrl: fotoPerfilUrl(perfil.usuario),
     descricao: perfil.descricao,
     bairro: perfil.bairro,
+    cidade: perfil.cidade,
+    uf: perfil.uf,
+    raioAtendimentoKm: perfil.raioAtendimentoKm,
+    latitudeAproximada: coordenadaAproximada(perfil.latitude),
+    longitudeAproximada: coordenadaAproximada(perfil.longitude),
     precoInicial: numberOrNull(perfil.precoInicial),
     verificado: perfil.verificado,
     servicos,
@@ -592,9 +642,27 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
 function correspondeFiltros(
   perfil: ProfissionalPerfilEntity,
   filtros: ProfissionaisFiltros,
+  distanciaKm: number | null,
+  raioKm: number | null,
 ): boolean {
   const bairro = normalizar(filtros.bairro);
-  if (bairro !== null && !normalizar(perfil.bairro)?.includes(bairro)) {
+  const cidade = normalizar(filtros.cidade);
+  if (distanciaKm === null && (bairro !== null || cidade !== null || filtros.uf !== null)) {
+    const correspondeBairro =
+      bairro !== null && normalizar(perfil.bairro)?.includes(bairro) === true;
+    const correspondeCidade =
+      cidade !== null &&
+      normalizar(perfil.cidade)?.includes(cidade) === true &&
+      (filtros.uf === null || perfil.uf?.toUpperCase() === filtros.uf);
+    const correspondeUf =
+      cidade === null &&
+      filtros.uf !== null &&
+      perfil.uf?.toUpperCase() === filtros.uf;
+    if (!correspondeBairro && !correspondeCidade && !correspondeUf) {
+      return false;
+    }
+  }
+  if (raioKm !== null && distanciaKm !== null && distanciaKm > raioKm) {
     return false;
   }
 
@@ -638,8 +706,85 @@ function parseUpsertPerfil(body: unknown): UpsertPerfilInput {
   const bairro = textField(value, 'bairro', 2, 120);
   const precoInicial = optionalMoney(value.precoInicial);
   const servicos = parseServicos(value.servicos);
+  const cep = optionalCep(value.cep);
+  const cidade = optionalText(value.cidade, 120);
+  const uf = optionalUf(value.uf);
+  const raioAtendimentoKm = requiredRadius(value.raioAtendimentoKm);
 
-  return { descricao, bairro, precoInicial, servicos };
+  return {
+    descricao,
+    bairro,
+    cep,
+    cidade,
+    uf,
+    raioAtendimentoKm,
+    precoInicial,
+    servicos,
+  };
+}
+
+function optionalCep(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') throw badRequest('CEP_INVALIDO');
+  const cep = value.replace(/\D/g, '');
+  if (!/^\d{8}$/.test(cep)) throw badRequest('CEP_INVALIDO');
+  return cep;
+}
+
+function optionalUf(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^[A-Za-z]{2}$/.test(value.trim())) {
+    throw badRequest('UF_INVALIDA');
+  }
+  return value.trim().toUpperCase();
+}
+
+function requiredRadius(value: unknown): number {
+  if (value === undefined || value === null || value === '') return 15;
+  const numero = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isInteger(numero) || Number(numero) < 1 || Number(numero) > 200) {
+    throw badRequest('RAIO_ATENDIMENTO_INVALIDO');
+  }
+  return Number(numero);
+}
+
+function optionalRadius(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  return requiredRadius(value);
+}
+
+function optionalCoordinate(
+  value: unknown,
+  minimo: number,
+  maximo: number,
+): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const numero = typeof value === 'string' ? Number(value) : value;
+  if (typeof numero !== 'number' || !Number.isFinite(numero) || numero < minimo || numero > maximo) {
+    throw badRequest('COORDENADA_INVALIDA');
+  }
+  return numero;
+}
+
+function distanciaDoPerfil(
+  perfil: ProfissionalPerfilEntity,
+  latitude: number,
+  longitude: number,
+): number | null {
+  if (perfil.latitude === null || perfil.longitude === null) return null;
+  const lat2 = Number(perfil.latitude);
+  const lon2 = Number(perfil.longitude);
+  const rad = (graus: number) => (graus * Math.PI) / 180;
+  const dLat = rad(lat2 - latitude);
+  const dLon = rad(lon2 - longitude);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(latitude)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 6_371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function coordenadaAproximada(value: string | null): number | null {
+  return value === null ? null : Math.round(Number(value) * 100) / 100;
 }
 
 function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {

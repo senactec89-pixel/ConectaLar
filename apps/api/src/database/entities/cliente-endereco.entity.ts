@@ -47,6 +47,15 @@ export class ClienteEnderecoEntity {
   @Column({ type: 'char', length: 2 })
   uf!: string;
 
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  latitude!: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  longitude!: string | null;
+
+  @Column({ name: 'precisao_geografica', type: 'varchar', length: 32, nullable: true })
+  precisaoGeografica!: string | null;
+
   @Column({ type: 'boolean', default: false })
   principal!: boolean;
 

@@ -13,10 +13,20 @@ class ProfissionalService {
     String? termo,
     String? categoriaId,
     String? bairro,
+    String? cidade,
+    String? uf,
+    double? latitude,
+    double? longitude,
+    int? raioKm,
   }) {
     final filtros = <String, String>{
       if (termo != null && termo.isNotEmpty) 'termo': termo,
       if (bairro != null && bairro.isNotEmpty) 'bairro': bairro,
+      if (cidade != null && cidade.isNotEmpty) 'cidade': cidade,
+      if (uf != null && uf.isNotEmpty) 'uf': uf,
+      if (latitude != null) 'latitude': '$latitude',
+      if (longitude != null) 'longitude': '$longitude',
+      if (raioKm != null) 'raioKm': '$raioKm',
       if (categoriaId != null && categoriaId.isNotEmpty)
         'categoriaId': categoriaId,
     };

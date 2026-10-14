@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme.dart';
 import '../../models/cliente_endereco.dart';
 import '../../services/api_mappers.dart';
+import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -255,6 +256,39 @@ class _EnderecoFormState extends State<_EnderecoForm> {
   late final _uf = TextEditingController(text: widget.endereco?.uf ?? 'MG');
   late bool _principal = widget.endereco?.principal ?? true;
   bool _salvando = false;
+  bool _consultandoCep = false;
+  String? _ultimoCepConsultado;
+
+  Future<void> _consultarCep([String? valor]) async {
+    final cep = (valor ?? _cep.text).replaceAll(RegExp(r'\D'), '');
+    if (cep.length != 8 || _consultandoCep || cep == _ultimoCepConsultado) {
+      return;
+    }
+    setState(() => _consultandoCep = true);
+    try {
+      final endereco = await AppServices.instance.localizacao.consultarCep(cep);
+      if (!mounted) return;
+      _ultimoCepConsultado = cep;
+      _cep.text = '${endereco['cep'] ?? cep}';
+      _logradouro.text = '${endereco['logradouro'] ?? ''}';
+      _bairro.text = '${endereco['bairro'] ?? ''}';
+      _cidade.text = '${endereco['cidade'] ?? ''}';
+      _uf.text = '${endereco['uf'] ?? ''}';
+      FocusScope.of(context).unfocus();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Endereço preenchido pelo CEP. Confira o número.'),
+        ),
+      );
+    } on ApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _consultandoCep = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -333,8 +367,31 @@ class _EnderecoFormState extends State<_EnderecoForm> {
               const SizedBox(height: 10),
               TextFormField(
                 controller: _cep,
-                decoration: const InputDecoration(labelText: 'CEP'),
+                decoration: InputDecoration(
+                  labelText: 'CEP',
+                  hintText: '00000-000',
+                  suffixIcon: _consultandoCep
+                      ? const Padding(
+                          padding: EdgeInsets.all(14),
+                          child: SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : IconButton(
+                          tooltip: 'Buscar CEP',
+                          onPressed: _consultarCep,
+                          icon: const Icon(Icons.search_rounded),
+                        ),
+                ),
                 keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) {
+                  if (value.replaceAll(RegExp(r'\D'), '').length == 8) {
+                    _consultarCep(value);
+                  }
+                },
+                onFieldSubmitted: _consultarCep,
                 validator: validarCepOpcional,
               ),
               const SizedBox(height: 10),

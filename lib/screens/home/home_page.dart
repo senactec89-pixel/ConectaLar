@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 
 import '../../app/routes.dart';
@@ -10,6 +12,7 @@ import '../../models/categoria.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
+import '../../utils/constants.dart';
 import '../../widgets/bottom_navigation.dart';
 import 'home_mock_data.dart';
 
@@ -136,15 +139,7 @@ class _HomeContentView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.md,
-                      vertical: AppSpace.lg,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(AppRadii.panel),
-                      border: Border.all(color: AppColors.borda),
-                    ),
+                    padding: EdgeInsets.zero,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -179,7 +174,7 @@ class _HomeContentView extends StatelessWidget {
                                   ? 160.0
                                   : tamanhoTexto > 13.2
                                   ? 92.0
-                                  : 64.0;
+                                  : 68.0;
                               final colunas =
                                   ((constraints.maxWidth + espacoHorizontal) /
                                           (larguraMinima + espacoHorizontal))
@@ -198,8 +193,8 @@ class _HomeContentView extends StatelessWidget {
                                       mainAxisExtent: textoAmpliado
                                           ? 190
                                           : tamanhoTexto > 13.2
-                                          ? 164
-                                          : 148,
+                                          ? 158
+                                          : 128,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = content.categories[index];
@@ -274,6 +269,15 @@ class _HomeContentView extends StatelessWidget {
                         );
                       },
                     ),
+                  if (!content.professionalsLoadFailed &&
+                      content.featuredProfessionals.isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    _NearbyProfessionals(
+                      professionals: content.featuredProfessionals,
+                      onSeeAll: onSearchTap,
+                      onProfessionalTap: onProfessionalTap,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -358,6 +362,139 @@ class _CategoryStyle {
   final IconData icon;
   final Color background;
   final Color foreground;
+}
+
+class _NearbyProfessionals extends StatelessWidget {
+  const _NearbyProfessionals({
+    required this.professionals,
+    required this.onSeeAll,
+    required this.onProfessionalTap,
+  });
+
+  final List<Profissional> professionals;
+  final VoidCallback onSeeAll;
+  final ValueChanged<Profissional> onProfessionalTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final located = professionals
+        .where(
+          (professional) =>
+              professional.latitudeAproximada != null &&
+              professional.longitudeAproximada != null,
+        )
+        .toList(growable: false);
+    final supportedPlatform =
+        !kIsWeb &&
+        {
+          TargetPlatform.android,
+          TargetPlatform.iOS,
+        }.contains(defaultTargetPlatform);
+    final showMap =
+        AppConstants.googleMapsEnabled &&
+        supportedPlatform &&
+        located.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeading(
+          title: 'Perto de vocÃª',
+          action: 'Ver todos',
+          onActionTap: onSeeAll,
+        ),
+        const SizedBox(height: AppSpace.sm),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          child: SizedBox(
+            height: 176,
+            child: showMap
+                ? GoogleMap(
+                    initialCameraPosition: CameraPosition(
+                      target: _mapCenter(located),
+                      zoom: 11,
+                    ),
+                    markers: {
+                      for (final professional in located)
+                        Marker(
+                          markerId: MarkerId('profissional-${professional.id}'),
+                          position: LatLng(
+                            professional.latitudeAproximada!,
+                            professional.longitudeAproximada!,
+                          ),
+                          infoWindow: InfoWindow(
+                            title: professional.nome,
+                            snippet: professional.bairro,
+                            onTap: () => onProfessionalTap(professional),
+                          ),
+                        ),
+                    },
+                    mapToolbarEnabled: false,
+                    myLocationButtonEnabled: false,
+                    zoomControlsEnabled: false,
+                    compassEnabled: false,
+                  )
+                : _MapFallback(onTap: onSeeAll),
+          ),
+        ),
+      ],
+    );
+  }
+
+  LatLng _mapCenter(List<Profissional> professionals) {
+    final latitude =
+        professionals
+            .map((item) => item.latitudeAproximada!)
+            .reduce((a, b) => a + b) /
+        professionals.length;
+    final longitude =
+        professionals
+            .map((item) => item.longitudeAproximada!)
+            .reduce((a, b) => a + b) /
+        professionals.length;
+    return LatLng(latitude, longitude);
+  }
+}
+
+class _MapFallback extends StatelessWidget {
+  const _MapFallback({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFE8F2ED),
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          children: [
+            const Positioned(
+              left: 28,
+              top: 32,
+              child: Icon(Icons.location_on, color: AppColors.verde, size: 34),
+            ),
+            const Positioned(
+              right: 52,
+              bottom: 30,
+              child: Icon(
+                Icons.location_on,
+                color: Color(0xFF1687C9),
+                size: 30,
+              ),
+            ),
+            Center(
+              child: FilledButton.icon(
+                onPressed: onTap,
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Ver profissionais da regiÃ£o'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _HomeHero extends StatelessWidget {
@@ -749,7 +886,7 @@ class _CategoryTile extends StatelessWidget {
       button: true,
       label: category.nome,
       child: Material(
-        color: Colors.white,
+        color: background,
         borderRadius: BorderRadius.circular(AppRadii.card),
         child: InkWell(
           onTap: onTap,
@@ -757,21 +894,13 @@ class _CategoryTile extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             decoration: BoxDecoration(
+              color: background,
               borderRadius: BorderRadius.circular(AppRadii.card),
-              border: Border.all(color: AppColors.borda),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: background,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, color: color, size: 25),
-                ),
+                Icon(icon, color: color, size: 30),
                 const SizedBox(height: 8),
                 Text(
                   category.nome,
@@ -1012,7 +1141,9 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                         const SizedBox(width: 3),
                         Expanded(
                           child: Text(
-                            professional.bairro,
+                            professional.distanciaKm == null
+                                ? professional.bairro
+                                : '${professional.bairro} · ${professional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(

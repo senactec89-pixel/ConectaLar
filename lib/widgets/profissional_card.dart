@@ -144,7 +144,9 @@ class _InformacoesProfissional extends StatelessWidget {
             const SizedBox(width: AppSpace.xs),
             Expanded(
               child: Text(
-                profissional.bairro,
+                profissional.distanciaKm == null
+                    ? profissional.bairro
+                    : '${profissional.bairro} · ${profissional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
                 maxLines: textoAmpliado ? null : 1,
                 overflow: textoAmpliado
                     ? TextOverflow.clip

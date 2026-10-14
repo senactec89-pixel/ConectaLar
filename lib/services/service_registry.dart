@@ -11,6 +11,7 @@ import 'cliente_service.dart';
 import 'denuncia_service.dart';
 import 'historico_service.dart';
 import 'mensagem_service.dart';
+import 'localizacao_service.dart';
 import 'notificacao_service.dart';
 import 'profissional_service.dart';
 import 'servico_service.dart';
@@ -41,6 +42,7 @@ class AppServices {
     termos = TermosService(this.api);
     notificacoes = NotificacaoService(this.api);
     mensagens = MensagemService(this.api);
+    localizacao = LocalizacaoService(this.api);
     denuncias = DenunciaService(this.api);
     verificacao = VerificacaoService(this.api);
   }
@@ -60,6 +62,7 @@ class AppServices {
   late TermosService termos;
   late NotificacaoService notificacoes;
   late MensagemService mensagens;
+  late LocalizacaoService localizacao;
   late DenunciaService denuncias;
   late VerificacaoService verificacao;
 
@@ -85,9 +88,39 @@ class AppServices {
       }
     }
 
+    Future<Map<String, dynamic>> listarProfissionaisDaRegiao() async {
+      if (auth.usuarioAtual?['tipo'] != 'cliente') {
+        return await profissionais.listar();
+      }
+      try {
+        final response = await clientes.listarEnderecos();
+        final enderecos = response['enderecos'];
+        if (enderecos is! List || enderecos.isEmpty) {
+          return await profissionais.listar();
+        }
+        final maps = enderecos.whereType<Map<String, dynamic>>().toList();
+        final principal = maps.firstWhere(
+          (endereco) => endereco['principal'] == true,
+          orElse: () => maps.first,
+        );
+        final latitude = doubleValueOrNull(principal['latitude']);
+        final longitude = doubleValueOrNull(principal['longitude']);
+        return await profissionais.buscar(
+          bairro: principal['bairro']?.toString(),
+          cidade: principal['cidade']?.toString(),
+          uf: principal['uf']?.toString(),
+          latitude: latitude,
+          longitude: longitude,
+          raioKm: 50,
+        );
+      } catch (_) {
+        return await profissionais.listar();
+      }
+    }
+
     final responses = await Future.wait<Map<String, dynamic>?>([
       consultarSecao(categorias.listar, 'categorias'),
-      consultarSecao(profissionais.listar, 'profissionais'),
+      consultarSecao(listarProfissionaisDaRegiao, 'profissionais'),
     ]);
     final content = homeContentFromApi(
       categoriasResponse: responses[0] ?? const {'categorias': []},

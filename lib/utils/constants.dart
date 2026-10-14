@@ -7,6 +7,9 @@ abstract final class AppConstants {
     defaultValue: 'cliente',
   );
   static const _apiBaseUrl = String.fromEnvironment('CONECTALAR_API_BASE_URL');
+  static const googleMapsEnabled = bool.fromEnvironment(
+    'CONECTALAR_GOOGLE_MAPS_ENABLED',
+  );
   // Android: alias do computador no emulador. Desktop/web/iOS: loopback.
   // Em aparelho físico ou com outra porta, informe CONECTALAR_API_BASE_URL.
   static String get apiBaseUrl => _apiBaseUrl.isNotEmpty
