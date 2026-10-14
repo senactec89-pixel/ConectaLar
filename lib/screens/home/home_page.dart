@@ -399,7 +399,7 @@ class _NearbyProfessionals extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeading(
-          title: 'Perto de vocÃª',
+          title: 'Perto de você',
           action: 'Ver todos',
           onActionTap: onSeeAll,
         ),
@@ -487,7 +487,7 @@ class _MapFallback extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onTap,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('Ver profissionais da regiÃ£o'),
+                label: const Text('Ver profissionais da região'),
               ),
             ),
           ],

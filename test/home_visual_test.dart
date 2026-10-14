@@ -68,6 +68,8 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
+        expect(find.text('Perto de você'), findsOneWidget);
+        expect(find.text('Ver profissionais da região'), findsOneWidget);
         if (escala == 2) {
           final tituloCategorias = find.text(
             'Categorias de serviços',
