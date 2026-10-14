@@ -25,14 +25,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<HomeContent> _contentFuture;
 
-  static const _navigationRoutes = [
-    AppRoutes.home,
-    AppRoutes.busca,
-    AppRoutes.favoritos,
-    AppRoutes.meusServicos,
-    AppRoutes.perfil,
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -60,8 +52,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onDestinationSelected(int index) {
-    if (index == 0 || index >= _navigationRoutes.length) return;
-    _openRoute(_navigationRoutes[index]);
+    navigateToMainDestination(context, index);
   }
 
   @override

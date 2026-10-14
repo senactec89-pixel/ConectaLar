@@ -62,6 +62,20 @@ void navigateToMainDestination(BuildContext context, int index) {
   if (index < 0 || index >= routes.length) {
     return;
   }
-  if (ModalRoute.of(context)?.settings.name == routes[index]) return;
-  Navigator.pushNamed(context, routes[index]);
+  final target = routes[index];
+  if (ModalRoute.of(context)?.settings.name == target) return;
+
+  final navigator = Navigator.of(context);
+  String? rootName;
+  navigator.popUntil((route) {
+    if (!route.isFirst) return false;
+    rootName = route.settings.name;
+    return true;
+  });
+
+  if (rootName == AppRoutes.home) {
+    if (target != AppRoutes.home) navigator.pushNamed(target);
+  } else {
+    navigator.pushReplacementNamed(target);
+  }
 }
