@@ -164,12 +164,15 @@ class _HomeContentView extends StatelessWidget {
                         else
                           LayoutBuilder(
                             builder: (context, constraints) {
-                              final textoAmpliado =
-                                  MediaQuery.textScalerOf(context).scale(10) >
-                                  14;
+                              final tamanhoTexto = MediaQuery.textScalerOf(
+                                context,
+                              ).scale(12);
+                              final textoAmpliado = tamanhoTexto > 16.8;
                               final larguraMinima = textoAmpliado
                                   ? 160.0
-                                  : 140.0;
+                                  : tamanhoTexto > 13.2
+                                  ? 92.0
+                                  : 64.0;
                               final colunas =
                                   ((constraints.maxWidth + 10) /
                                           (larguraMinima + 10))
@@ -185,7 +188,11 @@ class _HomeContentView extends StatelessWidget {
                                       crossAxisCount: colunas,
                                       mainAxisSpacing: 12,
                                       crossAxisSpacing: 10,
-                                      mainAxisExtent: textoAmpliado ? 168 : 104,
+                                      mainAxisExtent: textoAmpliado
+                                          ? 168
+                                          : tamanhoTexto > 13.2
+                                          ? 124
+                                          : 104,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = content.categories[index];
