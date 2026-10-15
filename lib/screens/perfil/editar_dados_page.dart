@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../widgets/unsaved_form_guard.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/theme.dart';
@@ -19,6 +21,16 @@ class EditarDadosPage extends StatefulWidget {
 
 class _EditarDadosPageState extends State<EditarDadosPage> {
   final _formKey = GlobalKey<FormState>();
+  List<String> _valoresIniciais = [];
+  List<TextEditingController> get _campos => [
+    _nome,
+    _email,
+    _telefone,
+    _bairro,
+    _cidade,
+    _uf,
+    _observacoes,
+  ];
   final _nome = TextEditingController();
   final _email = TextEditingController();
   final _telefone = TextEditingController();
@@ -82,6 +94,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
       _cidade.text = _valor(dados['cidade']);
       _uf.text = _valor(dados['uf']);
       _observacoes.text = _valor(dados['observacoes']);
+      _valoresIniciais = _campos.map((c) => c.text).toList();
     } catch (_) {
       _erro = 'Não foi possível carregar seus dados. Tente novamente.';
     } finally {
@@ -126,6 +139,15 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedFormGuard(
+      controllers: _campos,
+      initialValues: _valoresIniciais,
+      busy: _salvando,
+      child: _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     return Scaffold(
       appBar: const AppBarCustom(title: 'Meus dados'),
       backgroundColor: AppColors.fundo,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../widgets/unsaved_form_guard.dart';
+
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
@@ -20,6 +22,16 @@ class CadastroProfissionalPage extends StatefulWidget {
 
 class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   final _formKey = GlobalKey<FormState>();
+  List<String> _valoresIniciais = [];
+  List<TextEditingController> get _campos => [
+    _descricaoController,
+    _bairroController,
+    _cepController,
+    _cidadeController,
+    _ufController,
+    _raioController,
+    _precoController,
+  ];
   final _descricaoController = TextEditingController();
   final _bairroController = TextEditingController();
   final _cepController = TextEditingController();
@@ -69,6 +81,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
           _ofertasAtuais = _servicosExistentes(perfil);
         }
       }
+      _valoresIniciais = _campos.map((c) => c.text).toList();
     } catch (_) {
       _erroPerfil = 'Não foi possível carregar seus dados profissionais.';
     } finally {
@@ -211,6 +224,15 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
 
   @override
   Widget build(BuildContext context) {
+    return UnsavedFormGuard(
+      controllers: _campos,
+      initialValues: _valoresIniciais,
+      busy: _salvando,
+      child: _scaffold(context),
+    );
+  }
+
+  Widget _scaffold(BuildContext context) {
     final store = ConectaLarMockStore.instance;
     return Scaffold(
       appBar: AppBarCustom(
