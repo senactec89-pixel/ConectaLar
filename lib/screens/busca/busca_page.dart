@@ -316,6 +316,11 @@ class _BuscaPageState extends State<BuscaPage> {
                         termoController: _termoController,
                         bairroController: _bairroController,
                         cidadeController: _cidadeController,
+                        localizacaoExpandida: _memoria.localizacaoExpandida,
+                        onAlternarLocalizacao: () => setState(
+                          () => _memoria.localizacaoExpandida =
+                              !_memoria.localizacaoExpandida,
+                        ),
                         categorias: _categorias,
                         categoriaSelecionada: _categoriaSelecionada,
                         onTextoAlterado: _filtrosAlterados,
@@ -387,6 +392,8 @@ class _FiltrosBusca extends StatelessWidget {
     required this.termoController,
     required this.bairroController,
     required this.cidadeController,
+    required this.localizacaoExpandida,
+    required this.onAlternarLocalizacao,
     required this.categorias,
     required this.categoriaSelecionada,
     required this.onTextoAlterado,
@@ -400,6 +407,8 @@ class _FiltrosBusca extends StatelessWidget {
   final TextEditingController termoController;
   final TextEditingController bairroController;
   final TextEditingController cidadeController;
+  final bool localizacaoExpandida;
+  final VoidCallback onAlternarLocalizacao;
   final List<Categoria> categorias;
   final Categoria? categoriaSelecionada;
   final ValueChanged<String> onTextoAlterado;
@@ -425,30 +434,64 @@ class _FiltrosBusca extends StatelessWidget {
             hintText: 'Ex.: elétrica, limpeza, Carlos',
           ),
         ),
-        const SizedBox(height: AppSpace.md),
-        TextField(
-          key: const ValueKey('busca-bairro'),
-          controller: bairroController,
-          onChanged: onTextoAlterado,
-          textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.location_on_outlined),
-            labelText: 'Bairro',
-            hintText: 'Ex.: Vila Nova',
+        const SizedBox(height: AppSpace.sm),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            key: const ValueKey('busca-localizacao-toggle'),
+            onPressed: onAlternarLocalizacao,
+            icon: Icon(
+              localizacaoExpandida
+                  ? Icons.expand_less_rounded
+                  : Icons.location_on_outlined,
+            ),
+            label: Text(
+              localizacaoExpandida
+                  ? 'Ocultar bairro e cidade'
+                  : 'Filtrar por bairro e cidade',
+            ),
           ),
         ),
-        const SizedBox(height: AppSpace.md),
-        TextField(
-          key: const ValueKey('busca-cidade'),
-          controller: cidadeController,
-          onChanged: onTextoAlterado,
-          textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.location_city_outlined),
-            labelText: 'Cidade',
-            hintText: 'Ex.: Belo Horizonte',
+        if (!localizacaoExpandida &&
+            (bairroController.text.trim().isNotEmpty ||
+                cidadeController.text.trim().isNotEmpty)) ...[
+          const SizedBox(height: AppSpace.xs),
+          Text(
+            [
+              bairroController.text.trim(),
+              cidadeController.text.trim(),
+            ].where((valor) => valor.isNotEmpty).join(' · '),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.verdeEscuro),
           ),
-        ),
+        ],
+        if (localizacaoExpandida) ...[
+          const SizedBox(height: AppSpace.sm),
+          TextField(
+            key: const ValueKey('busca-bairro'),
+            controller: bairroController,
+            onChanged: onTextoAlterado,
+            textInputAction: TextInputAction.search,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.location_on_outlined),
+              labelText: 'Bairro',
+              hintText: 'Ex.: Vila Nova',
+            ),
+          ),
+          const SizedBox(height: AppSpace.md),
+          TextField(
+            key: const ValueKey('busca-cidade'),
+            controller: cidadeController,
+            onChanged: onTextoAlterado,
+            textInputAction: TextInputAction.search,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(Icons.location_city_outlined),
+              labelText: 'Cidade',
+              hintText: 'Ex.: Belo Horizonte',
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpace.md),
         if (categoriesLoadFailed)
           SectionErrorView(

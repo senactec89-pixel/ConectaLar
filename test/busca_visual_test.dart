@@ -20,6 +20,7 @@ void main() {
       await abrirFrontend(tester, AppRoutes.busca, width: width);
       expect(find.text('Buscar profissionais'), findsOneWidget);
       expect(find.text('Limpar filtros'), findsNothing);
+      expect(find.text('2 profissionais encontrados'), findsOneWidget);
       expect(
         tester.getTopLeft(find.byType(ProfissionalCard).first).dy,
         lessThan(tester.view.physicalSize.height * 2 / 3),
@@ -27,6 +28,39 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('localização recolhida mostra os filtros ativos', (tester) async {
+    await configurarFrontend();
+    await abrirFrontend(tester, AppRoutes.busca);
+    await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('busca-bairro')),
+      'Vila Nova',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
+    await tester.pumpAndSettle();
+    final filtros = find.ancestor(
+      of: find.byKey(const ValueKey('busca-localizacao-toggle')),
+      matching: find.byType(Card),
+    );
+    expect(
+      find.descendant(of: filtros, matching: find.text('Vila Nova')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('busca-bairro')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('busca-bairro')))
+          .controller!
+          .text,
+      'Vila Nova',
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -47,6 +81,10 @@ void main() {
           of: find.text('Limpar filtros'),
           matching: find.bySubtype<TextButton>(),
         );
+        await tester.tap(
+          find.byKey(const ValueKey('busca-localizacao-toggle')),
+        );
+        await tester.pumpAndSettle();
         final campo = tester.getRect(find.byKey(const ValueKey('busca-termo')));
         expect(tester.getRect(selecionada).left, closeTo(campo.left, 1));
         expect(tester.getRect(limpar).right, lessThanOrEqualTo(campo.right));
@@ -119,6 +157,7 @@ void main() {
     addTearDown(tester.view.resetViewInsets);
     for (final width in [360.0, 390.0, 412.0]) {
       await tester.pumpWidget(const SizedBox.shrink());
+      AppServices.instance.buscaEstado.limpar();
       await abrirFrontend(tester, AppRoutes.busca, width: width, textScale: 2);
       await tester.scrollUntilVisible(
         find.text('2 profissionais encontrados'),
@@ -126,6 +165,8 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(tester.takeException(), isNull, reason: 'Resultados em $width');
+      await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
+      await tester.pumpAndSettle();
       final bairro = find.byKey(const ValueKey('busca-bairro'));
       await tester.ensureVisible(bairro);
       await tester.enterText(bairro, 'Vila Nova');

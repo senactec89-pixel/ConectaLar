@@ -73,6 +73,8 @@ void main() {
       find.byKey(const ValueKey('busca-termo')),
       'limpeza',
     );
+    await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('busca-bairro')), 'vila');
     await tester.pumpAndSettle();
 

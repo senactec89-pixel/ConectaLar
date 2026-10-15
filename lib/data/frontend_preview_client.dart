@@ -52,6 +52,8 @@ class FrontendPreviewClient extends http.BaseClient {
         'nome': p.nome,
         'descricao': p.descricao,
         'bairro': p.bairro,
+        'cidade': p.cidade,
+        'uf': p.uf,
         'precoInicial': p.precoInicial,
         'verificado': p.verificado,
         'notaMedia': 4.5,
@@ -77,6 +79,41 @@ class FrontendPreviewClient extends http.BaseClient {
       if ('${profissional['id']}' == id) return profissional;
     }
     return null;
+  }
+
+  List<Map<String, dynamic>> _buscarProfissionais(Map<String, String> query) {
+    // A prévia considera os dois perfis na área de cobertura do endereço demo.
+    if (query.containsKey('raioKm')) return profissionais;
+    String normalizar(Object? value) => (value?.toString() ?? '')
+        .toLowerCase()
+        .replaceAll(RegExp('[áàãâä]'), 'a')
+        .replaceAll(RegExp('[éèêë]'), 'e')
+        .replaceAll(RegExp('[íìîï]'), 'i')
+        .replaceAll(RegExp('[óòõôö]'), 'o')
+        .replaceAll(RegExp('[úùûü]'), 'u')
+        .replaceAll('ç', 'c');
+
+    final termo = normalizar(query['termo']);
+    final bairro = normalizar(query['bairro']);
+    final cidade = normalizar(query['cidade']);
+    final categoriaId = int.tryParse(query['categoriaId'] ?? '');
+    return profissionais.where((profissional) {
+      final servicos = (profissional['servicos'] as List).whereType<Map>();
+      return (bairro.isEmpty ||
+              normalizar(profissional['bairro']).contains(bairro)) &&
+          (cidade.isEmpty ||
+              normalizar(profissional['cidade']).contains(cidade)) &&
+          (categoriaId == null ||
+              servicos.any(
+                (servico) => servico['categoriaId'] == categoriaId,
+              )) &&
+          (termo.isEmpty ||
+              normalizar(profissional['nome']).contains(termo) ||
+              normalizar(profissional['descricao']).contains(termo) ||
+              servicos.any(
+                (servico) => normalizar(servico['nome']).contains(termo),
+              ));
+    }).toList();
   }
 
   Map<String, dynamic> get endereco => {
@@ -254,7 +291,7 @@ class FrontendPreviewClient extends http.BaseClient {
     }
     return switch (path) {
       '/categorias' || '/categorias/admin' => {'categorias': categorias},
-      '/profissionais' => {'profissionais': profissionais},
+      '/profissionais' => {'profissionais': _buscarProfissionais(query)},
       '/profissionais/me' => {'profissional': profissionais.first},
       '/profissionais/me/servicos' => {
         'servicos': profissionais.first['servicos'],
