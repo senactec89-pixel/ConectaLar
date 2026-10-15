@@ -20,10 +20,74 @@ class ConversaPage extends StatefulWidget {
 
 class _ConversaPageState extends State<ConversaPage> {
   final _controller = TextEditingController();
+  final _mensagensScroll = ScrollController();
   Future<_ConversaData?>? _dataFuture;
+  _ConversaData? _dadosExibidos;
   int? _solicitacaoAtual;
   bool _enviando = false;
   bool _atualizando = false;
+  bool _seguirRecentes = true;
+  bool _mostrarIrRecentes = false;
+  double _posicaoAnterior = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _mensagensScroll.addListener(() {
+      if (!_mensagensScroll.hasClients) return;
+      final mostrar = _mensagensScroll.position.extentAfter > 120;
+      if (mostrar != _mostrarIrRecentes && mounted) {
+        setState(() => _mostrarIrRecentes = mostrar);
+      }
+    });
+  }
+
+  void _registrarPosicao({bool aposEnvio = false}) {
+    _seguirRecentes =
+        aposEnvio ||
+        !_mensagensScroll.hasClients ||
+        _mensagensScroll.position.extentAfter < 120;
+    _posicaoAnterior = _mensagensScroll.hasClients
+        ? _mensagensScroll.offset
+        : 0;
+  }
+
+  void _restaurarPosicao(_ConversaData data) {
+    if (identical(data, _dadosExibidos)) return;
+    _dadosExibidos = data;
+    void aplicar() {
+      if (!mounted ||
+          !_mensagensScroll.hasClients ||
+          !identical(data, _dadosExibidos)) {
+        return;
+      }
+      final limite = _mensagensScroll.position.maxScrollExtent;
+      _mensagensScroll.jumpTo(
+        _seguirRecentes ? limite : _posicaoAnterior.clamp(0, limite),
+      );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      aplicar();
+      // A lista pode recalcular sua extensão depois de receber uma mensagem.
+      if (_seguirRecentes) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => aplicar());
+        WidgetsBinding.instance.scheduleFrame();
+      }
+    });
+  }
+
+  Future<void> _irParaRecentes() async {
+    if (!_mensagensScroll.hasClients) return;
+    await _mensagensScroll.animateTo(
+      _mensagensScroll.position.maxScrollExtent,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+    if (mounted && _mensagensScroll.hasClients) {
+      _mensagensScroll.jumpTo(_mensagensScroll.position.maxScrollExtent);
+    }
+  }
 
   Future<void> _atualizar() async {
     if (_atualizando || _enviando || _solicitacaoAtual == null) return;
@@ -31,6 +95,7 @@ class _ConversaPageState extends State<ConversaPage> {
   }
 
   Future<_ConversaData?> _recarregarDados() async {
+    _registrarPosicao();
     final future = _carregarConversa(_solicitacaoAtual);
     future.ignore();
     setState(() {
@@ -60,6 +125,7 @@ class _ConversaPageState extends State<ConversaPage> {
   @override
   void dispose() {
     _controller.dispose();
+    _mensagensScroll.dispose();
     super.dispose();
   }
 
@@ -122,6 +188,7 @@ class _ConversaPageState extends State<ConversaPage> {
       }
       if (!mounted) return;
       _controller.clear();
+      _registrarPosicao(aposEnvio: true);
       setState(() {
         _dataFuture = _carregarConversa(solicitacaoId);
         _dataFuture?.ignore();
@@ -162,6 +229,8 @@ class _ConversaPageState extends State<ConversaPage> {
     final solicitacaoId = _solicitacaoId(context);
     if (_dataFuture == null || _solicitacaoAtual != solicitacaoId) {
       _solicitacaoAtual = solicitacaoId;
+      _dadosExibidos = null;
+      _seguirRecentes = true;
       _dataFuture = _carregarConversa(solicitacaoId);
       _dataFuture?.ignore();
     }
@@ -195,6 +264,7 @@ class _ConversaPageState extends State<ConversaPage> {
             }
             final data = snapshot.data;
             if (data == null) return const _ConversaIndisponivel();
+            _restaurarPosicao(data);
             return Column(
               children: [
                 if (_atualizando || _enviando) const LinearProgressIndicator(),
@@ -203,35 +273,54 @@ class _ConversaPageState extends State<ConversaPage> {
                   onDetalhes: _enviando || _atualizando ? null : _abrirDetalhes,
                 ),
                 Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _atualizar,
-                    child: ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                      children: [
-                        if (data.mensagens.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            child: Text(
-                              !data.conversaAberta
-                                  ? 'Não houve mensagens nesta conversa. Este atendimento está encerrado.'
-                                  : data.podeEnviar
-                                  ? 'Ainda não há mensagens. Use a conversa para alinhar os detalhes do serviço.'
-                                  : 'Ainda não há mensagens nesta conversa.',
-                              textAlign: TextAlign.center,
-                            ),
+                  child: Stack(
+                    children: [
+                      RefreshIndicator(
+                        onRefresh: _atualizar,
+                        child: ListView(
+                          controller: _mensagensScroll,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                          children: [
+                            if (data.mensagens.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                ),
+                                child: Text(
+                                  !data.conversaAberta
+                                      ? 'Não houve mensagens nesta conversa. Este atendimento está encerrado.'
+                                      : data.podeEnviar
+                                      ? 'Ainda não há mensagens. Use a conversa para alinhar os detalhes do serviço.'
+                                      : 'Ainda não há mensagens nesta conversa.',
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            for (final mensagem in data.mensagens)
+                              _MensagemBolha(
+                                mensagem: mensagem,
+                                enviadaPorMim:
+                                    mensagem.remetenteId == data.usuarioAtualId,
+                              ),
+                            if (data.atendimento.solicitacao.status ==
+                                StatusSolicitacao.aceitaAgendada)
+                              _PropostaAgendada(atendimento: data.atendimento),
+                          ],
+                        ),
+                      ),
+                      if (_mostrarIrRecentes)
+                        Positioned(
+                          left: AppSpace.md,
+                          right: AppSpace.md,
+                          bottom: AppSpace.md,
+                          child: FilledButton.icon(
+                            key: const ValueKey('chat-ir-recentes'),
+                            onPressed: _irParaRecentes,
+                            icon: const Icon(Icons.arrow_downward_rounded),
+                            label: const Text('Mensagens recentes'),
                           ),
-                        for (final mensagem in data.mensagens)
-                          _MensagemBolha(
-                            mensagem: mensagem,
-                            enviadaPorMim:
-                                mensagem.remetenteId == data.usuarioAtualId,
-                          ),
-                        if (data.atendimento.solicitacao.status ==
-                            StatusSolicitacao.aceitaAgendada)
-                          _PropostaAgendada(atendimento: data.atendimento),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
                 if (data.podeEnviar)

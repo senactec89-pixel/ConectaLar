@@ -64,6 +64,62 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('chat mantém leitura e permite ir às mensagens recentes', (
+    tester,
+  ) async {
+    var total = 24;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path.endsWith('/mensagens') &&
+            request.method == 'GET') {
+          return jsonResponse({
+            'mensagens': [
+              for (var i = 1; i <= total; i++)
+                {
+                  'id': i,
+                  'solicitacaoId': 1001,
+                  'autor': {'id': 101},
+                  'conteudo': 'Mensagem $i',
+                  'criadoEm': '2026-10-11T12:00:00Z',
+                },
+            ],
+          });
+        }
+        if (request.url.path.endsWith('/mensagens') &&
+            request.method == 'POST') {
+          total++;
+          return jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.conversa, arguments: 1001);
+    final lista = tester.widget<ListView>(find.byType(ListView));
+    final rolagem = lista.controller!;
+    expect(rolagem.offset, closeTo(rolagem.position.maxScrollExtent, 1));
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    final posicaoDeLeitura = rolagem.offset;
+    expect(find.byKey(const ValueKey('chat-ir-recentes')), findsOneWidget);
+    total++;
+    await tester.tap(find.byTooltip('Atualizar conversa'));
+    await tester.pumpAndSettle();
+    expect(rolagem.offset, closeTo(posicaoDeLeitura, 1));
+    await tester.tap(find.byKey(const ValueKey('chat-ir-recentes')));
+    await tester.pumpAndSettle();
+    expect(rolagem.offset, closeTo(rolagem.position.maxScrollExtent, 1));
+    await tester.drag(find.byType(ListView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('chat-mensagem')),
+      'Mensagem nova',
+    );
+    await tester.tap(find.byKey(const ValueKey('chat-enviar')));
+    await tester.pumpAndSettle();
+    expect(rolagem.offset, closeTo(rolagem.position.maxScrollExtent, 1));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'chat vazio cabe com texto ampliado e teclado nas três larguras',
     (tester) async {
