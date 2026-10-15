@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
@@ -136,6 +138,57 @@ void main() {
       find.textContaining('Arquivo carregado para conferência'),
       findsOneWidget,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rejeição mantém o motivo e permite tentar novamente', (
+    tester,
+  ) async {
+    var envios = 0;
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async {
+        if (request.url.path == '/documentos-verificacao/1/arquivo') {
+          return http.Response.bytes(
+            '%PDF-1.4 teste'.codeUnits,
+            200,
+            headers: {'content-type': 'application/pdf'},
+          );
+        }
+        if (request.url.path == '/documentos-verificacao/1/analisar') {
+          envios++;
+          expect(
+            jsonDecode(request.body)['motivoRejeicao'],
+            'Documento ilegível',
+          );
+          return envios == 1
+              ? jsonResponse({'message': 'Falha temporária'}, 503)
+              : jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.adminDocumentos);
+    await tester.tap(find.text('Analisar').first);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Conferido'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Análise documental'), findsOneWidget);
+    await tester.tap(find.text('Rejeitar'));
+    await tester.pumpAndSettle();
+    expect(envios, 0);
+    expect(find.text('Informe o motivo para rejeitar.'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, 'Documento ilegível');
+    await tester.tap(find.text('Rejeitar'));
+    await tester.pumpAndSettle();
+    expect(envios, 1);
+    expect(find.text('Análise documental'), findsOneWidget);
+    expect(find.text('Documento ilegível'), findsOneWidget);
+    expect(find.textContaining('Não foi possível registrar'), findsOneWidget);
+    await tester.tap(find.text('Rejeitar'));
+    await tester.pumpAndSettle();
+    expect(envios, 2);
+    expect(find.text('Análise documental'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

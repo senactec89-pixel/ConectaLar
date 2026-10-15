@@ -814,87 +814,21 @@ class _AdminPageState extends State<AdminPage> {
       if (!carregou) return;
     }
     if (!mounted) return;
-    final motivo = TextEditingController();
-    final acao = await showDialog<String>(
+    final concluiu = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        title: const Text('Análise documental'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Profissional: ${item['profissional']?['nome'] ?? '—'}',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-            const SizedBox(height: AppSpace.sm),
-            Text('Tipo: ${_rotuloTipoDocumento(item['tipoDocumento'])}'),
-            const SizedBox(height: AppSpace.xs),
-            Text('Status atual: ${_rotuloStatusDocumento(item['status'])}'),
-            if (item['motivoRejeicao'] != null) ...[
-              const SizedBox(height: AppSpace.sm),
-              Text('Motivo registrado: ${item['motivoRejeicao']}'),
-            ],
-            const SizedBox(height: AppSpace.sm),
-            Text(
-              'Arquivo: ${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? '—'}',
-            ),
-            const Divider(height: AppSpace.xl),
-            TextField(
-              controller: motivo,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Motivo da rejeição',
-                helperText:
-                    'Preencha este campo se decidir rejeitar o documento.',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Voltar'),
-          ),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context, 'rejeitado'),
-            style: OutlinedButton.styleFrom(foregroundColor: AppColors.erro),
-            icon: const Icon(Icons.close_rounded),
-            label: const Text('Rejeitar'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(context, 'aprovado'),
-            icon: const Icon(Icons.check_rounded),
-            label: const Text('Aprovar'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (context) => _AnaliseDocumentoDialog(
+        item: item,
+        onSubmit: (acao, motivo) => AppServices.instance.admin
+            .analisarDocumento(documentoId, acao, motivo: motivo),
       ),
     );
-    if (acao == null) return;
-    if (acao == 'rejeitado' && motivo.text.trim().isEmpty) {
-      _avisar('Informe o motivo para rejeitar.');
-      return;
-    }
-    setState(() => _mutando = true);
-    try {
-      await AppServices.instance.admin.analisarDocumento(
-        documentoId,
-        acao,
-        motivo: motivo.text.trim(),
-      );
-      if (mounted) {
-        _avisar('Análise documental registrada.');
-        setState(() {
-          _future = _carregar(_modulo);
-          _future.ignore();
-        });
-      }
-    } catch (_) {
-      if (mounted) _avisar('Não foi possível registrar a análise documental.');
-    } finally {
-      if (mounted) setState(() => _mutando = false);
+    if (concluiu == true && mounted) {
+      _avisar('Análise documental registrada.');
+      setState(() {
+        _future = _carregar(_modulo);
+        _future.ignore();
+      });
     }
   }
 
@@ -1209,6 +1143,134 @@ class _DocumentoModeracaoCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AnaliseDocumentoDialog extends StatefulWidget {
+  const _AnaliseDocumentoDialog({required this.item, required this.onSubmit});
+
+  final Map<String, dynamic> item;
+  final Future<Object?> Function(String acao, String motivo) onSubmit;
+
+  @override
+  State<_AnaliseDocumentoDialog> createState() =>
+      _AnaliseDocumentoDialogState();
+}
+
+class _AnaliseDocumentoDialogState extends State<_AnaliseDocumentoDialog> {
+  final _motivo = TextEditingController();
+  String? _erroMotivo;
+  String? _erroEnvio;
+  bool _salvando = false;
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enviar(String acao) async {
+    if (_salvando) return;
+    final motivo = _motivo.text.trim();
+    if (acao == 'rejeitado' && motivo.isEmpty) {
+      setState(() => _erroMotivo = 'Informe o motivo para rejeitar.');
+      return;
+    }
+    setState(() {
+      _salvando = true;
+      _erroMotivo = null;
+      _erroEnvio = null;
+    });
+    try {
+      await widget.onSubmit(acao, acao == 'rejeitado' ? motivo : '');
+      if (mounted) Navigator.pop(context, true);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _erroEnvio =
+              'Não foi possível registrar a análise. Confira a conexão e tente novamente.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    return PopScope(
+      canPop: !_salvando,
+      child: AlertDialog(
+        scrollable: true,
+        title: const Text('Análise documental'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Profissional: ${item['profissional']?['nome'] ?? '—'}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: AppSpace.sm),
+            Text('Tipo: ${_rotuloTipoDocumento(item['tipoDocumento'])}'),
+            const SizedBox(height: AppSpace.xs),
+            Text('Status atual: ${_rotuloStatusDocumento(item['status'])}'),
+            if (item['motivoRejeicao'] != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              Text('Motivo registrado: ${item['motivoRejeicao']}'),
+            ],
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              'Arquivo: ${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? '—'}',
+            ),
+            const Divider(height: AppSpace.xl),
+            TextField(
+              controller: _motivo,
+              minLines: 2,
+              maxLines: 4,
+              onChanged: (_) {
+                if (_erroMotivo != null) setState(() => _erroMotivo = null);
+              },
+              decoration: InputDecoration(
+                labelText: 'Motivo da rejeição',
+                helperText:
+                    'Preencha este campo se decidir rejeitar o documento.',
+                errorText: _erroMotivo,
+              ),
+            ),
+            if (_erroEnvio != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              Text(
+                _erroEnvio!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            if (_salvando) ...[
+              const SizedBox(height: AppSpace.sm),
+              const LinearProgressIndicator(),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: _salvando ? null : () => Navigator.pop(context, false),
+            child: const Text('Voltar'),
+          ),
+          OutlinedButton.icon(
+            onPressed: _salvando ? null : () => _enviar('rejeitado'),
+            style: OutlinedButton.styleFrom(foregroundColor: AppColors.erro),
+            icon: const Icon(Icons.close_rounded),
+            label: const Text('Rejeitar'),
+          ),
+          FilledButton.icon(
+            onPressed: _salvando ? null : () => _enviar('aprovado'),
+            icon: const Icon(Icons.check_rounded),
+            label: const Text('Aprovar'),
+          ),
+        ],
       ),
     );
   }
