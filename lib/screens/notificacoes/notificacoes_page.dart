@@ -56,11 +56,9 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
   Future<void> _abrir(Notificacao notificacao) async {
     if (_ocupado) return;
     setState(() => _ocupado = true);
+    // Abrir o recurso não depende da confirmação de leitura.
+    final marcacao = _marcarComoLida(notificacao);
     try {
-      if (!notificacao.lida) {
-        await AppServices.instance.notificacoes.marcarComoLida(notificacao.id);
-      }
-      if (!mounted) return;
       if (notificacao.recursoTipo == 'solicitacao' &&
           notificacao.recursoId != null) {
         await Navigator.pushNamed(
@@ -71,11 +69,22 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
       } else if (notificacao.recursoTipo == 'documento_verificacao') {
         await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
       }
+      await marcacao;
+      if (!mounted) return;
       _recarregar();
     } catch (_) {
       _mostrarErro();
     } finally {
       if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _marcarComoLida(Notificacao notificacao) async {
+    if (notificacao.lida) return;
+    try {
+      await AppServices.instance.notificacoes.marcarComoLida(notificacao.id);
+    } catch (_) {
+      if (mounted && AppServices.instance.auth.autenticado) _mostrarErro();
     }
   }
 

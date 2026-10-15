@@ -139,4 +139,39 @@ void main() {
     expect(find.byIcon(Icons.notifications_active_rounded), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('falha ao marcar como lida não impede abrir o pedido', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/notificacoes/me') {
+          return jsonResponse(_notificacoes(false));
+        }
+        if (request.method == 'PATCH') {
+          return jsonResponse({'message': 'Falha'}, 503);
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.notificacoes,
+      overrides: {
+        AppRoutes.detalhesServico: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Pedido aberto'),
+          ),
+        ),
+      },
+    );
+    await tester.tap(find.text('Pedido atualizado'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pedido aberto'), findsOneWidget);
+    await tester.tap(find.text('Pedido aberto'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pedido atualizado'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
