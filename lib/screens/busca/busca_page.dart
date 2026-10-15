@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../models/categoria.dart';
+import '../../models/busca_estado.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
@@ -26,6 +27,10 @@ class _BuscaPageState extends State<BuscaPage> {
   final _termoController = TextEditingController();
   final _bairroController = TextEditingController();
   final _cidadeController = TextEditingController();
+  final _scrollController = ScrollController();
+  late final BuscaEstado _memoria;
+  late final int _revisaoMemoria;
+  bool _restaurarRolagem = true;
 
   Categoria? _categoriaSelecionada;
   bool _argumentosLidos = false;
@@ -42,6 +47,17 @@ class _BuscaPageState extends State<BuscaPage> {
   @override
   void initState() {
     super.initState();
+    _memoria = AppServices.instance.buscaEstado;
+    _revisaoMemoria = _memoria.revisao;
+    _termoController.text = _memoria.termo;
+    _bairroController.text = _memoria.bairro;
+    _cidadeController.text = _memoria.cidade;
+    _categoriaSelecionada = _memoria.categoria;
+    _scrollController.addListener(() {
+      if (!_restaurarRolagem && _memoria.revisao == _revisaoMemoria) {
+        _memoria.rolagem = _scrollController.offset;
+      }
+    });
     _contentFuture = _carregarConteudo();
   }
 
@@ -52,13 +68,33 @@ class _BuscaPageState extends State<BuscaPage> {
 
     final arguments = ModalRoute.of(context)?.settings.arguments;
     if (arguments is Categoria) {
+      _termoController.clear();
+      _bairroController.clear();
+      _cidadeController.clear();
+      _memoria.rolagem = 0;
       _categoriaSelecionada = arguments;
     }
     _argumentosLidos = true;
+    if (_temFiltros) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _agendarBuscaRemota(imediata: true);
+      });
+    }
   }
 
   @override
   void dispose() {
+    if (_memoria.revisao == _revisaoMemoria) {
+      _memoria
+        ..termo = _termoController.text
+        ..bairro = _bairroController.text
+        ..cidade = _cidadeController.text
+        ..categoria = _categoriaSelecionada;
+      if (!_restaurarRolagem && _scrollController.hasClients) {
+        _memoria.rolagem = _scrollController.offset;
+      }
+    }
+    _scrollController.dispose();
     _debounceBusca?.cancel();
     _termoController.dispose();
     _bairroController.dispose();
@@ -230,12 +266,27 @@ class _BuscaPageState extends State<BuscaPage> {
             }
           }
           final resultados = _resultados;
+          if (_restaurarRolagem && snapshot.hasData && !_buscando) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || !_scrollController.hasClients || _buscando) {
+                return;
+              }
+              _scrollController.jumpTo(
+                _memoria.rolagem.clamp(
+                  0,
+                  _scrollController.position.maxScrollExtent,
+                ),
+              );
+              _restaurarRolagem = false;
+            });
+          }
           return LayoutBuilder(
             builder: (context, constraints) {
               final horizontalPadding = constraints.maxWidth > 760
                   ? (constraints.maxWidth - 720) / 2
                   : AppSpace.pageGutter;
               return ListView(
+                controller: _scrollController,
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
                   AppSpace.lg,

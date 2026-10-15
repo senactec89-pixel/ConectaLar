@@ -1,4 +1,5 @@
 import '../models/home_content.dart';
+import '../models/busca_estado.dart';
 import '../data/frontend_preview_client.dart';
 import '../utils/constants.dart';
 import 'api_mappers.dart';
@@ -31,6 +32,12 @@ class AppServices {
              client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
            ) {
     auth = AuthService(this.api, persistirSessao: !modoDemo);
+    Object? usuarioBusca;
+    auth.addListener(() {
+      final usuario = auth.usuarioAtual?['id'];
+      if (usuario != usuarioBusca || !auth.autenticado) buscaEstado.limpar();
+      usuarioBusca = usuario;
+    });
     this.api.onSessionExpired = auth.encerrarSessaoExpirada;
     admin = AdminService(this.api);
     avaliacoes = AvaliacaoService(this.api);
@@ -48,6 +55,7 @@ class AppServices {
   }
 
   final ApiService api;
+  final buscaEstado = BuscaEstado();
   final bool modoDemo;
   final String papelDemo;
   bool get emDemonstracao => modoDemo && !auth.autenticado;

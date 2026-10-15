@@ -1,0 +1,18 @@
+import 'categoria.dart';
+
+/// Estado temporário da interface; não é persistido no aparelho.
+class BuscaEstado {
+  String termo = '';
+  String bairro = '';
+  String cidade = '';
+  Categoria? categoria;
+  double rolagem = 0;
+  int revisao = 0;
+
+  void limpar() {
+    termo = bairro = cidade = '';
+    categoria = null;
+    rolagem = 0;
+    revisao++;
+  }
+}

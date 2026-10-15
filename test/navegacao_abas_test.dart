@@ -64,4 +64,34 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Busca preserva filtros e rolagem ao trocar de aba', (
+    tester,
+  ) async {
+    await configurarFrontend();
+    await abrirFrontend(tester, AppRoutes.home);
+    await selecionarAba(tester, 'Buscar');
+    await tester.enterText(find.byKey(const ValueKey('busca-termo')), 'Carlos');
+    await tester.pumpAndSettle(const Duration(milliseconds: 400));
+    final lista = tester.widget<ListView>(find.byType(ListView).first);
+    lista.controller!.jumpTo(150);
+    await tester.pumpAndSettle();
+    await selecionarAba(tester, 'Favoritos');
+    await selecionarAba(tester, 'Buscar');
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('busca-termo')))
+          .controller!
+          .text,
+      'Carlos',
+    );
+    expect(
+      tester.widget<ListView>(find.byType(ListView).first).controller!.offset,
+      150,
+    );
+    expect(tester.takeException(), isNull);
+    await AppServices.instance.auth.logout();
+    expect(AppServices.instance.buscaEstado.termo, isEmpty);
+    expect(AppServices.instance.buscaEstado.rolagem, 0);
+  });
 }
