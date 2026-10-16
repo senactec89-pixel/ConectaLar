@@ -161,4 +161,23 @@ void main() {
     await abrirFrontend(tester, AppRoutes.seguranca);
     expect(find.text('Autenticador administrativo'), findsNothing);
   });
+
+  testWidgets('prévia admin não consulta nem altera MFA real', (tester) async {
+    AppServices.instance = AppServices(
+      modoDemo: true,
+      papelDemo: 'administrador',
+    );
+    await AppServices.instance.inicializar();
+    await abrirFrontend(tester, AppRoutes.seguranca, width: 360);
+
+    expect(find.text('Autenticador administrativo'), findsOneWidget);
+    expect(
+      find.text(
+        'Entre com uma conta administrativa na API para configurar o autenticador. A prévia não altera a segurança da conta.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('mfa-admin-iniciar')), findsNothing);
+    expect(find.text('Conteúdo indisponível nesta prévia.'), findsNothing);
+  });
 }

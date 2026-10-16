@@ -30,7 +30,7 @@ class _MfaAdminCardState extends State<MfaAdminCard> {
   @override
   void initState() {
     super.initState();
-    if (AppServices.instance.emDemonstracao) {
+    if (AppServices.instance.modoDemo) {
       _carregando = false;
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -172,7 +172,7 @@ class _MfaAdminCardState extends State<MfaAdminCard> {
 
   @override
   Widget build(BuildContext context) {
-    final demo = AppServices.instance.emDemonstracao;
+    final demo = AppServices.instance.modoDemo;
     return Card(
       child: Padding(
         padding: AppInsets.card,
