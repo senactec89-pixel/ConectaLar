@@ -96,6 +96,31 @@ class AuthService extends ChangeNotifier {
     return response;
   }
 
+  Future<Map<String, dynamic>> statusMfaAdmin() {
+    return _api.get('auth/mfa/admin');
+  }
+
+  Future<Map<String, dynamic>> iniciarMfaAdmin() {
+    return _api.post('auth/mfa/admin/setup');
+  }
+
+  Future<Map<String, dynamic>> confirmarMfaAdmin({required String codigo}) {
+    return _api.post('auth/mfa/admin/confirmar', body: {'codigo': codigo});
+  }
+
+  Future<Map<String, dynamic>> desativarMfaAdmin({
+    required String senhaAtual,
+    required String codigo,
+  }) {
+    return _api.post(
+      'auth/mfa/admin/desativar',
+      body: {'senhaAtual': senhaAtual, 'codigo': codigo},
+    );
+  }
+
+  /// A API invalida o token anterior depois de alterar o MFA.
+  Future<void> encerrarSessaoAposMfa() => _limparSessaoLocal();
+
   Future<Map<String, dynamic>> cadastrar({
     required String nome,
     required String email,

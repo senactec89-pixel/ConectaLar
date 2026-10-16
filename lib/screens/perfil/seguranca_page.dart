@@ -11,6 +11,7 @@ import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
+import 'mfa_admin_card.dart';
 
 class SegurancaPage extends StatefulWidget {
   const SegurancaPage({super.key});
@@ -272,6 +273,11 @@ class _SegurancaPageState extends State<SegurancaPage> {
                         ),
                       ),
                     ),
+                    if (AppServices.instance.auth.usuarioAtual?['tipo'] ==
+                        'administrador') ...[
+                      const SizedBox(height: AppSpace.md),
+                      const MfaAdminCard(),
+                    ],
                     const SizedBox(height: AppSpace.lg),
                     Text(
                       'Privacidade e seus dados',
