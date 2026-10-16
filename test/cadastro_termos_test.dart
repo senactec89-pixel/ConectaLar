@@ -4,6 +4,7 @@ import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -52,6 +53,7 @@ void main() {
   ) async {
     var tentativas = 0;
     AppServices.instance = AppServices(
+      sessionStorage: MemorySessionStorage(),
       api: ApiService(
         client: MockClient((request) async {
           expect(request.headers.containsKey('Authorization'), isFalse);
@@ -84,6 +86,7 @@ void main() {
       var consultasTermos = 0;
       String? tipo;
       AppServices.instance = AppServices(
+        sessionStorage: MemorySessionStorage(),
         api: ApiService(
           client: MockClient((request) async {
             if (request.url.path == '/auth/cadastro') {
@@ -160,6 +163,7 @@ void main() {
   testWidgets('cadastro abre os termos antes de criar conta', (tester) async {
     var cadastros = 0;
     AppServices.instance = AppServices(
+      sessionStorage: MemorySessionStorage(),
       api: ApiService(
         client: MockClient((request) async {
           if (request.url.path == '/auth/cadastro') cadastros++;
@@ -185,6 +189,7 @@ void main() {
     tester,
   ) async {
     AppServices.instance = AppServices(
+      sessionStorage: MemorySessionStorage(),
       api: ApiService(
         client: MockClient((request) async {
           if (request.url.path == '/auth/cadastro') {

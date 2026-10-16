@@ -1,16 +1,21 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
+import 'session_storage.dart';
 
 class AuthService extends ChangeNotifier {
-  AuthService(this._api, {this.persistirSessao = true});
+  AuthService(
+    this._api, {
+    this.persistirSessao = true,
+    SessionStorage? sessionStorage,
+  }) : _sessionStorage = sessionStorage ?? SecureSessionStorage();
 
   static const _sessionKey = 'conectalar.auth.session.v1';
 
   final ApiService _api;
+  final SessionStorage _sessionStorage;
   final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
   String? _accessTokenAtual;
@@ -29,29 +34,27 @@ class AuthService extends ChangeNotifier {
     _sessaoExpirada = true;
     notifyListeners();
     if (persistirSessao) {
-      final prefs = await SharedPreferences.getInstance();
       // Uma nova entrada pode acontecer enquanto o armazenamento é obtido.
-      if (!autenticado) await prefs.remove(_sessionKey);
+      if (!autenticado) await _sessionStorage.delete(_sessionKey);
     }
   }
 
   Future<void> inicializarSessao() async {
     if (!persistirSessao) return;
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_sessionKey);
+    final raw = await _sessionStorage.read(_sessionKey);
     if (raw == null || raw.trim().isEmpty) return;
 
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
-        await prefs.remove(_sessionKey);
+        await _sessionStorage.delete(_sessionKey);
         return;
       }
 
       final accessToken = decoded['accessToken'];
       final usuario = decoded['usuario'];
       if (accessToken is! String || usuario is! Map<String, dynamic>) {
-        await prefs.remove(_sessionKey);
+        await _sessionStorage.delete(_sessionKey);
         return;
       }
 
@@ -59,7 +62,7 @@ class AuthService extends ChangeNotifier {
       _accessTokenAtual = accessToken;
       _usuarioAtual = usuario;
     } on FormatException {
-      await prefs.remove(_sessionKey);
+      await _sessionStorage.delete(_sessionKey);
     }
   }
 
@@ -210,8 +213,7 @@ class AuthService extends ChangeNotifier {
     _sessaoExpirada = false;
     notifyListeners();
     if (persistirSessao) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_sessionKey);
+      await _sessionStorage.delete(_sessionKey);
     }
     return response;
   }
@@ -240,8 +242,7 @@ class AuthService extends ChangeNotifier {
     if (!persistirSessao) return;
     final token = accessToken ?? _accessTokenAtual;
     if (token == null || _usuarioAtual == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
+    await _sessionStorage.write(
       _sessionKey,
       jsonEncode({'accessToken': token, 'usuario': _usuarioAtual}),
     );

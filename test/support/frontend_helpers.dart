@@ -5,6 +5,7 @@ import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/data/frontend_preview_client.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -18,14 +19,16 @@ http.Response jsonResponse(Object data, [int status = 200]) => http.Response(
 );
 
 /// Sessão e transporte simulados somente em testes, com desvios específicos.
-Future<void> configurarFrontend({
+Future<MemorySessionStorage> configurarFrontend({
   String papel = 'cliente',
   Future<http.Response?> Function(http.Request)? responder,
 }) async {
   SharedPreferences.setMockInitialValues({});
+  final sessionStorage = MemorySessionStorage();
   final preview = FrontendPreviewClient(papel: papel);
   AppServices.instance = AppServices(
     modoDemo: false,
+    sessionStorage: sessionStorage,
     api: ApiService(
       client: MockClient((request) async {
         final override = await responder?.call(request);
@@ -38,6 +41,7 @@ Future<void> configurarFrontend({
     email: 'teste@example.invalid',
     senha: 'teste',
   );
+  return sessionStorage;
 }
 
 Future<void> abrirFrontend(

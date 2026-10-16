@@ -4,7 +4,7 @@ Esta matriz resume o que existe no código de main em 0264eab. “Implementado�
 
 | Domínio | Estado no código | O que falta fechar |
 | --- | --- | --- |
-| Conta e acesso | Cadastro de cliente, profissional e empresa; login, logout, troca de senha e proteção de rotas. | Recuperação com entrega real, MFA administrativo, armazenamento seguro da sessão e política de sessões. |
+| Conta e acesso | Cadastro de cliente, profissional e empresa; login, logout, troca de senha, MFA administrativo, recuperação por e-mail, proteção de rotas e armazenamento seguro da sessão. | Definir política de expiração e sessões simultâneas em diferentes dispositivos. |
 | Perfil do cliente | Dados, endereços e favoritos disponíveis. Solicitação exige endereço cadastrado. | Homologar persistência, erros de rede e indicação de favorito já salvo no perfil público. |
 | Profissional/empresa | Perfil, ofertas, preço inicial, disponibilidade, agenda, documentos e cadastro/edição. | Modelo de equipe/executores e capacidade de empresa dependem de decisão de produto. |
 | Categorias e busca | Categorias, busca por termo/categoria/bairro e perfil público implementados. Mensagem de busca vazia revisada. | Comparação de profissionais ainda não tem fluxo dedicado; definir critérios, cobertura e escala. |

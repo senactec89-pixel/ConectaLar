@@ -1,6 +1,6 @@
 # Pendencias do ConectaLar
 
-Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
+Estado revisado em 15/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
 
 ## Correcoes recentes incorporadas
 
@@ -17,6 +17,7 @@ Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Rota administrativa privada para leitura de documento.
 - Preview administrativo de JPEG, PNG e PDF no app.
 - Regra do selo profissional recalculada pelo conjunto de documentos: o selo depende de documento de identidade aprovado.
+- Sessao Flutter movida para armazenamento criptografado da plataforma, com migracao automatica e remocao do valor legado em `SharedPreferences`.
 
 ## Ajustes tecnicos ainda pendentes
 
@@ -25,7 +26,7 @@ Estado revisado em 14/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Migrar fotos de perfil para storage privado/gerenciado ou definir se continuarao em storage local/publico por rota da API.
 - Definir e implementar politica de retencao, expiracao e descarte de documentos.
 - Trocar rate limit em memoria por solucao adequada se houver multiplas instancias.
-- Avaliar armazenamento seguro da sessao no Flutter, expiracao e politica de sessoes simultaneas.
+- Definir expiracao e politica de sessoes simultaneas no Flutter e na API.
 - Definir paginacao para busca, historico, chat e listas administrativas conforme volume esperado.
 - Revisar mensagens genericas de erro para distinguir conexao, permissao, validacao e estado vazio.
 - Atualizar relatorios historicos que ainda citam contagens antigas de testes ou pendencias ja resolvidas.

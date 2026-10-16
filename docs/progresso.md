@@ -1,12 +1,13 @@
 # Progresso do ConectaLar
 
-Atualizado em 14/10/2026 para o estado atual do `main`.
+Atualizado em 15/10/2026 para o estado atual do `main`.
 
 ## Estado do produto
 
 O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstracao local integrada:
 
 - cadastro, login, confirmacao de e-mail, recuperacao de senha, troca de senha e logout;
+- sessao persistida no armazenamento criptografado da plataforma, com migracao e remocao automatica do valor legado;
 - perfis de cliente, profissional e empresa, foto de perfil, enderecos e favoritos;
 - categorias, busca, ofertas, disponibilidade e agenda profissional;
 - solicitacoes com endereco cadastrado, oferta escolhida, data, horario e os cinco estados oficiais;
@@ -20,10 +21,10 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 14/10/2026 com 21 testes.
-- Flutter: `flutter analyze` aprovado em 14/10/2026.
-- Flutter: `flutter test` aprovado em 14/10/2026 com 159 testes.
-- Android debug: `flutter build apk --debug --dart-define=CONECTALAR_API_BASE_URL=http://192.168.0.3:3012` aprovado em 14/10/2026.
+- API: `npm.cmd test` aprovado em 14/10/2026 com 23 testes.
+- Flutter: `flutter analyze` aprovado em 15/10/2026.
+- Flutter: `flutter test` aprovado em 15/10/2026 com 169 testes.
+- Android debug: `flutter build apk --debug` aprovado em 15/10/2026, incluindo a integracao nativa do armazenamento seguro.
 
 Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substituem homologacao manual completa em aparelho real com API e MySQL do ambiente que sera usado.
 

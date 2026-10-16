@@ -1,6 +1,6 @@
 # Seguranca - estado atual e pendencias
 
-Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
+Atualizado em 15/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
 
 ## Controles existentes
 
@@ -22,6 +22,7 @@ Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento regi
 - O app administrativo renderiza imagens e PDFs carregados pela rota privada.
 - O selo profissional e recalculado pelo conjunto de documentos e depende de documento de identidade aprovado.
 - Profissionais nao conseguem aprovar o proprio selo.
+- A sessao Flutter usa armazenamento criptografado da plataforma: Android Keystore no Android e Keychain no iOS. Sessoes legadas em `SharedPreferences` sao migradas e removidas na primeira leitura.
 
 ## Limites que precisam ser resolvidos
 
@@ -30,7 +31,7 @@ Atualizado em 14/10/2026 para o codigo disponivel em `main`. Este documento regi
 - Ainda falta politica aprovada de retencao, expiracao, descarte e atendimento a titulares para documentos e dados pessoais.
 - O rate limit em memoria nao coordena multiplas instancias.
 - A identificacao por cabecalho de proxy depende de configuracao confiavel na borda.
-- A sessao Flutter usa `SharedPreferences`; avaliar armazenamento seguro, expiracao e politica de sessoes antes da publicacao.
+- Ainda falta definir a politica de expiracao e de sessoes simultaneas em diferentes dispositivos.
 - O launcher local versionado contem valores de desenvolvimento para iniciar a API. Nao reutilize esses valores em ambiente compartilhado ou producao.
 - HTTPS, origens de producao, backup/restauracao, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.
 - Nao ha evidencia de scanner dedicado de segredos executado antes da publicacao.

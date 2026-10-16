@@ -15,6 +15,7 @@ import 'mensagem_service.dart';
 import 'localizacao_service.dart';
 import 'notificacao_service.dart';
 import 'profissional_service.dart';
+import 'session_storage.dart';
 import 'servico_service.dart';
 import 'termos_service.dart';
 import 'verificacao_service.dart';
@@ -24,6 +25,7 @@ class AppServices {
 
   AppServices({
     ApiService? api,
+    SessionStorage? sessionStorage,
     this.modoDemo = AppConstants.demoMode,
     this.papelDemo = AppConstants.demoRole,
   }) : api =
@@ -31,7 +33,11 @@ class AppServices {
            ApiService(
              client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
            ) {
-    auth = AuthService(this.api, persistirSessao: !modoDemo);
+    auth = AuthService(
+      this.api,
+      persistirSessao: !modoDemo,
+      sessionStorage: sessionStorage,
+    );
     Object? usuarioBusca;
     auth.addListener(() {
       final usuario = auth.usuarioAtual?['id'];

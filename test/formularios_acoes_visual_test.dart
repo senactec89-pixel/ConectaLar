@@ -5,6 +5,7 @@ import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/screens/auth/login_page.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -68,6 +69,7 @@ void main() {
       final resposta = Completer<http.Response>();
       var chamadas = 0;
       AppServices.instance = AppServices(
+        sessionStorage: MemorySessionStorage(),
         api: ApiService(
           client: MockClient((request) {
             chamadas++;
@@ -135,6 +137,7 @@ void main() {
     (tester) async {
       final chamadas = <String>[];
       AppServices.instance = AppServices(
+        sessionStorage: MemorySessionStorage(),
         api: ApiService(
           client: MockClient((request) async {
             chamadas.add('${request.method} ${request.url.path}');

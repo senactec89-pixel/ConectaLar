@@ -6,6 +6,7 @@ import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/services/api_mappers.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:conectarlar_app/utils/validators.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +72,7 @@ Future<void> _sessao(
 ) async {
   SharedPreferences.setMockInitialValues({});
   AppServices.instance = AppServices(
+    sessionStorage: MemorySessionStorage(),
     api: ApiService(
       client: MockClient((request) async {
         if (request.url.path.endsWith('/auth/login')) {
@@ -135,6 +137,7 @@ void main() {
     'API indisponível não insere profissionais fictícios em Home ou busca',
     (tester) async {
       AppServices.instance = AppServices(
+        sessionStorage: MemorySessionStorage(),
         api: ApiService(
           client: MockClient(
             (_) async => _json({'message': 'Indisponível'}, 503),

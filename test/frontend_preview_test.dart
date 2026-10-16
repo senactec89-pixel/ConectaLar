@@ -5,6 +5,7 @@ import 'package:conectarlar_app/models/home_content.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:conectarlar_app/utils/constants.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -39,14 +40,16 @@ void main() {
         'accessToken': 'token-real-simulado-no-teste',
         'usuario': {'id': 44, 'tipo': 'cliente', 'nome': 'Conta de teste'},
       });
-      SharedPreferences.setMockInitialValues({key: sessao});
+      SharedPreferences.setMockInitialValues({});
+      final sessionStorage = MemorySessionStorage({key: sessao});
       AppServices.instance = AppServices(
         modoDemo: true,
         papelDemo: 'administrador',
+        sessionStorage: sessionStorage,
       );
       await AppServices.instance.inicializar();
       expect(AppServices.instance.auth.usuarioAtual?['tipo'], 'administrador');
-      expect((await SharedPreferences.getInstance()).getString(key), sessao);
+      expect(await sessionStorage.read(key), sessao);
       expect(
         (await AppServices.instance.admin.painel())['catalogo'],
         isNotNull,
@@ -60,18 +63,21 @@ void main() {
         throwsA(isA<ApiException>()),
       );
       await AppServices.instance.auth.logout();
-      expect((await SharedPreferences.getInstance()).getString(key), sessao);
+      expect(await sessionStorage.read(key), sessao);
     },
   );
 
   test('uso real continua restaurando a sessão salva', () async {
-    SharedPreferences.setMockInitialValues({
+    final sessionStorage = MemorySessionStorage({
       'conectalar.auth.session.v1': jsonEncode({
         'accessToken': 'token-teste',
         'usuario': {'id': 44, 'tipo': 'cliente'},
       }),
     });
-    AppServices.instance = AppServices(modoDemo: false);
+    AppServices.instance = AppServices(
+      modoDemo: false,
+      sessionStorage: sessionStorage,
+    );
     await AppServices.instance.inicializar();
     expect(AppServices.instance.auth.autenticado, isTrue);
     expect(AppServices.instance.auth.usuarioAtual?['id'], 44);

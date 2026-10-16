@@ -4,6 +4,7 @@ import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/screens/admin/admin_pages.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -13,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> _sessaoAdministrativa() async {
   SharedPreferences.setMockInitialValues({});
   AppServices.instance = AppServices(
+    sessionStorage: MemorySessionStorage(),
     api: ApiService(
       client: MockClient((request) async {
         final data = switch (request.url.path) {

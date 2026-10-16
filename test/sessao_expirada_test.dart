@@ -5,6 +5,7 @@ import 'package:conectarlar_app/app/app.dart';
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
+import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -20,7 +21,7 @@ void main() {
   testWidgets('sessao salva sem e-mail verificado abre confirmacao de e-mail', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
+    final sessionStorage = MemorySessionStorage({
       sessionKey: jsonEncode({
         'accessToken': 'token-nao-verificado',
         'usuario': {
@@ -34,6 +35,7 @@ void main() {
     });
     AppServices.instance = AppServices(
       modoDemo: false,
+      sessionStorage: sessionStorage,
       api: ApiService(client: MockClient((request) async => jsonResponse({}))),
     );
     await AppServices.instance.inicializar();
@@ -53,7 +55,7 @@ void main() {
   testWidgets('area privada bloqueia conta autenticada sem e-mail verificado', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({
+    final sessionStorage = MemorySessionStorage({
       sessionKey: jsonEncode({
         'accessToken': 'token-nao-verificado',
         'usuario': {
@@ -67,6 +69,7 @@ void main() {
     });
     AppServices.instance = AppServices(
       modoDemo: false,
+      sessionStorage: sessionStorage,
       api: ApiService(client: MockClient((request) async => jsonResponse({}))),
     );
     await AppServices.instance.inicializar();
@@ -146,7 +149,7 @@ void main() {
   test('resposta 401 antiga não apaga uma sessão nova', () async {
     var logins = 0;
     final respostaAntiga = Completer<http.Response>();
-    await configurarFrontend(
+    final sessionStorage = await configurarFrontend(
       responder: (request) async {
         if (request.url.path == '/auth/login') {
           return jsonResponse({
@@ -170,11 +173,7 @@ void main() {
     await expectativa;
     expect(AppServices.instance.auth.autenticado, isTrue);
     expect(AppServices.instance.auth.usuarioAtual?['id'], 2);
-    final saved =
-        jsonDecode(
-              (await SharedPreferences.getInstance()).getString(sessionKey)!,
-            )
-            as Map;
+    final saved = jsonDecode((await sessionStorage.read(sessionKey))!) as Map;
     expect(saved['usuario']['id'], 2);
   });
 
