@@ -96,11 +96,11 @@ class ApiService {
       ).timeout(timeout);
     } on TimeoutException {
       throw const ApiException(
-        'A API demorou para responder. Verifique se ela esta ligada e tente novamente.',
+        'A resposta demorou. Verifique sua conexão e tente novamente.',
       );
     } on http.ClientException {
       throw const ApiException(
-        'Nao foi possivel conectar a API. Confira sua rede e o endereco configurado.',
+        'Não foi possível conectar. Verifique sua conexão e tente novamente.',
       );
     }
 
@@ -160,11 +160,11 @@ class ApiService {
       ).timeout(timeout);
     } on TimeoutException {
       throw const ApiException(
-        'A API demorou para responder. Verifique se ela esta ligada e tente novamente.',
+        'A resposta demorou. Verifique sua conexão e tente novamente.',
       );
     } on http.ClientException {
       throw const ApiException(
-        'Nao foi possivel conectar a API. Confira sua rede e o endereco configurado.',
+        'Não foi possível conectar. Verifique sua conexão e tente novamente.',
       );
     }
 
@@ -182,14 +182,14 @@ class ApiService {
         await onSessionExpired?.call();
       }
       throw ApiException(
-        'A API retornou uma resposta invalida.',
+        'Não foi possível carregar os dados. Tente novamente.',
         statusCode: response.statusCode,
       );
     }
 
     if (decoded is! Map<String, dynamic>) {
       throw ApiException(
-        'A API retornou uma resposta invalida.',
+        'Não foi possível carregar os dados. Tente novamente.',
         statusCode: response.statusCode,
       );
     }
@@ -226,16 +226,15 @@ class ApiService {
   String _mensagemPadraoStatus(int statusCode) {
     return switch (statusCode) {
       400 => 'Confira os dados enviados e tente novamente.',
-      401 => 'Sua sessao expirou. Entre novamente.',
-      403 => 'Voce nao tem permissao para esta acao.',
-      404 => 'O recurso solicitado nao foi encontrado.',
-      409 =>
-        'Esta acao conflitou com uma atualizacao recente. Recarregue e tente novamente.',
+      401 => 'Sua sessão expirou. Entre novamente.',
+      403 => 'Você não tem permissão para esta ação.',
+      404 => 'Este conteúdo não está disponível.',
+      409 => 'O conteúdo mudou. Atualize a tela e tente novamente.',
       429 =>
         'Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.',
       >= 500 =>
-        'A API encontrou um problema interno. Tente novamente em instantes.',
-      _ => 'Nao foi possivel concluir a requisicao.',
+        'Não foi possível concluir agora. Tente novamente em instantes.',
+      _ => 'Não foi possível concluir. Tente novamente.',
     };
   }
 

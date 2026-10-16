@@ -80,7 +80,7 @@ class _PerfilPageState extends State<PerfilPage> {
       final bytes = await arquivo.readAsBytes();
       if (!mounted) return;
       if (bytes.length > 2 * 1024 * 1024) {
-        _mostrarInfo(context, 'A foto precisa ter no maximo 2 MB.');
+        _mostrarInfo(context, 'A foto precisa ter no máximo 2 MB.');
         return;
       }
       final mimeType = _mimeDaFoto(arquivo.name);
@@ -101,7 +101,7 @@ class _PerfilPageState extends State<PerfilPage> {
       _mostrarInfo(context, 'Foto de perfil atualizada.');
     } catch (_) {
       if (mounted) {
-        _mostrarInfo(context, 'Nao foi possivel atualizar a foto.');
+        _mostrarInfo(context, 'Não foi possível atualizar a foto.');
       }
     } finally {
       if (mounted) setState(() => _alterandoFoto = false);
@@ -121,7 +121,7 @@ class _PerfilPageState extends State<PerfilPage> {
       _mostrarInfo(context, 'Foto de perfil removida.');
     } catch (_) {
       if (mounted) {
-        _mostrarInfo(context, 'Nao foi possivel remover a foto.');
+        _mostrarInfo(context, 'Não foi possível remover a foto.');
       }
     } finally {
       if (mounted) setState(() => _alterandoFoto = false);
