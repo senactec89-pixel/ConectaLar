@@ -1,0 +1,762 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "capturas": [
+    {
+      "arquivo": "home-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-arquivo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-decisao-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-arquivo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-decisao-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-arquivo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-decisao-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "login-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "documentos-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "erro-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-conteudo-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "vazio-final-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-arquivo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-decisao-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "login-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "login-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "login-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "documentos-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "documentos-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "documentos-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "erro-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "erro-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "erro-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "vazio-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "vazio-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "vazio-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    }
+  ],
+  "excecoesNavegador": []
+}

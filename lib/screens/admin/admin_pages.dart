@@ -206,43 +206,46 @@ class _AdminPageState extends State<AdminPage> {
           Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
         ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: switch (_modulo) {
-          AdminModulo.painel => 0,
-          AdminModulo.usuarios => 1,
-          AdminModulo.categorias => 3,
-          AdminModulo.auditoria => 4,
-          _ => 2,
-        },
-        onDestinationSelected: (i) => _abrir(switch (i) {
-          1 => AdminModulo.usuarios,
-          2 => AdminModulo.denuncias,
-          3 => AdminModulo.categorias,
-          4 => AdminModulo.auditoria,
-          _ => AdminModulo.painel,
-        }),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            label: 'Central',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            label: 'Contas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.gavel_outlined),
-            label: 'Moderação',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            label: 'Catálogo',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            label: 'Auditoria',
-          ),
-        ],
+      bottomNavigationBar: MediaQuery.withClampedTextScaling(
+        maxScaleFactor: 1.1,
+        child: NavigationBar(
+          selectedIndex: switch (_modulo) {
+            AdminModulo.painel => 0,
+            AdminModulo.usuarios => 1,
+            AdminModulo.categorias => 3,
+            AdminModulo.auditoria => 4,
+            _ => 2,
+          },
+          onDestinationSelected: (i) => _abrir(switch (i) {
+            1 => AdminModulo.usuarios,
+            2 => AdminModulo.denuncias,
+            3 => AdminModulo.categorias,
+            4 => AdminModulo.auditoria,
+            _ => AdminModulo.painel,
+          }),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.dashboard_outlined),
+              label: 'Central',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.people_outline),
+              label: 'Contas',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.gavel_outlined),
+              label: 'Moderação',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.category_outlined),
+              label: 'Catálogo',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.history_outlined),
+              label: 'Auditoria',
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1050,6 +1053,7 @@ class _DocumentoModeracaoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = '${item['status'] ?? ''}';
     final pendente = status == 'pendente';
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(1) >= 1.6;
     final arquivo = '${item['nomeArquivo'] ?? item['referenciaArquivo'] ?? ''}'
         .trim();
     return Card(
@@ -1096,9 +1100,13 @@ class _DocumentoModeracaoCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                _StatusDocumentoChip(status: status),
+                if (!textoAmpliado) _StatusDocumentoChip(status: status),
               ],
             ),
+            if (textoAmpliado) ...[
+              const SizedBox(height: AppSpace.sm),
+              _StatusDocumentoChip(status: status),
+            ],
             if (arquivo.isNotEmpty) ...[
               const SizedBox(height: AppSpace.md),
               Text(
@@ -1235,7 +1243,7 @@ class _AnaliseDocumentoDialogState extends State<_AnaliseDocumentoDialog> {
                 if (_erroMotivo != null) setState(() => _erroMotivo = null);
               },
               decoration: InputDecoration(
-                labelText: 'Motivo da rejeição',
+                labelText: 'Justificativa',
                 helperText:
                     'Preencha este campo se decidir rejeitar o documento.',
                 errorText: _erroMotivo,
