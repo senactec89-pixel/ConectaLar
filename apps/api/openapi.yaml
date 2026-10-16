@@ -593,9 +593,80 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: cidade
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+        - name: uf
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^[A-Za-z]{2}$'
       responses:
         '200':
           description: Public professional profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - profissionais
+                properties:
+                  profissionais:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProfissionalPublico'
+        default:
+          description: HTTP error with internal details omitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /profissionais/busca:
+    post:
+      operationId: postBuscaProfissionaisPorDistancia
+      summary: Lists professionals ordered and filtered by transient location
+      description: Coordinates are used only for this request and are not persisted. Public professional coordinates remain approximate.
+      tags:
+        - Profissionais
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - latitude
+                - longitude
+                - raioKm
+              properties:
+                latitude:
+                  type: number
+                  minimum: -90
+                  maximum: 90
+                longitude:
+                  type: number
+                  minimum: -180
+                  maximum: 180
+                raioKm:
+                  type: integer
+                  minimum: 1
+                  maximum: 200
+                termo:
+                  type: string
+                  maxLength: 80
+                categoriaId:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Professionals within both the requested radius and their service area
           content:
             application/json:
               schema:
@@ -2861,6 +2932,11 @@ components:
         - tipo
         - descricao
         - bairro
+        - cidade
+        - uf
+        - raioAtendimentoKm
+        - latitudeAproximada
+        - longitudeAproximada
         - precoInicial
         - verificado
         - fotoPerfilUrl
@@ -2882,6 +2958,28 @@ components:
           type: string
         bairro:
           type: string
+        cidade:
+          type: [string, 'null']
+        uf:
+          type: [string, 'null']
+        raioAtendimentoKm:
+          type: integer
+          minimum: 1
+          maximum: 200
+        latitudeAproximada:
+          type: [number, 'null']
+          minimum: -90
+          maximum: 90
+          description: Approximate public latitude rounded by the API.
+        longitudeAproximada:
+          type: [number, 'null']
+          minimum: -180
+          maximum: 180
+          description: Approximate public longitude rounded by the API.
+        distanciaKm:
+          type: [number, 'null']
+          minimum: 0
+          description: Present in search responses when a reference location is supplied.
         precoInicial:
           type:
             - number

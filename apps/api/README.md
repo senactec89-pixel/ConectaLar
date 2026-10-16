@@ -39,6 +39,11 @@ The health check is `GET /health` and returns only `{ "status": "ok" }`. It does
 
 `GET /localizacao/cep/{cep}` validates an eight-digit Brazilian CEP and fills address components through ViaCEP. When `GOOGLE_MAPS_SERVER_API_KEY` is configured, the API also geocodes the result. Restrict that key in Google Cloud to the VPS public IP and only the Geocoding API. Exact client coordinates and the professional's raw coordinates are not returned publicly; professional map coordinates are rounded and intended only for approximate regional display.
 
+`POST /profissionais/busca` accepts transient coordinates in the JSON body,
+orders results by distance, and filters by both the requested radius and each
+professional's service radius. Use this route for device GPS so coordinates do
+not appear in request URLs. The API does not persist the supplied position.
+
 The OpenAPI contract in `openapi.yaml` covers the routes currently implemented by the API, including client profiles and addresses, professional availability and agenda, service requests, chat, reviews, reports, notifications, document moderation, administrative users, history, terms, and audit. It describes the current HTTP contract; it does not claim that every route has passed an integration or production test. MySQL-backed routes are mounted only when MySQL and `AUTH_TOKEN_SECRET` are configured before process startup.
 
 For local troubleshooting, use `npm run diagnostico:local` after starting the API. The command checks `/health`, MySQL, pending migrations, demo logins, and the main demo endpoints. Use `npm run diagnostico:fluxo` for a deeper local end-to-end validation that creates temporary test data and exercises request creation, acceptance, chat, completion, reviews, reports, moderation, and audit. The full local workflow is documented in [`docs/ambiente-local.md`](../../docs/ambiente-local.md). The Flutter app defaults to port `3012`; direct API execution defaults to `3000`, so set `PORT` or the Flutter base URL when not using the Windows launcher.

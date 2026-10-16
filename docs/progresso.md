@@ -11,6 +11,7 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 - exportacao autenticada dos dados pessoais em JSON e exclusao de conta com anonimizacao, invalidacao de sessoes e trilha de atendimento LGPD;
 - perfis de cliente, profissional e empresa, foto de perfil, enderecos e favoritos;
 - categorias, busca, ofertas, disponibilidade e agenda profissional;
+- GPS sob consentimento, filtro por distancia e raio de atendimento, com mapa Android de coordenadas profissionais aproximadas;
 - solicitacoes com endereco cadastrado, oferta escolhida, data, horario e os cinco estados oficiais;
 - protecao do endereco completo antes das condicoes autorizadas;
 - chat por solicitacao, com bloqueio visual quando a conversa esta encerrada;
@@ -22,10 +23,11 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 16/10/2026 com 31 testes.
+- API: `npm.cmd test` aprovado em 16/10/2026 com 33 testes.
 - Flutter: `flutter analyze` aprovado em 16/10/2026.
-- Flutter: `flutter test` aprovado em 16/10/2026 com 178 testes.
+- Flutter: `flutter test` aprovado em 16/10/2026 com 180 testes.
 - Android debug: `flutter build apk --debug` aprovado em 16/10/2026, incluindo armazenamento seguro e compartilhamento nativo da exportacao LGPD.
+- Android debug recompilado com GPS e mapa habilitados por chave ficticia somente para validacao de build; a exibicao real depende de chave Google Maps restrita.
 - Integracao LGPD com MySQL local: migration, exportacao, exclusao, invalidacao do token e bloqueio do login antigo aprovados em 16/10/2026.
 - Login Google: testes de contrato e widgets aprovados; builds Android e Web compilados com client ID ficticio apenas para validar o codigo. A homologacao real depende das credenciais OAuth da equipe.
 - Migration `GoogleLogin1760122000000` aplicada com sucesso no MySQL local em 16/10/2026.
@@ -42,6 +44,7 @@ Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substitu
 - Reconciliar relatorios antigos que registram contagens de testes anteriores.
 - Homologar em aparelho real a exportacao/compartilhamento do JSON e a exclusao de contas de cliente, profissional e empresa.
 - Criar as credenciais OAuth no Google Cloud e homologar login Google no APK e no Flutter Web seguindo `docs/login-google.md`.
+- Criar chaves Google Maps separadas e restritas, geocodificar os perfis e homologar GPS/mapa em aparelho Android seguindo `docs/gps-mapa-distancia.md`.
 
 Roteiros relacionados:
 

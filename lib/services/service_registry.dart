@@ -10,6 +10,7 @@ import 'avaliacao_service.dart';
 import 'categoria_service.dart';
 import 'cliente_service.dart';
 import 'denuncia_service.dart';
+import 'device_location_service.dart';
 import 'google_identity_service.dart';
 import 'historico_service.dart';
 import 'mensagem_service.dart';
@@ -28,6 +29,7 @@ class AppServices {
     ApiService? api,
     SessionStorage? sessionStorage,
     GoogleIdentityClient? googleIdentity,
+    DeviceLocationClient? deviceLocation,
     this.modoDemo = AppConstants.demoMode,
     this.papelDemo = AppConstants.demoRole,
   }) : api =
@@ -36,6 +38,7 @@ class AppServices {
              client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
            ) {
     this.googleIdentity = googleIdentity ?? PluginGoogleIdentityClient();
+    this.deviceLocation = deviceLocation ?? GeolocatorDeviceLocationClient();
     auth = AuthService(
       this.api,
       persistirSessao: !modoDemo,
@@ -69,6 +72,7 @@ class AppServices {
   final bool modoDemo;
   final String papelDemo;
   late final GoogleIdentityClient googleIdentity;
+  late final DeviceLocationClient deviceLocation;
   bool get emDemonstracao => modoDemo && !auth.autenticado;
   late AuthService auth;
   late AdminService admin;
@@ -124,14 +128,21 @@ class AppServices {
         );
         final latitude = doubleValueOrNull(principal['latitude']);
         final longitude = doubleValueOrNull(principal['longitude']);
-        return await profissionais.buscar(
+        if (latitude != null && longitude != null) {
+          return await profissionais.buscarPorDistancia(
+            latitude: latitude,
+            longitude: longitude,
+            raioKm: 50,
+          );
+        }
+        final regional = await profissionais.buscar(
           bairro: principal['bairro']?.toString(),
           cidade: principal['cidade']?.toString(),
           uf: principal['uf']?.toString(),
-          latitude: latitude,
-          longitude: longitude,
-          raioKm: 50,
         );
+        final encontrados = regional['profissionais'];
+        if (encontrados is List && encontrados.isNotEmpty) return regional;
+        return await profissionais.listar();
       } catch (_) {
         return await profissionais.listar();
       }

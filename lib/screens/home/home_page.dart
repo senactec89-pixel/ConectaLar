@@ -388,11 +388,7 @@ class _NearbyProfessionals extends StatelessWidget {
         )
         .toList(growable: false);
     final supportedPlatform =
-        !kIsWeb &&
-        {
-          TargetPlatform.android,
-          TargetPlatform.iOS,
-        }.contains(defaultTargetPlatform);
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     final showMap =
         AppConstants.googleMapsEnabled &&
         supportedPlatform &&

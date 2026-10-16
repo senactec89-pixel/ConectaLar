@@ -33,6 +33,26 @@ class ProfissionalService {
     return _api.get('profissionais', queryParameters: filtros);
   }
 
+  Future<Map<String, dynamic>> buscarPorDistancia({
+    required double latitude,
+    required double longitude,
+    required int raioKm,
+    String? termo,
+    String? categoriaId,
+  }) {
+    return _api.post(
+      'profissionais/busca',
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'raioKm': raioKm,
+        if (termo != null && termo.isNotEmpty) 'termo': termo,
+        if (categoriaId != null && categoriaId.isNotEmpty)
+          'categoriaId': categoriaId,
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> obter(int profissionalId) {
     return _api.get('profissionais/$profissionalId');
   }

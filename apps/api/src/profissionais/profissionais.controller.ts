@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -23,6 +24,11 @@ export class ProfissionaisController {
   @Get()
   listar(@Query() query: Record<string, unknown>) {
     return this.profissionais.listar(query);
+  }
+
+  @Post('busca')
+  buscar(@Body() body: unknown) {
+    return this.profissionais.buscar(body);
   }
 
   @Get('me')

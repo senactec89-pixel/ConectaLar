@@ -67,6 +67,17 @@ export class ProfissionaisService {
   ) {}
 
   async listar(query: Record<string, unknown>) {
+    return this.listarComFiltros(query);
+  }
+
+  async buscar(body: unknown) {
+    return this.listarComFiltros(objectBody(body), true);
+  }
+
+  private async listarComFiltros(
+    query: Record<string, unknown>,
+    exigirRaio = false,
+  ) {
     const termo = optionalText(query.termo, 80);
     const bairro = optionalText(query.bairro, 80);
     const categoriaId = optionalId(query.categoriaId);
@@ -75,6 +86,14 @@ export class ProfissionaisService {
     const latitude = optionalCoordinate(query.latitude, -90, 90);
     const longitude = optionalCoordinate(query.longitude, -180, 180);
     const raioKm = optionalRadius(query.raioKm);
+    const temLatitude = latitude !== null;
+    const temLongitude = longitude !== null;
+    if (exigirRaio && raioKm === null) {
+      throw badRequest('RAIO_ATENDIMENTO_INVALIDO');
+    }
+    if (temLatitude !== temLongitude || (raioKm !== null && !temLatitude)) {
+      throw badRequest('COORDENADA_INVALIDA');
+    }
 
     const builder = this.perfis
       .createQueryBuilder('perfil')
@@ -662,8 +681,14 @@ function correspondeFiltros(
       return false;
     }
   }
-  if (raioKm !== null && distanciaKm !== null && distanciaKm > raioKm) {
-    return false;
+  if (raioKm !== null) {
+    if (distanciaKm === null) return false;
+    if (
+      distanciaKm > raioKm ||
+      distanciaKm > perfil.raioAtendimentoKm
+    ) {
+      return false;
+    }
   }
 
   if (

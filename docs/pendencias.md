@@ -20,6 +20,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Sessao Flutter movida para armazenamento criptografado da plataforma, com migracao automatica e remocao do valor legado em `SharedPreferences`.
 - Exportacao LGPD em JSON e exclusao de conta com senha atual, confirmacao forte, anonimizacao e invalidacao de sessoes.
 - Login Google implementado com validacao do ID token na API, primeiro acesso com tipo/termos e vinculo seguro por identificador estavel.
+- Busca por GPS implementada sem rastreamento em segundo plano, com raio do cliente, area atendida pelo profissional e mapa Android aproximado.
 
 ## Ajustes tecnicos ainda pendentes
 
@@ -56,6 +57,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Ambiente macOS, conta de loja e assinatura para iOS.
 - Homologacao completa em aparelho real com API hospedada.
 - Credenciais OAuth Web/Android criadas no Google Cloud e login Google homologado com SHA-1 debug e release.
+- Chaves Google Maps Android/servidor separadas, restritas e homologadas; configuracao nativa do mapa iOS em ambiente macOS.
 
 ## Documentacao relacionada
 

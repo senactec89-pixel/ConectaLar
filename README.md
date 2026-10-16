@@ -62,6 +62,7 @@ Os testes de integração e os diagnósticos precisam de API/MySQL locais config
 - [Checklists de homologação por papel](docs/checklist-homologacao-cliente.md)
 - [Preparação Android](docs/preparacao-android-release.md)
 - [Login com Google](docs/login-google.md)
+- [GPS, mapa e busca por distancia](docs/gps-mapa-distancia.md)
 - [Proposta de CI/CD](docs/proposta-ci-cd.md)
 
 O ConectaLar não processa pagamentos: preço é referência inicial e os valores finais são combinados diretamente entre as partes.

@@ -55,6 +55,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /enderecoAtendimento/);
   assert.match(openapi, /\/profissionais\/me\/avaliacoes:/);
   assert.match(openapi, /\/profissionais\/\{id\}\/avaliacoes:/);
+  assert.match(openapi, /\/profissionais\/busca:/);
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /nomeServico/);
   assert.match(openapi, /fotoPerfilUrl/);
