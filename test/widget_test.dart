@@ -143,9 +143,10 @@ void main() {
       find.byKey(const ValueKey('solicitar-bairro')),
       'Jardim das Flores',
     );
+    final hoje = DateTime.now();
     await tester.enterText(
       find.byKey(const ValueKey('solicitar-data')),
-      '15/10/2026',
+      '${hoje.day.toString().padLeft(2, '0')}/${hoje.month.toString().padLeft(2, '0')}/${hoje.year}',
     );
     await tester.enterText(
       find.byKey(const ValueKey('solicitar-horario')),
