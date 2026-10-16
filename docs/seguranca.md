@@ -1,6 +1,6 @@
 # Seguranca - estado atual e pendencias
 
-Atualizado em 15/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
+Atualizado em 16/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
 
 ## Controles existentes
 
@@ -23,12 +23,16 @@ Atualizado em 15/10/2026 para o codigo disponivel em `main`. Este documento regi
 - O selo profissional e recalculado pelo conjunto de documentos e depende de documento de identidade aprovado.
 - Profissionais nao conseguem aprovar o proprio selo.
 - A sessao Flutter usa armazenamento criptografado da plataforma: Android Keystore no Android e Keychain no iOS. Sessoes legadas em `SharedPreferences` sao migradas e removidas na primeira leitura.
+- Exportacao e exclusao de conta exigem token valido e confirmacao da senha atual.
+- A exportacao omite hashes de senha, tokens, codigos e segredos MFA; o arquivo JSON e entregue pela folha nativa de compartilhamento do aparelho.
+- A exclusao bloqueia contas com atendimentos ativos, nao permite autoexclusao administrativa, invalida todas as sessoes e anonimiza o historico que precisa permanecer referenciado.
+- Foto e documentos privados sao removidos do storage; falhas de limpeza sao registradas sem expor o nome do arquivo ou dados do titular.
 
 ## Limites que precisam ser resolvidos
 
 - A varredura depende de ClamAV ou servico compativel estar instalado, atualizado e acessivel no ambiente. Isso ainda precisa ser configurado e homologado na hospedagem.
 - O suporte a Cloudflare R2 precisa de bucket, credenciais, politicas de acesso e backup/retencao configurados no ambiente real.
-- Ainda falta politica aprovada de retencao, expiracao, descarte e atendimento a titulares para documentos e dados pessoais.
+- Ainda falta aprovacao juridica dos prazos de retencao e descarte por categoria de dado. O autoatendimento tecnico de exportacao e exclusao ja esta implementado.
 - O rate limit em memoria nao coordena multiplas instancias.
 - A identificacao por cabecalho de proxy depende de configuracao confiavel na borda.
 - Ainda falta definir a politica de expiracao e de sessoes simultaneas em diferentes dispositivos.

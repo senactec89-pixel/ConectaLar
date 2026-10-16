@@ -129,7 +129,7 @@ abstract final class AppRoutes {
       recuperacaoSenha,
     };
     if (publicas.contains(route)) return MapEntry(route, builder);
-    if (route == verificacaoEmail) {
+    if (route == verificacaoEmail || route == seguranca) {
       return MapEntry(
         route,
         (context) =>

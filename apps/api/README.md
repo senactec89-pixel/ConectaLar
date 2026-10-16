@@ -226,8 +226,12 @@ Terms and privacy notice routes:
 - `GET /termos/atuais`
 - `GET /termos/aceites/me` with `Authorization: Bearer <token>`
 - `POST /termos/aceites/me` with `Authorization: Bearer <token>`
+- `POST /privacidade/me/exportacao` with current password and `Authorization: Bearer <token>`
+- `POST /privacidade/me/exclusao` with current password, `confirmacao: "EXCLUIR"`, and `Authorization: Bearer <token>`
 
-The current terms are written in plain language and include privacy/LGPD explanations, protected address handling, external payment, verification seal limits, user responsibilities, and version changes. Acceptance stores only the authenticated user, accepted version, channel, and timestamp; it does not store raw IP address or user-agent data. Retention, deletion, legal text approval, and re-consent rules remain pending under P13/P18.
+The current terms are written in plain language and include privacy/LGPD explanations, protected address handling, external payment, verification seal limits, user responsibilities, and version changes. Acceptance stores only the authenticated user, accepted version, channel, and timestamp; it does not store raw IP address or user-agent data. Data export requires reauthentication and omits authentication secrets. Account deletion anonymizes records that must preserve referential integrity, removes private files, and invalidates all sessions. Final legal review and category-specific retention periods remain pending under P13/P18.
+
+Apply migration `PrivacidadeLgpd1760121000000` before using these routes. Administrators cannot self-delete through the public flow, and accounts with open service requests must cancel or finish them first.
 
 ## Atualização dos fluxos em 11/10/2026
 

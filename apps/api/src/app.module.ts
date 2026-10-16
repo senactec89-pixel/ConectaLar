@@ -18,6 +18,7 @@ import { LocalizacaoModule } from './localizacao/localizacao.module.js';
 import { NotificacoesModule } from './notificacoes/notificacoes.module.js';
 import { HealthController } from './health/health.controller.js';
 import { ProfissionaisModule } from './profissionais/profissionais.module.js';
+import { PrivacidadeModule } from './privacidade/privacidade.module.js';
 import { SolicitacoesModule } from './solicitacoes/solicitacoes.module.js';
 import { TermosModule } from './termos/termos.module.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
@@ -43,6 +44,7 @@ const runtimeImports = isAuthRuntimeConfigured()
       HistoricoModule,
       TermosModule,
       UsuariosModule,
+      PrivacidadeModule,
     ]
   : [];
 

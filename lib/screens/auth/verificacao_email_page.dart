@@ -182,6 +182,17 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
                         text: _reenviando ? 'Enviando...' : 'Reenviar código',
                       ),
                     ),
+                    TextButton.icon(
+                      key: const ValueKey('email-verificacao-privacidade'),
+                      onPressed: ocupado
+                          ? null
+                          : () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.seguranca,
+                            ),
+                      icon: const Icon(Icons.manage_accounts_outlined),
+                      label: const Text('Seguranca e privacidade da conta'),
+                    ),
                   ],
                 ),
               ),

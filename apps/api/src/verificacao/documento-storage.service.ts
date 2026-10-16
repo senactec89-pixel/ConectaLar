@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import {
   GetObjectCommand,
   PutObjectCommand,
+  DeleteObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 
@@ -58,6 +59,26 @@ export class DocumentoStorageService {
       return this.carregarR2(id, referencia, nomeArquivo);
     }
     return carregarLocal(id, referencia, nomeArquivo);
+  }
+
+  async remover(referencia: string): Promise<void> {
+    if (referencia.startsWith(r2Prefix)) {
+      const key = referencia.slice(r2Prefix.length);
+      if (!key.startsWith('documentos-verificacao/')) return;
+      const config = r2Config();
+      await config.client.send(
+        new DeleteObjectCommand({ Bucket: config.bucket, Key: key }),
+      );
+      return;
+    }
+
+    const caminho = caminhoDocumentoSeguro(referencia);
+    if (caminho === null) return;
+    try {
+      await unlink(caminho);
+    } catch (error) {
+      if (!isArquivoAusente(error)) throw error;
+    }
   }
 
   private async carregarR2(
@@ -197,4 +218,13 @@ function documentoIndisponivel(): NotFoundException {
     code: 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
     message: 'Arquivo do documento indisponivel para visualizacao segura.',
   });
+}
+
+function isArquivoAusente(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'ENOENT'
+  );
 }

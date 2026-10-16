@@ -198,6 +198,25 @@ class AuthService extends ChangeNotifier {
     return response;
   }
 
+  Future<Map<String, dynamic>> exportarDados({required String senhaAtual}) {
+    return _api.post(
+      'privacidade/me/exportacao',
+      body: {'senhaAtual': senhaAtual},
+    );
+  }
+
+  Future<Map<String, dynamic>> excluirConta({
+    required String senhaAtual,
+    required String confirmacao,
+  }) async {
+    final response = await _api.post(
+      'privacidade/me/exclusao',
+      body: {'senhaAtual': senhaAtual, 'confirmacao': confirmacao},
+    );
+    await _limparSessaoLocal();
+    return response;
+  }
+
   Future<Map<String, dynamic>> logout() async {
     Map<String, dynamic> response = {'ok': true};
     if (_api.autenticado) {
@@ -207,6 +226,11 @@ class AuthService extends ChangeNotifier {
         // Mesmo se a API estiver indisponivel, a sessao local precisa sair.
       }
     }
+    await _limparSessaoLocal();
+    return response;
+  }
+
+  Future<void> _limparSessaoLocal() async {
     _usuarioAtual = null;
     _accessTokenAtual = null;
     _api.definirToken(null);
@@ -215,7 +239,6 @@ class AuthService extends ChangeNotifier {
     if (persistirSessao) {
       await _sessionStorage.delete(_sessionKey);
     }
-    return response;
   }
 
   Future<void> _registrarSessao(Map<String, dynamic> response) async {

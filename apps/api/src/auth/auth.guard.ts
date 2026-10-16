@@ -60,6 +60,7 @@ function permiteEmailNaoVerificado(request: RequestWithUser): boolean {
   if (path === '/auth/email/verificacao') return true;
   if (path.startsWith('/auth/email/verificacao/')) return true;
   if (path === '/termos/aceites/me') return true;
+  if (path.startsWith('/privacidade/me/')) return true;
   return false;
 }
 

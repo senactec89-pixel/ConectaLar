@@ -5,9 +5,9 @@ import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 
 const termoAtual = {
-  versao: '2026-10-10.v1',
+  versao: '2026-10-16.v2',
   titulo: 'Termos de uso e aviso de privacidade do ConectaLar',
-  publicadoEm: '2026-10-10',
+  publicadoEm: '2026-10-16',
   resumo:
     'O ConectaLar aproxima clientes e prestadores. O pagamento e os detalhes finais do servico sao combinados fora da plataforma.',
   secoes: [
@@ -39,7 +39,7 @@ const termoAtual = {
     {
       titulo: '6. Seus direitos pela LGPD',
       texto:
-        'Voce pode pedir acesso, correcao, informacao sobre uso, revisao de dados, exclusao quando aplicavel e orientacoes sobre privacidade. Alguns registros podem precisar ser mantidos por seguranca, auditoria ou obrigacao legal.',
+        'Na tela Seguranca, voce pode confirmar sua senha e exportar uma copia dos dados ligados a sua conta. Tambem pode excluir a conta. A exclusao remove acesso, perfil, contatos, enderecos, foto, documentos e textos pessoais enviados pelo titular. Registros minimos de atendimentos, aceites e moderacao podem permanecer anonimizados quando necessarios para seguranca, defesa de direitos, auditoria ou obrigacao legal. Atendimentos em aberto precisam ser cancelados ou concluidos antes da exclusao.',
     },
     {
       titulo: '7. Responsabilidades dos usuarios',

@@ -180,6 +180,60 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /privacidade/me/exportacao:
+    post:
+      operationId: postPrivacidadeMeExportacao
+      summary: Exports the authenticated data subject's personal data as JSON
+      description: Requires the current password. Password hashes, tokens, MFA secrets, and authentication codes are never exported.
+      tags:
+        - Privacy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivacidadeCredencialRequest'
+      responses:
+        '201':
+          description: Personal data export generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacidadeExportacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /privacidade/me/exclusao:
+    post:
+      operationId: postPrivacidadeMeExclusao
+      summary: Anonymizes and deactivates the authenticated account
+      description: Requires the current password and the exact confirmation EXCLUIR. Administrators cannot use this route, and accounts with active service requests must resolve them first.
+      tags:
+        - Privacy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivacidadeExclusaoRequest'
+      responses:
+        '201':
+          description: Account deactivated, sessions invalidated, and personal data anonymized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacidadeExclusaoResponse'
+        '409':
+          description: The account still has active service requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /usuarios/{id}/foto:
     get:
       operationId: getUsuarioFotoPerfil
@@ -2415,6 +2469,65 @@ components:
           writeOnly: true
         tipo:
           $ref: '#/components/schemas/UsuarioTipoPublico'
+    PrivacidadeCredencialRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - senhaAtual
+      properties:
+        senhaAtual:
+          type: string
+          minLength: 8
+          maxLength: 200
+          writeOnly: true
+    PrivacidadeExclusaoRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - senhaAtual
+        - confirmacao
+      properties:
+        senhaAtual:
+          type: string
+          minLength: 8
+          maxLength: 200
+          writeOnly: true
+        confirmacao:
+          type: string
+          const: EXCLUIR
+    PrivacidadeExportacaoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - nomeArquivo
+        - mimeType
+        - dados
+      properties:
+        nomeArquivo:
+          type: string
+        mimeType:
+          type: string
+          const: application/json
+        dados:
+          type: object
+          description: Versioned data-subject export. Sensitive authentication secrets are omitted.
+          additionalProperties: true
+    PrivacidadeExclusaoResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - contaExcluida
+        - message
+      properties:
+        ok:
+          type: boolean
+          const: true
+        contaExcluida:
+          type: boolean
+          const: true
+        message:
+          type: string
     AuthLoginRequest:
       type: object
       additionalProperties: false

@@ -57,6 +57,22 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /nomeServico/);
   assert.match(openapi, /fotoPerfilUrl/);
+  assert.match(openapi, /\/privacidade\/me\/exportacao:/);
+  assert.match(openapi, /\/privacidade\/me\/exclusao:/);
+});
+
+test('LGPD flows require reauthentication and anonymize account data', async () => {
+  const privacy = await source('dist/privacidade/privacidade.service.js');
+  const guard = await source('dist/auth/auth.guard.js');
+
+  assert.match(privacy, /passwordService\.verify/);
+  assert.match(privacy, /SENHA_ATUAL_INVALIDA/);
+  assert.match(privacy, /ATENDIMENTOS_ATIVOS/);
+  assert.match(privacy, /EXCLUSAO_ADMIN_NAO_PERMITIDA/);
+  assert.match(privacy, /tokenVersion: usuario\.tokenVersion \+ 1/);
+  assert.match(privacy, /emailAnonimo/);
+  assert.match(privacy, /removerArquivosPrivados/);
+  assert.match(guard, /privacidade\/me/);
 });
 
 test('civil dates remain strings while timestamps keep their timezone', () => {

@@ -124,6 +124,10 @@ void main() {
   testWidgets('a solicitação enviada inicia aguardando resposta', (
     tester,
   ) async {
+    final amanha = DateTime.now().add(const Duration(days: 1));
+    final dataAtendimento =
+        '${amanha.day.toString().padLeft(2, '0')}/'
+        '${amanha.month.toString().padLeft(2, '0')}/${amanha.year}';
     await tester.pumpWidget(const ConectaLarApp());
     await tester.pumpAndSettle();
 
@@ -143,10 +147,9 @@ void main() {
       find.byKey(const ValueKey('solicitar-bairro')),
       'Jardim das Flores',
     );
-    final hoje = DateTime.now();
     await tester.enterText(
       find.byKey(const ValueKey('solicitar-data')),
-      '${hoje.day.toString().padLeft(2, '0')}/${hoje.month.toString().padLeft(2, '0')}/${hoje.year}',
+      dataAtendimento,
     );
     await tester.enterText(
       find.byKey(const ValueKey('solicitar-horario')),

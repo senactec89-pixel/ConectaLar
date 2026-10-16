@@ -1,6 +1,6 @@
 # Pendencias do ConectaLar
 
-Estado revisado em 15/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
+Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
 
 ## Correcoes recentes incorporadas
 
@@ -18,6 +18,7 @@ Estado revisado em 15/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Preview administrativo de JPEG, PNG e PDF no app.
 - Regra do selo profissional recalculada pelo conjunto de documentos: o selo depende de documento de identidade aprovado.
 - Sessao Flutter movida para armazenamento criptografado da plataforma, com migracao automatica e remocao do valor legado em `SharedPreferences`.
+- Exportacao LGPD em JSON e exclusao de conta com senha atual, confirmacao forte, anonimizacao e invalidacao de sessoes.
 
 ## Ajustes tecnicos ainda pendentes
 
@@ -41,7 +42,7 @@ Estado revisado em 15/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Cidades/cobertura de lancamento, comparacao de profissionais e escopo final do catalogo.
 - Regras de continuidade do chat, anexos, canais de notificacao e preferencias.
 - Processo de contestacao para moderacao de denuncias, avaliacoes e documentos.
-- Conteudo final dos termos, politica de privacidade e atendimento a titulares de dados.
+- Revisao juridica final dos termos, politica de privacidade, prazos de retencao e canal humano para casos que nao possam ser resolvidos pelo autoatendimento.
 
 ## Preparacao para producao
 

@@ -1,6 +1,6 @@
 # Progresso do ConectaLar
 
-Atualizado em 15/10/2026 para o estado atual do `main`.
+Atualizado em 16/10/2026 para o estado atual do `main`.
 
 ## Estado do produto
 
@@ -8,6 +8,7 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 
 - cadastro, login, confirmacao de e-mail, recuperacao de senha, troca de senha e logout;
 - sessao persistida no armazenamento criptografado da plataforma, com migracao e remocao automatica do valor legado;
+- exportacao autenticada dos dados pessoais em JSON e exclusao de conta com anonimizacao, invalidacao de sessoes e trilha de atendimento LGPD;
 - perfis de cliente, profissional e empresa, foto de perfil, enderecos e favoritos;
 - categorias, busca, ofertas, disponibilidade e agenda profissional;
 - solicitacoes com endereco cadastrado, oferta escolhida, data, horario e os cinco estados oficiais;
@@ -21,10 +22,11 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 14/10/2026 com 23 testes.
-- Flutter: `flutter analyze` aprovado em 15/10/2026.
-- Flutter: `flutter test` aprovado em 15/10/2026 com 169 testes.
-- Android debug: `flutter build apk --debug` aprovado em 15/10/2026, incluindo a integracao nativa do armazenamento seguro.
+- API: `npm.cmd test` aprovado em 16/10/2026 com 24 testes.
+- Flutter: `flutter analyze` aprovado em 16/10/2026.
+- Flutter: `flutter test` aprovado em 16/10/2026 com 173 testes.
+- Android debug: `flutter build apk --debug` aprovado em 16/10/2026, incluindo armazenamento seguro e compartilhamento nativo da exportacao LGPD.
+- Integracao LGPD com MySQL local: migration, exportacao, exclusao, invalidacao do token e bloqueio do login antigo aprovados em 16/10/2026.
 
 Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substituem homologacao manual completa em aparelho real com API e MySQL do ambiente que sera usado.
 
@@ -36,6 +38,7 @@ Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substitu
 - Validar envio de e-mail em rede real e conferir spam/quarentena.
 - Testar mudanca de IP/base URL antes de cada APK local.
 - Reconciliar relatorios antigos que registram contagens de testes anteriores.
+- Homologar em aparelho real a exportacao/compartilhamento do JSON e a exclusao de contas de cliente, profissional e empresa.
 
 Roteiros relacionados:
 
@@ -49,7 +52,7 @@ Antes de hospedar/publicar, ainda precisam ser definidos e demonstrados:
 
 - bucket Cloudflare R2 real criado, credenciais configuradas e upload/download homologados na hospedagem;
 - ClamAV instalado, atualizado e homologado no ambiente de hospedagem;
-- politica de retencao e descarte de documentos e dados pessoais;
+- politica juridica final de retencao e descarte por categoria de dado; o fluxo tecnico de exportacao, exclusao e anonimizacao ja existe;
 - HTTPS, dominio, variaveis de ambiente e origens CORS de producao;
 - rate limit distribuido, caso exista mais de uma instancia;
 - backup/restauracao testados;

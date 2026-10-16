@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { test } from 'node:test';
 import { DocumentoStorageService } from '../dist/verificacao/documento-storage.service.js';
 
-test('document storage saves and reads local private files by default', async () => {
+test('document storage saves, reads, and removes local private files', async () => {
   const previousCwd = process.cwd();
   const previousDriver = process.env.FILE_STORAGE_DRIVER;
   const previousNodeEnv = process.env.NODE_ENV;
@@ -28,6 +28,13 @@ test('document storage saves and reads local private files by default', async ()
     assert.equal(arquivo.mimeType, 'application/pdf');
     assert.equal(arquivo.nomeSeguro, 'documento.pdf');
     assert.equal(arquivo.bytes.toString('utf8'), '%PDF- teste');
+
+    await storage.remover(referencia);
+    await assert.rejects(
+      () => storage.carregar(1, referencia, 'documento.pdf'),
+      (error) =>
+        error?.getResponse?.().code === 'ARQUIVO_DOCUMENTO_INDISPONIVEL',
+    );
   } finally {
     restoreEnv('FILE_STORAGE_DRIVER', previousDriver);
     restoreEnv('NODE_ENV', previousNodeEnv);

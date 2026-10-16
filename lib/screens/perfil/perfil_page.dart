@@ -269,11 +269,9 @@ class _PerfilPageState extends State<PerfilPage> {
                 _PerfilOpcao(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacidade',
-                  subtitle: 'Dados privados e LGPD',
-                  onTap: () => _mostrarInfo(
-                    context,
-                    'Dados sensíveis não devem aparecer em logs, links públicos ou telas sem vínculo.',
-                  ),
+                  subtitle: 'Exportar dados ou excluir a conta pela LGPD',
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.seguranca),
                 ),
                 _PerfilOpcao(
                   icon: Icons.logout_rounded,
