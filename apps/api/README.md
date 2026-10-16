@@ -18,6 +18,9 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
 | `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
+| `GOOGLE_WEB_CLIENT_ID` | none | OAuth Web client ID accepted as the audience for Google ID tokens |
+| `GOOGLE_OAUTH_CLIENT_IDS` | falls back to `GOOGLE_WEB_CLIENT_ID` | Optional comma-separated audience allow-list for multiple trusted OAuth clients |
+| `CORS_ALLOWED_ORIGINS` | none | Comma-separated exact Web origins allowed in production; non-browser Android requests have no Origin header |
 | `GOOGLE_MAPS_SERVER_API_KEY` | none | Optional restricted server key for geocoding; CEP lookup and regional fallback continue without it |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
@@ -71,6 +74,7 @@ Authentication routes:
 
 - `POST /auth/cadastro`
 - `POST /auth/login`
+- `POST /auth/google`
 - `POST /auth/login/mfa`
 - `POST /auth/senha/recuperacao`
 - `POST /auth/senha/recuperacao/confirmar`
@@ -85,6 +89,8 @@ Authentication routes:
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
 Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset sends a 6-digit recovery code by e-mail, stores only a SHA-256 hash scoped to the user, expires codes after 30 minutes, invalidates prior unused reset codes, and marks codes as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. In production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
+
+Google authentication accepts only a Google ID token and verifies its signature, issuer, expiry and configured audience with `google-auth-library`. The API stores the stable Google subject, never trusts an e-mail or role sent by the app, requires the current terms on first registration, and keeps administrator MFA in the login path. Automatic linking by e-mail is limited to active non-administrator accounts where Google is authoritative for the address (Gmail or Google Workspace). See [`docs/login-google.md`](../../docs/login-google.md) for the required Google Cloud and build setup.
 
 New public registrations start with `emailVerificado=false`. The API stores only a hash of the six-digit e-mail verification code, expires it after 15 minutes, invalidates previous unused codes when a new one is requested, and marks all open codes as used when the e-mail is confirmed. Existing users are marked as verified by the migration so current demo and test accounts keep working. In production, configure SMTP before enabling public registration. Local development can expose the verification `devCode` only when `EXPOSE_EMAIL_VERIFICATION_CODE=true`; do not enable that flag in production.
 

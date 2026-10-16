@@ -10,12 +10,15 @@ class AuthService extends ChangeNotifier {
     this._api, {
     this.persistirSessao = true,
     SessionStorage? sessionStorage,
-  }) : _sessionStorage = sessionStorage ?? SecureSessionStorage();
+    Future<void> Function()? onFederatedLogout,
+  }) : _sessionStorage = sessionStorage ?? SecureSessionStorage(),
+       _onFederatedLogout = onFederatedLogout;
 
   static const _sessionKey = 'conectalar.auth.session.v1';
 
   final ApiService _api;
   final SessionStorage _sessionStorage;
+  final Future<void> Function()? _onFederatedLogout;
   final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
   String? _accessTokenAtual;
@@ -74,6 +77,32 @@ class AuthService extends ChangeNotifier {
       'auth/login',
       body: {'email': email, 'senha': senha},
     );
+    if (response['mfaRequired'] == true) {
+      final token = response['mfaToken'];
+      if (token is String && token.isNotEmpty) {
+        throw MfaRequiredException(token);
+      }
+    }
+    await _registrarSessao(response);
+    return response;
+  }
+
+  Future<Map<String, dynamic>> loginGoogle({
+    required String idToken,
+    String? tipo,
+    String? senha,
+    bool aceitouTermos = false,
+  }) async {
+    final response = await _api.post(
+      'auth/google',
+      body: {
+        'idToken': idToken,
+        'tipo': ?tipo,
+        'senha': ?senha,
+        if (tipo != null) 'aceitouTermos': aceitouTermos,
+      },
+    );
+    if (response['cadastroNecessario'] == true) return response;
     if (response['mfaRequired'] == true) {
       final token = response['mfaToken'];
       if (token is String && token.isNotEmpty) {
@@ -263,6 +292,11 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
     if (persistirSessao) {
       await _sessionStorage.delete(_sessionKey);
+    }
+    try {
+      await _onFederatedLogout?.call();
+    } catch (_) {
+      // A sessao local ja foi encerrada e nao deve ser restaurada por falha externa.
     }
   }
 

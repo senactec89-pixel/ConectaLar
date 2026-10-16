@@ -11,14 +11,17 @@ import { IsNull, Repository } from 'typeorm';
 import { AuthenticatedUser } from './authenticated-user.js';
 import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
+import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo, usuarioTiposPublicos } from '../domain/usuario-tipo.js';
+import { termoAtual } from '../termos/termos.service.js';
 import {
   fotoPerfilUrl,
   removerFotoPerfilArquivo,
   salvarFotoPerfil,
 } from '../usuarios/foto-perfil.storage.js';
 import { MailService } from './mail.service.js';
+import { GoogleIdentityService } from './google-identity.service.js';
 import { MfaService } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
@@ -35,6 +38,13 @@ interface CadastroRequest {
 interface LoginRequest {
   email: string;
   senha: string;
+}
+
+interface GoogleLoginRequest {
+  idToken: string;
+  tipo: UsuarioTipo | null;
+  aceitouTermos: boolean;
+  senha: string | null;
 }
 
 interface RecuperacaoSenhaRequest {
@@ -82,6 +92,7 @@ export class AuthService {
     private readonly senhaResets: Repository<UsuarioSenhaResetEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    private readonly googleIdentity: GoogleIdentityService,
     private readonly mailService: MailService,
     private readonly mfaService: MfaService,
     private readonly passwordService: PasswordService,
@@ -119,6 +130,7 @@ export class AuthService {
     const usuario = this.usuarios.create({
       nome: cadastro.nome.trim(),
       email,
+      googleSub: null,
       telefone: cadastro.telefone?.trim() || null,
       telefoneNormalizado: cadastro.telefoneNormalizado ?? null,
       tipo: cadastro.tipo,
@@ -167,14 +179,90 @@ export class AuthService {
       });
     }
 
-    if (usuario.tipo === UsuarioTipo.Administrador && usuario.mfaAtivo) {
-      return {
-        mfaRequired: true,
-        ...this.tokenService.createMfaChallengeToken(usuario),
-      };
+    return this.loginResponse(usuario);
+  }
+
+  async loginGoogle(body: unknown) {
+    const input = parseGoogleLogin(body);
+    const identity = await this.googleIdentity.verify(input.idToken);
+
+    const linked = await this.usuarios.findOne({
+      where: { googleSub: identity.subject },
+    });
+    if (linked !== null) {
+      if (!linked.ativo) throw googleLoginUnavailable();
+      return this.loginResponse(linked, { contaCriada: false });
     }
 
-    return this.authResponse(usuario);
+    const sameEmail = await this.usuarios.findOne({
+      where: { email: identity.email },
+    });
+    if (sameEmail !== null) {
+      if (
+        !sameEmail.ativo ||
+        sameEmail.tipo === UsuarioTipo.Administrador ||
+        !identity.emailAuthoritative
+      ) {
+        throw googleLinkRequiresPassword();
+      }
+      sameEmail.googleSub = identity.subject;
+      sameEmail.emailVerificado = true;
+      try {
+        const saved = await this.usuarios.save(sameEmail);
+        return this.loginResponse(saved, {
+          contaCriada: false,
+          contaVinculada: true,
+        });
+      } catch (error) {
+        if (isDuplicateError(error)) throw googleLoginUnavailable();
+        throw error;
+      }
+    }
+
+    if (input.tipo === null) {
+      return {
+        cadastroNecessario: true,
+        perfilGoogle: { nome: identity.name, email: identity.email },
+      };
+    }
+    if (!input.aceitouTermos) {
+      throw badRequest('ACEITE_TERMOS_OBRIGATORIO');
+    }
+
+    if (input.senha === null) throw badRequest('SENHA_INVALIDA');
+    const senhaHash = await this.passwordService.hash(input.senha);
+    try {
+      const saved = await this.usuarios.manager.transaction(async (manager) => {
+        const usuarios = manager.getRepository(UsuarioEntity);
+        const usuario = await usuarios.save(
+          usuarios.create({
+            nome: identity.name,
+            email: identity.email,
+            emailVerificado: true,
+            googleSub: identity.subject,
+            telefone: null,
+            telefoneNormalizado: null,
+            fotoPerfil: null,
+            tipo: input.tipo!,
+            senhaHash,
+            ativo: true,
+          }),
+        );
+        await manager.getRepository(TermoAceiteEntity).save(
+          manager.getRepository(TermoAceiteEntity).create({
+            usuarioId: usuario.id,
+            versao: termoAtual.versao,
+            canal: 'google',
+            aceitoEm: new Date(),
+          }),
+        );
+        return usuario;
+      });
+      return this.loginResponse(saved, { contaCriada: true });
+    } catch (error) {
+      if (isDuplicateError(error)) throw googleLoginUnavailable();
+      throw error;
+    }
   }
 
   async confirmarLoginMfa(body: unknown) {
@@ -479,9 +567,24 @@ export class AuthService {
         telefone: usuario.telefone,
         tipo: usuario.tipo,
         fotoPerfilUrl: fotoPerfilUrl(usuario),
+        googleVinculado: usuario.googleSub !== null,
       },
       token: this.tokenService.createAccessToken(usuario),
     };
+  }
+
+  private loginResponse(
+    usuario: UsuarioEntity,
+    extras: Record<string, unknown> = {},
+  ) {
+    if (usuario.tipo === UsuarioTipo.Administrador && usuario.mfaAtivo) {
+      return {
+        ...extras,
+        mfaRequired: true,
+        ...this.tokenService.createMfaChallengeToken(usuario),
+      };
+    }
+    return { ...this.authResponse(usuario), ...extras };
   }
 
   private async usuarioAtivo(id: number): Promise<UsuarioEntity> {
@@ -621,6 +724,28 @@ function parseLogin(body: unknown): LoginRequest {
   }
 
   return { email, senha };
+}
+
+function parseGoogleLogin(body: unknown): GoogleLoginRequest {
+  const value = objectBody(body);
+  const idToken = stringField(value, 'idToken').trim();
+  const tipo = optionalStringField(value, 'tipo');
+  const senha = optionalStringField(value, 'senha');
+  const aceitouTermos = value.aceitouTermos === true;
+  if (idToken.length > 12_000) throw badRequest('TOKEN_GOOGLE_INVALIDO');
+  if (tipo !== null && !usuarioTiposPublicos.has(tipo)) {
+    throw badRequest('TIPO_INVALIDO');
+  }
+  if (tipo !== null) {
+    if (senha === null) throw badRequest('SENHA_INVALIDA');
+    validarSenha(senha);
+  }
+  return {
+    idToken,
+    tipo: tipo as UsuarioTipo | null,
+    aceitouTermos,
+    senha,
+  };
 }
 
 function parseRecuperacaoSenha(body: unknown): RecuperacaoSenhaRequest {
@@ -825,6 +950,20 @@ function invalidEmailVerificationCode(): BadRequestException {
   return new BadRequestException({
     code: 'CODIGO_EMAIL_INVALIDO',
     message: 'Codigo de verificacao invalido ou expirado.',
+  });
+}
+
+function googleLoginUnavailable(): UnauthorizedException {
+  return new UnauthorizedException({
+    code: 'LOGIN_GOOGLE_NAO_AUTORIZADO',
+    message: 'Nao foi possivel entrar com esta conta Google.',
+  });
+}
+
+function googleLinkRequiresPassword(): ConflictException {
+  return new ConflictException({
+    code: 'VINCULACAO_GOOGLE_REQUER_SENHA',
+    message: 'Entre com e-mail e senha para proteger esta conta.',
   });
 }
 

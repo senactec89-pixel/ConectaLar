@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 
-const termoAtual = {
-  versao: '2026-10-16.v2',
+export const termoAtual = {
+  versao: '2026-10-16.v3',
   titulo: 'Termos de uso e aviso de privacidade do ConectaLar',
   publicadoEm: '2026-10-16',
   resumo:
@@ -24,7 +24,7 @@ const termoAtual = {
     {
       titulo: '3. Dados que usamos',
       texto:
-        'Usamos dados necessarios para criar conta, autenticar acesso, exibir perfis, registrar pedidos, mensagens, avaliacoes, favoritos, documentos de verificacao, denuncias, notificacoes e aceites destes termos.',
+        'Usamos dados necessarios para criar conta, autenticar acesso, inclusive o identificador estavel quando voce escolhe entrar com Google, exibir perfis, registrar pedidos, mensagens, avaliacoes, favoritos, documentos de verificacao, denuncias, notificacoes e aceites destes termos. O ConectaLar nao recebe sua senha do Google.',
     },
     {
       titulo: '4. Por que usamos seus dados',

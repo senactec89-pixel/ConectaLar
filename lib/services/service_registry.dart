@@ -10,6 +10,7 @@ import 'avaliacao_service.dart';
 import 'categoria_service.dart';
 import 'cliente_service.dart';
 import 'denuncia_service.dart';
+import 'google_identity_service.dart';
 import 'historico_service.dart';
 import 'mensagem_service.dart';
 import 'localizacao_service.dart';
@@ -26,6 +27,7 @@ class AppServices {
   AppServices({
     ApiService? api,
     SessionStorage? sessionStorage,
+    GoogleIdentityClient? googleIdentity,
     this.modoDemo = AppConstants.demoMode,
     this.papelDemo = AppConstants.demoRole,
   }) : api =
@@ -33,10 +35,12 @@ class AppServices {
            ApiService(
              client: modoDemo ? FrontendPreviewClient(papel: papelDemo) : null,
            ) {
+    this.googleIdentity = googleIdentity ?? PluginGoogleIdentityClient();
     auth = AuthService(
       this.api,
       persistirSessao: !modoDemo,
       sessionStorage: sessionStorage,
+      onFederatedLogout: this.googleIdentity.signOut,
     );
     Object? usuarioBusca;
     auth.addListener(() {
@@ -64,6 +68,7 @@ class AppServices {
   final buscaEstado = BuscaEstado();
   final bool modoDemo;
   final String papelDemo;
+  late final GoogleIdentityClient googleIdentity;
   bool get emDemonstracao => modoDemo && !auth.autenticado;
   late AuthService auth;
   late AdminService admin;

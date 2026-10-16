@@ -1,4 +1,4 @@
-package com.example.conectarlar_app
+package br.com.conectalar.app
 
 import io.flutter.embedding.android.FlutterActivity
 

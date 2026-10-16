@@ -30,6 +30,11 @@ export class AuthController {
     return this.authService.login(body);
   }
 
+  @Post('google')
+  loginGoogle(@Body() body: unknown) {
+    return this.authService.loginGoogle(body);
+  }
+
   @Post('login/mfa')
   confirmarLoginMfa(@Body() body: unknown) {
     return this.authService.confirmarLoginMfa(body);

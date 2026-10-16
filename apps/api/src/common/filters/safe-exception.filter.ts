@@ -38,6 +38,16 @@ const publicErrors: Readonly<Record<string, string>> = {
   TELEFONE_INVALIDO: 'Informe um telefone valido com DDD.',
   CONTA_NAO_CRIADA:
     'Nao foi possivel criar ou atualizar a conta com estes dados.',
+  TOKEN_GOOGLE_INVALIDO:
+    'Nao foi possivel validar a conta Google. Tente entrar novamente.',
+  LOGIN_GOOGLE_INDISPONIVEL:
+    'O login com Google esta indisponivel no momento.',
+  LOGIN_GOOGLE_NAO_AUTORIZADO:
+    'Nao foi possivel entrar com esta conta Google.',
+  VINCULACAO_GOOGLE_REQUER_SENHA:
+    'Entre com e-mail e senha para proteger esta conta antes de vincular o Google.',
+  ACEITE_TERMOS_OBRIGATORIO:
+    'Leia e aceite os termos e o aviso de privacidade para continuar.',
   SENHA_ATUAL_INVALIDA: 'Senha atual invalida.',
   SENHA_INVALIDA:
     'Use uma senha com pelo menos 8 caracteres, maiuscula, minuscula, numero e caractere especial.',

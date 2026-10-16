@@ -239,7 +239,12 @@ class ApiService {
   }
 
   bool _erroAutenticacaoTratavel(String path, Object? code) {
-    if (const {'auth/login', 'auth/cadastro', 'auth/logout'}.contains(path)) {
+    if (const {
+      'auth/login',
+      'auth/google',
+      'auth/cadastro',
+      'auth/logout',
+    }.contains(path)) {
       return true;
     }
     return code == 'SENHA_ATUAL_INVALIDA';

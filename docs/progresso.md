@@ -6,7 +6,7 @@ Atualizado em 16/10/2026 para o estado atual do `main`.
 
 O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstracao local integrada:
 
-- cadastro, login, confirmacao de e-mail, recuperacao de senha, troca de senha e logout;
+- cadastro, login por senha ou Google, confirmacao de e-mail, recuperacao de senha, troca de senha e logout;
 - sessao persistida no armazenamento criptografado da plataforma, com migracao e remocao automatica do valor legado;
 - exportacao autenticada dos dados pessoais em JSON e exclusao de conta com anonimizacao, invalidacao de sessoes e trilha de atendimento LGPD;
 - perfis de cliente, profissional e empresa, foto de perfil, enderecos e favoritos;
@@ -22,11 +22,13 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 16/10/2026 com 24 testes.
+- API: `npm.cmd test` aprovado em 16/10/2026 com 31 testes.
 - Flutter: `flutter analyze` aprovado em 16/10/2026.
-- Flutter: `flutter test` aprovado em 16/10/2026 com 173 testes.
+- Flutter: `flutter test` aprovado em 16/10/2026 com 178 testes.
 - Android debug: `flutter build apk --debug` aprovado em 16/10/2026, incluindo armazenamento seguro e compartilhamento nativo da exportacao LGPD.
 - Integracao LGPD com MySQL local: migration, exportacao, exclusao, invalidacao do token e bloqueio do login antigo aprovados em 16/10/2026.
+- Login Google: testes de contrato e widgets aprovados; builds Android e Web compilados com client ID ficticio apenas para validar o codigo. A homologacao real depende das credenciais OAuth da equipe.
+- Migration `GoogleLogin1760122000000` aplicada com sucesso no MySQL local em 16/10/2026.
 
 Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substituem homologacao manual completa em aparelho real com API e MySQL do ambiente que sera usado.
 
@@ -39,6 +41,7 @@ Essas validacoes cobrem codigo, contratos simulados e widgets. Elas nao substitu
 - Testar mudanca de IP/base URL antes de cada APK local.
 - Reconciliar relatorios antigos que registram contagens de testes anteriores.
 - Homologar em aparelho real a exportacao/compartilhamento do JSON e a exclusao de contas de cliente, profissional e empresa.
+- Criar as credenciais OAuth no Google Cloud e homologar login Google no APK e no Flutter Web seguindo `docs/login-google.md`.
 
 Roteiros relacionados:
 

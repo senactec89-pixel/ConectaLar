@@ -93,6 +93,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /auth/google:
+    post:
+      operationId: postAuthGoogle
+      summary: Validates a Google ID token and signs in or creates a public account
+      description: >-
+        The ID token is verified by the API against the configured OAuth audiences.
+        A first access without tipo returns cadastroNecessario; repeat the request
+        with a public account type and aceitouTermos=true to create the account.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthGoogleRequest'
+      responses:
+        '201':
+          description: Session, MFA challenge, or first-access registration requirement
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AuthResponse'
+                  - $ref: '#/components/schemas/AuthMfaChallenge'
+                  - $ref: '#/components/schemas/AuthGoogleCadastroNecessario'
+        '401':
+          description: Invalid, expired, or unauthorized Google identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Existing account requires password login before Google linking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Google OAuth is not configured on the API
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /auth/login/mfa:
     post:
       operationId: postAuthLoginMfa
@@ -2541,6 +2587,49 @@ components:
         senha:
           type: string
           writeOnly: true
+    AuthGoogleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - idToken
+      properties:
+        idToken:
+          type: string
+          maxLength: 12000
+          writeOnly: true
+        tipo:
+          $ref: '#/components/schemas/UsuarioTipoPublico'
+        aceitouTermos:
+          type: boolean
+          description: Required and true only when tipo is sent to create a new account.
+        senha:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+          description: ConectaLar recovery password required only when tipo is sent for first registration.
+    AuthGoogleCadastroNecessario:
+      type: object
+      additionalProperties: false
+      required:
+        - cadastroNecessario
+        - perfilGoogle
+      properties:
+        cadastroNecessario:
+          type: boolean
+          const: true
+        perfilGoogle:
+          type: object
+          additionalProperties: false
+          required:
+            - nome
+            - email
+          properties:
+            nome:
+              type: string
+            email:
+              type: string
+              format: email
     AuthResponse:
       type: object
       additionalProperties: false
@@ -2561,6 +2650,12 @@ components:
         devCode:
           type: string
           description: Development-only e-mail verification code; never returned in production.
+        contaCriada:
+          type: boolean
+          description: Present on Google authentication to indicate a new local account.
+        contaVinculada:
+          type: boolean
+          description: Present when Google was safely linked to an existing account.
     AuthEmailVerificacaoStatus:
       type: object
       additionalProperties: false
@@ -2675,6 +2770,7 @@ components:
         - telefone
         - tipo
         - fotoPerfilUrl
+        - googleVinculado
       properties:
         id:
           type: integer
@@ -2697,6 +2793,8 @@ components:
             - string
             - 'null'
           description: Relative API path for the public profile photo, when present.
+        googleVinculado:
+          type: boolean
     UsuarioTipoPublico:
       type: string
       enum:

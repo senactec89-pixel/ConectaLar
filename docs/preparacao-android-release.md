@@ -1,11 +1,11 @@
 # Preparação Android para release
 
-Esta é uma análise documental. Nenhum arquivo Android foi modificado.
+Este checklist acompanha o estado atual dos arquivos Android.
 
 ## Estado encontrado
 
 - Rótulo exibido: ConectaLar.
-- Namespace e applicationId: com.example.conectarlar_app; ainda identificador de template, precisa de um ID único e definitivo.
+- Namespace e applicationId: `br.com.conectalar.app`; definido antes da criação das credenciais OAuth e da publicação.
 - Versão em pubspec.yaml: 1.0.0+1; o Gradle usa esses valores para versionName/versionCode.
 - Assinatura release: atualmente usa a chave debug; não publicar assim.
 - Ícone: configurado pelos recursos mipmap atuais. Aprovar e validar a arte final em todos os tamanhos e no ícone adaptativo antes da loja.
@@ -13,8 +13,9 @@ Esta é uma análise documental. Nenhum arquivo Android foi modificado.
 
 ## Checklist antes de gerar o artefato
 
-- [ ] Escolher applicationId definitivo, verificar disponibilidade e registrar que ele não deve mudar após publicação.
-- [ ] Trocar namespace/applicationId e revisar identificadores Kotlin/Android associados.
+- [x] Escolher applicationId definitivo e registrar que ele não deve mudar após publicação.
+- [x] Trocar namespace/applicationId e revisar identificadores Kotlin/Android associados.
+- [ ] Registrar pacote e SHA-1 debug/release no Google Cloud para o login Google.
 - [ ] Finalizar ícone adaptativo, ícones por densidade, splash e nome localizado.
 - [ ] Definir versão de produto e incrementar versionCode a cada envio.
 - [ ] Criar chave de assinatura release e armazenar arquivo/senhas fora do Git e do código.

@@ -12,6 +12,7 @@ import { UsuarioTipo } from '../../domain/usuario-tipo.js';
 @Index('uq_usuarios_telefone_normalizado', ['telefoneNormalizado'], {
   unique: true,
 })
+@Index('uq_usuarios_google_sub', ['googleSub'], { unique: true })
 export class UsuarioEntity {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
@@ -24,6 +25,14 @@ export class UsuarioEntity {
 
   @Column({ name: 'email_verificado', type: 'boolean', default: false })
   emailVerificado!: boolean;
+
+  @Column({
+    name: 'google_sub',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  googleSub!: string | null;
 
   @Column({ type: 'varchar', length: 32, nullable: true })
   telefone!: string | null;

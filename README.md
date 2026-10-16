@@ -4,7 +4,7 @@ Aplicativo Flutter para conectar clientes a profissionais e empresas de serviço
 
 ## Estado atual
 
-O núcleo funcional está disponível para demonstração e desenvolvimento local integrado. O resultado mais recente informado pela equipe é de **90 testes Flutter aprovados**. Isso não equivale à homologação de todos os fluxos em aparelho nem à prontidão para publicação.
+O núcleo funcional está disponível para demonstração e desenvolvimento local integrado. As contagens e datas atuais das verificações ficam em `docs/progresso.md`; testes automatizados não equivalem à homologação de todos os fluxos em aparelho nem à prontidão para publicação.
 
 A API e o banco usados pelo app ficam em `apps/api`. O arquivo `database/conectalar.sql` é legado; não o importe para o banco da API NestJS. As migrations TypeORM são aplicadas explicitamente.
 
@@ -61,6 +61,7 @@ Os testes de integração e os diagnósticos precisam de API/MySQL locais config
 - [Homologação visual](docs/homologacao-visual.md)
 - [Checklists de homologação por papel](docs/checklist-homologacao-cliente.md)
 - [Preparação Android](docs/preparacao-android-release.md)
+- [Login com Google](docs/login-google.md)
 - [Proposta de CI/CD](docs/proposta-ci-cd.md)
 
 O ConectaLar não processa pagamentos: preço é referência inicial e os valores finais são combinados diretamente entre as partes.

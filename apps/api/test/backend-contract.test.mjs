@@ -41,6 +41,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   );
 
   assert.match(openapi, /\/auth\/logout:/);
+  assert.match(openapi, /\/auth\/google:/);
   assert.match(openapi, /\/auth\/email\/verificacao:/);
   assert.match(openapi, /\/auth\/email\/verificacao\/enviar:/);
   assert.match(openapi, /\/auth\/email\/verificacao\/confirmar:/);
@@ -57,6 +58,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /nomeServico/);
   assert.match(openapi, /fotoPerfilUrl/);
+  assert.match(openapi, /googleVinculado/);
   assert.match(openapi, /\/privacidade\/me\/exportacao:/);
   assert.match(openapi, /\/privacidade\/me\/exclusao:/);
 });
@@ -72,6 +74,7 @@ test('LGPD flows require reauthentication and anonymize account data', async () 
   assert.match(privacy, /tokenVersion: usuario\.tokenVersion \+ 1/);
   assert.match(privacy, /emailAnonimo/);
   assert.match(privacy, /removerArquivosPrivados/);
+  assert.match(privacy, /googleSub: null/);
   assert.match(guard, /privacidade\/me/);
 });
 

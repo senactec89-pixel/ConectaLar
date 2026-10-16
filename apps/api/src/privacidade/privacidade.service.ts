@@ -291,6 +291,7 @@ export class PrivacidadeService {
           nome: 'Usuario excluido',
           email: emailAnonimo(usuario.id),
           emailVerificado: false,
+          googleSub: null,
           telefone: null,
           telefoneNormalizado: null,
           fotoPerfil: null,
@@ -449,6 +450,10 @@ export class PrivacidadeService {
         nome: usuario.nome,
         email: usuario.email,
         emailVerificado: usuario.emailVerificado,
+        autenticacaoGoogle: {
+          vinculada: usuario.googleSub !== null,
+          identificador: usuario.googleSub,
+        },
         telefone: usuario.telefone,
         tipo: usuario.tipo,
         ativo: usuario.ativo,
