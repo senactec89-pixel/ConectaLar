@@ -166,7 +166,7 @@ class _AdminPageState extends State<AdminPage> {
     final titulo = switch (_modulo) {
       AdminModulo.painel => 'Central administrativa',
       AdminModulo.usuarios => 'Usuários',
-      AdminModulo.documentos => 'Verificação documental',
+      AdminModulo.documentos => 'Documentos',
       AdminModulo.denuncias => 'Denúncias',
       AdminModulo.avaliacoes => 'Avaliações',
       AdminModulo.categorias => 'Categorias',
