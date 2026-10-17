@@ -120,6 +120,32 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('alterar status da categoria pede confirmação ao sair', (
+    tester,
+  ) async {
+    await configurarFrontend(papel: 'administrador');
+    await _abrir(
+      tester,
+      categoria: {
+        'id': 8,
+        'nome': 'Pintura',
+        'icone': 'format_paint',
+        'ativo': true,
+      },
+    );
+
+    await tester.tap(find.byKey(_ativo));
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Descartar alterações?'), findsOneWidget);
+    await tester.tap(find.text('Continuar editando'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(find.byKey(_ativo)).value, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'criação bloqueia envios simultâneos e preserva formulário no erro',
     (tester) async {

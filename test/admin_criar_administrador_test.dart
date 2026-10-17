@@ -99,6 +99,28 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('avisa antes de descartar dados da nova conta admin', (
+    tester,
+  ) async {
+    await configurarFrontend(papel: 'administrador');
+    await abrirFrontend(tester, AppRoutes.adminCriarAdministrador);
+    final nome = find.byKey(const ValueKey('admin-criar-nome'));
+    await tester.enterText(nome, 'Ana Administradora');
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Descartar alterações?'), findsOneWidget);
+    await tester.tap(find.text('Continuar editando'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextFormField>(nome).controller!.text,
+      'Ana Administradora',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final status in [409, 403]) {
     testWidgets('erro $status mantém os dados e permite nova tentativa', (
       tester,
@@ -181,7 +203,11 @@ void main() {
       expect(field.enabled, isFalse);
     }
     expect(
-      tester.widget<PopScope>(find.byType(PopScope).first).canPop,
+      tester
+          .widget<PopScope>(
+            find.byWidgetPredicate((widget) => widget is PopScope).first,
+          )
+          .canPop,
       isFalse,
     );
     await tester.tap(find.byKey(_salvar));

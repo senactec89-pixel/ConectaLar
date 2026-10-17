@@ -7,6 +7,7 @@ import '../../utils/categoria_icons.dart';
 import '../../widgets/action_label.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/session_gate.dart';
+import '../../widgets/unsaved_form_guard.dart';
 
 class CategoriaFormPage extends StatelessWidget {
   const CategoriaFormPage({this.categoria, super.key});
@@ -32,8 +33,11 @@ class _CategoriaForm extends StatefulWidget {
 class _CategoriaFormState extends State<_CategoriaForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nome;
+  late final String _nomeInicial;
   late String? _icone;
+  late String? _iconeInicial;
   late bool _ativo;
+  late bool _ativoInicial;
   bool _salvando = false;
   bool _mostrarErroIcone = false;
   String? _erro;
@@ -41,12 +45,15 @@ class _CategoriaFormState extends State<_CategoriaForm> {
   @override
   void initState() {
     super.initState();
-    _nome = TextEditingController(text: '${widget.categoria?['nome'] ?? ''}');
+    _nomeInicial = '${widget.categoria?['nome'] ?? ''}';
+    _nome = TextEditingController(text: _nomeInicial);
     final icone = '${widget.categoria?['icone'] ?? 'home_repair'}';
     _icone = categoriaIconOptions.any((option) => option.id == icone)
         ? icone
         : null;
+    _iconeInicial = _icone;
     _ativo = widget.categoria?['ativo'] != false;
+    _ativoInicial = _ativo;
   }
 
   @override
@@ -120,8 +127,11 @@ class _CategoriaFormState extends State<_CategoriaForm> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_salvando,
+  Widget build(BuildContext context) => UnsavedFormGuard(
+    controllers: [_nome],
+    initialValues: [_nomeInicial],
+    isDirty: () => _icone != _iconeInicial || _ativo != _ativoInicial,
+    busy: _salvando,
     child: Scaffold(
       appBar: AppBarCustom(
         title: widget.categoria == null ? 'Nova categoria' : 'Editar categoria',

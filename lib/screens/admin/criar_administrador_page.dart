@@ -7,6 +7,7 @@ import '../../utils/validators.dart';
 import '../../widgets/action_label.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/session_gate.dart';
+import '../../widgets/unsaved_form_guard.dart';
 
 class CriarAdministradorPage extends StatelessWidget {
   const CriarAdministradorPage({super.key});
@@ -103,8 +104,10 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
   }
 
   @override
-  Widget build(BuildContext context) => PopScope(
-    canPop: !_salvando,
+  Widget build(BuildContext context) => UnsavedFormGuard(
+    controllers: [_nome, _email, _telefone, _senha, _confirmacao],
+    initialValues: const ['', '', '', '', ''],
+    busy: _salvando,
     child: Scaffold(
       appBar: const AppBarCustom(title: 'Nova conta admin'),
       body: SafeArea(

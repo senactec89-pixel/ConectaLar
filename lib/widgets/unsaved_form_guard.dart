@@ -7,6 +7,7 @@ class UnsavedFormGuard extends StatefulWidget {
     required this.initialValues,
     required this.busy,
     required this.child,
+    this.isDirty,
     super.key,
   });
 
@@ -14,6 +15,7 @@ class UnsavedFormGuard extends StatefulWidget {
   final List<String> initialValues;
   final bool busy;
   final Widget child;
+  final bool Function()? isDirty;
 
   @override
   State<UnsavedFormGuard> createState() => _UnsavedFormGuardState();
@@ -24,10 +26,11 @@ class _UnsavedFormGuardState extends State<UnsavedFormGuard> {
   bool _discardConfirmed = false;
 
   bool get _changed =>
-      widget.controllers.length == widget.initialValues.length &&
-      widget.controllers.indexed.any(
-        (entry) => entry.$2.text != widget.initialValues[entry.$1],
-      );
+      (widget.controllers.length == widget.initialValues.length &&
+          widget.controllers.indexed.any(
+            (entry) => entry.$2.text != widget.initialValues[entry.$1],
+          )) ||
+      (widget.isDirty?.call() ?? false);
 
   Future<void> _onBack() async {
     if (_dialogOpen) return;
