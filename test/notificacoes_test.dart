@@ -26,6 +26,32 @@ Object _notificacoes(bool lida) => {
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('notificações podem ser atualizadas pelo botão ou gesto', (
+    tester,
+  ) async {
+    var consultas = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/notificacoes/me') {
+          consultas++;
+          return jsonResponse(_notificacoes(false));
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.notificacoes);
+    expect(consultas, 1);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 400));
+    await tester.pumpAndSettle();
+    expect(consultas, 2);
+
+    await tester.tap(find.byTooltip('Atualizar notificações'));
+    await tester.pumpAndSettle();
+    expect(consultas, 3);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('notificações tratam falha ao marcar e permitem tentar de novo', (
     tester,
   ) async {

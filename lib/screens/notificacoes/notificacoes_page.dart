@@ -32,12 +32,17 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
     return listFromApi(response['notificacoes'], notificacaoFromApi);
   }
 
-  void _recarregar() {
+  Future<void> _recarregar() async {
     if (!mounted) return;
+    final carregamento = _carregar();
     setState(() {
-      _future = _carregar();
-      _future.ignore();
+      _future = carregamento;
     });
+    try {
+      await carregamento;
+    } catch (_) {
+      // O FutureBuilder apresenta a falha e oferece nova tentativa.
+    }
   }
 
   Future<void> _marcarTodas() async {
@@ -106,6 +111,11 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
         title: 'Notificações',
         actions: [
           IconButton(
+            tooltip: 'Atualizar notificações',
+            onPressed: _ocupado ? null : _recarregar,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          IconButton(
             tooltip: 'Marcar todas como lidas',
             onPressed: _ocupado ? null : _marcarTodas,
             icon: const Icon(Icons.done_all_rounded),
@@ -141,36 +151,40 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
                     icon: Icons.notifications_none_rounded,
                   );
                 }
-                return ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                  itemCount: notificacoes.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final notificacao = notificacoes[index];
-                    return Card(
-                      child: ListTile(
-                        onTap: _ocupado ? null : () => _abrir(notificacao),
-                        leading: Icon(
-                          notificacao.lida
-                              ? Icons.notifications_none_rounded
-                              : Icons.notifications_active_rounded,
-                          color: notificacao.lida
-                              ? AppColors.textoSuave
-                              : AppColors.verdeEscuro,
-                        ),
-                        title: Text(
-                          notificacao.titulo,
-                          style: TextStyle(
-                            fontWeight: notificacao.lida
-                                ? FontWeight.w700
-                                : FontWeight.w900,
+                return RefreshIndicator(
+                  onRefresh: _recarregar,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+                    itemCount: notificacoes.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final notificacao = notificacoes[index];
+                      return Card(
+                        child: ListTile(
+                          onTap: _ocupado ? null : () => _abrir(notificacao),
+                          leading: Icon(
+                            notificacao.lida
+                                ? Icons.notifications_none_rounded
+                                : Icons.notifications_active_rounded,
+                            color: notificacao.lida
+                                ? AppColors.textoSuave
+                                : AppColors.verdeEscuro,
                           ),
+                          title: Text(
+                            notificacao.titulo,
+                            style: TextStyle(
+                              fontWeight: notificacao.lida
+                                  ? FontWeight.w700
+                                  : FontWeight.w900,
+                            ),
+                          ),
+                          subtitle: Text(notificacao.mensagem),
+                          trailing: const Icon(Icons.chevron_right),
                         ),
-                        subtitle: Text(notificacao.mensagem),
-                        trailing: const Icon(Icons.chevron_right),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 );
               },
             ),
