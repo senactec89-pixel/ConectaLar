@@ -35,13 +35,17 @@ void main() {
         expect(consultas.last, 'pendente');
         expect(find.textContaining('documento-ficticio-1.pdf'), findsOneWidget);
         for (final entry in {'aprovado': 2, 'rejeitado': 3, '': 0}.entries) {
-          await tester.ensureVisible(
-            find.byKey(ValueKey('admin-documentos-${entry.key}')),
+          final filtro = find.byKey(ValueKey('admin-documentos-${entry.key}'));
+          final limites = tester.getRect(filtro);
+          expect(limites.left, greaterThanOrEqualTo(0));
+          expect(limites.right, lessThanOrEqualTo(width));
+          expect(
+            limites.bottom,
+            lessThan(tester.getRect(find.byType(Scaffold)).bottom),
           );
+          await tester.ensureVisible(filtro);
           await tester.pumpAndSettle();
-          await tester.tap(
-            find.byKey(ValueKey('admin-documentos-${entry.key}')),
-          );
+          await tester.tap(filtro);
           await tester.pumpAndSettle();
           expect(consultas.last, entry.key.isEmpty ? null : entry.key);
           if (entry.value > 0) {
