@@ -97,17 +97,30 @@ class SectionErrorView extends StatelessWidget {
   final bool retrying;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(message, style: Theme.of(context).textTheme.bodyMedium),
-      const SizedBox(height: AppSpace.sm),
-      OutlinedButton.icon(
-        onPressed: retrying ? null : onRetry,
-        icon: const Icon(Icons.refresh_rounded),
-        label: const Text('Tentar novamente'),
-      ),
-    ],
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    liveRegion: retrying,
+    label: retrying ? '$message Atualizando.' : message,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExcludeSemantics(
+          child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        OutlinedButton.icon(
+          onPressed: retrying ? null : onRetry,
+          icon: retrying
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh_rounded),
+          label: Text(retrying ? 'Atualizando…' : 'Tentar novamente'),
+        ),
+      ],
+    ),
   );
 }
 

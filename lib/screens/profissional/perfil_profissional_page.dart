@@ -22,6 +22,7 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
   Future<_PerfilProfissionalData?>? _future;
   bool _argumentosLidos = false;
   bool _mutandoFavorito = false;
+  bool _recarregandoPerfil = false;
 
   @override
   void didChangeDependencies() {
@@ -78,11 +79,19 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
     );
   }
 
-  void _recarregar() {
+  Future<void> _recarregar() async {
+    final future = _carregarPerfil();
     setState(() {
-      _future = _carregarPerfil();
-      _future?.ignore();
+      _recarregandoPerfil = true;
+      _future = future;
     });
+    try {
+      await future;
+    } catch (_) {
+      // O FutureBuilder apresenta a falha e mantém a opção de nova tentativa.
+    } finally {
+      if (mounted) setState(() => _recarregandoPerfil = false);
+    }
   }
 
   Future<void> _alternarFavorito(_PerfilProfissionalData data) async {
@@ -169,7 +178,10 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
             return _PerfilProfissionalContent(
               data: data,
               mutandoFavorito: _mutandoFavorito,
-              onRetryFavoritos: _recarregar,
+              recarregandoFavoritos: _recarregandoPerfil,
+              onRetryFavoritos: () {
+                _recarregar();
+              },
               onFavoritoTap: acoesCliente && !data.favoritosIndisponiveis
                   ? () => _alternarFavorito(data)
                   : null,
@@ -231,12 +243,14 @@ class _PerfilProfissionalContent extends StatefulWidget {
     required this.mutandoFavorito,
     required this.onFavoritoTap,
     required this.onRetryFavoritos,
+    required this.recarregandoFavoritos,
   });
 
   final _PerfilProfissionalData data;
   final bool mutandoFavorito;
   final VoidCallback? onFavoritoTap;
   final VoidCallback onRetryFavoritos;
+  final bool recarregandoFavoritos;
 
   @override
   State<_PerfilProfissionalContent> createState() =>
@@ -296,6 +310,7 @@ class _PerfilProfissionalContentState
                 SectionErrorView(
                   message: 'Não foi possível verificar seus favoritos.',
                   onRetry: widget.onRetryFavoritos,
+                  retrying: widget.recarregandoFavoritos,
                 ),
               ],
               const SizedBox(height: AppSpace.md),
