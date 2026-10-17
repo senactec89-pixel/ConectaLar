@@ -202,11 +202,12 @@ class ApiService {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final message = decoded['message'];
       throw ApiException(
-        message is String
-            ? message
-            : _mensagemPadraoStatus(response.statusCode),
+        _mensagemResposta(
+          decoded['message'],
+          statusCode: response.statusCode,
+          endpoint: path,
+        ),
         statusCode: response.statusCode,
       );
     }
@@ -238,6 +239,47 @@ class ApiService {
     };
   }
 
+  String _mensagemResposta(
+    Object? mensagem, {
+    required int statusCode,
+    String? endpoint,
+  }) {
+    if (mensagem is String) {
+      final texto = mensagem.trim();
+      if (texto.isNotEmpty && !_pareceMensagemTecnica(texto)) return texto;
+    }
+
+    if (statusCode == 401 &&
+        const {
+          'auth/login',
+          'auth/google',
+          'auth/login/mfa',
+        }.contains(endpoint)) {
+      return 'Não foi possível entrar. Confira seus dados e tente novamente.';
+    }
+    return _mensagemPadraoStatus(statusCode);
+  }
+
+  bool _pareceMensagemTecnica(String mensagem) {
+    final normalizada = mensagem.trim().toLowerCase();
+    if (const {
+      'error',
+      'exception',
+      'unauthorized',
+      'forbidden',
+      'not found',
+      'bad request',
+      'internal server error',
+      'too many requests',
+    }.contains(normalizada)) {
+      return true;
+    }
+    return RegExp(
+      r'(exception|stack\s*trace|queryfailederror|typeerror|referenceerror|syntaxerror|sqlstate|typeorm|prisma|mysql|postgres|database|node_modules|econnrefused|enotfound|socketexception|cannot read properties of|\b at \S+\s*\(|[a-z]:\\|/home/|/srv/)',
+      caseSensitive: false,
+    ).hasMatch(mensagem);
+  }
+
   bool _erroAutenticacaoTratavel(String path, Object? code) {
     if (const {
       'auth/login',
@@ -256,7 +298,10 @@ class ApiService {
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic> && decoded['message'] is String) {
-        return decoded['message'] as String;
+        return _mensagemResposta(
+          decoded['message'],
+          statusCode: response.statusCode,
+        );
       }
     } on FormatException {
       return null;
