@@ -7,14 +7,21 @@ import 'package:conectarlar_app/screens/admin/historico_admin_page.dart';
 import 'package:conectarlar_app/screens/auth/login_page.dart';
 import 'package:conectarlar_app/screens/busca/busca_page.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
+import 'package:conectarlar_app/screens/home/home_mock_data.dart';
 import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
 import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
+import 'package:conectarlar_app/screens/profissional/perfil_profissional_page.dart';
+import 'package:conectarlar_app/screens/profissional/area_profissional_page.dart';
+import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:conectarlar_app/utils/constants.dart';
 import 'package:conectarlar_app/widgets/async_state_view.dart';
 import 'package:conectarlar_app/widgets/demo_banner.dart';
 import 'package:conectarlar_app/widgets/session_gate.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
+import 'visual_preview_client.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,11 +33,16 @@ Future<void> main() async {
   final papel =
       tela.startsWith('admin-') || tela == 'categoria' || tela == 'historico'
       ? 'administrador'
-      : tela == 'documentos'
+      : tela == 'documentos' || tela == 'agenda'
       ? 'profissional'
       : 'cliente';
-  AppServices.instance = AppServices(modoDemo: true, papelDemo: papel);
+  AppServices.instance = AppServices(
+    modoDemo: true,
+    papelDemo: papel,
+    api: ApiService(client: VisualPreviewClient(papel: papel)),
+  );
   await AppServices.instance.inicializar();
+  SemanticsBinding.instance.ensureSemantics();
   runApp(
     MaterialApp(
       title: 'ConectaLar — prévia visual',
@@ -39,7 +51,12 @@ Future<void> main() async {
       routes: AppRoutes.routes,
       onGenerateInitialRoutes: (_) => [
         MaterialPageRoute<void>(
-          settings: const RouteSettings(name: '/'),
+          settings: RouteSettings(
+            name: '/',
+            arguments: tela == 'perfil-publico'
+                ? HomeMockData.content.featuredProfessionals.first
+                : null,
+          ),
           builder: (_) => _TelaPreview(tela: tela),
         ),
       ],
@@ -61,6 +78,8 @@ class _TelaPreview extends StatelessWidget {
   Widget build(BuildContext context) => switch (tela) {
     'home' => const HomePage(),
     'busca' => const BuscaPage(),
+    'perfil-publico' => const PerfilProfissionalPage(),
+    'agenda' => const AreaProfissionalPage(initialTab: 2),
     'categoria' => const CategoriaFormPage(),
     'historico' => const HistoricoAdminPage(),
     'admin-documentos' => const AdminPage(modulo: AdminModulo.documentos),

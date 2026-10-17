@@ -1,0 +1,216 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "capturas": [
+    {
+      "arquivo": "home-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-arquivo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-decisao-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-arquivo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-decisao-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    }
+  ],
+  "excecoesNavegador": []
+}
