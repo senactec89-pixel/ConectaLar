@@ -18,6 +18,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
+import '../profissional/comparar_profissionais_page.dart';
 import '../home/home_mock_data.dart';
 
 class BuscaPage extends StatefulWidget {
@@ -53,6 +54,9 @@ class _BuscaPageState extends State<BuscaPage> {
 
   List<Categoria> _categorias = const [];
   List<Profissional> _profissionais = const [];
+  final List<Profissional> _comparacao = [];
+
+  static const int _limiteComparacao = 2;
 
   @override
   void initState() {
@@ -324,12 +328,45 @@ class _BuscaPageState extends State<BuscaPage> {
     );
   }
 
+  void _alternarComparacao(Profissional profissional) {
+    final indice = _comparacao.indexWhere(
+      (selecionado) => selecionado.id == profissional.id,
+    );
+    if (indice >= 0) {
+      setState(() => _comparacao.removeAt(indice));
+      return;
+    }
+    if (_comparacao.length >= _limiteComparacao) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compare até dois profissionais por vez.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _comparacao.add(profissional));
+  }
+
+  void _abrirComparacao() {
+    if (_comparacao.length < _limiteComparacao) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CompararProfissionaisPage(
+          profissionais: List<Profissional>.unmodifiable(_comparacao),
+        ),
+      ),
+    );
+  }
+
   bool get _temFiltros =>
       _termoController.text.trim().isNotEmpty ||
       _bairroController.text.trim().isNotEmpty ||
       _cidadeController.text.trim().isNotEmpty ||
       _categoriaSelecionada != null ||
       _posicao != null;
+
+  bool get _podeComparar =>
+      AppServices.instance.auth.usuarioAtual?['tipo'] == 'cliente';
 
   bool get _mapaDisponivel =>
       AppConstants.googleMapsEnabled &&
@@ -481,6 +518,39 @@ class _BuscaPageState extends State<BuscaPage> {
                           child: ProfissionalCard(
                             profissional: profissional,
                             onTap: () => _abrirProfissional(profissional),
+                            trailingAction: _podeComparar
+                                ? Semantics(
+                                    button: true,
+                                    label:
+                                        _comparacao.any(
+                                          (item) => item.id == profissional.id,
+                                        )
+                                        ? 'Remover ${profissional.nome} da comparação'
+                                        : 'Adicionar ${profissional.nome} à comparação',
+                                    child: IconButton.filledTonal(
+                                      key: ValueKey(
+                                        'busca-comparar-${profissional.id}',
+                                      ),
+                                      tooltip:
+                                          _comparacao.any(
+                                            (item) =>
+                                                item.id == profissional.id,
+                                          )
+                                          ? 'Remover da comparação'
+                                          : 'Adicionar à comparação',
+                                      onPressed: () =>
+                                          _alternarComparacao(profissional),
+                                      icon: Icon(
+                                        _comparacao.any(
+                                              (item) =>
+                                                  item.id == profissional.id,
+                                            )
+                                            ? Icons.check_rounded
+                                            : Icons.compare_arrows_rounded,
+                                      ),
+                                    ),
+                                  )
+                                : null,
                           ),
                         ),
                       ),
@@ -491,10 +561,106 @@ class _BuscaPageState extends State<BuscaPage> {
           );
         },
       ),
-      bottomNavigationBar: BottomNavigationCustom(
-        currentIndex: 1,
-        onDestinationSelected: (index) =>
-            navigateToMainDestination(context, index),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_comparacao.isNotEmpty)
+            _BarraComparacao(
+              profissionais: _comparacao,
+              limite: _limiteComparacao,
+              onRemover: (profissional) => _alternarComparacao(profissional),
+              onLimpar: () => setState(_comparacao.clear),
+              onComparar: _abrirComparacao,
+            ),
+          BottomNavigationCustom(
+            currentIndex: 1,
+            onDestinationSelected: (index) =>
+                navigateToMainDestination(context, index),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BarraComparacao extends StatelessWidget {
+  const _BarraComparacao({
+    required this.profissionais,
+    required this.limite,
+    required this.onRemover,
+    required this.onLimpar,
+    required this.onComparar,
+  });
+
+  final List<Profissional> profissionais;
+  final int limite;
+  final ValueChanged<Profissional> onRemover;
+  final VoidCallback onLimpar;
+  final VoidCallback onComparar;
+
+  @override
+  Widget build(BuildContext context) {
+    final faltam = limite - profissionais.length;
+    return Material(
+      key: const ValueKey('busca-barra-comparacao'),
+      color: AppColors.branco,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.pageGutter,
+          AppSpace.sm,
+          AppSpace.pageGutter,
+          AppSpace.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${profissionais.length} de $limite selecionados',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                TextButton.icon(
+                  key: const ValueKey('busca-comparacao-limpar'),
+                  onPressed: onLimpar,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Limpar'),
+                ),
+              ],
+            ),
+            Wrap(
+              spacing: AppSpace.xs,
+              runSpacing: AppSpace.xs,
+              children: [
+                for (final profissional in profissionais)
+                  InputChip(
+                    key: ValueKey('busca-comparacao-chip-${profissional.id}'),
+                    label: Text(profissional.nome),
+                    onDeleted: () => onRemover(profissional),
+                  ),
+              ],
+            ),
+            if (faltam > 0) ...[
+              const SizedBox(height: AppSpace.xs),
+              Text(
+                'Selecione mais $faltam para comparar.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textoSuave),
+              ),
+            ],
+            const SizedBox(height: AppSpace.sm),
+            FilledButton.icon(
+              key: const ValueKey('busca-comparacao-abrir'),
+              onPressed: profissionais.length == limite ? onComparar : null,
+              icon: const Icon(Icons.compare_arrows_rounded),
+              label: const Text('Comparar profissionais'),
+            ),
+          ],
+        ),
       ),
     );
   }

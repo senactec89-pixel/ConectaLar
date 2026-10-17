@@ -1,8 +1,33 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseSigningPropertiesFile = rootProject.file("key.properties")
+val releaseSigningProperties = Properties()
+if (releaseSigningPropertiesFile.isFile) {
+    releaseSigningPropertiesFile.inputStream().use {
+        releaseSigningProperties.load(it)
+    }
+}
+val releaseSigningKeys = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+val missingReleaseSigningKeys = releaseSigningKeys.filter {
+    releaseSigningProperties.getProperty(it).isNullOrBlank()
+}
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
+if (releaseTaskRequested && missingReleaseSigningKeys.isNotEmpty()) {
+    throw GradleException(
+        "Build release bloqueado: configure android/key.properties " +
+            "com os campos storeFile, storePassword, keyAlias e keyPassword. " +
+            "A chave release nunca deve ser enviada ao Git."
+    )
 }
 
 android {
@@ -33,9 +58,14 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.create("release") {
+                if (missingReleaseSigningKeys.isEmpty()) {
+                    storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                    storePassword = releaseSigningProperties.getProperty("storePassword")
+                    keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                    keyPassword = releaseSigningProperties.getProperty("keyPassword")
+                }
+            }
         }
     }
 }

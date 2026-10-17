@@ -1,0 +1,6 @@
+# Copie este arquivo para android/key.properties e preencha localmente.
+# Mantenha android/key.properties e a chave .jks fora do Git.
+storePassword=SUBSTITUA_LOCALMENTE
+keyPassword=SUBSTITUA_LOCALMENTE
+keyAlias=conectalar
+storeFile=../conectalar-release.jks
