@@ -97,8 +97,39 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
+        final buscar = find.text('Buscar profissionais');
+        await tester.scrollUntilVisible(
+          buscar,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(buscar.hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
       }
     },
   );
+
+  testWidgets('vazio em favoritos oferece caminho para a Busca', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      responder: (request) async => request.url.path == '/clientes/me/favoritos'
+          ? jsonResponse({'favoritos': []})
+          : null,
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.favoritos,
+      overrides: {
+        AppRoutes.busca: (_) => const Scaffold(body: Text('Busca aberta')),
+      },
+    );
+
+    await tester.tap(find.text('Buscar profissionais'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Busca aberta'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

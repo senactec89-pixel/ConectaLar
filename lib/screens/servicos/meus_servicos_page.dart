@@ -116,7 +116,13 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                     ),
                     const SizedBox(height: 18),
                     if (servicos.isEmpty)
-                      _ListaVazia(filtro: _filtro)
+                      _ListaVazia(
+                        filtro: _filtro,
+                        onBuscar: () =>
+                            Navigator.pushNamed(context, AppRoutes.busca),
+                        onVerTodos: () =>
+                            setState(() => _filtro = _FiltroServicos.todos),
+                      )
                     else
                       for (final servico in servicos) ...[
                         _ServicoCard(
@@ -386,9 +392,15 @@ class _ResumoIcone extends StatelessWidget {
 }
 
 class _ListaVazia extends StatelessWidget {
-  const _ListaVazia({required this.filtro});
+  const _ListaVazia({
+    required this.filtro,
+    required this.onBuscar,
+    required this.onVerTodos,
+  });
 
   final _FiltroServicos filtro;
+  final VoidCallback onBuscar;
+  final VoidCallback onVerTodos;
 
   @override
   Widget build(BuildContext context) {
@@ -414,6 +426,17 @@ class _ListaVazia extends StatelessWidget {
       title: titulo,
       message: mensagem,
       icon: Icons.event_busy_outlined,
+      action: filtro == _FiltroServicos.todos
+          ? FilledButton.icon(
+              onPressed: onBuscar,
+              icon: const Icon(Icons.search_rounded),
+              label: const Text('Buscar profissionais'),
+            )
+          : OutlinedButton.icon(
+              onPressed: onVerTodos,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+              label: const Text('Ver todos os pedidos'),
+            ),
     );
   }
 }

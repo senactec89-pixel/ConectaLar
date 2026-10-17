@@ -134,4 +134,61 @@ void main() {
     expect(consultas, 2);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('lista vazia orienta a buscar ou ver todos os pedidos', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      responder: (request) async => request.url.path == '/solicitacoes/me'
+          ? jsonResponse({'solicitacoes': []})
+          : null,
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.meusServicos,
+      width: 360,
+      textScale: 2,
+      overrides: {
+        AppRoutes.busca: (_) => const Scaffold(body: Text('Busca aberta')),
+      },
+    );
+
+    expect(find.text('Você ainda não tem solicitações'), findsOneWidget);
+    final buscar = find.text('Buscar profissionais');
+    await tester.scrollUntilVisible(
+      buscar,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(buscar);
+    await tester.pumpAndSettle();
+    expect(find.text('Busca aberta'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('filtro sem resultados permite voltar para todos os pedidos', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      responder: (request) async => request.url.path == '/solicitacoes/me'
+          ? jsonResponse({'solicitacoes': []})
+          : null,
+    );
+    await abrirFrontend(tester, AppRoutes.meusServicos);
+    final aguardando = find.byKey(const ValueKey('servicos-filtro-aguardando'));
+    await tester.ensureVisible(aguardando);
+    await tester.tap(aguardando);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Nenhuma solicitação aguardando resposta'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Ver todos os pedidos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Você ainda não tem solicitações'), findsOneWidget);
+    expect(find.text('Buscar profissionais'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

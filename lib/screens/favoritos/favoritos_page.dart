@@ -150,10 +150,16 @@ class _FavoritosPageState extends State<FavoritosPage> {
                   ),
                   const SizedBox(height: AppSpace.lg),
                   if (favoritos.isEmpty)
-                    const EmptyStateView(
+                    EmptyStateView(
                       title: 'Sua lista está vazia',
                       message: 'Os profissionais salvos aparecerão aqui.',
                       icon: Icons.favorite_border_rounded,
+                      action: FilledButton.icon(
+                        onPressed: () =>
+                            Navigator.pushNamed(context, AppRoutes.busca),
+                        icon: const Icon(Icons.search_rounded),
+                        label: const Text('Buscar profissionais'),
+                      ),
                     )
                   else
                     for (final profissional in favoritos) ...[
