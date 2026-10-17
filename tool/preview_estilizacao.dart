@@ -8,6 +8,7 @@ import 'package:conectarlar_app/screens/auth/login_page.dart';
 import 'package:conectarlar_app/screens/busca/busca_page.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/screens/home/home_mock_data.dart';
+import 'package:conectarlar_app/screens/notificacoes/notificacoes_page.dart';
 import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
 import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
 import 'package:conectarlar_app/screens/profissional/perfil_profissional_page.dart';
@@ -16,7 +17,6 @@ import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:conectarlar_app/utils/constants.dart';
 import 'package:conectarlar_app/widgets/async_state_view.dart';
-import 'package:conectarlar_app/widgets/demo_banner.dart';
 import 'package:conectarlar_app/widgets/session_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -64,7 +64,7 @@ Future<void> main() async {
         data: MediaQuery.of(
           context,
         ).copyWith(textScaler: TextScaler.linear(escala)),
-        child: DemoBanner(child: child!),
+        child: child!,
       ),
     ),
   );
@@ -78,6 +78,7 @@ class _TelaPreview extends StatelessWidget {
   Widget build(BuildContext context) => switch (tela) {
     'home' => const HomePage(),
     'busca' => const BuscaPage(),
+    'notificacoes' => const NotificacoesPage(),
     'perfil-publico' => const PerfilProfissionalPage(),
     'agenda' => const AreaProfissionalPage(initialTab: 2),
     'categoria' => const CategoriaFormPage(),

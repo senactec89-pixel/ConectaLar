@@ -94,15 +94,25 @@ Future<void> main(List<String> args) async {
                 )
                 .toString(),
           });
-          await Future<void>.delayed(const Duration(seconds: 8));
-          final check = await cdp.call('Runtime.evaluate', {
-            'expression':
-                '({url: location.href, semanticos: document.querySelectorAll("flt-semantics").length})',
-            'returnByValue': true,
-          });
-          final preview =
-              (check['result'] as Map<String, dynamic>)['value']
-                  as Map<String, dynamic>;
+          final limiteCarregamento = DateTime.now().add(
+            const Duration(seconds: 90),
+          );
+          Map<String, dynamic> preview = const {};
+          while (DateTime.now().isBefore(limiteCarregamento)) {
+            final check = await cdp.call('Runtime.evaluate', {
+              'expression':
+                  '({url: location.href, semanticos: document.querySelectorAll("flt-semantics").length})',
+              'returnByValue': true,
+            });
+            preview =
+                (check['result'] as Map<String, dynamic>)['value']
+                    as Map<String, dynamic>;
+            if (preview['semanticos'] is num &&
+                (preview['semanticos'] as num) > 0) {
+              break;
+            }
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
           final pagina = Uri.parse(preview['url'] as String);
           if (pagina.host != base.host || (preview['semanticos'] as num) == 0) {
             throw StateError(
