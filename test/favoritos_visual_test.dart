@@ -33,6 +33,27 @@ void main() {
     },
   );
 
+  testWidgets('favoritos atualiza ao puxar a lista', (tester) async {
+    var consultas = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/clientes/me/favoritos') {
+          consultas++;
+          return jsonResponse({'favoritos': []});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.favoritos);
+    expect(consultas, 1);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 400));
+    await tester.pumpAndSettle();
+
+    expect(consultas, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('favoritos preenchido mantém botão acessível com texto 200%', (
     tester,
   ) async {

@@ -44,11 +44,17 @@ class _FavoritosPageState extends State<FavoritosPage> {
         .toList(growable: false);
   }
 
-  void _recarregarFavoritos() {
+  Future<void> _recarregarFavoritos() async {
+    if (!mounted) return;
+    final carregamento = _carregarFavoritos();
     setState(() {
-      _favoritosFuture = _carregarFavoritos();
-      _favoritosFuture.ignore();
+      _favoritosFuture = carregamento;
     });
+    try {
+      await carregamento;
+    } catch (_) {
+      // O FutureBuilder apresenta o erro e permite uma nova tentativa.
+    }
   }
 
   Future<void> _removerFavorito(
@@ -98,63 +104,68 @@ class _FavoritosPageState extends State<FavoritosPage> {
               );
             }
             final favoritos = snapshot.data ?? const <Profissional>[];
-            return ListView(
-              padding: AppInsets.page,
-              children: [
-                Text(
-                  'Profissionais salvos',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSpace.sm),
-                Text(
-                  'Consulte os perfis que você adicionou aos favoritos.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
-                ),
-                const SizedBox(height: AppSpace.lg),
-                Wrap(
-                  spacing: AppSpace.md,
-                  runSpacing: AppSpace.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.md,
-                        vertical: AppSpace.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.verdeClaro,
-                        borderRadius: BorderRadius.circular(AppRadii.pill),
-                      ),
-                      child: Text(
-                        'Profissionais',
-                        style: Theme.of(context).textTheme.labelMedium
-                            ?.copyWith(color: AppColors.verdeEscuro),
-                      ),
+            return RefreshIndicator(
+              onRefresh: _recarregarFavoritos,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: AppInsets.page,
+                children: [
+                  Text(
+                    'Profissionais salvos',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  Text(
+                    'Consulte os perfis que você adicionou aos favoritos.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textoSuave,
                     ),
-                    Text(
-                      '${favoritos.length} ${favoritos.length == 1 ? 'salvo' : 'salvos'}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpace.lg),
-                if (favoritos.isEmpty)
-                  const EmptyStateView(
-                    title: 'Sua lista está vazia',
-                    message: 'Os profissionais salvos aparecerão aqui.',
-                    icon: Icons.favorite_border_rounded,
-                  )
-                else
-                  for (final profissional in favoritos) ...[
-                    _FavoritoItem(
-                      profissional: profissional,
-                      onRemover: () => _removerFavorito(store, profissional.id),
-                    ),
-                    const SizedBox(height: AppSpace.md),
-                  ],
-              ],
+                  ),
+                  const SizedBox(height: AppSpace.lg),
+                  Wrap(
+                    spacing: AppSpace.md,
+                    runSpacing: AppSpace.sm,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.md,
+                          vertical: AppSpace.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.verdeClaro,
+                          borderRadius: BorderRadius.circular(AppRadii.pill),
+                        ),
+                        child: Text(
+                          'Profissionais',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: AppColors.verdeEscuro),
+                        ),
+                      ),
+                      Text(
+                        '${favoritos.length} ${favoritos.length == 1 ? 'salvo' : 'salvos'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpace.lg),
+                  if (favoritos.isEmpty)
+                    const EmptyStateView(
+                      title: 'Sua lista está vazia',
+                      message: 'Os profissionais salvos aparecerão aqui.',
+                      icon: Icons.favorite_border_rounded,
+                    )
+                  else
+                    for (final profissional in favoritos) ...[
+                      _FavoritoItem(
+                        profissional: profissional,
+                        onRemover: () =>
+                            _removerFavorito(store, profissional.id),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                    ],
+                ],
+              ),
             );
           },
         ),

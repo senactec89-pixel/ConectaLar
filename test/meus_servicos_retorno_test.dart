@@ -113,4 +113,25 @@ void main() {
     expect(find.text('Ver detalhes'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('meus serviços atualiza ao puxar a lista', (tester) async {
+    var consultas = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/solicitacoes/me') {
+          consultas++;
+          return null;
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.meusServicos);
+    expect(consultas, 1);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 400));
+    await tester.pumpAndSettle();
+
+    expect(consultas, 2);
+    expect(tester.takeException(), isNull);
+  });
 }

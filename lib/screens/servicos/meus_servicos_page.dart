@@ -37,11 +37,17 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
     return listFromApi(response['solicitacoes'], atendimentoResumoFromApi);
   }
 
-  void _recarregarServicos() {
+  Future<void> _recarregarServicos() async {
+    if (!mounted) return;
+    final carregamento = _carregarServicos();
     setState(() {
-      _servicosFuture = _carregarServicos();
-      _servicosFuture.ignore();
+      _servicosFuture = carregamento;
     });
+    try {
+      await carregamento;
+    } catch (_) {
+      // O FutureBuilder apresenta o erro e permite uma nova tentativa.
+    }
   }
 
   List<AtendimentoResumo> _servicosFiltrados(List<AtendimentoResumo> servicos) {
@@ -84,38 +90,43 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
             final servicos = _servicosFiltrados(snapshot.data ?? const []);
             return SafeArea(
               top: false,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-                children: [
-                  const _AvisoStatus(),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final filtro in _FiltroServicos.values) ...[
-                          _FiltroChip(
-                            filtro: filtro,
-                            selecionado: filtro == _filtro,
-                            onSelected: () => setState(() => _filtro = filtro),
-                          ),
-                          const SizedBox(width: 8),
+              child: RefreshIndicator(
+                onRefresh: _recarregarServicos,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+                  children: [
+                    const _AvisoStatus(),
+                    const SizedBox(height: 16),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final filtro in _FiltroServicos.values) ...[
+                            _FiltroChip(
+                              filtro: filtro,
+                              selecionado: filtro == _filtro,
+                              onSelected: () =>
+                                  setState(() => _filtro = filtro),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
                         ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  if (servicos.isEmpty)
-                    _ListaVazia(filtro: _filtro)
-                  else
-                    for (final servico in servicos) ...[
-                      _ServicoCard(
-                        resumo: servico,
-                        onTap: () => _abrirDetalhes(servico.solicitacao.id),
                       ),
-                      const SizedBox(height: 12),
-                    ],
-                ],
+                    ),
+                    const SizedBox(height: 18),
+                    if (servicos.isEmpty)
+                      _ListaVazia(filtro: _filtro)
+                    else
+                      for (final servico in servicos) ...[
+                        _ServicoCard(
+                          resumo: servico,
+                          onTap: () => _abrirDetalhes(servico.solicitacao.id),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                  ],
+                ),
               ),
             );
           },
