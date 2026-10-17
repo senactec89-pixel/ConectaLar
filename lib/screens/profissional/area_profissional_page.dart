@@ -66,6 +66,16 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
     });
   }
 
+  Future<void> _atualizar() async {
+    final carregamento = _carregar();
+    setState(() => _future = carregamento);
+    try {
+      await carregamento;
+    } catch (_) {
+      // O FutureBuilder exibe a falha e oferece uma nova tentativa.
+    }
+  }
+
   Future<void> _decidir(int id, bool aceitar) async {
     if (_decidindo.contains(id)) return;
     setState(() => _decidindo.add(id));
@@ -194,10 +204,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     .toList()
               : _filtrar(pedidos);
           return RefreshIndicator(
-            onRefresh: () async => setState(() {
-              _future = _carregar();
-              _future.ignore();
-            }),
+            onRefresh: _atualizar,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [

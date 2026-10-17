@@ -31,6 +31,8 @@ class AdminPage extends StatefulWidget {
 class _AdminPageState extends State<AdminPage> {
   late AdminModulo _modulo = widget.modulo;
   late Future<List<Map<String, dynamic>>> _future = _carregar(_modulo);
+  late Future<Map<String, dynamic>> _painelFuture = AppServices.instance.admin
+      .painel();
   String _tipo = '';
   String _termo = '';
   String _buscaLocal = '';
@@ -89,6 +91,27 @@ class _AdminPageState extends State<AdminPage> {
     _buscaLocalController.clear();
     _future = _carregar(modulo);
   });
+
+  Future<void> _atualizarModulo() async {
+    if (_modulo == AdminModulo.painel) {
+      final carregamento = AppServices.instance.admin.painel();
+      setState(() => _painelFuture = carregamento);
+      try {
+        await carregamento;
+      } catch (_) {
+        // O estado de erro do painel oferece outra tentativa.
+      }
+      return;
+    }
+
+    final carregamento = _carregar(_modulo);
+    setState(() => _future = carregamento);
+    try {
+      await carregamento;
+    } catch (_) {
+      // O estado de erro da lista oferece outra tentativa.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +176,17 @@ class _AdminPageState extends State<AdminPage> {
       appBar: AppBarCustom(
         title: titulo,
         actions: [
+          IconButton(
+            tooltip: _modulo == AdminModulo.painel
+                ? 'Atualizar painel'
+                : 'Atualizar lista',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _mutando
+                ? null
+                : () {
+                    _atualizarModulo();
+                  },
+          ),
           if (_modulo == AdminModulo.usuarios)
             IconButton(
               tooltip: 'Criar administrador',
@@ -251,7 +285,7 @@ class _AdminPageState extends State<AdminPage> {
   }
 
   Widget _painel() => FutureBuilder<Map<String, dynamic>>(
-    future: AppServices.instance.admin.painel(),
+    future: _painelFuture,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         return const AsyncLoadingView(
