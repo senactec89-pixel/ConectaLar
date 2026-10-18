@@ -395,28 +395,26 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        _AcoesAtendimento(
-          solicitacao: solicitacao,
-          avaliado: atendimento.avaliado,
-          cliente: _clienteParticipante,
-          profissional: _profissionalParticipante,
-          ocupada: _enviando,
-          onConversar: () => Navigator.pushNamed(
-            context,
-            AppRoutes.conversa,
-            arguments: solicitacao.id,
+        if (solicitacao.status != StatusSolicitacao.recusada &&
+            solicitacao.status != StatusSolicitacao.cancelada) ...[
+          const SizedBox(height: 16),
+          _AcoesAtendimento(
+            solicitacao: solicitacao,
+            avaliado: atendimento.avaliado,
+            cliente: _clienteParticipante,
+            profissional: _profissionalParticipante,
+            ocupada: _enviando,
+            onConversar: () => Navigator.pushNamed(
+              context,
+              AppRoutes.conversa,
+              arguments: solicitacao.id,
+            ),
+            onCancelar: () => _cancelar(),
+            onAceitar: () => _aceitar(),
+            onRecusar: () => _recusar(),
+            onConcluir: () => _concluir(),
           ),
-          onDenunciar: () => Navigator.pushNamed(
-            context,
-            AppRoutes.denunciarServico,
-            arguments: atendimento,
-          ),
-          onCancelar: () => _cancelar(),
-          onAceitar: () => _aceitar(),
-          onRecusar: () => _recusar(),
-          onConcluir: () => _concluir(),
-        ),
+        ],
         if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada &&
             !atendimento.avaliado &&
             (_clienteParticipante || _profissionalParticipante)) ...[
@@ -431,6 +429,19 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             onAvaliar: _enviando ? null : () => _avaliar(),
           ),
         ],
+        if (_clienteParticipante || _profissionalParticipante) ...[
+          const SizedBox(height: 16),
+          _AjudaSegurancaAtendimento(
+            cliente: _clienteParticipante,
+            onDenunciar: _enviando
+                ? null
+                : () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.denunciarServico,
+                    arguments: atendimento,
+                  ),
+          ),
+        ],
         const SizedBox(height: 16),
         const _RegraStatus(),
       ],
@@ -443,7 +454,6 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.solicitacao,
     required this.avaliado,
     required this.onConversar,
-    required this.onDenunciar,
     required this.onCancelar,
     required this.onAceitar,
     required this.onRecusar,
@@ -456,7 +466,6 @@ class _AcoesAtendimento extends StatelessWidget {
   final Solicitacao solicitacao;
   final bool avaliado;
   final VoidCallback onConversar;
-  final VoidCallback onDenunciar;
   final VoidCallback onCancelar;
   final VoidCallback onAceitar;
   final VoidCallback onRecusar;
@@ -479,8 +488,7 @@ class _AcoesAtendimento extends StatelessWidget {
     final podeCancelar = cliente && (aguardando || agendada);
     final podeConcluir = cliente && agendada;
     final temAcaoPrincipal = podeAceitar || podeConcluir;
-    final temAcoesSecundarias =
-        podeConversar || podeRecusar || podeCancelar || participante;
+    final temAcoesSecundarias = podeConversar || podeRecusar || podeCancelar;
 
     return Card(
       child: Padding(
@@ -567,18 +575,52 @@ class _AcoesAtendimento extends StatelessWidget {
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Cancelar'),
                     ),
-                  if (participante)
-                    OutlinedButton.icon(
-                      onPressed: ocupada ? null : onDenunciar,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.erro,
-                      ),
-                      icon: const Icon(Icons.flag_outlined),
-                      label: const Text('Denunciar'),
-                    ),
                 ],
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AjudaSegurancaAtendimento extends StatelessWidget {
+  const _AjudaSegurancaAtendimento({
+    required this.cliente,
+    required this.onDenunciar,
+  });
+
+  final bool cliente;
+  final VoidCallback? onDenunciar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ajuda e segurança',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpace.sm),
+            const Text(
+              'Você pode denunciar sem cancelar a solicitação. O relato será encaminhado para análise administrativa.',
+              style: TextStyle(color: AppColors.textoSuave),
+            ),
+            const SizedBox(height: AppSpace.md),
+            OutlinedButton.icon(
+              key: const ValueKey('detalhes-denunciar'),
+              onPressed: onDenunciar,
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.erro),
+              icon: const Icon(Icons.flag_outlined),
+              label: Text(
+                cliente ? 'Denunciar profissional' : 'Denunciar cliente',
+              ),
+            ),
           ],
         ),
       ),
