@@ -625,6 +625,11 @@ class _DetalheSolicitacaoProfissionalPageState
                       value: '${p['bairroAtendimento'] ?? 'Não informada'}',
                     ),
                     _InfoCard(
+                      title: 'Duração do atendimento',
+                      value:
+                          '${p['duracaoMinutos'] ?? 120} min • horário de São Paulo',
+                    ),
+                    _InfoCard(
                       title: 'Referência de preço inicial',
                       value: p['precoInicial'] == null
                           ? 'A combinar fora do aplicativo'
@@ -796,6 +801,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
+    final duracao = TextEditingController(
+      text: servico == null ? '' : '${servico['duracaoMinutos'] ?? 120}',
+    );
     final form = GlobalKey<FormState>();
     final ok = await showDialog<bool>(
       context: context,
@@ -843,6 +851,23 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                 ),
                 validator: validarPrecoOpcional,
               ),
+              TextFormField(
+                key: const ValueKey('servico-duracao'),
+                controller: duracao,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Duração do serviço (minutos)',
+                  helperText:
+                      'O atendimento inteiro deve caber na sua disponibilidade.',
+                  helperMaxLines: 3,
+                ),
+                validator: (value) {
+                  final minutos = int.tryParse((value ?? '').trim());
+                  return minutos == null || minutos < 1 || minutos > 1440
+                      ? 'Informe de 1 a 1440 minutos.'
+                      : null;
+                },
+              ),
             ],
           ),
         ),
@@ -872,6 +897,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
               'nome': e['nome'],
               'categoriaId': e['categoriaId'] ?? e['categoria']?['id'],
               'precoInicial': e['precoInicial'],
+              'duracaoMinutos': e['duracaoMinutos'] ?? 120,
             },
           )
           .toList();
@@ -880,6 +906,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
         'nome': nome.text.trim(),
         'categoriaId': categoriaId,
         'precoInicial': parsePrecoInicial(preco.text),
+        'duracaoMinutos': int.parse(duracao.text.trim()),
       };
       if (servico == null) {
         if (servicos.length >= 12) {
@@ -980,7 +1007,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         ),
                         title: Text('${e['nome']}'),
                         subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['ativo'] == true ? 'Ativo' : 'Inativo'}',
+                          '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 120} min • ${e['ativo'] == true ? 'Ativo' : 'Inativo'}',
                         ),
                         isThreeLine: true,
                         trailing: IconButton(
@@ -1215,6 +1242,11 @@ class _PedidoCard extends StatelessWidget {
               _dataHoraPedido(pedido['dataServico'], pedido['horarioServico']),
               style: const TextStyle(color: AppColors.textoSuave),
             ),
+            if (pedido['duracaoMinutos'] != null)
+              Text(
+                '${pedido['duracaoMinutos']} min • horário de São Paulo',
+                style: const TextStyle(color: AppColors.textoSuave),
+              ),
             const SizedBox(height: 6),
             Text(
               enderecoLiberado

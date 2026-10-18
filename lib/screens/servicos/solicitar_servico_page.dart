@@ -191,7 +191,12 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       return;
     }
     if (_disponibilidades.isNotEmpty &&
-        !_horarioDentroDaDisponibilidade(data, horario, _disponibilidades)) {
+        !_horarioDentroDaDisponibilidade(
+          data,
+          horario,
+          _disponibilidades,
+          duracaoMinutos: _ofertaSelecionada?.duracaoMinutos ?? 120,
+        )) {
       _mostrarErro(
         'Escolha uma data e horário dentro da disponibilidade informada pelo profissional.',
       );
@@ -676,6 +681,8 @@ class _FormularioSolicitacao extends StatelessWidget {
                           const SizedBox(height: 10),
                           _SugestoesAgenda(
                             itens: itens,
+                            profissionalId: profissional.id,
+                            oferta: ofertaSelecionada,
                             dataController: dataController,
                             horarioController: horarioController,
                           ),
@@ -930,6 +937,11 @@ class _ResumoSolicitacaoPreview extends StatelessWidget {
                       : '${data.isEmpty ? 'Data pendente' : data} às ${horario.isEmpty ? '--:--' : horario}',
                 ),
                 _ResumoLinha(
+                  label: 'Duração',
+                  value:
+                      '${oferta?.duracaoMinutos ?? 120} min • horário de São Paulo',
+                ),
+                _ResumoLinha(
                   label: 'Região',
                   value: bairro.isEmpty ? 'Informe o bairro' : bairro,
                 ),
@@ -1155,52 +1167,181 @@ class _ConsultaAviso extends StatelessWidget {
   }
 }
 
-class _SugestoesAgenda extends StatelessWidget {
+class _SugestoesAgenda extends StatefulWidget {
   const _SugestoesAgenda({
     required this.itens,
+    required this.profissionalId,
+    required this.oferta,
     required this.dataController,
     required this.horarioController,
   });
 
   final List<Disponibilidade> itens;
+  final int profissionalId;
+  final OfertaProfissional? oferta;
   final TextEditingController dataController;
   final TextEditingController horarioController;
 
   @override
-  Widget build(BuildContext context) {
-    final sugestoes = _proximasSugestoes(itens);
-    if (sugestoes.isEmpty) return const SizedBox.shrink();
+  State<_SugestoesAgenda> createState() => _SugestoesAgendaState();
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Horários sugeridos',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Toque em uma opção para preencher data e horário conforme a disponibilidade cadastrada.',
-          style: TextStyle(color: AppColors.textoSuave),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
+class _SugestoesAgendaState extends State<_SugestoesAgenda> {
+  late Future<List<_SugestaoAgenda>> _consulta;
+  String? _dataConsultada;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.dataController.addListener(_dataAlterada);
+    _recarregar();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SugestoesAgenda oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataController != widget.dataController) {
+      oldWidget.dataController.removeListener(_dataAlterada);
+      widget.dataController.addListener(_dataAlterada);
+    }
+    if (oldWidget.profissionalId != widget.profissionalId ||
+        oldWidget.oferta?.id != widget.oferta?.id ||
+        oldWidget.oferta?.duracaoMinutos != widget.oferta?.duracaoMinutos ||
+        oldWidget.itens != widget.itens) {
+      _recarregar();
+    }
+  }
+
+  void _dataAlterada() {
+    final data = _parseData(widget.dataController.text);
+    final chave = data == null ? null : _dataApi(data);
+    if (chave == _dataConsultada) return;
+    setState(_recarregar);
+  }
+
+  void _recarregar() {
+    final data = _parseData(widget.dataController.text);
+    _dataConsultada = data == null ? null : _dataApi(data);
+    _consulta = _carregar(data);
+  }
+
+  Future<List<_SugestaoAgenda>> _carregar(DateTime? selecionada) async {
+    final duracao = widget.oferta?.duracaoMinutos ?? 120;
+    if (AppServices.instance.modoDemo) {
+      return _proximasSugestoes(widget.itens, duracao);
+    }
+    final agora = DateTime.now();
+    final hoje = DateTime(agora.year, agora.month, agora.day);
+    final sugestoes = <_SugestaoAgenda>[];
+    final profissionalId = widget.profissionalId;
+    final ofertaId = widget.oferta?.id;
+    for (var offset = 0; offset < (selecionada == null ? 21 : 1); offset++) {
+      final data = selecionada ?? hoje.add(Duration(days: offset));
+      if (!widget.itens.any(
+        (i) => i.ativo && i.diaSemana == _diaSemanaApi(data),
+      )) {
+        continue;
+      }
+      final resposta = await AppServices.instance.profissionais.horariosLivres(
+        profissionalId,
+        data: _dataApi(data),
+        servicoId: ofertaId,
+      );
+      if (resposta['intervalos'] is! List) {
+        throw const FormatException('Resposta de horários inválida.');
+      }
+      final duracaoAtual = intValue(
+        resposta['duracaoMinutos'],
+        fallback: duracao,
+      );
+      for (final intervalo
+          in (resposta['intervalos'] as List)
+              .whereType<Map<String, dynamic>>()) {
+        final inicio = _minutos('${intervalo['horaInicio']}');
+        final fim = _minutos('${intervalo['horaFim']}');
+        if (inicio == null || fim == null) continue;
+        for (
+          var minuto = inicio;
+          minuto + duracaoAtual <= fim && sugestoes.length < 8;
+          minuto += 60
+        ) {
+          final horario = _horarioTexto(minuto);
+          if (data == hoje && !_horarioFuturoHoje(horario)) continue;
+          sugestoes.add(_SugestaoAgenda(data: data, horario: horario));
+        }
+      }
+      if (sugestoes.length >= 8) break;
+    }
+    return sugestoes;
+  }
+
+  @override
+  void dispose() {
+    widget.dataController.removeListener(_dataAlterada);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<_SugestaoAgenda>>(
+      future: _consulta,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _ConsultaAviso(
+            titulo: 'Consultando horários livres…',
+            carregando: true,
+          );
+        }
+        if (snapshot.hasError) {
+          return _ConsultaAviso(
+            titulo: 'Não foi possível consultar os horários livres.',
+            mensagem:
+                'Atualize antes de escolher um horário. O envio depende da validação da agenda.',
+            onRetry: () => setState(_recarregar),
+          );
+        }
+        final sugestoes = snapshot.data ?? const <_SugestaoAgenda>[];
+        if (sugestoes.isEmpty) {
+          return _ConsultaAviso(
+            titulo: 'Nenhum horário livre para a duração deste serviço.',
+            mensagem: 'Escolha outra data ou consulte outro profissional.',
+            onRetry: () => setState(_recarregar),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final sugestao in sugestoes)
-              ActionChip(
-                label: Text(
-                  '${_formatarDataCurta(sugestao.data)} ${sugestao.horario}',
-                ),
-                onPressed: () {
-                  dataController.text = _formatarDataCampo(sugestao.data);
-                  horarioController.text = sugestao.horario;
-                },
-              ),
+            const Text(
+              'Horários sugeridos',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Horário de São Paulo. A duração inteira cabe na disponibilidade consultada. O envio ainda depende do aceite.',
+              style: TextStyle(color: AppColors.textoSuave),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final sugestao in sugestoes)
+                  ActionChip(
+                    label: Text(
+                      '${_formatarDataCurta(sugestao.data)} ${sugestao.horario}',
+                    ),
+                    onPressed: () {
+                      widget.dataController.text = _formatarDataCampo(
+                        sugestao.data,
+                      );
+                      widget.horarioController.text = sugestao.horario;
+                    },
+                  ),
+              ],
+            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -1386,22 +1527,27 @@ bool _dataNaoPassou(DateTime data) {
 bool _horarioDentroDaDisponibilidade(
   DateTime data,
   String horario,
-  List<Disponibilidade> disponibilidades,
-) {
+  List<Disponibilidade> disponibilidades, {
+  required int duracaoMinutos,
+}) {
   final diaApi = _diaSemanaApi(data);
   return disponibilidades.any(
     (item) =>
         item.ativo &&
         item.diaSemana == diaApi &&
         item.horaInicio.compareTo(horario) <= 0 &&
-        horario.compareTo(item.horaFim) < 0,
+        (_minutos(horario) ?? 1440) + duracaoMinutos <=
+            (_minutos(item.horaFim) ?? 0),
   );
 }
 
 int _diaSemanaApi(DateTime data) =>
     data.weekday == DateTime.sunday ? 0 : data.weekday;
 
-List<_SugestaoAgenda> _proximasSugestoes(List<Disponibilidade> itens) {
+List<_SugestaoAgenda> _proximasSugestoes(
+  List<Disponibilidade> itens,
+  int duracaoMinutos,
+) {
   final hoje = DateTime.now();
   final sugestoes = <_SugestaoAgenda>[];
   for (var offset = 0; offset < 21 && sugestoes.length < 8; offset++) {
@@ -1416,7 +1562,7 @@ List<_SugestaoAgenda> _proximasSugestoes(List<Disponibilidade> itens) {
       if (inicio == null || fim == null || inicio >= fim) continue;
       for (
         var minuto = inicio;
-        minuto < fim && sugestoes.length < 8;
+        minuto + duracaoMinutos <= fim && sugestoes.length < 8;
         minuto += 60
       ) {
         final horario = _horarioTexto(minuto);

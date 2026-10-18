@@ -129,14 +129,16 @@ export function horarioDisponivel(
   disponibilidades: readonly ProfissionalDisponibilidadeEntity[],
   dataServico: Date | string,
   horarioServico: string,
+  duracaoMinutos = 1,
 ): boolean {
   const diaSemana = diaSemanaUtc(dataServico);
+  const minutos = (hora: string) => Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3, 5));
   return disponibilidades.some(
     (item) =>
       item.ativo &&
       item.diaSemana === diaSemana &&
       item.horaInicio <= horarioServico &&
-      horarioServico < item.horaFim,
+      minutos(horarioServico) + duracaoMinutos <= minutos(item.horaFim),
   );
 }
 

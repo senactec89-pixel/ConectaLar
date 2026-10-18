@@ -37,6 +37,9 @@ export class ProfissionalServicoEntity {
   @Column({ type: 'varchar', length: 90 })
   nome!: string;
 
+  @Column({ name: 'duracao_minutos', type: 'smallint', unsigned: true, default: 120 })
+  duracaoMinutos!: number;
+
   @Column({
     name: 'preco_inicial',
     type: 'decimal',

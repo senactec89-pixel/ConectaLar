@@ -79,6 +79,7 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
             ? null
             : intValue(s['categoria']?['id']),
         precoInicial: doubleValueOrNull(s['precoInicial']),
+        duracaoMinutos: intValue(s['duracaoMinutos'], fallback: 120),
       ),
     ),
     notaMedia: doubleValueOrNull(json['notaMedia']),
@@ -116,6 +117,7 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         : null,
     dataServico: dateValue(json['dataServico']),
     horarioServico: stringValue(json['horarioServico']),
+    duracaoMinutos: intValue(json['duracaoMinutos'], fallback: 120),
     precoInicial: doubleValueOrNull(json['precoInicial']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),
@@ -243,11 +245,11 @@ List<T> listFromApi<T>(Object? value, T Function(Map<String, dynamic>) mapper) {
       .toList(growable: false);
 }
 
-int intValue(Object? value) {
+int intValue(Object? value, {int fallback = 0}) {
   if (value is int) return value;
   if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value) ?? 0;
-  return 0;
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
 }
 
 double? doubleValueOrNull(Object? value) {

@@ -467,11 +467,16 @@ void main() {
       );
       expect(ofertaEnviada, isNull);
       await tester.enterText(find.byType(TextFormField).at(1), '125,50');
+      await tester.enterText(
+        find.byKey(const ValueKey('servico-duracao')),
+        '90',
+      );
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       final oferta = (ofertaEnviada?['servicos'] as List).single;
       expect(oferta['categoriaId'], 2);
       expect(oferta['precoInicial'], 125.5);
+      expect(oferta['duracaoMinutos'], 90);
     },
   );
 

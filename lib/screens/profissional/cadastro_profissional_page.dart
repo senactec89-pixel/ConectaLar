@@ -217,6 +217,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             'nome': servico['nome'],
             'categoriaId': ?categoriaId,
             'precoInicial': ?preco,
+            'duracaoMinutos': servico['duracaoMinutos'] ?? 120,
           };
         })
         .toList(growable: false);

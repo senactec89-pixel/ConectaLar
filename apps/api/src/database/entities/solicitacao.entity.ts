@@ -76,6 +76,9 @@ export class SolicitacaoEntity {
   @Column({ name: 'horario_servico', type: 'varchar', length: 5 })
   horarioServico!: string;
 
+  @Column({ name: 'duracao_minutos', type: 'smallint', unsigned: true, default: 120 })
+  duracaoMinutos!: number;
+
   @Column({
     name: 'preco_inicial',
     type: 'decimal',

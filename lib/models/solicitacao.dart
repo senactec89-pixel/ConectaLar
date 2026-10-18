@@ -41,6 +41,7 @@ class Solicitacao {
     this.profissionalUsuarioId = 0,
     this.servicoId,
     this.nomeServico,
+    this.duracaoMinutos = 120,
   });
 
   final int id;
@@ -58,6 +59,7 @@ class Solicitacao {
   final ClienteEndereco? enderecoAtendimento;
   final DateTime dataServico;
   final String horarioServico;
+  final int duracaoMinutos;
   final double? precoInicial;
   final StatusSolicitacao status;
   final DateTime criadoEm;

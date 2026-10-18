@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { Between, EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
@@ -19,12 +19,14 @@ import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
+import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, intervalosLivres, minutosHorario, parseDuracao } from '../domain/agendamento.js';
 
 interface ProfissionalServicoInput {
   readonly id?: number | null;
   readonly nome: string;
   readonly categoriaId?: number | null;
   readonly precoInicial?: number | null;
+  readonly duracaoMinutos: number;
 }
 
 interface UpsertPerfilInput {
@@ -184,6 +186,36 @@ export class ProfissionaisService {
     };
   }
 
+  async horariosLivres(id: number, query: Record<string, unknown>) {
+    await this.obter(id);
+    const data = query.data;
+    if (typeof data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(data) ||
+      !Number.isFinite(Date.parse(`${data}T00:00:00Z`)) ||
+      new Date(`${data}T00:00:00Z`).toISOString().slice(0, 10) !== data) {
+      throw badRequest('DATA_INVALIDA');
+    }
+    const servicoId = optionalId(query.servicoId);
+    const oferta = servicoId === null ? null : await this.servicos.findOne({
+      where: { id: servicoId, profissionalId: id, ativo: true },
+    });
+    if (servicoId !== null && oferta === null) throw badRequest('OFERTA_INDISPONIVEL');
+    const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
+    const [semanais, ocupados] = await Promise.all([
+      this.disponibilidades.find({ where: { profissionalId: id, ativo: true } }),
+      this.solicitacoes.find({ where: {
+        profissionalId: id, status: SolicitacaoStatus.AceitaAgendada,
+        dataServico: Between(diaAnterior(data), data),
+      } }),
+    ]);
+    // Only free windows are public: no customer, request IDs, address, or busy
+    // appointment details leave this endpoint.
+    return {
+      data, fusoHorario: fusoAgenda, duracaoMinutos,
+      intervalos: intervalosLivres(data, semanais, ocupados).filter((item) =>
+        minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
+    };
+  }
+
   async salvarMeuPerfil(user: AuthenticatedUser, body: unknown) {
     const input = parseUpsertPerfil(body);
     await this.carregarUsuarioProfissional(user);
@@ -298,7 +330,7 @@ export class ProfissionaisService {
     const perfil = await this.carregarMeuPerfil(user);
     const mes = parseMes(query.mes);
     if (perfil === null) {
-      return { mes, disponibilidade: [], atendimentos: [] };
+      return { mes, fusoHorario: fusoAgenda, disponibilidade: [], atendimentos: [] };
     }
 
     const [inicio, fim] = intervaloMes(mes);
@@ -327,6 +359,7 @@ export class ProfissionaisService {
 
     return {
       mes,
+      fusoHorario: fusoAgenda,
       disponibilidade: disponibilidade.map(disponibilidadeResponse),
       atendimentos: atendimentos.map(agendaAtendimentoResponse),
     };
@@ -462,6 +495,7 @@ export class ProfissionaisService {
       oferta.nome = input.nome;
       oferta.categoriaId = input.categoriaId ?? null;
       oferta.precoInicial = decimalOrNull(input.precoInicial);
+      oferta.duracaoMinutos = input.duracaoMinutos;
       oferta.ativo = true;
       const saved = await manager.save(ProfissionalServicoEntity, oferta);
       usados.add(saved.id);
@@ -557,6 +591,8 @@ function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
     bairroAtendimento: solicitacao.bairroAtendimento,
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
+    duracaoMinutos: solicitacao.duracaoMinutos,
+    fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
     enderecoCompletoLiberado:
       solicitacao.status === SolicitacaoStatus.AceitaAgendada,
@@ -654,6 +690,7 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
           },
     categoriaId: servico.categoriaId,
     precoInicial: numberOrNull(servico.precoInicial),
+    duracaoMinutos: servico.duracaoMinutos,
     ativo: servico.ativo,
   };
 }
@@ -825,6 +862,7 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       nome: textField(body, 'nome', 2, 90),
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
+      duracaoMinutos: parseDuracao(body.duracaoMinutos),
     };
   });
 }

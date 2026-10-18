@@ -229,6 +229,16 @@ class FrontendPreviewClient extends http.BaseClient {
   }
 
   Object? _consulta(String path, Map<String, String> query) {
+    if (RegExp(r'^/profissionais/\d+/horarios$').hasMatch(path)) {
+      return {
+        'data': query['data'],
+        'fusoHorario': 'America/Sao_Paulo',
+        'duracaoMinutos': 120,
+        'intervalos': [
+          {'horaInicio': '08:00', 'horaFim': '18:00'},
+        ],
+      };
+    }
     if (path.endsWith('/avaliacoes') || path == '/avaliacoes/moderacao') {
       return avaliacoes;
     }

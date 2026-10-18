@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
@@ -17,6 +17,7 @@ import { ProfissionalPerfilEntity } from '../database/entities/profissional-perf
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
+import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
@@ -114,11 +115,23 @@ export class SolicitacoesService {
       }
     }
 
+    const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
     await this.validarDisponibilidade(
       profissional.id,
       input.dataServico,
       input.horarioServico,
+      duracaoMinutos,
     );
+    const ocupados = await this.solicitacoes.find({
+      where: {
+        profissionalId: profissional.id,
+        status: SolicitacaoStatus.AceitaAgendada,
+        dataServico: Between(diaAnterior(input.dataServico), input.dataServico),
+      },
+    });
+    if (ocupados.some((pedido) => periodosSobrepostos({ ...input, duracaoMinutos }, pedido))) {
+      throw new ConflictException({ code: 'HORARIO_OCUPADO' });
+    }
 
     const solicitacao = this.solicitacoes.create({
       clienteId: cliente.id,
@@ -131,6 +144,7 @@ export class SolicitacoesService {
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
+      duracaoMinutos,
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       status: SolicitacaoStatus.AguardandoResposta,
     });
@@ -317,6 +331,7 @@ export class SolicitacoesService {
               disponibilidade,
               atual.dataServico,
               atual.horarioServico,
+              atual.duracaoMinutos,
             )
           ) {
             throw new ConflictException({
@@ -324,15 +339,14 @@ export class SolicitacoesService {
               message: 'Horário fora da disponibilidade.',
             });
           }
-          const ocupados = await manager.count(SolicitacaoEntity, {
+          const ocupados = await manager.find(SolicitacaoEntity, {
             where: {
               profissionalId: perfil.id,
-              dataServico: atual.dataServico,
-              horarioServico: atual.horarioServico,
+              dataServico: Between(diaAnterior(atual.dataServico), atual.dataServico),
               status: SolicitacaoStatus.AceitaAgendada,
             },
           });
-          if (ocupados > 0) {
+          if (ocupados.some((pedido) => periodosSobrepostos(atual, pedido))) {
             throw new ConflictException({
               code: 'HORARIO_OCUPADO',
               message: 'Já existe atendimento neste horário.',
@@ -382,6 +396,7 @@ export class SolicitacoesService {
     profissionalId: number,
     dataServico: string,
     horarioServico: string,
+    duracaoMinutos: number,
   ): Promise<void> {
     const disponibilidades = await this.disponibilidades.find({
       where: { profissionalId, ativo: true },
@@ -389,7 +404,7 @@ export class SolicitacoesService {
     if (disponibilidades.length === 0) {
       throw badRequest('DISPONIBILIDADE_NAO_CADASTRADA');
     }
-    if (!horarioDisponivel(disponibilidades, dataServico, horarioServico)) {
+    if (!horarioDisponivel(disponibilidades, dataServico, horarioServico, duracaoMinutos)) {
       throw badRequest('HORARIO_INDISPONIVEL');
     }
   }
@@ -428,6 +443,8 @@ function solicitacaoResponse(
         : null,
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
+    duracaoMinutos: solicitacao.duracaoMinutos,
+    fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
     cliente: {
       id: solicitacao.cliente.id,

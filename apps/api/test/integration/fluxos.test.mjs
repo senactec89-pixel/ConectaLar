@@ -49,6 +49,9 @@ test(
         },
         201,
       );
+      assert.ok(data.devCode, 'Ative EXPOSE_EMAIL_VERIFICATION_CODE somente na API local de teste.');
+      await request('POST', 'auth/email/verificacao/confirmar', data.token.accessToken,
+        { codigo: data.devCode }, 201);
       return { token: data.token.accessToken, usuario: data.usuario };
     }
     const cliente = await cadastro('cliente');
@@ -65,6 +68,12 @@ test(
       201,
     );
     const adminToken = admin.token.accessToken;
+    if (!admin.usuario.emailVerificado) {
+      const verificacao = (await request('POST', 'auth/email/verificacao/enviar', adminToken, {}, 201)).data;
+      assert.ok(verificacao.devCode, 'Confirme o e-mail da conta administrativa de teste.');
+      await request('POST', 'auth/email/verificacao/confirmar', adminToken,
+        { codigo: verificacao.devCode }, 201);
+    }
     const categorias = (await request('GET', 'categorias')).data.categorias;
     assert.ok(
       categorias.length >= 2,
@@ -82,11 +91,13 @@ test(
         servicos: [
           {
             nome: 'Primeira oferta',
+            duracaoMinutos: 60,
             categoriaId: categorias[0].id,
             precoInicial: 60,
           },
           {
             nome: 'Oferta escolhida',
+            duracaoMinutos: 60,
             categoriaId: categorias[1].id,
             precoInicial: 125.5,
           },
@@ -191,6 +202,7 @@ test(
                 nome: `${o.nome} editada`,
                 categoriaId: o.categoriaId,
                 precoInicial: o.precoInicial,
+                duracaoMinutos: o.duracaoMinutos,
               })),
             },
           )

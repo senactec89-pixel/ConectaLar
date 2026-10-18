@@ -50,11 +50,13 @@ async function main() {
       servicos: [
         {
           nome: 'Servico diagnostico inicial',
+          duracaoMinutos: 120,
           categoriaId: ctx.categoriaA.id,
           precoInicial: 110,
         },
         {
           nome: 'Servico diagnostico escolhido',
+          duracaoMinutos: 120,
           categoriaId: ctx.categoriaB.id,
           precoInicial: 140.5,
         },
@@ -213,6 +215,9 @@ async function cadastrar(tipo, nome, email) {
     senha: senhaTeste,
     tipo,
   }, 201);
+  assert(data.devCode, 'O diagnóstico exige EXPOSE_EMAIL_VERIFICATION_CODE=true em ambiente local de teste sem SMTP.');
+  await request('POST', 'auth/email/verificacao/confirmar', data.token.accessToken,
+    { codigo: data.devCode }, 201);
   return {
     token: data.token.accessToken,
     usuario: data.usuario,

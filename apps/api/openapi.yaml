@@ -816,6 +816,7 @@ paths:
                 properties:
                   mes:
                     type: string
+                  fusoHorario: {type: string, const: America/Sao_Paulo}
                   disponibilidade:
                     type: array
                     items:
@@ -1365,6 +1366,48 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ServicoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/{id}/horarios:
+    get:
+      operationId: getProfissionalHorariosLivres
+      summary: Returns only free windows that fit the selected offer duration, without customer or appointment details
+      tags: [Profissionais]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - name: data
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: servicoId
+          in: query
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Available windows in America/Sao_Paulo; request creation does not reserve a slot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, fusoHorario, duracaoMinutos, intervalos]
+                properties:
+                  data: {type: string, format: date}
+                  fusoHorario: {type: string, const: America/Sao_Paulo}
+                  duracaoMinutos:
+                    $ref: '#/components/schemas/DuracaoMinutos'
+                  intervalos:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [horaInicio, horaFim]
+                      properties:
+                        horaInicio: {type: string}
+                        horaFim: {type: string}
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /profissionais/{id}/disponibilidade:
@@ -3219,6 +3262,8 @@ components:
         - enderecoAtendimento
         - dataServico
         - horarioServico
+        - duracaoMinutos
+        - fusoHorario
         - precoInicial
         - cliente
         - profissional
@@ -3262,6 +3307,9 @@ components:
           format: date
         horarioServico:
           type: string
+        duracaoMinutos:
+          $ref: '#/components/schemas/DuracaoMinutos'
+        fusoHorario: {type: string, const: America/Sao_Paulo}
         precoInicial:
           type:
             - number
@@ -3618,7 +3666,7 @@ components:
     ServicoProfissional:
       type: object
       additionalProperties: false
-      required: [id, nome, categoria, categoriaId, precoInicial, ativo]
+      required: [id, nome, categoria, categoriaId, precoInicial, duracaoMinutos, ativo]
       properties:
         id:
           type: integer
@@ -3637,10 +3685,12 @@ components:
           minimum: 0
         ativo:
           type: boolean
+        duracaoMinutos:
+          $ref: '#/components/schemas/DuracaoMinutos'
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
-      required: [nome]
+      required: [nome, duracaoMinutos]
       properties:
         id:
           type: [integer, 'null']
@@ -3657,6 +3707,13 @@ components:
           type: [number, 'null']
           minimum: 0
           maximum: 99999999.99
+        duracaoMinutos:
+          $ref: '#/components/schemas/DuracaoMinutos'
+    DuracaoMinutos:
+      type: integer
+      minimum: 1
+      maximum: 1440
+      description: Duration in minutes. Existing offers/requests migrate to 120 minutes; new requests snapshot the offer duration. The whole appointment must fit one same-day availability window.
     DisponibilidadeInput:
       type: object
       additionalProperties: false
@@ -3955,7 +4012,7 @@ components:
     AtendimentoAgenda:
       type: object
       additionalProperties: false
-      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
+      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, duracaoMinutos, fusoHorario, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -3977,6 +4034,9 @@ components:
           format: date
         horarioServico:
           type: string
+        duracaoMinutos:
+          $ref: '#/components/schemas/DuracaoMinutos'
+        fusoHorario: {type: string, const: America/Sao_Paulo}
         precoInicial:
           type: [number, 'null']
         enderecoCompletoLiberado:
