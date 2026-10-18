@@ -68,7 +68,9 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
 
   Future<void> _atualizar() async {
     final carregamento = _carregar();
-    setState(() => _future = carregamento);
+    setState(() {
+      _future = carregamento;
+    });
     try {
       await carregamento;
     } catch (_) {
@@ -179,11 +181,38 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           final concluidos = pedidos
               .where((p) => p['status'] == 'conclusao_confirmada')
               .toList();
-          final atendimentosDoMes = agendados
-              .where(
-                (p) => _mesDaData(p['dataServico']) == _chaveMes(_mesAgenda),
-              )
-              .toList();
+          final atendimentosDoMes =
+              agendados
+                  .where(
+                    (p) =>
+                        _mesDaData(p['dataServico']) == _chaveMes(_mesAgenda),
+                  )
+                  .toList()
+                ..sort((a, b) {
+                  final data = _dataDoServico(
+                    a['dataServico'],
+                  ).compareTo(_dataDoServico(b['dataServico']));
+                  return data != 0
+                      ? data
+                      : '${a['horarioServico'] ?? ''}'.compareTo(
+                          '${b['horarioServico'] ?? ''}',
+                        );
+                });
+          final atendimentosPorDia = <DateTime, int>{};
+          for (final pedido in atendimentosDoMes) {
+            final dia = _dataDoServico(pedido['dataServico']);
+            atendimentosPorDia.update(
+              dia,
+              (total) => total + 1,
+              ifAbsent: () => 1,
+            );
+          }
+          final disponibilidade = data['disponibilidade'] is List
+              ? (data['disponibilidade'] as List)
+                    .whereType<Map<String, dynamic>>()
+                    .where((item) => item['ativo'] != false)
+                    .toList()
+              : <Map<String, dynamic>>[];
           final diaInicial = atendimentosDoMes.isNotEmpty
               ? _dataDoServico(atendimentosDoMes.first['dataServico'])
               : DateTime.now().year == _mesAgenda.year &&
@@ -191,6 +220,18 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
               ? DateTime.now()
               : _mesAgenda;
           final diaSelecionado = _diaSelecionado ?? diaInicial;
+          final horariosDoDia =
+              disponibilidade
+                  .where(
+                    (item) =>
+                        int.tryParse('${item['diaSemana']}') ==
+                        diaSelecionado.weekday % 7,
+                  )
+                  .toList()
+                ..sort(
+                  (a, b) =>
+                      '${a['horaInicio']}'.compareTo('${b['horaInicio']}'),
+                );
           final lista = _tab == 0
               ? novos.take(3).toList()
               : _tab == 2
@@ -206,6 +247,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           return RefreshIndicator(
             onRefresh: _atualizar,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
                 if (_tab == 0) ...[
@@ -296,26 +338,17 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Acompanhe seus atendimentos e a disponibilidade semanal informada.',
+                    'Veja os dias com atendimentos e confira seus horários antes de aceitar novos pedidos.',
                   ),
                   const SizedBox(height: 14),
                   _CalendarioAgenda(
                     mes: _mesAgenda,
                     diaSelecionado: diaSelecionado,
-                    diasComAtendimento: atendimentosDoMes
-                        .map((p) => _dataDoServico(p['dataServico']))
+                    atendimentosPorDia: atendimentosPorDia,
+                    diasSemanaComDisponibilidade: disponibilidade
+                        .map((item) => int.tryParse('${item['diaSemana']}'))
+                        .whereType<int>()
                         .toSet(),
-                    diasSemanaComDisponibilidade:
-                        data['disponibilidade'] is List
-                        ? (data['disponibilidade'] as List)
-                              .whereType<Map<String, dynamic>>()
-                              .where((item) => item['ativo'] != false)
-                              .map(
-                                (item) => int.tryParse('${item['diaSemana']}'),
-                              )
-                              .whereType<int>()
-                              .toSet()
-                        : const {},
                     onDiaSelecionado: (dia) =>
                         setState(() => _diaSelecionado = dia),
                     onMudarMes: _mudarMesAgenda,
@@ -355,6 +388,38 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   const SizedBox(height: 8),
                 ],
                 if (_tab == 2) ...[
+                  const SizedBox(height: AppSpace.md),
+                  Text(
+                    '${diaSelecionado.day} de ${_nomeMes(diaSelecionado).toLowerCase()}',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: AppSpace.xs),
+                  Text(
+                    lista.isEmpty
+                        ? 'Sem atendimentos agendados'
+                        : lista.length == 1
+                        ? '1 atendimento agendado'
+                        : '${lista.length} atendimentos agendados',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  _DisponibilidadeDoDia(
+                    itens: horariosDoDia,
+                    dia: diaSelecionado,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await Navigator.pushNamed(
+                        context,
+                        AppRoutes.disponibilidadeProfissional,
+                      );
+                      if (mounted) await _atualizar();
+                    },
+                    icon: const Icon(Icons.edit_calendar_outlined),
+                    label: const Text('Editar disponibilidade semanal'),
+                  ),
+                  const SizedBox(height: AppSpace.md),
                   const _SectionTitle('Atendimentos do dia'),
                   const SizedBox(height: 8),
                 ],
@@ -363,7 +428,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                       ? EmptyStateView(
                           title: 'Nenhum atendimento neste dia',
                           message:
-                              'Os horários disponíveis aparecem acima. Quando um atendimento for aceito para esta data, ele será listado aqui.',
+                              'Somente pedidos aceitos aparecem na agenda. Solicitações aguardando resposta ainda não reservam horário.',
                           icon: Icons.event_available_outlined,
                         )
                       : _EmptyCard(
@@ -402,27 +467,9 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                 if (_tab == 2) ...[
                   const SizedBox(height: AppSpace.md),
-                  _DisponibilidadeDoDia(
-                    itens: data['disponibilidade'] is List
-                        ? (data['disponibilidade'] as List)
-                              .whereType<Map<String, dynamic>>()
-                              .where(
-                                (item) =>
-                                    int.tryParse('${item['diaSemana']}') ==
-                                    diaSelecionado.weekday % 7,
-                              )
-                              .toList()
-                        : const [],
-                    dia: diaSelecionado,
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.disponibilidadeProfissional,
-                    ),
-                    icon: const Icon(Icons.edit_calendar_outlined),
-                    label: const Text('Editar disponibilidade semanal'),
+                  const Text(
+                    'Antes de aceitar outro pedido, considere a duração dos atendimentos e o tempo de deslocamento. Um dia com atendimento pode ter outros horários livres.',
+                    style: TextStyle(color: AppColors.textoSuave),
                   ),
                 ],
                 if (!AppServices.instance.auth.autenticado)
@@ -1381,7 +1428,7 @@ class _CalendarioAgenda extends StatelessWidget {
   const _CalendarioAgenda({
     required this.mes,
     required this.diaSelecionado,
-    required this.diasComAtendimento,
+    required this.atendimentosPorDia,
     required this.diasSemanaComDisponibilidade,
     required this.onDiaSelecionado,
     required this.onMudarMes,
@@ -1389,7 +1436,7 @@ class _CalendarioAgenda extends StatelessWidget {
 
   final DateTime mes;
   final DateTime diaSelecionado;
-  final Set<DateTime> diasComAtendimento;
+  final Map<DateTime, int> atendimentosPorDia;
   final Set<int> diasSemanaComDisponibilidade;
   final ValueChanged<DateTime> onDiaSelecionado;
   final ValueChanged<int> onMudarMes;
@@ -1399,6 +1446,10 @@ class _CalendarioAgenda extends StatelessWidget {
     final primeiroDia = DateTime(mes.year, mes.month, 1);
     final deslocamento = primeiroDia.weekday % 7;
     final totalDias = DateTime(mes.year, mes.month + 1, 0).day;
+    final totalAtendimentos = atendimentosPorDia.values.fold(
+      0,
+      (a, b) => a + b,
+    );
     final escala = MediaQuery.textScalerOf(context).scale(1);
     final alturaCelula = 48 * escala.clamp(1.0, 1.5);
 
@@ -1427,6 +1478,18 @@ class _CalendarioAgenda extends StatelessWidget {
                   icon: const Icon(Icons.chevron_right_rounded),
                 ),
               ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpace.md),
+              child: Text(
+                atendimentosPorDia.isEmpty
+                    ? 'Nenhum atendimento agendado neste mês'
+                    : '$totalAtendimentos '
+                          '${totalAtendimentos == 1 ? 'atendimento' : 'atendimentos'} em '
+                          '${atendimentosPorDia.length} ${atendimentosPorDia.length == 1 ? 'dia' : 'dias'}',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
             Row(
               children: [
@@ -1463,19 +1526,23 @@ class _CalendarioAgenda extends StatelessWidget {
                 }
                 final dia = DateTime(mes.year, mes.month, diaDoMes);
                 final selecionado = _mesmoDia(dia, diaSelecionado);
-                final temAtendimento = diasComAtendimento.any(
-                  (item) => _mesmoDia(item, dia),
-                );
+                final quantidade = atendimentosPorDia[dia] ?? 0;
+                final temAtendimento = quantidade > 0;
                 final horarioSemanal = diasSemanaComDisponibilidade.contains(
                   dia.weekday % 7,
                 );
                 return Semantics(
+                  key: ValueKey('agenda-dia-${_chaveMes(dia)}-$diaDoMes'),
                   button: true,
                   selected: selecionado,
                   label:
                       '$diaDoMes de ${_nomeMes(mes)}'
-                      '${temAtendimento ? ', com atendimento' : ''}'
-                      '${horarioSemanal ? ', com disponibilidade semanal' : ''}',
+                      ', ${quantidade == 0
+                          ? 'sem atendimentos agendados'
+                          : quantidade == 1
+                          ? '1 atendimento agendado'
+                          : '$quantidade atendimentos agendados'}'
+                      ', ${horarioSemanal ? 'com horário semanal cadastrado' : 'sem horário semanal cadastrado'}',
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () => onDiaSelecionado(dia),
@@ -1492,15 +1559,16 @@ class _CalendarioAgenda extends StatelessWidget {
                                   radius: 19,
                                   backgroundColor: AppColors.verde,
                                 ),
-                              if (!selecionado && horarioSemanal)
+                              if (!selecionado &&
+                                  (horarioSemanal || temAtendimento))
                                 Positioned.fill(
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
                                       color: AppColors.verdeClaro,
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: AppColors.verde,
-                                      ),
+                                      border: !temAtendimento
+                                          ? Border.all(color: AppColors.verde)
+                                          : null,
                                     ),
                                   ),
                                 ),
@@ -1551,18 +1619,17 @@ class _CalendarioAgenda extends StatelessWidget {
                   runSpacing: AppSpace.sm,
                   children: [
                     _LegendaAgenda(label: 'Selecionado'),
-                    _LegendaAgenda(label: 'Atendimento', ponto: true),
-                    _LegendaAgenda(label: 'Horário semanal', contorno: true),
+                    _LegendaAgenda(label: 'Com atendimento', ponto: true),
+                    _LegendaAgenda(
+                      label: 'Horário semanal sem agendamento',
+                      contorno: true,
+                    ),
                   ],
                 ),
                 const Divider(height: AppSpace.xl),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '${diaSelecionado.day} de ${_nomeMes(diaSelecionado).toLowerCase()}',
-                    textAlign: TextAlign.right,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
+                Text(
+                  'Toque em um dia para conferir os horários.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
@@ -1640,10 +1707,17 @@ class _DisponibilidadeDoDia extends StatelessWidget {
                         : itens
                               .map(
                                 (item) =>
-                                    '${item['horaInicio'] ?? '--:--'} às ${item['horaFim'] ?? '--:--'}',
+                                    '${_horaAgenda(item['horaInicio'])} às ${_horaAgenda(item['horaFim'])}',
                               )
                               .join(' • '),
                   ),
+                  if (itens.isNotEmpty) ...[
+                    const SizedBox(height: AppSpace.sm),
+                    const Text(
+                      'Esses períodos se repetem toda semana e não descontam os atendimentos agendados.',
+                      style: TextStyle(color: AppColors.textoSuave),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -1656,6 +1730,9 @@ class _DisponibilidadeDoDia extends StatelessWidget {
 
 String _chaveMes(DateTime data) =>
     '${data.year}-${data.month.toString().padLeft(2, '0')}';
+
+String _horaAgenda(Object? valor) =>
+    RegExp(r'^\d{2}:\d{2}').stringMatch('$valor') ?? '--:--';
 
 String _dataHoraPedido(Object? valorData, Object? valorHorario) {
   final textoData = valorData?.toString() ?? '';
