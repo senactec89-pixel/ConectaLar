@@ -3,8 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { SafeExceptionFilter } from './common/filters/safe-exception.filter.js';
+import { loadConfig } from './config/environment.js';
 
 export async function createApp() {
+  loadConfig();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: false,
     bodyParser: false,

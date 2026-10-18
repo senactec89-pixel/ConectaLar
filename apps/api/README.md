@@ -35,7 +35,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `RATE_LIMIT_WINDOW_MS` | `60000` | Positive integer window, in milliseconds |
 | `RATE_LIMIT_MAX` | `120` | Positive integer max requests per client/window |
 
-The health check is `GET /health` and returns only `{ "status": "ok" }`. It does not report dependency, database, version, or environment details.
+`GET /health` and `GET /health/live` return only `{ "status": "ok" }` when the HTTP process responds. `GET /health/ready` returns 200 with `{ "status": "ready" }` only when database/authentication configuration is complete, TypeORM is initialized, and MySQL answers `SELECT 1`. It returns 503 with `{ "status": "not_ready" }` on failure or a two-second probe timeout. Outstanding database probes are shared to avoid filling the connection pool. Responses contain no connection details or credentials. Production startup rejects incomplete database/authentication configuration. Readiness does not validate migrations, SMTP, object storage, Google, or malware scanning; validate those separately before homologation/deployment.
 
 `GET /localizacao/cep/{cep}` validates an eight-digit Brazilian CEP and fills address components through ViaCEP. When `GOOGLE_MAPS_SERVER_API_KEY` is configured, the API also geocodes the result. Restrict that key in Google Cloud to the VPS public IP and only the Geocoding API. Exact client coordinates and the professional's raw coordinates are not returned publicly; professional map coordinates are rounded and intended only for approximate regional display.
 

@@ -17,6 +17,7 @@ import { MensagensModule } from './mensagens/mensagens.module.js';
 import { LocalizacaoModule } from './localizacao/localizacao.module.js';
 import { NotificacoesModule } from './notificacoes/notificacoes.module.js';
 import { HealthController } from './health/health.controller.js';
+import { HealthService } from './health/health.service.js';
 import { ProfissionaisModule } from './profissionais/profissionais.module.js';
 import { PrivacidadeModule } from './privacidade/privacidade.module.js';
 import { SolicitacoesModule } from './solicitacoes/solicitacoes.module.js';
@@ -51,5 +52,6 @@ const runtimeImports = isAuthRuntimeConfigured()
 @Module({
   imports: runtimeImports,
   controllers: [HealthController],
+  providers: [HealthService],
 })
 export class AppModule {}

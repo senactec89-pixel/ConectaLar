@@ -20,6 +20,11 @@ import { UsuarioEmailVerificacaoEntity } from './entities/usuario-email-verifica
 import { UsuarioSenhaResetEntity } from './entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from './entities/usuario.entity.js';
 
+export {
+  isAuthRuntimeConfigured,
+  isDatabaseRuntimeConfigured,
+} from '../config/runtime.js';
+
 function requiredDatabaseValue(name: string): string {
   const value = process.env[name];
   if (name === 'DB_PASSWORD') {
@@ -45,28 +50,6 @@ function databasePort(): number {
   }
 
   return port;
-}
-
-export function isDatabaseRuntimeConfigured(
-  environment: NodeJS.ProcessEnv = process.env,
-): boolean {
-  return Boolean(
-    environment.DB_HOST?.trim() &&
-      environment.DB_USER?.trim() &&
-      environment.DB_NAME?.trim(),
-  );
-}
-
-export function isAuthRuntimeConfigured(
-  environment: NodeJS.ProcessEnv = process.env,
-): boolean {
-  return (
-    isDatabaseRuntimeConfigured(environment) &&
-    Boolean(
-      environment.AUTH_TOKEN_SECRET &&
-        environment.AUTH_TOKEN_SECRET.length >= 32,
-    )
-  );
 }
 
 export function databaseRuntimeOptions(): DataSourceOptions {

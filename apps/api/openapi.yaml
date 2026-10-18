@@ -23,6 +23,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Checks whether the HTTP process is responding, independently of MySQL
+      tags: [System]
+      responses:
+        '200':
+          description: HTTP process available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Checks runtime configuration and initialized MySQL connectivity with a two-second probe deadline
+      tags: [System]
+      responses:
+        '200':
+          description: Business runtime configured and MySQL responding
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: ready
+        '503':
+          description: Runtime unconfigured, database unavailable, or probe timed out; no dependency details exposed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: not_ready
   /auth/cadastro:
     post:
       operationId: postAuthCadastro

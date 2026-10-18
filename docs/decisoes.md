@@ -10,7 +10,7 @@
 - P15: o usuário definiu uma conta administrativa principal que pode criar contas para novos administradores. Cada administrador terá conta e e-mail próprios; MFA permanece obrigatório conforme o prompt mestre. Convites, concessão/revogação de permissões e recuperação da conta principal ainda precisam de fluxo definido.
 - A porta local padrão é `3000` e o bind padrão é `127.0.0.1`. Um ambiente que precise de bind externo deverá configurar `HOST` conscientemente.
 - A Etapa 1 não conecta ao MySQL e não define contratos ou módulos de negócio.
-- `GET /health` indica apenas que o processo HTTP responde. Uma verificação de prontidão de dependências fica para etapa posterior.
+- `GET /health` e `GET /health/live` indicam apenas que o processo HTTP responde. `GET /health/ready` exige configuração de banco/autenticação, DataSource inicializado e uma consulta MySQL bem-sucedida; retorna 503 quando indisponível. Em produção, configuração de runtime incompleta impede a inicialização.
 - Para a nova API, o prompt mestre atual prevalece sobre as referências técnicas antigas nos requisitos revisados: NestJS/MySQL substitui PHP/XAMPP; FCM é permitido apenas como transporte de push.
 - Os documentos funcionais e de qualidade descrevem pagamento direto entre as partes, sem processamento financeiro no app. Não criar tabelas de cobrança/comissão no modelo inicial.
 - Os documentos funcionais preservam RF001–RF030; RF031–RF042 são propostas. RNF027–RNF030 e Q01–Q08 também são propostas e não viram metas ou escopo implementado sem aprovação.
