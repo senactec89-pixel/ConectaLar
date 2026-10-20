@@ -174,7 +174,7 @@ class _HomeContentView extends StatelessWidget {
                                   ? 160.0
                                   : tamanhoTexto > 13.2
                                   ? 86.0
-                                  : 76.0;
+                                  : 75.0;
                               final colunas =
                                   ((constraints.maxWidth + espacoHorizontal) /
                                           (larguraMinima + espacoHorizontal))
