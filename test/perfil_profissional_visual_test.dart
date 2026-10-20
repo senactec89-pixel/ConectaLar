@@ -72,6 +72,27 @@ void main() {
           const ValueKey('perfil-solicitar-servico'),
         );
         expect(tester.getSize(solicitar).height, greaterThanOrEqualTo(48));
+        final resumo = find.byKey(const ValueKey('perfil-resumo'));
+        await tester.ensureVisible(resumo);
+        await tester.pumpAndSettle();
+        for (final texto in [
+          'Preço inicial',
+          r'R$ 180,00',
+          '2 ofertas ativas',
+        ]) {
+          final informacao = find.descendant(
+            of: resumo,
+            matching: find.text(texto),
+          );
+          expect(informacao, findsOneWidget);
+          expect(
+            tester.renderObject<RenderParagraph>(informacao).didExceedMaxLines,
+            isFalse,
+          );
+        }
+        if (escala == 1) {
+          expect(tester.getSize(resumo).height, lessThan(110));
+        }
         expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
       }
     }
