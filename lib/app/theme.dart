@@ -96,7 +96,7 @@ abstract final class AppTheme {
         fontWeight: FontWeight.w600,
       ),
       labelSmall: TextStyle(
-        fontSize: 11,
+        fontSize: 12,
         height: 1.25,
         fontWeight: FontWeight.w600,
       ),
@@ -231,7 +231,7 @@ abstract final class AppTheme {
       height: 72,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(fontSize: 11, height: 1.2, fontWeight: FontWeight.w600),
+        TextStyle(fontSize: 12, height: 1.2, fontWeight: FontWeight.w600),
       ),
     ),
   );

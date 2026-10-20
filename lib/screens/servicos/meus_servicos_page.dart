@@ -347,12 +347,10 @@ class _StatusPill extends StatelessWidget {
         ),
         child: Text(
           status.rotulo,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
           style: TextStyle(
             color: color,
-            fontSize: 11,
+            fontSize: 12,
             height: 1.15,
             fontWeight: FontWeight.w800,
           ),

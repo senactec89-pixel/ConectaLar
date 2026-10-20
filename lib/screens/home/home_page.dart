@@ -707,8 +707,11 @@ class _BrandHeader extends StatelessWidget {
                     right: 3,
                     top: 2,
                     child: Container(
-                      width: 19,
-                      height: 19,
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      padding: const EdgeInsets.all(2),
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
                         color: Color(0xFFE84E55),
@@ -718,7 +721,7 @@ class _BrandHeader extends StatelessWidget {
                         total > 9 ? '9+' : '$total',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -919,9 +922,9 @@ class _CategoryTile extends StatelessWidget {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.texto,
-                    fontSize: compact ? 11 : 11.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

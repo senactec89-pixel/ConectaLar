@@ -6,6 +6,7 @@ import '../../services/service_registry.dart';
 import '../../services/api_service.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
@@ -485,7 +486,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           );
         },
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: AdaptiveNavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: _abrirTab,
         destinations: const [
@@ -1329,7 +1330,7 @@ class _ResumoCard extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 color: AppColors.textoSuave,
                 fontWeight: FontWeight.w700,
               ),
@@ -1427,7 +1428,7 @@ class _StatusPill extends StatelessWidget {
     child: Text(
       text,
       style: const TextStyle(
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         color: AppColors.verdeEscuro,
       ),

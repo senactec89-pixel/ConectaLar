@@ -9,6 +9,7 @@ import '../../services/service_registry.dart';
 import '../../utils/categoria_icons.dart';
 import 'categoria_form_page.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 
 enum AdminModulo {
@@ -240,46 +241,43 @@ class _AdminPageState extends State<AdminPage> {
           Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
         ],
       ),
-      bottomNavigationBar: MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 1.1,
-        child: NavigationBar(
-          selectedIndex: switch (_modulo) {
-            AdminModulo.painel => 0,
-            AdminModulo.usuarios => 1,
-            AdminModulo.categorias => 3,
-            AdminModulo.auditoria => 4,
-            _ => 2,
-          },
-          onDestinationSelected: (i) => _abrir(switch (i) {
-            1 => AdminModulo.usuarios,
-            2 => AdminModulo.denuncias,
-            3 => AdminModulo.categorias,
-            4 => AdminModulo.auditoria,
-            _ => AdminModulo.painel,
-          }),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              label: 'Central',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline),
-              label: 'Contas',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.gavel_outlined),
-              label: 'Moderação',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.category_outlined),
-              label: 'Catálogo',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              label: 'Auditoria',
-            ),
-          ],
-        ),
+      bottomNavigationBar: AdaptiveNavigationBar(
+        selectedIndex: switch (_modulo) {
+          AdminModulo.painel => 0,
+          AdminModulo.usuarios => 1,
+          AdminModulo.categorias => 3,
+          AdminModulo.auditoria => 4,
+          _ => 2,
+        },
+        onDestinationSelected: (i) => _abrir(switch (i) {
+          1 => AdminModulo.usuarios,
+          2 => AdminModulo.denuncias,
+          3 => AdminModulo.categorias,
+          4 => AdminModulo.auditoria,
+          _ => AdminModulo.painel,
+        }),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Central',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            label: 'Contas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.gavel_outlined),
+            label: 'Moderação',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.category_outlined),
+            label: 'Catálogo',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            label: 'Auditoria',
+          ),
+        ],
       ),
     );
   }
@@ -1350,7 +1348,7 @@ class _StatusDocumentoChip extends StatelessWidget {
         _rotuloStatusDocumento(status),
         style: TextStyle(
           color: textoCor,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),

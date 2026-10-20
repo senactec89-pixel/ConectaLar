@@ -40,10 +40,15 @@ void main() {
           expect(find.text('Acesso restrito'), findsNothing);
           expect(tester.takeException(), isNull, reason: '$route em $width');
           if (route == AppRoutes.areaProfissional) {
+            await tester.ensureVisible(find.text('Agenda').last);
+            await tester.pumpAndSettle();
             await tester.tap(find.text('Agenda').last);
             await tester.pumpAndSettle();
+            expect(find.text('Minha agenda'), findsOneWidget);
             expect(find.text('Tentar novamente'), findsNothing);
             expect(tester.takeException(), isNull, reason: 'Agenda em $width');
+            await tester.ensureVisible(find.text('Pedidos').last);
+            await tester.pumpAndSettle();
             await tester.tap(find.text('Pedidos').last);
             await tester.pumpAndSettle();
             expect(tester.takeException(), isNull, reason: 'Pedidos em $width');
