@@ -1,0 +1,116 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "dataConferencia": "2026-10-20",
+  "matriz": {
+    "larguras": [
+      360,
+      390,
+      412
+    ],
+    "escalaTexto": [
+      1,
+      2
+    ],
+    "telas": [
+      "home",
+      "perfil-publico",
+      "busca",
+      "admin-documentos",
+      "agenda"
+    ],
+    "posicoes": [
+      "inicio",
+      "conteudo",
+      "final"
+    ]
+  },
+  "totalCapturasDaMatriz": 90,
+  "capturas": [
+    {
+      "arquivo": "home-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-conteudo-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-final-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    }
+  ],
+  "excecoesNavegador": [],
+  "recapturaSemHover": "Perfil e Busca em 390 px foram recapturados com o ponteiro fora dos componentes."
+}
