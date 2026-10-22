@@ -511,8 +511,17 @@ class _HomeHero extends StatelessWidget {
       builder: (context, constraints) {
         final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
         final compact = constraints.maxWidth < 380 || textoAmpliado;
-        final baseImageSize = (constraints.maxWidth * 0.43).clamp(144.0, 170.0);
-        final imageSize = baseImageSize * (compact ? 1.06 : 1.1);
+        final imageSize = (constraints.maxWidth * 0.37).clamp(132.0, 152.0);
+        const heroHeight = 306.0;
+        const searchBottom = 12.0;
+        const imageGap = 8.0;
+        final imageTop = textoAmpliado
+            ? (constraints.maxWidth < 380 ? 165.0 : 128.0)
+            : heroHeight -
+                  searchBottom -
+                  _SearchButton.height -
+                  imageGap -
+                  imageSize;
         const fundo = Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -525,26 +534,30 @@ class _HomeHero extends StatelessWidget {
           ),
         );
         final imagem = Positioned(
-          top: textoAmpliado && constraints.maxWidth < 380 ? 165 : 128,
-          right: 8,
+          top: imageTop,
+          right: 20,
           child: SizedBox.square(
             dimension: imageSize,
             child: DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Color(0xFFD8F0E1),
+              decoration: BoxDecoration(
+                color: AppColors.verdeClaro,
                 shape: BoxShape.circle,
+                border: Border.all(color: AppColors.branco, width: 2),
               ),
-              child: ClipOval(
-                child: Transform.scale(
-                  scale: 1.08,
-                  alignment: Alignment.bottomRight,
-                  child: Image.asset(
-                    'assets/images/home/hero_house_cutout.png',
-                    width: imageSize,
-                    height: imageSize,
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(0.65, 0),
-                    semanticLabel: 'Casa com jardim',
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: ClipOval(
+                  child: Transform.scale(
+                    scale: 1.24,
+                    alignment: Alignment.bottomCenter,
+                    child: Image.asset(
+                      'assets/images/home/hero_house_cutout.png',
+                      width: imageSize,
+                      height: imageSize,
+                      fit: BoxFit.cover,
+                      alignment: const Alignment(0.3, 0.65),
+                      semanticLabel: 'Casa com jardim',
+                    ),
                   ),
                 ),
               ),
@@ -584,7 +597,7 @@ class _HomeHero extends StatelessWidget {
           );
         }
         return SizedBox(
-          height: 306,
+          height: heroHeight,
           child: Stack(
             clipBehavior: Clip.hardEdge,
             children: [
@@ -602,7 +615,7 @@ class _HomeHero extends StatelessWidget {
               Positioned(
                 top: 86,
                 left: 20,
-                right: imageSize + 18,
+                right: imageSize + 30,
                 child: _Greeting(compact: compact),
               ),
               Positioned(
@@ -784,6 +797,8 @@ class _Greeting extends StatelessWidget {
 class _SearchButton extends StatelessWidget {
   const _SearchButton({required this.onTap, required this.compact});
 
+  static const height = 66.0;
+
   final VoidCallback onTap;
   final bool compact;
 
@@ -804,7 +819,7 @@ class _SearchButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           child: ExcludeSemantics(
             child: SizedBox(
-              height: 66,
+              height: height,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 15),
                 child: Row(
