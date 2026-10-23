@@ -20,6 +20,7 @@ class _CadastroPageState extends State<CadastroPage> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
+  final _emailFocusNode = FocusNode();
   final _telefoneController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
@@ -27,11 +28,14 @@ class _CadastroPageState extends State<CadastroPage> {
   bool _aceitouTermos = false;
   bool _enviando = false;
   bool _contaCriada = false;
+  bool _senhaOculta = true;
+  bool _confirmacaoOculta = true;
 
   @override
   void dispose() {
     _nomeController.dispose();
     _emailController.dispose();
+    _emailFocusNode.dispose();
     _telefoneController.dispose();
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
@@ -45,13 +49,53 @@ class _CadastroPageState extends State<CadastroPage> {
       return;
     }
 
+    if (!_contaCriada) {
+      FocusScope.of(context).unfocus();
+      final confirmouEmail = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Confira seu e-mail'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Enviaremos o código de confirmação para:'),
+              const SizedBox(height: AppSpace.sm),
+              SelectableText(
+                _emailController.text.trim(),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              key: const ValueKey('cadastro-corrigir-email'),
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Corrigir e-mail'),
+            ),
+            FilledButton(
+              key: const ValueKey('cadastro-confirmar-email'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Confirmar e criar conta'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      if (confirmouEmail != true) {
+        _emailFocusNode.requestFocus();
+        return;
+      }
+    }
+
     setState(() => _enviando = true);
     try {
       final services = AppServices.instance;
       if (!_contaCriada) {
         await services.auth.cadastrar(
           nome: _nomeController.text,
-          email: _emailController.text,
+          email: _emailController.text.trim(),
           senha: _senhaController.text,
           telefone: _telefoneController.text,
           tipo: _tipo.valorBanco,
@@ -217,6 +261,7 @@ class _CadastroPageState extends State<CadastroPage> {
                         key: const ValueKey('cadastro-email'),
                         enabled: !_enviando && !_contaCriada,
                         controller: _emailController,
+                        focusNode: _emailFocusNode,
                         decoration: const InputDecoration(labelText: 'E-mail'),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
@@ -239,8 +284,26 @@ class _CadastroPageState extends State<CadastroPage> {
                         key: const ValueKey('cadastro-senha'),
                         enabled: !_enviando && !_contaCriada,
                         controller: _senhaController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Senha'),
+                        obscureText: _senhaOculta,
+                        decoration: InputDecoration(
+                          labelText: 'Senha',
+                          suffixIcon: IconButton(
+                            key: const ValueKey('cadastro-ver-senha'),
+                            tooltip: _senhaOculta
+                                ? 'Mostrar senha'
+                                : 'Ocultar senha',
+                            onPressed: _enviando || _contaCriada
+                                ? null
+                                : () => setState(
+                                    () => _senhaOculta = !_senhaOculta,
+                                  ),
+                            icon: Icon(
+                              _senhaOculta
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
+                        ),
                         validator: validarSenhaForte,
                       ),
                       const SizedBox(height: AppSpace.md),
@@ -248,9 +311,26 @@ class _CadastroPageState extends State<CadastroPage> {
                         key: const ValueKey('cadastro-confirmar-senha'),
                         enabled: !_enviando && !_contaCriada,
                         controller: _confirmarSenhaController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
+                        obscureText: _confirmacaoOculta,
+                        decoration: InputDecoration(
                           labelText: 'Confirmar senha',
+                          suffixIcon: IconButton(
+                            key: const ValueKey('cadastro-ver-confirmacao'),
+                            tooltip: _confirmacaoOculta
+                                ? 'Mostrar confirmação da senha'
+                                : 'Ocultar confirmação da senha',
+                            onPressed: _enviando || _contaCriada
+                                ? null
+                                : () => setState(
+                                    () => _confirmacaoOculta =
+                                        !_confirmacaoOculta,
+                                  ),
+                            icon: Icon(
+                              _confirmacaoOculta
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                          ),
                         ),
                         validator: (valor) {
                           final erro = validarSenhaForte(valor);

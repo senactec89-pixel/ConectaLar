@@ -147,6 +147,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('cadastro-confirmar-email')));
+      await tester.pumpAndSettle();
       expect(tipo, 'empresa');
       expect(cadastros, 1);
       expect(find.text('Concluir cadastro'), findsOneWidget);
@@ -248,6 +250,8 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cadastro-confirmar-email')));
     await tester.pumpAndSettle();
 
     expect(find.text('Verifique sua caixa de entrada'), findsOneWidget);
