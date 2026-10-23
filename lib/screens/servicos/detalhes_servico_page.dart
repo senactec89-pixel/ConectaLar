@@ -434,106 +434,147 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   Future<void> _proporReagendamento() async {
     if (_enviando) return;
     var motivo = '';
+    String? erro;
+    var enviandoDialogo = false;
     var data = _atendimento.solicitacao.dataServico;
     final horarioAtual = _atendimento.solicitacao.horarioServico.split(':');
     var horario = TimeOfDay(
       hour: int.tryParse(horarioAtual.first) ?? 9,
       minute: horarioAtual.length > 1 ? int.tryParse(horarioAtual[1]) ?? 0 : 0,
     );
-    final confirmar = await showDialog<bool>(
+    await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          scrollable: true,
-          title: const Text('Sugerir nova data'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final escolhida = await showDatePicker(
-                    context: context,
-                    initialDate: data,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 730)),
-                  );
-                  if (escolhida != null) setDialogState(() => data = escolhida);
-                },
-                icon: const Icon(Icons.calendar_month_outlined),
-                label: Text(_dataBr(data)),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final escolhido = await showTimePicker(
-                    context: context,
-                    initialTime: horario,
-                  );
-                  if (escolhido != null) {
-                    setDialogState(() => horario = escolhido);
-                  }
-                },
-                icon: const Icon(Icons.schedule_outlined),
-                label: Text(_hora(horario)),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                onChanged: (value) => motivo = value,
-                minLines: 2,
-                maxLines: 4,
-                maxLength: 400,
-                decoration: const InputDecoration(
-                  labelText: 'Explique a mudança',
-                  hintText: 'Informe o motivo para a outra parte decidir.',
+        builder: (context, setDialogState) => PopScope(
+          canPop: !enviandoDialogo,
+          child: AlertDialog(
+            scrollable: true,
+            title: const Text('Sugerir nova data'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final escolhida = await showDatePicker(
+                      context: context,
+                      initialDate: data,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 730)),
+                    );
+                    if (escolhida != null) {
+                      setDialogState(() => data = escolhida);
+                    }
+                  },
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: Text(_dataBr(data)),
                 ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    final escolhido = await showTimePicker(
+                      context: context,
+                      initialTime: horario,
+                    );
+                    if (escolhido != null) {
+                      setDialogState(() => horario = escolhido);
+                    }
+                  },
+                  icon: const Icon(Icons.schedule_outlined),
+                  label: Text(_hora(horario)),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  onChanged: (value) => setDialogState(() {
+                    motivo = value;
+                    erro = null;
+                  }),
+                  minLines: 2,
+                  maxLines: 4,
+                  maxLength: 400,
+                  decoration: const InputDecoration(
+                    labelText: 'Explique a mudança',
+                    hintText: 'Informe o motivo para a outra parte decidir.',
+                  ),
+                ),
+                if (erro != null)
+                  Text(erro!, style: const TextStyle(color: AppColors.erro)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: enviandoDialogo
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Voltar'),
+              ),
+              FilledButton(
+                onPressed: enviandoDialogo
+                    ? null
+                    : () async {
+                        if (motivo.trim().length < 10) {
+                          setDialogState(
+                            () => erro =
+                                'Explique o motivo em pelo menos 10 caracteres.',
+                          );
+                          return;
+                        }
+                        setDialogState(() {
+                          enviandoDialogo = true;
+                          erro = null;
+                        });
+                        setState(() => _enviando = true);
+                        var enviado = false;
+                        try {
+                          final response = await AppServices.instance.servicos
+                              .proporReagendamento(
+                                _atendimento.solicitacao.id,
+                                dataServico: _dataApi(data),
+                                horarioServico: _hora(horario),
+                                motivo: motivo.trim(),
+                              );
+                          final solicitacao = response['solicitacao'];
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (solicitacao is! Map<String, dynamic>) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível confirmar o envio. Tente novamente.',
+                            );
+                            return;
+                          }
+                          setState(
+                            () => _atendimento = atendimentoResumoFromApi(
+                              solicitacao,
+                            ),
+                          );
+                          enviado = true;
+                          Navigator.pop(dialogContext);
+                          _notificar('Proposta enviada para a outra parte.');
+                        } on ApiException catch (errorApi) {
+                          if (dialogContext.mounted) {
+                            setDialogState(() => erro = errorApi.message);
+                          }
+                        } catch (_) {
+                          if (dialogContext.mounted) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível enviar a proposta. Tente novamente.',
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _enviando = false);
+                          if (!enviado && dialogContext.mounted) {
+                            setDialogState(() => enviandoDialogo = false);
+                          }
+                        }
+                      },
+                child: Text(enviandoDialogo ? 'Enviando…' : 'Enviar proposta'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Voltar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (motivo.trim().length < 10) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Explique o motivo em pelo menos 10 caracteres.',
-                      ),
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Enviar proposta'),
-            ),
-          ],
         ),
       ),
     );
-    if (confirmar != true) return;
-    setState(() => _enviando = true);
-    try {
-      final response = await AppServices.instance.servicos.proporReagendamento(
-        _atendimento.solicitacao.id,
-        dataServico: _dataApi(data),
-        horarioServico: _hora(horario),
-        motivo: motivo.trim(),
-      );
-      final solicitacao = response['solicitacao'];
-      if (mounted && solicitacao is Map<String, dynamic>) {
-        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
-        _notificar('Proposta enviada para a outra parte.');
-      }
-    } on ApiException catch (error) {
-      if (mounted) _notificar(error.message);
-    } finally {
-      if (mounted) setState(() => _enviando = false);
-    }
   }
 
   Future<void> _responderReagendamento(bool aceitar) async {
@@ -565,107 +606,147 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             .replaceAll('.', ',') ??
         '';
     var descricao = '';
-    final confirmar = await showDialog<bool>(
+    String? erro;
+    var enviandoDialogo = false;
+    await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        scrollable: true,
-        title: const Text('Enviar orçamento final'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'O valor só se torna o preço final do atendimento depois que o cliente aceitar.',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => PopScope(
+          canPop: !enviandoDialogo,
+          child: AlertDialog(
+            scrollable: true,
+            title: const Text('Enviar orçamento final'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'O valor só se torna o preço final do atendimento depois que o cliente aceitar.',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: const ValueKey('orcamento-valor'),
+                  initialValue: valorTexto,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (value) => setDialogState(() {
+                    valorTexto = value;
+                    erro = null;
+                  }),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor final (R\$)',
+                    hintText: 'Ex.: 150,00',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const ValueKey('orcamento-descricao'),
+                  onChanged: (value) => setDialogState(() {
+                    descricao = value;
+                    erro = null;
+                  }),
+                  minLines: 3,
+                  maxLines: 6,
+                  maxLength: 600,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'O que está incluído?',
+                    helperText:
+                        'Descreva serviço, materiais e demais condições em pelo menos 10 caracteres.',
+                  ),
+                ),
+                if (erro != null)
+                  Text(erro!, style: const TextStyle(color: AppColors.erro)),
+              ],
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              key: const ValueKey('orcamento-valor'),
-              initialValue: valorTexto,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            actions: [
+              TextButton(
+                onPressed: enviandoDialogo
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Voltar'),
               ),
-              onChanged: (value) => valorTexto = value,
-              decoration: const InputDecoration(
-                labelText: 'Valor final (R\$)',
-                hintText: 'Ex.: 150,00',
+              FilledButton(
+                key: const ValueKey('orcamento-enviar'),
+                onPressed: enviandoDialogo
+                    ? null
+                    : () async {
+                        final valor = double.tryParse(
+                          valorTexto.trim().replaceAll(',', '.'),
+                        );
+                        final mensagem =
+                            valor == null || valor <= 0 || valor > 99999999.99
+                            ? 'Informe um valor final válido e maior que zero.'
+                            : descricao.trim().length < 10
+                            ? 'Descreva o que está incluído em pelo menos 10 caracteres.'
+                            : null;
+                        if (mensagem != null) {
+                          setDialogState(() => erro = mensagem);
+                          return;
+                        }
+                        setDialogState(() {
+                          enviandoDialogo = true;
+                          erro = null;
+                        });
+                        setState(() => _enviando = true);
+                        var enviado = false;
+                        try {
+                          final response = await AppServices.instance.servicos
+                              .proporOrcamento(
+                                _atendimento.solicitacao.id,
+                                valor: valor!,
+                                descricao: descricao.trim(),
+                              );
+                          final solicitacao = response['solicitacao'];
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (solicitacao is! Map<String, dynamic>) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível confirmar o envio. Tente novamente.',
+                            );
+                            return;
+                          }
+                          setState(
+                            () => _atendimento = atendimentoResumoFromApi(
+                              solicitacao,
+                            ),
+                          );
+                          enviado = true;
+                          Navigator.pop(dialogContext);
+                          _notificar(
+                            'Orçamento enviado para o cliente analisar.',
+                          );
+                        } on ApiException catch (errorApi) {
+                          if (errorApi.statusCode == 409) {
+                            await _atualizarAposConflito();
+                          }
+                          if (dialogContext.mounted) {
+                            setDialogState(() => erro = errorApi.message);
+                          }
+                        } catch (_) {
+                          if (dialogContext.mounted) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível enviar o orçamento. Tente novamente.',
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _enviando = false);
+                          if (!enviado && dialogContext.mounted) {
+                            setDialogState(() => enviandoDialogo = false);
+                          }
+                        }
+                      },
+                child: Text(
+                  enviandoDialogo ? 'Enviando…' : 'Enviar ao cliente',
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              key: const ValueKey('orcamento-descricao'),
-              onChanged: (value) => descricao = value,
-              minLines: 3,
-              maxLines: 6,
-              maxLength: 600,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'O que está incluído?',
-                helperText:
-                    'Descreva serviço, materiais e demais condições em pelo menos 10 caracteres.',
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            key: const ValueKey('orcamento-enviar'),
-            onPressed: () {
-              final valor = double.tryParse(
-                valorTexto.trim().replaceAll(',', '.'),
-              );
-              final mensagem =
-                  valor == null || valor <= 0 || valor > 99999999.99
-                  ? 'Informe um valor final válido e maior que zero.'
-                  : descricao.trim().length < 10
-                  ? 'Descreva o que está incluído em pelo menos 10 caracteres.'
-                  : null;
-              if (mensagem != null) {
-                ScaffoldMessenger.of(
-                  dialogContext,
-                ).showSnackBar(SnackBar(content: Text(mensagem)));
-                return;
-              }
-              Navigator.pop(dialogContext, true);
-            },
-            child: const Text('Enviar ao cliente'),
-          ),
-        ],
       ),
     );
-    if (confirmar != true) return;
-    final valor = double.tryParse(valorTexto.trim().replaceAll(',', '.'));
-    if (valor == null || valor <= 0 || valor > 99999999.99) {
-      _notificar('Informe um valor final válido e maior que zero.');
-      return;
-    }
-    if (descricao.trim().length < 10) {
-      _notificar('Descreva o que está incluído em pelo menos 10 caracteres.');
-      return;
-    }
-
-    setState(() => _enviando = true);
-    try {
-      final response = await AppServices.instance.servicos.proporOrcamento(
-        _atendimento.solicitacao.id,
-        valor: valor,
-        descricao: descricao.trim(),
-      );
-      final solicitacao = response['solicitacao'];
-      if (mounted && solicitacao is Map<String, dynamic>) {
-        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
-        _notificar('Orçamento enviado para o cliente analisar.');
-      }
-    } on ApiException catch (error) {
-      if (error.statusCode == 409) await _atualizarAposConflito();
-      if (mounted) _notificar(error.message);
-    } catch (_) {
-      if (mounted) _notificar('Não foi possível enviar o orçamento.');
-    } finally {
-      if (mounted) setState(() => _enviando = false);
-    }
   }
 
   Future<void> _responderOrcamento(bool aceitar) async {
