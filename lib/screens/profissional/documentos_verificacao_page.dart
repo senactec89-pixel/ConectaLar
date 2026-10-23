@@ -4,6 +4,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../models/documento_verificacao.dart';
 import '../../services/api_mappers.dart';
@@ -216,6 +217,43 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
               children: [
                 HabilitacaoResumo(dados: habilitacao),
                 const SizedBox(height: 12),
+                if (documentos.isEmpty &&
+                    habilitacao['podeAtender'] != true) ...[
+                  Card(
+                    child: Padding(
+                      padding: AppInsets.card,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Prefere enviar depois?',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpace.sm),
+                          const Text(
+                            'Você pode conhecer a área profissional agora. Seu perfil ainda precisa ser habilitado para receber solicitações; envie os documentos e acompanhe a análise quando estiver pronto.',
+                          ),
+                          const SizedBox(height: AppSpace.md),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              key: const ValueKey('continuar-sem-documentos'),
+                              onPressed: () =>
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    AppRoutes.areaProfissional,
+                                    (_) => false,
+                                  ),
+                              icon: const Icon(Icons.arrow_forward_rounded),
+                              label: const Text('Continuar sem enviar agora'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                ],
                 _SituacaoDocumentalCard(
                   situacao: situacao,
                   onAtualizar: _recarregar,

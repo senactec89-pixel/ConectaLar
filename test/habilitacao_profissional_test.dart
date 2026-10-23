@@ -36,6 +36,34 @@ void main() {
     expect(perfil.podeReceberSolicitacoes, isFalse);
   });
 
+  testWidgets('profissional pode seguir sem documentos e vê o aviso', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/profissionais/me/documentos') {
+          return jsonResponse({'documentos': [], 'habilitacao': habilitacao()});
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.documentosProfissional);
+    expect(find.textContaining('precisa ser habilitado'), findsOneWidget);
+    final continuar = find.byKey(const ValueKey('continuar-sem-documentos'));
+    await tester.scrollUntilVisible(continuar, 200);
+    await tester.pumpAndSettle();
+    await tester.tap(continuar);
+    await tester.pumpAndSettle();
+
+    expect(find.text('ConectaLar Profissional'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('continuar-sem-documentos')),
+      findsNothing,
+    );
+  });
+
   testWidgets(
     'profissional solicita revisao sem enviar identidade e sem liberar atendimento',
     (tester) async {
@@ -63,9 +91,7 @@ void main() {
       );
       await abrirFrontend(tester, AppRoutes.documentosProfissional);
       expect(find.text('Habilitação pendente'), findsOneWidget);
-      final botao = find.byKey(
-        const Key('solicitar-revisao-habilitacao'),
-      );
+      final botao = find.byKey(const Key('solicitar-revisao-habilitacao'));
       await tester.scrollUntilVisible(botao, 200);
       await tester.tap(botao);
       await tester.pumpAndSettle();
@@ -73,6 +99,11 @@ void main() {
       expect(find.text('Solicitação de revisão registrada.'), findsOneWidget);
       await tester.scrollUntilVisible(botao, 200);
       expect(tester.widget<OutlinedButton>(botao).onPressed, isNull);
+      await tester.scrollUntilVisible(
+        find.text('Habilitação pendente'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Habilitação pendente'), findsOneWidget);
     },
   );
