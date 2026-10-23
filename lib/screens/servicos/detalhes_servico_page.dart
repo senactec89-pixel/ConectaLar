@@ -955,10 +955,13 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
           const SizedBox(height: 16),
         ],
-        if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
+        if (solicitacao.status == StatusSolicitacao.aceitaAgendada ||
+            solicitacao.reagendamentos.isNotEmpty)
           _ReagendamentoCard(
             proposta: solicitacao.reagendamento,
             historico: solicitacao.reagendamentos,
+            atendimentoAtivo:
+                solicitacao.status == StatusSolicitacao.aceitaAgendada,
             cliente: _clienteParticipante,
             profissional: _profissionalParticipante,
             atorId: intValue(_ator['id']),
@@ -966,7 +969,8 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             onPropor: _proporReagendamento,
             onResponder: _responderReagendamento,
           ),
-        if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
+        if (solicitacao.status == StatusSolicitacao.aceitaAgendada ||
+            solicitacao.reagendamentos.isNotEmpty)
           const SizedBox(height: 16),
         if (solicitacao.status == StatusSolicitacao.cancelada &&
             (solicitacao.cancelamentoMotivo?.isNotEmpty ?? false)) ...[
@@ -1098,6 +1102,9 @@ class _OrcamentoCard extends StatelessWidget {
     final pendente = status == 'pendente';
     final valor = double.tryParse('${orcamento?['valor'] ?? ''}');
     final descricao = '${orcamento?['descricao'] ?? ''}'.trim();
+    final anteriores = historico
+        .where((item) => item['id'] != orcamento?['id'])
+        .toList(growable: false);
     final podeResponder = atendimentoAtivo && cliente && pendente;
     final podePropor = atendimentoAtivo && profissional;
 
@@ -1149,7 +1156,9 @@ class _OrcamentoCard extends StatelessWidget {
               ],
               const SizedBox(height: AppSpace.sm),
               Text(
-                pendente
+                !atendimentoAtivo && pendente
+                    ? 'Atendimento encerrado. Proposta disponível para consulta.'
+                    : pendente
                     ? cliente
                           ? 'Confira valor e escopo antes de decidir.'
                           : 'Aguardando a decisão do cliente.'
@@ -1205,11 +1214,26 @@ class _OrcamentoCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (historico.length > 1) ...[
+            if (anteriores.isNotEmpty) ...[
               const SizedBox(height: AppSpace.sm),
-              Text(
-                '${historico.length} propostas preservadas no histórico',
-                style: Theme.of(context).textTheme.bodySmall,
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(
+                  anteriores.length == 1
+                      ? 'Ver proposta anterior'
+                      : 'Ver ${anteriores.length} propostas anteriores',
+                ),
+                children: [
+                  for (final item in anteriores) ...[
+                    const Divider(height: AppSpace.md),
+                    _PropostaAnterior(
+                      titulo: _tituloOrcamentoAnterior(item),
+                      descricao: '${item['descricao'] ?? ''}',
+                      quando: _dataHoraBr(item['criadoEm']),
+                    ),
+                  ],
+                ],
               ),
             ],
             const SizedBox(height: AppSpace.sm),
@@ -1252,6 +1276,7 @@ class _ReagendamentoCard extends StatelessWidget {
   const _ReagendamentoCard({
     required this.proposta,
     required this.historico,
+    required this.atendimentoAtivo,
     required this.cliente,
     required this.profissional,
     required this.atorId,
@@ -1262,6 +1287,7 @@ class _ReagendamentoCard extends StatelessWidget {
 
   final Map<String, dynamic>? proposta;
   final List<Map<String, dynamic>> historico;
+  final bool atendimentoAtivo;
   final bool cliente;
   final bool profissional;
   final int atorId;
@@ -1272,12 +1298,15 @@ class _ReagendamentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pendente = proposta?['status'] == 'pendente';
+    final anteriores = historico
+        .where((item) => item['id'] != proposta?['id'])
+        .toList(growable: false);
     final propostoPorId = int.tryParse('${proposta?['propostoPorId'] ?? ''}');
     final minhaProposta =
         pendente &&
         (propostoPorId == null ? profissional : propostoPorId == atorId);
-    final podeResponder = pendente && !minhaProposta;
-    final participante = cliente || profissional;
+    final podeResponder = atendimentoAtivo && pendente && !minhaProposta;
+    final participante = atendimentoAtivo && (cliente || profissional);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1312,7 +1341,9 @@ class _ReagendamentoCard extends StatelessWidget {
               if (pendente) ...[
                 const SizedBox(height: 4),
                 Text(
-                  minhaProposta
+                  !atendimentoAtivo
+                      ? 'Atendimento encerrado. Proposta disponível para consulta.'
+                      : minhaProposta
                       ? 'Proposta enviada por você. Aguardando resposta.'
                       : 'Proposta recebida. Confirme, recuse ou sugira outra data.',
                   style: const TextStyle(color: AppColors.textoSuave),
@@ -1320,9 +1351,11 @@ class _ReagendamentoCard extends StatelessWidget {
               ],
             ] else ...[
               const SizedBox(height: 8),
-              const Text(
-                'Cliente e profissional podem sugerir uma nova data. A alteração só acontece após a confirmação da outra parte.',
-                style: TextStyle(color: AppColors.textoSuave),
+              Text(
+                atendimentoAtivo
+                    ? 'Cliente e profissional podem sugerir uma nova data. A alteração só acontece após a confirmação da outra parte.'
+                    : 'As propostas de reagendamento deste atendimento ficam disponíveis para consulta.',
+                style: const TextStyle(color: AppColors.textoSuave),
               ),
             ],
             if (podeResponder) ...[
@@ -1359,11 +1392,27 @@ class _ReagendamentoCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (historico.length > 1) ...[
+            if (anteriores.isNotEmpty) ...[
               const SizedBox(height: 10),
-              Text(
-                '${historico.length} propostas registradas no histórico',
-                style: Theme.of(context).textTheme.bodySmall,
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(
+                  anteriores.length == 1
+                      ? 'Ver data sugerida anteriormente'
+                      : 'Ver ${anteriores.length} datas sugeridas anteriormente',
+                ),
+                children: [
+                  for (final item in anteriores) ...[
+                    const Divider(height: AppSpace.md),
+                    _PropostaAnterior(
+                      titulo:
+                          '${_dataApiBr(item['dataServico'])} às ${item['horarioServico']} · ${_statusReagendamento(item['status'])}',
+                      descricao: '${item['motivo'] ?? ''}',
+                      quando: _dataHoraBr(item['criadoEm']),
+                    ),
+                  ],
+                ],
               ),
             ],
           ],
@@ -1371,6 +1420,37 @@ class _ReagendamentoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PropostaAnterior extends StatelessWidget {
+  const _PropostaAnterior({
+    required this.titulo,
+    required this.descricao,
+    required this.quando,
+  });
+
+  final String titulo;
+  final String descricao;
+  final String quando;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(titulo, style: const TextStyle(fontWeight: FontWeight.w800)),
+        if (descricao.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpace.xs),
+          Text(descricao),
+        ],
+        if (quando.isNotEmpty) ...[
+          const SizedBox(height: AppSpace.xs),
+          Text(quando, style: const TextStyle(color: AppColors.textoSuave)),
+        ],
+      ],
+    ),
+  );
 }
 
 String _dataApi(DateTime data) =>
@@ -1391,6 +1471,26 @@ String _hora(TimeOfDay value) =>
 
 String _moeda(double valor) =>
     'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
+
+String _tituloOrcamentoAnterior(Map<String, dynamic> item) {
+  final valor = double.tryParse('${item['valor']}');
+  final status = _statusOrcamento(item['status']);
+  return valor == null ? status : '${_moeda(valor)} · $status';
+}
+
+String _statusOrcamento(Object? value) => switch (value) {
+  'pendente' => 'aguardando resposta',
+  'aceito' => 'aceito',
+  'recusado' => 'recusado',
+  'substituido' => 'substituído',
+  _ => 'situação indisponível',
+};
+
+String _dataHoraBr(Object? value) {
+  final data = DateTime.tryParse('$value')?.toLocal();
+  if (data == null) return '';
+  return '${_dataBr(data)} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
+}
 
 String _statusReagendamento(Object? value) => switch (value) {
   'pendente' => 'aguardando resposta',
