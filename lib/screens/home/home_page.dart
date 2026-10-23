@@ -14,6 +14,7 @@ import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
 import '../../utils/constants.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/conectalar_brand.dart';
 import 'home_mock_data.dart';
 
 class HomePage extends StatefulWidget {
@@ -649,18 +650,18 @@ class _BrandHeader extends StatelessWidget {
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(12) > 18;
     return Row(
       children: [
-        Container(
-          width: compact ? 46 : 50,
-          height: compact ? 46 : 50,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.86),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            'assets/branding/conectalar_launcher_icon.png',
-            fit: BoxFit.cover,
-            semanticLabel: 'Marca ConectaLar',
+        Semantics(
+          label: 'Marca ConectaLar',
+          image: true,
+          child: Container(
+            width: compact ? 46 : 50,
+            height: compact ? 46 : 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.86),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: const ConectaLarSymbol(),
           ),
         ),
         const SizedBox(width: 10),
@@ -668,15 +669,7 @@ class _BrandHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'ConectaLar',
-                style: TextStyle(
-                  color: AppColors.texto,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  height: 1,
-                ),
-              ),
+              ConectaLarWordmark(fontSize: textoAmpliado ? 15 : 21),
               const SizedBox(height: 4),
               Text(
                 'Serviços para cuidar do seu lar',

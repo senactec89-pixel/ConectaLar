@@ -14,6 +14,7 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
 import '../../widgets/google_web_button.dart';
+import '../../widgets/conectalar_brand.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -214,13 +215,11 @@ class _LoginPageState extends State<LoginPage> {
         child: ListView(
           padding: AppInsets.page.copyWith(top: AppSpace.xl),
           children: [
-            const Text(
-              'ConectaLar',
-              style: TextStyle(
-                color: AppColors.verdeEscuro,
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-              ),
+            const Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpace.md,
+              runSpacing: AppSpace.sm,
+              children: [ConectaLarSymbol(size: 48), ConectaLarWordmark()],
             ),
             const SizedBox(height: AppSpace.sm),
             const Text(

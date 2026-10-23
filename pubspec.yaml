@@ -69,14 +69,14 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/branding/
+    - assets/branding/conectalar_symbol.png
     - assets/images/home/
 
 flutter_launcher_icons:
   android: true
-  image_path: assets/branding/conectalar_launcher_icon.png
+  image_path: assets/branding/conectalar_icon_1024.png
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/branding/conectalar_launcher_icon.png
+  adaptive_icon_foreground: assets/branding/conectalar_symbol.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

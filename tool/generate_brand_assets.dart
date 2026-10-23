@@ -174,7 +174,9 @@ new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve
         )
         .join('\n');
     for (final adaptive in [false, true]) {
-      final name = adaptive ? 'ic_launcher_foreground' : 'conectalar_logo';
+      final name = adaptive
+          ? 'conectalar_adaptive_foreground'
+          : 'conectalar_logo';
       final viewport = adaptive ? 108 : 640;
       final transform = adaptive
           ? 'android:scaleX="0.1" android:scaleY="0.1" android:translateX="-22.8" android:translateY="13.2"'

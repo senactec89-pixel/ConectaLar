@@ -31,6 +31,7 @@ Future<void> main(List<String> args) async {
   }
   final widths = option('widths', '360,390,412').split(',').map(int.parse);
   final scales = option('scales', '1,2').split(',').map(int.parse);
+  final settleMilliseconds = int.parse(option('settle-ms', '0'));
   final scenes = option(
     'scenes',
     'home,perfil-publico,busca,admin-documentos,agenda',
@@ -117,6 +118,11 @@ Future<void> main(List<String> args) async {
           if (pagina.host != base.host || (preview['semanticos'] as num) == 0) {
             throw StateError(
               'A galeria não carregou a tela $scene: ${pagina.host}.',
+            );
+          }
+          if (settleMilliseconds > 0) {
+            await Future<void>.delayed(
+              Duration(milliseconds: settleMilliseconds),
             );
           }
           await screenshot(name, width, scale);
