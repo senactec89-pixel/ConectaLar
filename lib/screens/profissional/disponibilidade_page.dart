@@ -224,36 +224,59 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
 
   @override
   Widget build(BuildContext context) {
+    final empilharAcoes =
+        MediaQuery.sizeOf(context).width < 560 ||
+        MediaQuery.textScalerOf(context).scale(14) > 20;
+    final adicionarHorario = OutlinedButton.icon(
+      onPressed: _salvando ? null : _adicionar,
+      style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+      icon: const Icon(Icons.add_rounded),
+      label: const Text('Adicionar horário'),
+    );
+    final salvarEContinuar = FilledButton.icon(
+      onPressed: _salvando ? null : _salvarEContinuar,
+      icon: _salvando
+          ? const ButtonProgressIndicator()
+          : const Icon(Icons.arrow_forward_rounded),
+      label: ActionLabel(
+        busy: _salvando,
+        text: _salvando ? 'Salvando...' : 'Salvar e continuar',
+      ),
+    );
     return Scaffold(
       appBar: const AppBarCustom(title: 'Disponibilidade'),
       backgroundColor: AppColors.fundo,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _salvando ? null : _adicionar,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Adicionar horário'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _salvando ? null : _salvarEContinuar,
-                  icon: _salvando
-                      ? const ButtonProgressIndicator()
-                      : const Icon(Icons.arrow_forward_rounded),
-                  label: ActionLabel(
-                    busy: _salvando,
-                    text: _salvando ? 'Salvando...' : 'Salvar e continuar',
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.branco,
+          border: Border(top: BorderSide(color: AppColors.borda)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.pageGutter,
+              AppSpace.md,
+              AppSpace.pageGutter,
+              AppSpace.md,
+            ),
+            child: empilharAcoes
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      adicionarHorario,
+                      const SizedBox(height: AppSpace.sm),
+                      salvarEContinuar,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(child: adicionarHorario),
+                      const SizedBox(width: AppSpace.md),
+                      Expanded(child: salvarEContinuar),
+                    ],
                   ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

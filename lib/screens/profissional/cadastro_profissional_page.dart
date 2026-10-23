@@ -585,7 +585,17 @@ class _FormularioProfissional extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpace.md),
+              const SizedBox(height: AppSpace.lg),
+              const Divider(height: AppSpace.xl),
+              if (!editando) ...[
+                Text(
+                  'Próxima etapa: serviços oferecidos',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: AppSpace.sm),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -596,6 +606,8 @@ class _FormularioProfissional extends StatelessWidget {
                       : Icon(
                           perfilSalvo
                               ? Icons.check_circle_outline
+                              : editando
+                              ? Icons.save_outlined
                               : Icons.arrow_forward_rounded,
                         ),
                   label: ActionLabel(
