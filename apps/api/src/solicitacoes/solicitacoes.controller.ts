@@ -43,8 +43,12 @@ export class SolicitacoesController {
   }
 
   @Patch(':id/cancelar')
-  cancelar(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.solicitacoes.cancelar(user, parseId(id));
+  cancelar(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.cancelar(user, parseId(id), body);
   }
 
   @Patch(':id/concluir')

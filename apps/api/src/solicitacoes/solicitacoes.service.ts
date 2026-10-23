@@ -14,7 +14,7 @@ import { ProfissionalServicoEntity } from '../database/entities/profissional-ser
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
-import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { EnderecoAtendimentoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import {
   ReagendamentoStatus,
@@ -68,6 +68,7 @@ export class SolicitacoesService {
 
   async criar(user: AuthenticatedUser, body: unknown) {
     const input = parseCriarSolicitacao(body);
+    assertAgendamentoFuturo(input.dataServico, input.horarioServico);
     const cliente = await this.usuarios.findOne({
       where: { id: user.id, tipo: UsuarioTipo.Cliente, ativo: true },
     });
@@ -118,6 +119,7 @@ export class SolicitacoesService {
       }
     }
 
+    let enderecoSnapshot: EnderecoAtendimentoSnapshot | null = null;
     if (input.enderecoId !== null) {
       const endereco = await this.enderecos.findOne({
         where: { id: input.enderecoId, usuarioId: cliente.id, ativo: true },
@@ -125,6 +127,7 @@ export class SolicitacoesService {
       if (endereco === null) {
         throw badRequest('ENDERECO_INVALIDO');
       }
+      enderecoSnapshot = snapshotEndereco(endereco);
     }
 
     const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
@@ -143,6 +146,7 @@ export class SolicitacoesService {
       servicoId: oferta?.id ?? null,
       nomeServico: oferta?.nome ?? null,
       enderecoId: input.enderecoId,
+      enderecoSnapshot,
       descricao: input.descricao,
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
@@ -255,15 +259,17 @@ export class SolicitacoesService {
     return response;
   }
 
-  async cancelar(user: AuthenticatedUser, id: number) {
+  async cancelar(user: AuthenticatedUser, id: number, body: unknown) {
+    const motivo = textField(objectBody(body), 'motivo', 10, 400);
     const solicitacao = await this.carregar(id);
     assertClienteParticipante(user, solicitacao);
-    const response = await this.transicionar(
+    await this.transicionar(
       solicitacao,
       [SolicitacaoStatus.AguardandoResposta, SolicitacaoStatus.AceitaAgendada],
       SolicitacaoStatus.Cancelada,
       user,
     );
+    await this.solicitacoes.update(id, { cancelamentoMotivo: motivo });
     await this.notificarSeguro({
       usuarioId: solicitacao.profissional.usuarioId,
       tipo: NotificacaoTipo.SolicitacaoCancelada,
@@ -272,7 +278,7 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
-    return response;
+    return this.responder(await this.carregar(id), user);
   }
 
   async concluir(user: AuthenticatedUser, id: number) {
@@ -301,6 +307,7 @@ export class SolicitacoesService {
     body: unknown,
   ) {
     const input = parseReagendamento(body);
+    assertAgendamentoFuturo(input.dataServico, input.horarioServico);
     const solicitacao = await this.carregar(id);
     assertProfissionalParticipante(user, solicitacao);
     if (solicitacao.status !== SolicitacaoStatus.AceitaAgendada) {
@@ -607,8 +614,8 @@ function solicitacaoResponse(
     enderecoProtegido: solicitacao.enderecoId !== null && !enderecoLiberado,
     enderecoCompletoLiberado: enderecoLiberado,
     enderecoAtendimento:
-      enderecoLiberado && solicitacao.endereco !== null
-        ? enderecoResponse(solicitacao.endereco)
+      enderecoLiberado && enderecoAtual(solicitacao) !== null
+        ? enderecoAtual(solicitacao)
         : null,
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
@@ -616,6 +623,10 @@ function solicitacaoResponse(
     intervaloMinutos: solicitacao.intervaloMinutos,
     fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
+    cancelamentoMotivo:
+      user !== undefined && podeVerMotivoCancelamento(solicitacao, user)
+        ? solicitacao.cancelamentoMotivo
+        : null,
     cliente: {
       id: solicitacao.cliente.id,
       nome: solicitacao.cliente.nome,
@@ -838,6 +849,74 @@ function dateField(value: unknown): string {
   }
 
   return value;
+}
+
+function assertAgendamentoFuturo(
+  dataServico: string,
+  horarioServico: string,
+): void {
+  const agora = new Intl.DateTimeFormat('en-CA', {
+    timeZone: fusoAgenda,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(new Date())
+    .reduce<Record<string, string>>((partes, parte) => {
+      partes[parte.type] = parte.value;
+      return partes;
+    }, {});
+  const hoje = `${agora.year}-${agora.month}-${agora.day}`;
+  const horarioAtual = `${agora.hour}:${agora.minute}`;
+  if (
+    dataServico < hoje ||
+    (dataServico === hoje && horarioServico <= horarioAtual)
+  ) {
+    throw new BadRequestException({
+      code: 'HORARIO_PASSADO',
+      message: 'Escolha uma data e horario futuros para o atendimento.',
+    });
+  }
+}
+
+function snapshotEndereco(
+  endereco: ClienteEnderecoEntity,
+): EnderecoAtendimentoSnapshot {
+  return {
+    id: endereco.id,
+    apelido: endereco.apelido,
+    cep: endereco.cep,
+    logradouro: endereco.logradouro,
+    numero: endereco.numero,
+    complemento: endereco.complemento,
+    bairro: endereco.bairro,
+    cidade: endereco.cidade,
+    uf: endereco.uf,
+  };
+}
+
+function enderecoAtual(
+  solicitacao: SolicitacaoEntity,
+): EnderecoAtendimentoSnapshot | ReturnType<typeof enderecoResponse> | null {
+  if (solicitacao.enderecoSnapshot != null)
+    return solicitacao.enderecoSnapshot;
+  return solicitacao.endereco === null
+    ? null
+    : enderecoResponse(solicitacao.endereco);
+}
+
+function podeVerMotivoCancelamento(
+  solicitacao: SolicitacaoEntity,
+  user: AuthenticatedUser,
+): boolean {
+  return (
+    user.tipo === UsuarioTipo.Administrador ||
+    solicitacao.clienteId === user.id ||
+    solicitacao.profissional.usuarioId === user.id
+  );
 }
 
 function timeField(value: unknown): string {

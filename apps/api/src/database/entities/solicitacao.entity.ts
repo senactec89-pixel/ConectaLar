@@ -15,6 +15,18 @@ import { ProfissionalPerfilEntity } from './profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from './profissional-servico.entity.js';
 import { UsuarioEntity } from './usuario.entity.js';
 
+export interface EnderecoAtendimentoSnapshot {
+  readonly id: number;
+  readonly apelido: string;
+  readonly cep: string | null;
+  readonly logradouro: string;
+  readonly numero: string;
+  readonly complemento: string | null;
+  readonly bairro: string;
+  readonly cidade: string;
+  readonly uf: string;
+}
+
 @Entity({ name: 'solicitacoes' })
 @Index('idx_solicitacoes_cliente', ['clienteId'])
 @Index('idx_solicitacoes_profissional', ['profissionalId'])
@@ -64,6 +76,11 @@ export class SolicitacaoEntity {
   @JoinColumn({ name: 'endereco_id' })
   endereco!: ClienteEnderecoEntity | null;
 
+  // The booking must keep the address agreed at creation time. The customer can
+  // still update their address book without rewriting an existing appointment.
+  @Column({ name: 'endereco_snapshot', type: 'json', nullable: true })
+  enderecoSnapshot!: EnderecoAtendimentoSnapshot | null;
+
   @Column({ type: 'varchar', length: 600 })
   descricao!: string;
 
@@ -92,6 +109,14 @@ export class SolicitacaoEntity {
 
   @Column({ type: 'varchar', length: 32 })
   status!: SolicitacaoStatus;
+
+  @Column({
+    name: 'cancelamento_motivo',
+    type: 'varchar',
+    length: 400,
+    nullable: true,
+  })
+  cancelamentoMotivo!: string | null;
 
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;

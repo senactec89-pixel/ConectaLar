@@ -236,9 +236,59 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     }
   }
 
-  Future<void> _cancelar() {
-    return _executarTransicao(
-      AppServices.instance.servicos.cancelar,
+  Future<void> _cancelar() async {
+    if (_enviando) return;
+    final motivo = TextEditingController();
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cancelar solicitação'),
+        content: TextField(
+          controller: motivo,
+          key: const ValueKey('cancelamento-motivo'),
+          autofocus: true,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 400,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Motivo do cancelamento',
+            helperText: 'Explique em pelo menos 10 caracteres.',
+            alignLabelWithHint: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Cancelar solicitação'),
+          ),
+        ],
+      ),
+    );
+    final texto = motivo.text.trim();
+    motivo.dispose();
+    if (confirmar != true) return;
+    if (texto.length < 10) {
+      _notificar(
+        'Informe o motivo do cancelamento com pelo menos 10 caracteres.',
+      );
+      return;
+    }
+    if (AppServices.instance.emDemonstracao) {
+      await _executarTransicao(
+        (_) async => const {},
+        widget.store.cancelarSolicitacao,
+        'Solicitação cancelada.',
+        'Cancelamento não permitido para este status.',
+      );
+      return;
+    }
+    await _executarTransicao(
+      (id) => AppServices.instance.servicos.cancelar(id, motivo: texto),
       widget.store.cancelarSolicitacao,
       'Solicitação cancelada.',
       'Cancelamento não permitido para este status.',
@@ -545,6 +595,26 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
         if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
           const SizedBox(height: 16),
+        if (solicitacao.status == StatusSolicitacao.cancelada &&
+            (solicitacao.cancelamentoMotivo?.isNotEmpty ?? false)) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Motivo do cancelamento',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(solicitacao.cancelamentoMotivo!),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         if (solicitacao.status != StatusSolicitacao.recusada &&
             solicitacao.status != StatusSolicitacao.cancelada) ...[
           _AcoesAtendimento(

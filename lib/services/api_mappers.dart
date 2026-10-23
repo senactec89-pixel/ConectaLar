@@ -135,6 +135,7 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     reagendamentos: (json['reagendamentos'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
+    cancelamentoMotivo: nullableString(json['cancelamentoMotivo']),
     precoInicial: doubleValueOrNull(json['precoInicial']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),

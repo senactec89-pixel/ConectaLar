@@ -25,8 +25,14 @@ class ServicoService {
     return _api.patch('solicitacoes/$solicitacaoId/recusar');
   }
 
-  Future<Map<String, dynamic>> cancelar(int solicitacaoId) {
-    return _api.patch('solicitacoes/$solicitacaoId/cancelar');
+  Future<Map<String, dynamic>> cancelar(
+    int solicitacaoId, {
+    required String motivo,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/cancelar',
+      body: {'motivo': motivo},
+    );
   }
 
   Future<Map<String, dynamic>> concluir(int solicitacaoId) {

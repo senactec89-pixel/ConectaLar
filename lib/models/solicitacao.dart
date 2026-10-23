@@ -45,6 +45,7 @@ class Solicitacao {
     this.intervaloMinutos = 30,
     this.reagendamento,
     this.reagendamentos = const [],
+    this.cancelamentoMotivo,
   });
 
   final int id;
@@ -66,6 +67,7 @@ class Solicitacao {
   final int intervaloMinutos;
   final Map<String, dynamic>? reagendamento;
   final List<Map<String, dynamic>> reagendamentos;
+  final String? cancelamentoMotivo;
   final double? precoInicial;
   final StatusSolicitacao status;
   final DateTime criadoEm;
