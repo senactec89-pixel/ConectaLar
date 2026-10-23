@@ -11,6 +11,21 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('início profissional não mostra voltar para outra área', (
+    tester,
+  ) async {
+    await configurarFrontend(papel: 'profissional');
+    await abrirFrontend(tester, AppRoutes.areaProfissional);
+
+    tester
+        .state<NavigatorState>(find.byType(Navigator).first)
+        .pushNamed(AppRoutes.areaProfissional);
+    await tester.pumpAndSettle();
+
+    expect(find.text('ConectaLar Profissional'), findsWidgets);
+    expect(find.byType(BackButton), findsNothing);
+  });
+
   testWidgets('profissional pausa oferta preservando seus dados', (
     tester,
   ) async {

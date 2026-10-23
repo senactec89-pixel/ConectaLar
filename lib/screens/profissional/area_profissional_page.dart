@@ -144,6 +144,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
         'Profissional';
     return Scaffold(
       appBar: AppBarCustom(
+        automaticallyImplyLeading: false,
         title: switch (_tab) {
           0 => 'ConectaLar Profissional',
           1 => 'Solicitações recebidas',
