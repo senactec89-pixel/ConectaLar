@@ -512,7 +512,7 @@ class _HomeHero extends StatelessWidget {
         final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
         final compact = constraints.maxWidth < 380 || textoAmpliado;
         final imageSize = (constraints.maxWidth * 0.37).clamp(132.0, 152.0);
-        const heroHeight = 326.0;
+        const heroHeight = 318.0;
         const searchBottom = 16.0;
         const imageGap = 8.0;
         final imageTop = textoAmpliado
@@ -582,7 +582,7 @@ class _HomeHero extends StatelessWidget {
                         compact: compact,
                         onNotificationsTap: onNotificationsTap,
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 28),
                       Padding(
                         padding: EdgeInsets.only(right: imageSize - 2),
                         child: _Greeting(compact: compact, fullText: true),
@@ -613,7 +613,7 @@ class _HomeHero extends StatelessWidget {
                 ),
               ),
               Positioned(
-                top: 108,
+                top: 98,
                 left: 20,
                 right: imageSize + 30,
                 child: _Greeting(compact: compact),
@@ -650,8 +650,8 @@ class _BrandHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: compact ? 52 : 58,
-          height: compact ? 52 : 58,
+          width: compact ? 46 : 50,
+          height: compact ? 46 : 50,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(15),
@@ -663,34 +663,24 @@ class _BrandHeader extends StatelessWidget {
             semanticLabel: 'Marca ConectaLar',
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text.rich(
-                TextSpan(
-                  children: [
-                    const TextSpan(text: 'Conecta'),
-                    TextSpan(
-                      text: 'Lar',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
+              const Text(
+                'ConectaLar',
                 style: TextStyle(
                   color: AppColors.texto,
-                  fontSize: compact ? 22 : 25,
+                  fontSize: 21,
                   fontWeight: FontWeight.w800,
                   height: 1,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Text(
-                'Serviços residenciais mais perto de você',
-                maxLines: textoAmpliado ? null : 2,
+                'Serviços para cuidar do seu lar',
+                maxLines: textoAmpliado ? null : 1,
                 overflow: textoAmpliado
                     ? TextOverflow.clip
                     : TextOverflow.ellipsis,
