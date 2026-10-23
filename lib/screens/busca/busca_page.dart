@@ -260,6 +260,41 @@ class _BuscaPageState extends State<BuscaPage> {
     _agendarBuscaRemota();
   }
 
+  List<String> _servicosDaCategoria(List<Profissional> profissionais) {
+    final categoria = _categoriaSelecionada;
+    if (categoria == null || _termoController.text.trim().isNotEmpty) {
+      return const [];
+    }
+    final nomesCategorias =
+        _categorias.map((item) => _normalizar(item.nome)).toSet()
+          ..add(_normalizar(categoria.nome));
+    final servicos = <String, String>{};
+    for (final profissional in profissionais) {
+      final nomes = profissional.ofertas.isNotEmpty
+          ? profissional.ofertas
+                .where((oferta) => oferta.categoriaId == categoria.id)
+                .map((oferta) => oferta.nome)
+          : profissional.categoriaIds.length == 1 &&
+                profissional.categoriaIds.single == categoria.id
+          ? profissional.servicos
+          : const <String>[];
+      for (final nome in nomes) {
+        final rotulo = nome.trim();
+        final chave = _normalizar(rotulo);
+        if (chave.isEmpty || nomesCategorias.contains(chave)) continue;
+        servicos.putIfAbsent(chave, () => rotulo);
+        if (servicos.length == 6) return servicos.values.toList();
+      }
+    }
+    return servicos.values.toList();
+  }
+
+  void _buscarServicoDaCategoria(String nome) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _termoController.text = nome);
+    _agendarBuscaRemota(imediata: true);
+  }
+
   void _limparFiltros() {
     setState(() {
       _termoController.clear();
@@ -410,6 +445,7 @@ class _BuscaPageState extends State<BuscaPage> {
             }
           }
           final resultados = _resultados;
+          final servicosDaCategoria = _servicosDaCategoria(resultados);
           if (_restaurarRolagem && snapshot.hasData && !_buscando) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted || !_scrollController.hasClients || _buscando) {
@@ -511,6 +547,13 @@ class _BuscaPageState extends State<BuscaPage> {
                     if (_buscando) ...[
                       const LinearProgressIndicator(),
                       const SizedBox(height: AppSpace.sm),
+                    ],
+                    if (servicosDaCategoria.isNotEmpty) ...[
+                      _ServicosDaCategoria(
+                        servicos: servicosDaCategoria,
+                        onSelecionar: _buscarServicoDaCategoria,
+                      ),
+                      const SizedBox(height: AppSpace.md),
                     ],
                     _CabecalhoResultados(
                       total: resultados.length,
@@ -1017,6 +1060,53 @@ class _GpsAtivo extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ServicosDaCategoria extends StatelessWidget {
+  const _ServicosDaCategoria({
+    required this.servicos,
+    required this.onSelecionar,
+  });
+
+  final List<String> servicos;
+  final ValueChanged<String> onSelecionar;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: AppColors.verdePastel,
+    borderRadius: BorderRadius.circular(AppRadii.card),
+    child: Padding(
+      padding: AppInsets.card,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Serviços nesta categoria',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: AppSpace.xs),
+          Text(
+            'Ofertas dos profissionais encontrados. Toque para buscar pelo serviço.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: AppSpace.sm),
+          Wrap(
+            spacing: AppSpace.sm,
+            runSpacing: AppSpace.xs,
+            children: [
+              for (final servico in servicos)
+                ActionChip(
+                  key: ValueKey('busca-servico-$servico'),
+                  avatar: const Icon(Icons.search_rounded, size: 18),
+                  label: Text(servico),
+                  onPressed: () => onSelecionar(servico),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _CabecalhoResultados extends StatelessWidget {

@@ -11,6 +11,72 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('categoria sugere serviços reais sem criar categoria na API', (
+    tester,
+  ) async {
+    final buscas = <Uri>[];
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/profissionais') {
+          buscas.add(request.url);
+          return jsonResponse({
+            'profissionais': [
+              {
+                'id': 7,
+                'usuarioId': 17,
+                'nome': 'Ana Souza',
+                'descricao': 'Limpeza residencial cuidadosa',
+                'bairro': 'Centro',
+                'servicos': [
+                  {
+                    'id': 70,
+                    'nome': 'Limpeza pós-obra',
+                    'categoria': {'id': 4, 'nome': 'Limpeza'},
+                  },
+                ],
+              },
+            ],
+          });
+        }
+        return null;
+      },
+    );
+    for (final width in [360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      AppServices.instance.buscaEstado.limpar();
+      await abrirFrontend(
+        tester,
+        AppRoutes.busca,
+        arguments: const Categoria(id: 4, nome: 'Limpeza'),
+        width: width,
+        textScale: 2,
+      );
+
+      final servico = find.byKey(
+        const ValueKey('busca-servico-Limpeza pós-obra'),
+      );
+      await tester.scrollUntilVisible(
+        servico,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(servico);
+      await tester.pumpAndSettle();
+      expect(find.text('Serviços nesta categoria'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: '$width px');
+      await tester.tap(servico);
+      await tester.pumpAndSettle();
+
+      expect(buscas.last.queryParameters['categoriaId'], '4');
+      expect(buscas.last.queryParameters['termo'], 'Limpeza pós-obra');
+      expect(
+        find.byKey(const ValueKey('busca-servico-Limpeza pós-obra')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull, reason: '$width px');
+    }
+  });
+
   testWidgets('busca reserva mais espaço para resultados sem filtros ativos', (
     tester,
   ) async {
