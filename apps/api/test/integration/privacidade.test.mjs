@@ -47,6 +47,9 @@ test(
       201,
     );
     const token = cadastro.token.accessToken;
+    assert.ok(cadastro.devCode, 'Ative EXPOSE_EMAIL_VERIFICATION_CODE somente na API local de teste.');
+    await request('POST', 'auth/email/verificacao/confirmar', token,
+      { codigo: cadastro.devCode }, 201);
 
     await request(
       'POST',

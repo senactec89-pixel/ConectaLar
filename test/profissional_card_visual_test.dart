@@ -52,6 +52,8 @@ void main() {
           expect(foto.alignment, Alignment.topCenter);
           expect(tester.getSize(find.byType(Image)), const Size(76, 94));
           expect(find.text('Quarto serviço'), findsNothing);
+          expect(find.text('4,9 · 12345678 avaliações'), findsOneWidget);
+          expect(find.byTooltip('Documentos verificados'), findsOneWidget);
           if (scale == 2) {
             for (final texto in [
               _profissional.nome,
@@ -100,6 +102,49 @@ void main() {
       }
     },
   );
+
+  testWidgets('card mostra singular e adapta preço e ação à largura', (
+    tester,
+  ) async {
+    const profissional = Profissional(
+      id: 35,
+      usuarioId: 135,
+      nome: 'Ana Silva',
+      descricao: 'Manutenção residencial',
+      bairro: 'Centro',
+      precoInicial: 120,
+      notaMedia: 5,
+      quantidadeAvaliacoes: 1,
+    );
+    for (final width in [360.0, 390.0, 412.0, 600.0]) {
+      await _abrirCard(
+        tester,
+        width: width,
+        scale: 1,
+        card: ProfissionalCard(
+          profissional: profissional,
+          onTap: () {},
+          trailingAction: IconButton(
+            tooltip: 'Comparar profissional',
+            onPressed: () {},
+            icon: const Icon(Icons.compare_arrows),
+          ),
+        ),
+      );
+      expect(find.text('5,0 · 1 avaliação'), findsOneWidget);
+      final preco = tester.getRect(find.text(r'A partir de R$ 120,00'));
+      final acao = tester.getRect(find.text('Ver perfil'));
+      // A fonte de teste é mais larga que a usada no app. Também exercita
+      // o empilhamento quando manter o valor inteiro exige mais espaço.
+      if (width == 600 || preco.right < acao.left) {
+        expect(preco.center.dy, closeTo(acao.center.dy, 2));
+        expect(preco.right, lessThan(acao.left));
+      } else {
+        expect(preco.bottom, lessThan(acao.top));
+      }
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   testWidgets(
     'card sem foto, nota ou preço mantém estados e botão desativado',

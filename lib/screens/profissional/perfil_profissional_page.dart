@@ -537,49 +537,54 @@ class _DestaquesPerfil extends StatelessWidget {
     final servicos = profissional.ofertas.isNotEmpty
         ? profissional.ofertas.length
         : profissional.servicos.length;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final estreito =
-            constraints.maxWidth < 520 ||
-            MediaQuery.textScalerOf(context).scale(14) > 21;
-        final cards = [
-          _DestaqueInfo(
-            icon: Icons.payments_outlined,
-            label: 'Preço inicial',
-            value: profissional.precoInicial == null
-                ? 'Sob consulta'
-                : 'R\$ ${profissional.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')}',
-            helper: 'Referência informada',
-          ),
-          _DestaqueInfo(
-            icon: Icons.home_repair_service_outlined,
-            label: 'Serviços',
-            value: '$servicos',
-            helper: servicos == 1 ? 'oferta ativa' : 'ofertas ativas',
-          ),
-        ];
-        if (estreito) {
-          return Column(
-            children: [
-              for (final card in cards) ...[
-                card,
-                const SizedBox(height: AppSpace.sm),
-              ],
-            ],
-          );
-        }
-        return Wrap(
-          spacing: AppSpace.sm,
-          runSpacing: AppSpace.sm,
-          children: [
-            for (final card in cards)
-              SizedBox(
-                width: (constraints.maxWidth - AppSpace.sm) / 2,
-                child: card,
+    return Card(
+      key: const ValueKey('perfil-resumo'),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.md),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final preco = _DestaqueInfo(
+              icon: Icons.payments_outlined,
+              label: 'Preço inicial',
+              value: profissional.precoInicial == null
+                  ? 'Sob consulta'
+                  : 'R\$ ${profissional.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')}',
+            );
+            final ofertas = _DestaqueInfo(
+              icon: Icons.home_repair_service_outlined,
+              label: 'Serviços',
+              value:
+                  '$servicos ${servicos == 1 ? 'oferta ativa' : 'ofertas ativas'}',
+            );
+            final empilhar =
+                constraints.maxWidth < 280 ||
+                MediaQuery.textScalerOf(context).scale(14) > 21;
+            if (empilhar) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  preco,
+                  const Divider(height: AppSpace.xl, color: AppColors.borda),
+                  ofertas,
+                ],
+              );
+            }
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: preco),
+                  const VerticalDivider(
+                    width: AppSpace.xl,
+                    color: AppColors.borda,
+                  ),
+                  Expanded(child: ofertas),
+                ],
               ),
-          ],
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -589,38 +594,29 @@ class _DestaqueInfo extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
-    required this.helper,
   });
 
   final IconData icon;
   final String label;
   final String value;
-  final String helper;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.md),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Icon(icon, color: AppColors.verde),
-            const SizedBox(width: AppSpace.sm),
+            Icon(icon, size: 18, color: AppColors.verde),
+            const SizedBox(width: AppSpace.xs),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: Theme.of(context).textTheme.bodySmall),
-                  const SizedBox(height: 2),
-                  Text(value, style: Theme.of(context).textTheme.titleSmall),
-                  Text(helper, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
+              child: Text(label, style: Theme.of(context).textTheme.bodySmall),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: AppSpace.xs),
+        Text(value, style: Theme.of(context).textTheme.titleSmall),
+      ],
     );
   }
 }

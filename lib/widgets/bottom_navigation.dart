@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/routes.dart';
+import 'adaptive_navigation_bar.dart';
 
 class BottomNavigationCustom extends StatelessWidget {
   const BottomNavigationCustom({
@@ -16,7 +17,7 @@ class BottomNavigationCustom extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: NavigationBar(
+      child: AdaptiveNavigationBar(
         selectedIndex: currentIndex,
         onDestinationSelected: onDestinationSelected,
         destinations: const [

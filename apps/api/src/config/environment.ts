@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { isAuthRuntimeConfigured } from './runtime.js';
 
 export type RuntimeEnvironment = 'development' | 'test' | 'production';
 
@@ -11,7 +12,13 @@ export interface AppConfig {
 export type Environment = Readonly<Record<string, string | undefined>>;
 
 export class ConfigurationError extends Error {
-  constructor(readonly code: 'INVALID_NODE_ENV' | 'INVALID_HOST' | 'INVALID_PORT') {
+  constructor(
+    readonly code:
+      | 'INVALID_NODE_ENV'
+      | 'INVALID_HOST'
+      | 'INVALID_PORT'
+      | 'INCOMPLETE_PRODUCTION_RUNTIME',
+  ) {
     super(`Invalid application configuration (${code}).`);
     this.name = 'ConfigurationError';
   }
@@ -42,6 +49,10 @@ export function loadConfig(environment: Environment = process.env): AppConfig {
   const port = Number(portValue);
   if (!Number.isSafeInteger(port) || port > 65_535) {
     throw new ConfigurationError('INVALID_PORT');
+  }
+
+  if (nodeEnv === 'production' && !isAuthRuntimeConfigured(environment)) {
+    throw new ConfigurationError('INCOMPLETE_PRODUCTION_RUNTIME');
   }
 
   return { nodeEnv: nodeEnv as RuntimeEnvironment, host, port };

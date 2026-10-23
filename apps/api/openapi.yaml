@@ -163,6 +163,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Checks whether the HTTP process is responding, independently of MySQL
+      tags: [System]
+      responses:
+        '200':
+          description: HTTP process available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Checks runtime configuration and initialized MySQL connectivity with a two-second probe deadline
+      tags: [System]
+      responses:
+        '200':
+          description: Business runtime configured and MySQL responding
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: ready
+        '503':
+          description: Runtime unconfigured, database unavailable, or probe timed out; no dependency details exposed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status]
+                properties:
+                  status:
+                    const: not_ready
   /auth/cadastro:
     post:
       operationId: postAuthCadastro
@@ -942,6 +982,7 @@ paths:
                 properties:
                   mes:
                     type: string
+                  fusoHorario: {type: string, const: America/Sao_Paulo}
                   disponibilidade:
                     type: array
                     items:
@@ -1546,6 +1587,48 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ServicoProfissional'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/{id}/horarios:
+    get:
+      operationId: getProfissionalHorariosLivres
+      summary: Returns only free windows that fit the selected offer duration, without customer or appointment details
+      tags: [Profissionais]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - name: data
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: servicoId
+          in: query
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Available windows in America/Sao_Paulo; request creation does not reserve a slot
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, fusoHorario, duracaoMinutos, intervalos]
+                properties:
+                  data: {type: string, format: date}
+                  fusoHorario: {type: string, const: America/Sao_Paulo}
+                  duracaoMinutos:
+                    $ref: '#/components/schemas/DuracaoMinutos'
+                  intervalos:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [horaInicio, horaFim]
+                      properties:
+                        horaInicio: {type: string}
+                        horaFim: {type: string}
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /profissionais/{id}/disponibilidade:
@@ -3535,6 +3618,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Reagendamento'
+        fusoHorario:
+          type: string
+          const: America/Sao_Paulo
         precoInicial:
           type:
             - number
@@ -3924,7 +4010,7 @@ components:
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
-      required: [nome]
+      required: [nome, duracaoMinutos]
       properties:
         id:
           type: [integer, 'null']
@@ -4272,7 +4358,7 @@ components:
     AtendimentoAgenda:
       type: object
       additionalProperties: false
-      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
+      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, duracaoMinutos, fusoHorario, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4294,6 +4380,9 @@ components:
           format: date
         horarioServico:
           type: string
+        duracaoMinutos:
+          $ref: '#/components/schemas/DuracaoMinutos'
+        fusoHorario: {type: string, const: America/Sao_Paulo}
         precoInicial:
           type: [number, 'null']
         enderecoCompletoLiberado:

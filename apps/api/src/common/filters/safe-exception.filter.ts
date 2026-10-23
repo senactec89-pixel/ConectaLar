@@ -17,6 +17,7 @@ interface SafeHttpRequest {
 }
 
 const publicErrors: Readonly<Record<string, string>> = {
+  DURACAO_INVALIDA: 'Informe a duração do serviço em minutos, entre 1 e 1440.',
   HORARIO_OCUPADO:
     'Este horário já tem um atendimento agendado. Escolha outro horário.',
   HORARIO_INDISPONIVEL:

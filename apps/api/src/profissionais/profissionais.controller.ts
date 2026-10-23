@@ -100,6 +100,11 @@ export class ProfissionaisController {
     return this.profissionais.avaliacoesPublicas(parseId(id), query);
   }
 
+  @Get(':id/horarios')
+  horariosLivres(@Param('id') id: string, @Query() query: Record<string, unknown>) {
+    return this.profissionais.horariosLivres(parseId(id), query);
+  }
+
   @Get(':id')
   obter(@Param('id') id: string) {
     return this.profissionais.obter(parseId(id));

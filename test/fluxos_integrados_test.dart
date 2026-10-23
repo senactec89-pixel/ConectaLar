@@ -451,7 +451,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('profissional-continuar')));
       await tester.pumpAndSettle();
       expect(find.text('Meus serviços'), findsOneWidget);
-      await tester.tap(find.text('Adicionar'));
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
+      );
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextFormField).at(0), 'Reparo');
       await tester.tap(find.byType(DropdownButtonFormField<int>));
@@ -467,11 +469,16 @@ void main() {
       );
       expect(ofertaEnviada, isNull);
       await tester.enterText(find.byType(TextFormField).at(1), '125,50');
+      await tester.tap(find.text('60 minutos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('90 minutos').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       final oferta = (ofertaEnviada?['servicos'] as List).single;
       expect(oferta['categoriaId'], 2);
       expect(oferta['precoInicial'], 125.5);
+      expect(oferta['duracaoMinutos'], 90);
     },
   );
 

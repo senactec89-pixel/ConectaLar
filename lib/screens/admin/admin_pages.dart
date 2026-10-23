@@ -9,6 +9,7 @@ import '../../services/service_registry.dart';
 import '../../utils/categoria_icons.dart';
 import 'categoria_form_page.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 
 enum AdminModulo {
@@ -212,74 +213,57 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.documentos)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Wrap(
-                spacing: AppSpace.sm,
-                runSpacing: AppSpace.xs,
-                children: [
-                  for (final filtro in const {
-                    'pendente': 'Pendentes',
-                    'aprovado': 'Aprovados',
-                    'rejeitado': 'Rejeitados',
-                    '': 'Todos',
-                  }.entries)
-                    ChoiceChip(
-                      key: ValueKey('admin-documentos-${filtro.key}'),
-                      label: Text(filtro.value),
-                      selected: _statusDocumento == filtro.key,
-                      onSelected: _mutando
-                          ? null
-                          : (_) => setState(() {
-                              _statusDocumento = filtro.key;
-                              _future = _carregar(_modulo);
-                              _future.ignore();
-                            }),
-                    ),
-                ],
+              child: _FiltrosDocumentais(
+                status: _statusDocumento,
+                onSelected: _mutando
+                    ? null
+                    : (status) => setState(() {
+                        _statusDocumento = status;
+                        _future = _carregar(_modulo);
+                        _future.ignore();
+                      }),
               ),
             ),
           Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
         ],
       ),
-      bottomNavigationBar: MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 1.1,
-        child: NavigationBar(
-          selectedIndex: switch (_modulo) {
-            AdminModulo.painel => 0,
-            AdminModulo.usuarios => 1,
-            AdminModulo.categorias => 3,
-            AdminModulo.auditoria => 4,
-            _ => 2,
-          },
-          onDestinationSelected: (i) => _abrir(switch (i) {
-            1 => AdminModulo.usuarios,
-            2 => AdminModulo.denuncias,
-            3 => AdminModulo.categorias,
-            4 => AdminModulo.auditoria,
-            _ => AdminModulo.painel,
-          }),
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.dashboard_outlined),
-              label: 'Central',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.people_outline),
-              label: 'Contas',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.gavel_outlined),
-              label: 'Moderação',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.category_outlined),
-              label: 'Catálogo',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.history_outlined),
-              label: 'Auditoria',
-            ),
-          ],
-        ),
+      bottomNavigationBar: AdaptiveNavigationBar(
+        selectedIndex: switch (_modulo) {
+          AdminModulo.painel => 0,
+          AdminModulo.usuarios => 1,
+          AdminModulo.categorias => 3,
+          AdminModulo.auditoria => 4,
+          _ => 2,
+        },
+        onDestinationSelected: (i) => _abrir(switch (i) {
+          1 => AdminModulo.usuarios,
+          2 => AdminModulo.denuncias,
+          3 => AdminModulo.categorias,
+          4 => AdminModulo.auditoria,
+          _ => AdminModulo.painel,
+        }),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Central',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            label: 'Contas',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.gavel_outlined),
+            label: 'Moderação',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.category_outlined),
+            label: 'Catálogo',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.history_outlined),
+            label: 'Auditoria',
+          ),
+        ],
       ),
     );
   }
@@ -1075,6 +1059,70 @@ class _AdminPageState extends State<AdminPage> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 }
 
+double _larguraRotuloAdmin(BuildContext context, String texto) {
+  final painter = TextPainter(
+    text: TextSpan(text: texto, style: Theme.of(context).textTheme.labelLarge),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    maxLines: 1,
+  )..layout();
+  final largura = painter.width;
+  painter.dispose();
+  return largura;
+}
+
+class _FiltrosDocumentais extends StatelessWidget {
+  const _FiltrosDocumentais({required this.status, required this.onSelected});
+
+  final String status;
+  final ValueChanged<String>? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    const filtros = {
+      'pendente': 'Pendentes',
+      'aprovado': 'Aprovados',
+      'rejeitado': 'Rejeitados',
+      '': 'Todos',
+    };
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final larguraMinima =
+            filtros.values
+                .map((label) => _larguraRotuloAdmin(context, label))
+                .reduce((a, b) => a > b ? a : b) +
+            56;
+        final colunas =
+            constraints.maxWidth >= larguraMinima * 4 + AppSpace.sm * 3
+            ? 4
+            : constraints.maxWidth >= larguraMinima * 2 + AppSpace.sm
+            ? 2
+            : 1;
+        final largura =
+            (constraints.maxWidth - AppSpace.sm * (colunas - 1)) / colunas;
+        return Wrap(
+          spacing: AppSpace.sm,
+          runSpacing: AppSpace.xs,
+          children: [
+            for (final filtro in filtros.entries)
+              SizedBox(
+                width: largura,
+                child: ChoiceChip(
+                  key: ValueKey('admin-documentos-${filtro.key}'),
+                  label: Text(filtro.value, textAlign: TextAlign.center),
+                  selected: status == filtro.key,
+                  onSelected: onSelected == null
+                      ? null
+                      : (_) => onSelected!(filtro.key),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _DocumentoModeracaoCard extends StatelessWidget {
   const _DocumentoModeracaoCard({
     required this.item,
@@ -1167,28 +1215,68 @@ class _DocumentoModeracaoCard extends StatelessWidget {
               ).textTheme.bodySmall?.copyWith(color: AppColors.textoSuave),
             ),
             const SizedBox(height: AppSpace.md),
-            Wrap(
-              spacing: AppSpace.sm,
-              runSpacing: AppSpace.sm,
-              children: [
-                Tooltip(
-                  message: 'Visualizar arquivo',
-                  child: OutlinedButton.icon(
-                    onPressed: desabilitado ? null : onVisualizar,
-                    icon: Icon(
-                      documentoCarregado
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_outlined,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final rotuloAnalise = pendente ? 'Analisar' : 'Revisar análise';
+                final larguraVisualizar = _larguraRotuloAdmin(
+                  context,
+                  'Visualizar',
+                );
+                final larguraAnalise = _larguraRotuloAdmin(
+                  context,
+                  rotuloAnalise,
+                );
+                final larguraRotulo = larguraVisualizar > larguraAnalise
+                    ? larguraVisualizar
+                    : larguraAnalise;
+                final ladoALado =
+                    (constraints.maxWidth - AppSpace.sm) / 2 >=
+                    larguraRotulo + 56;
+                final largura = ladoALado
+                    ? (constraints.maxWidth - AppSpace.sm) / 2
+                    : constraints.maxWidth;
+                const padding = EdgeInsets.symmetric(
+                  horizontal: AppSpace.md,
+                  vertical: 14,
+                );
+                return Wrap(
+                  spacing: AppSpace.sm,
+                  runSpacing: AppSpace.sm,
+                  children: [
+                    SizedBox(
+                      width: largura,
+                      child: Tooltip(
+                        message: 'Visualizar arquivo',
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            padding: padding,
+                          ),
+                          onPressed: desabilitado ? null : onVisualizar,
+                          icon: Icon(
+                            documentoCarregado
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_outlined,
+                          ),
+                          label: const Text('Visualizar'),
+                        ),
+                      ),
                     ),
-                    label: const Text('Visualizar'),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: desabilitado ? null : onAnalisar,
-                  icon: const Icon(Icons.fact_check_outlined),
-                  label: Text(pendente ? 'Analisar' : 'Revisar análise'),
-                ),
-              ],
+                    SizedBox(
+                      width: largura,
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                          padding: padding,
+                        ),
+                        onPressed: desabilitado ? null : onAnalisar,
+                        icon: const Icon(Icons.fact_check_outlined),
+                        label: Text(rotuloAnalise),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -1357,7 +1445,7 @@ class _StatusDocumentoChip extends StatelessWidget {
         _rotuloStatusDocumento(status),
         style: TextStyle(
           color: textoCor,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),

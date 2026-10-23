@@ -121,6 +121,18 @@ class ProfissionalService {
     return _api.get('profissionais/$profissionalId/disponibilidade');
   }
 
+  Future<Map<String, dynamic>> horariosLivres(
+    int profissionalId, {
+    required String data,
+    int? servicoId,
+  }) => _api.get(
+    'profissionais/$profissionalId/horarios',
+    queryParameters: {
+      'data': data,
+      if (servicoId != null && servicoId > 0) 'servicoId': '$servicoId',
+    },
+  );
+
   Future<Map<String, dynamic>> minhaDisponibilidade() {
     return _api.get('profissionais/me/disponibilidade');
   }

@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { Between, EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
@@ -22,6 +22,7 @@ import {
 } from '../database/entities/solicitacao-reagendamento.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
+import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
@@ -126,11 +127,12 @@ export class SolicitacoesService {
       }
     }
 
+    const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
     await this.validarDisponibilidade(
       profissional.id,
       input.dataServico,
       input.horarioServico,
-      oferta?.duracaoMinutos ?? 60,
+      duracaoMinutos,
       oferta?.intervaloMinutos ?? 30,
     );
 
@@ -145,7 +147,7 @@ export class SolicitacoesService {
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
-      duracaoMinutos: oferta?.duracaoMinutos ?? 60,
+      duracaoMinutos,
       intervaloMinutos: oferta?.intervaloMinutos ?? 30,
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       status: SolicitacaoStatus.AguardandoResposta,
@@ -612,6 +614,7 @@ function solicitacaoResponse(
     horarioServico: solicitacao.horarioServico,
     duracaoMinutos: solicitacao.duracaoMinutos,
     intervaloMinutos: solicitacao.intervaloMinutos,
+    fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
     cliente: {
       id: solicitacao.cliente.id,

@@ -189,7 +189,7 @@ export function horarioDisponivel(
   disponibilidades: readonly ProfissionalDisponibilidadeEntity[],
   dataServico: Date | string,
   horarioServico: string,
-  duracaoMinutos = 0,
+  duracaoMinutos = 1,
 ): boolean {
   const diaSemana = diaSemanaUtc(dataServico);
   const inicio = minutos(horarioServico);

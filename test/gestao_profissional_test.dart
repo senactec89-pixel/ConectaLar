@@ -79,7 +79,7 @@ void main() {
     );
 
     await abrirFrontend(tester, AppRoutes.servicosProfissional);
-    await tester.tap(find.widgetWithText(FloatingActionButton, 'Adicionar'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar serviço'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Nome do serviço'),
@@ -92,7 +92,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Adicionar serviço'), findsOneWidget);
+    expect(find.text('Adicionar serviço'), findsNWidgets(2));
     expect(find.text('Troca de tomada'), findsOneWidget);
     expect(find.text('80'), findsOneWidget);
     expect(
@@ -306,7 +306,13 @@ void main() {
 
     expect(find.text('Aceitar solicitação'), findsOneWidget);
     expect(find.text('Conversar'), findsOneWidget);
-    expect(find.text('Denunciar'), findsOneWidget);
+    final denunciar = find.byKey(const ValueKey('detalhes-denunciar'));
+    await tester.scrollUntilVisible(
+      denunciar,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(denunciar, findsOneWidget);
   });
 }
 

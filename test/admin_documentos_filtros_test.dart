@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,6 +11,69 @@ import 'support/frontend_helpers.dart';
 
 void main() {
   tearDown(() => AppServices.instance.api.close());
+
+  testWidgets('filtros equilibrados e ações com a mesma largura no mobile', (
+    tester,
+  ) async {
+    await configurarFrontend(papel: 'administrador');
+    for (final width in [360.0, 390.0, 412.0]) {
+      for (final scale in [1.0, 1.4, 2.0]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await abrirFrontend(
+          tester,
+          AppRoutes.adminDocumentos,
+          width: width,
+          textScale: scale,
+        );
+        final linhas = <int, int>{};
+        double? larguraFiltro;
+        for (final status in ['pendente', 'aprovado', 'rejeitado', '']) {
+          final filtro = find.byKey(ValueKey('admin-documentos-$status'));
+          final rect = tester.getRect(filtro);
+          linhas.update(
+            rect.top.round(),
+            (total) => total + 1,
+            ifAbsent: () => 1,
+          );
+          larguraFiltro ??= rect.width;
+          expect(rect.width, closeTo(larguraFiltro, 1));
+          expect(rect.height, greaterThanOrEqualTo(48));
+          expect(rect.right, lessThanOrEqualTo(width));
+          final texto = find.descendant(
+            of: filtro,
+            matching: find.byType(Text),
+          );
+          expect(
+            tester.renderObject<RenderParagraph>(texto).didExceedMaxLines,
+            isFalse,
+          );
+        }
+        expect(
+          linhas.values.toSet().length,
+          1,
+          reason: 'Evitar três filtros + um.',
+        );
+        final visualizar = find.ancestor(
+          of: find.text('Visualizar').first,
+          matching: find.bySubtype<OutlinedButton>(),
+        );
+        final analisar = find.ancestor(
+          of: find.text('Analisar').first,
+          matching: find.bySubtype<FilledButton>(),
+        );
+        await tester.ensureVisible(analisar);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getSize(visualizar).width,
+          closeTo(tester.getSize(analisar).width, 1),
+        );
+        expect(tester.getSize(visualizar).height, greaterThanOrEqualTo(52));
+        expect(tester.getSize(analisar).height, greaterThanOrEqualTo(52));
+        expect(analisar.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull, reason: '$width / $scale');
+      }
+    }
+  });
 
   testWidgets(
     'filtros documentais consultam status existente e cabem nas três larguras',

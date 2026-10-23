@@ -81,7 +81,6 @@ export class SolicitacaoEntity {
 
   @Column({ name: 'intervalo_minutos', type: 'smallint', unsigned: true, default: 30 })
   intervaloMinutos!: number;
-
   @Column({
     name: 'preco_inicial',
     type: 'decimal',

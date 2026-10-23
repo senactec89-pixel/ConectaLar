@@ -183,7 +183,9 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não foi possível salvar a disponibilidade.'),
+          content: Text(
+            'Não foi possível salvar seus horários. Seu preenchimento foi mantido. Tente novamente.',
+          ),
         ),
       );
       return false;
@@ -200,13 +202,19 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
 
   Future<void> _adicionar() async {
     if (_salvando) return;
-    final item = await showModalBottomSheet<Disponibilidade>(
+    final itens = await showModalBottomSheet<List<Disponibilidade>>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const _DisponibilidadeForm(),
+      builder: (context) => _DisponibilidadeForm(existentes: List.of(_itens)),
     );
-    if (item == null) return;
-    setState(() => _itens.add(item));
+    if (itens == null || !mounted) return;
+    setState(() {
+      _itens.addAll(itens);
+      _itens.sort((a, b) {
+        final dia = ((a.diaSemana + 6) % 7).compareTo((b.diaSemana + 6) % 7);
+        return dia != 0 ? dia : a.horaInicio.compareTo(b.horaInicio);
+      });
+    });
   }
 
   void _remover(int index) {
@@ -300,7 +308,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                                   ),
                                   SizedBox(height: AppSpace.sm),
                                   Text(
-                                    'Cadastre os horários em que você pode receber solicitações. Os pedidos devem respeitar os horários disponíveis.',
+                                    'Defina os períodos em que você atende: dias úteis, fim de semana ou dias personalizados. Eles se repetem toda semana; os pedidos só ficam agendados após o aceite.',
                                     style: TextStyle(height: 1.4),
                                   ),
                                 ],
@@ -472,7 +480,9 @@ class _DisponibilidadeCard extends StatelessWidget {
 }
 
 class _DisponibilidadeForm extends StatefulWidget {
-  const _DisponibilidadeForm();
+  const _DisponibilidadeForm({required this.existentes});
+
+  final List<Disponibilidade> existentes;
 
   @override
   State<_DisponibilidadeForm> createState() => _DisponibilidadeFormState();
@@ -482,7 +492,9 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
   final _formKey = GlobalKey<FormState>();
   final _inicio = TextEditingController(text: '09:00');
   final _fim = TextEditingController(text: '18:00');
-  int _dia = 1;
+  final Set<int> _dias = {1};
+  String _grupo = 'Personalizado';
+  String? _erro;
 
   @override
   void dispose() {
@@ -492,14 +504,46 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
   }
 
   void _salvar() {
+    setState(() => _erro = null);
     if (!_formKey.currentState!.validate()) return;
+    if (_dias.isEmpty) {
+      setState(() => _erro = 'Selecione pelo menos um dia da semana.');
+      return;
+    }
     final inicio = _normalizarHorario(_inicio.text);
     final fim = _normalizarHorario(_fim.text);
     if (inicio == null || fim == null) return;
-    Navigator.pop(
-      context,
-      Disponibilidade(id: 0, diaSemana: _dia, horaInicio: inicio, horaFim: fim),
-    );
+    for (final item in widget.existentes.where(
+      (item) => item.ativo && _dias.contains(item.diaSemana),
+    )) {
+      final inicioExistente = _minutos(
+        item.horaInicio.length >= 5
+            ? item.horaInicio.substring(0, 5)
+            : item.horaInicio,
+      );
+      final fimExistente = _minutos(
+        item.horaFim.length >= 5 ? item.horaFim.substring(0, 5) : item.horaFim,
+      );
+      if (inicioExistente != null &&
+          fimExistente != null &&
+          _minutos(inicio)! < fimExistente &&
+          _minutos(fim)! > inicioExistente) {
+        setState(
+          () => _erro =
+              '${_diaLabel(item.diaSemana)} já tem um período de ${item.horaInicio} às ${item.horaFim}. Escolha outro horário ou ajuste os dias selecionados.',
+        );
+        return;
+      }
+    }
+    Navigator.pop(context, [
+      for (final dia in _dias)
+        Disponibilidade(
+          id: 0,
+          diaSemana: dia,
+          horaInicio: inicio,
+          horaFim: fim,
+        ),
+    ]);
   }
 
   Future<void> _selecionarHorario(TextEditingController controller) async {
@@ -542,20 +586,66 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                 ),
                 const SizedBox(height: AppSpace.sm),
                 const Text(
-                  'Selecione o dia e o período de atendimento.',
+                  'Escolha os dias e aplique o mesmo período a todos eles. Você poderá revisar a lista antes de salvar.',
                   style: TextStyle(color: AppColors.textoSuave, height: 1.4),
                 ),
                 const SizedBox(height: AppSpace.xl),
-                DropdownButtonFormField<int>(
-                  initialValue: _dia,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Dia da semana'),
-                  items: [
-                    for (var dia = 0; dia <= 6; dia++)
-                      DropdownMenuItem(value: dia, child: Text(_diaLabel(dia))),
-                  ],
-                  onChanged: (value) => setState(() => _dia = value ?? 1),
+                Text(
+                  'Dias de atendimento',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
+                const SizedBox(height: AppSpace.sm),
+                Wrap(
+                  spacing: AppSpace.sm,
+                  runSpacing: AppSpace.sm,
+                  children: [
+                    for (final grupo in [
+                      'Dias úteis',
+                      'Fim de semana',
+                      'Personalizado',
+                    ])
+                      ChoiceChip(
+                        label: Text(grupo),
+                        selected: _grupo == grupo,
+                        onSelected: (_) => setState(() {
+                          _grupo = grupo;
+                          _erro = null;
+                          if (grupo != 'Personalizado') {
+                            _dias
+                              ..clear()
+                              ..addAll(
+                                grupo == 'Dias úteis'
+                                    ? [1, 2, 3, 4, 5]
+                                    : [6, 0],
+                              );
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.sm),
+                if (_grupo == 'Personalizado')
+                  Wrap(
+                    spacing: AppSpace.sm,
+                    runSpacing: AppSpace.xs,
+                    children: [
+                      for (final dia in [1, 2, 3, 4, 5, 6, 0])
+                        FilterChip(
+                          label: Text(_diaLabel(dia)),
+                          selected: _dias.contains(dia),
+                          onSelected: (selecionado) => setState(() {
+                            _erro = null;
+                            selecionado ? _dias.add(dia) : _dias.remove(dia);
+                          }),
+                        ),
+                    ],
+                  )
+                else
+                  Text(
+                    _grupo == 'Dias úteis'
+                        ? 'Segunda a sexta-feira'
+                        : 'Sábado e domingo',
+                  ),
                 const SizedBox(height: AppSpace.md),
                 Row(
                   children: [
@@ -602,6 +692,16 @@ class _DisponibilidadeFormState extends State<_DisponibilidadeForm> {
                   ],
                 ),
                 const SizedBox(height: 14),
+                if (_erro != null) ...[
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      _erro!,
+                      style: const TextStyle(color: AppColors.erro),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                ],
                 FilledButton.icon(
                   onPressed: _salvar,
                   icon: const Icon(Icons.check_rounded),

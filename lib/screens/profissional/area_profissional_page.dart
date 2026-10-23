@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../utils/situacao_documental.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
@@ -559,7 +560,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           );
         },
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: AdaptiveNavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: _abrirTab,
         destinations: const [
@@ -676,7 +677,7 @@ class _DetalheSolicitacaoProfissionalPageState
                       icon: Icons.home_repair_service_outlined,
                       title:
                           '${p['nomeServico'] ?? p['categoria']?['nome'] ?? 'Serviço solicitado'}',
-                      text: 'Solicitação #${p['id']} • ${_status(p['status'])}',
+                      text: 'Solicitação #${p['id']} ⬢ ${_status(p['status'])}',
                     ),
                     const SizedBox(height: 12),
                     _InfoCard(
@@ -699,10 +700,15 @@ class _DetalheSolicitacaoProfissionalPageState
                       value: '${p['bairroAtendimento'] ?? 'Não informada'}',
                     ),
                     _InfoCard(
+                      title: 'Duração do atendimento',
+                      value:
+                          '${p['duracaoMinutos'] ?? 120} min ⬢ horário de São Paulo',
+                    ),
+                    _InfoCard(
                       title: 'Referência de preço inicial',
                       value: p['precoInicial'] == null
                           ? 'A combinar fora do aplicativo'
-                          : 'R\$ ${p['precoInicial']} • valor de referência; negociação fora do app.',
+                          : 'R\$ ${p['precoInicial']} ⬢ valor de referência; negociação fora do app.',
                     ),
                     const SizedBox(height: 8),
                     _BadgeCard(
@@ -1245,7 +1251,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         ),
                         title: Text('${e['nome']}'),
                         subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo • ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
+                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
                         ),
                         isThreeLine: true,
                         trailing: PopupMenuButton<String>(
@@ -1393,7 +1399,7 @@ class _PerfilProfissionalPrivadoPageState
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
                           Text(
-                            '${usuario['tipo'] == 'empresa' ? 'Empresa' : 'Autônomo'} • dados privados',
+                            '${usuario['tipo'] == 'empresa' ? 'Empresa' : 'Autônomo'} ⬢ dados privados',
                             style: const TextStyle(color: AppColors.textoSuave),
                           ),
                         ],
@@ -1582,12 +1588,17 @@ class _PedidoCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${pedido['cliente']?['nome'] ?? 'Cliente'} • ${pedido['bairroAtendimento'] ?? 'Região não informada'}',
+              '${pedido['cliente']?['nome'] ?? 'Cliente'} ⬢ ${pedido['bairroAtendimento'] ?? 'Região não informada'}',
             ),
             Text(
               _dataHoraPedido(pedido['dataServico'], pedido['horarioServico']),
               style: const TextStyle(color: AppColors.textoSuave),
             ),
+            if (pedido['duracaoMinutos'] != null)
+              Text(
+                '${pedido['duracaoMinutos']} min ⬢ horário de São Paulo',
+                style: const TextStyle(color: AppColors.textoSuave),
+              ),
             const SizedBox(height: 6),
             Text(
               enderecoLiberado
@@ -1670,7 +1681,7 @@ class _ResumoCard extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 color: AppColors.textoSuave,
                 fontWeight: FontWeight.w700,
               ),
@@ -1768,7 +1779,7 @@ class _StatusPill extends StatelessWidget {
     child: Text(
       text,
       style: const TextStyle(
-        fontSize: 10,
+        fontSize: 12,
         fontWeight: FontWeight.w700,
         color: AppColors.verdeEscuro,
       ),
@@ -2177,7 +2188,7 @@ class _DisponibilidadeDoDia extends StatelessWidget {
                                 (item) =>
                                     '${_horaAgenda(item['horaInicio'])} às ${_horaAgenda(item['horaFim'])}',
                               )
-                              .join(' • '),
+                              .join(' ⬢ '),
                   ),
                   if (itens.isNotEmpty) ...[
                     const SizedBox(height: AppSpace.sm),

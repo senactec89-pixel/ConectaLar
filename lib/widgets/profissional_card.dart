@@ -47,12 +47,9 @@ class ProfissionalCard extends StatelessWidget {
                               : TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        const SizedBox(height: AppSpace.xs),
-                        _LinhaPrincipalProfissional(
-                          profissional: profissional,
-                          compacta: !textoAmpliado,
-                        ),
                         if (!textoAmpliado) ...[
+                          const SizedBox(height: AppSpace.xs),
+                          _AvaliacaoProfissional(profissional: profissional),
                           const SizedBox(height: AppSpace.sm),
                           _InformacoesProfissional(
                             profissional: profissional,
@@ -66,6 +63,8 @@ class ProfissionalCard extends StatelessWidget {
               ),
               if (textoAmpliado) ...[
                 SizedBox(height: espacamento),
+                _AvaliacaoProfissional(profissional: profissional),
+                const SizedBox(height: AppSpace.sm),
                 _InformacoesProfissional(
                   profissional: profissional,
                   textoAmpliado: true,
@@ -161,29 +160,6 @@ class _InformacoesProfissional extends StatelessWidget {
   }
 }
 
-class _LinhaPrincipalProfissional extends StatelessWidget {
-  const _LinhaPrincipalProfissional({
-    required this.profissional,
-    required this.compacta,
-  });
-
-  final Profissional profissional;
-  final bool compacta;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: AppSpace.sm,
-      runSpacing: AppSpace.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _AvaliacaoProfissional(profissional: profissional, compacta: compacta),
-        if (profissional.verificado) const _SeloVerificado(),
-      ],
-    );
-  }
-}
-
 class _RodapeProfissional extends StatelessWidget {
   const _RodapeProfissional({
     required this.textoPreco,
@@ -206,7 +182,9 @@ class _RodapeProfissional extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadii.field),
         border: Border.all(color: AppColors.borda),
       ),
-      child: Padding(
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: Alignment.centerLeft,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpace.md,
           vertical: AppSpace.sm,
@@ -246,11 +224,22 @@ class _RodapeProfissional extends StatelessWidget {
     );
     return LayoutBuilder(
       builder: (context, constraints) {
-        final larguraPreco = _larguraTexto(
-          context,
-          textoPreco,
-          DefaultTextStyle.of(context).style.merge(estiloPreco),
-        );
+        // O preço pode ocupar duas linhas, mas o valor monetário deve caber
+        // inteiro. Inclui o padding na decisão de empilhar preço e ações.
+        final partesPreco = textoPreco.startsWith('A partir de ')
+            ? ['A partir de', textoPreco.substring('A partir de '.length)]
+            : [textoPreco];
+        final larguraPreco =
+            partesPreco
+                .map(
+                  (parte) => _larguraTexto(
+                    context,
+                    parte,
+                    DefaultTextStyle.of(context).style.merge(estiloPreco),
+                  ),
+                )
+                .reduce((a, b) => a > b ? a : b) +
+            AppSpace.md * 2;
         final larguraAcoes =
             _larguraTexto(
               context,
@@ -383,55 +372,10 @@ class _FotoAusente extends StatelessWidget {
   }
 }
 
-class _SeloVerificado extends StatelessWidget {
-  const _SeloVerificado();
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Verificação documental administrativa',
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.sm,
-          vertical: AppSpace.xs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.verdeClaro,
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.verified_rounded,
-              color: AppColors.verde,
-              size: 14,
-            ),
-            const SizedBox(width: AppSpace.xs),
-            Flexible(
-              child: Text(
-                'Doc. verificado',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.verdeEscuro,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _AvaliacaoProfissional extends StatelessWidget {
-  const _AvaliacaoProfissional({
-    required this.profissional,
-    required this.compacta,
-  });
+  const _AvaliacaoProfissional({required this.profissional});
 
   final Profissional profissional;
-  final bool compacta;
 
   @override
   Widget build(BuildContext context) {
@@ -460,7 +404,7 @@ class _AvaliacaoProfissional extends StatelessWidget {
               const SizedBox(width: AppSpace.xs),
               Flexible(
                 child: Text(
-                  compacta ? resumo : descricao,
+                  descricao,
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),

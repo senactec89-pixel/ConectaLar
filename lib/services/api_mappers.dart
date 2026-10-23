@@ -262,11 +262,11 @@ List<T> listFromApi<T>(Object? value, T Function(Map<String, dynamic>) mapper) {
       .toList(growable: false);
 }
 
-int intValue(Object? value) {
+int intValue(Object? value, {int fallback = 0}) {
   if (value is int) return value;
   if (value is num) return value.toInt();
-  if (value is String) return int.tryParse(value) ?? 0;
-  return 0;
+  if (value is String) return int.tryParse(value) ?? fallback;
+  return fallback;
 }
 
 double? doubleValueOrNull(Object? value) {

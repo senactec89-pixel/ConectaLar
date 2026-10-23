@@ -120,133 +120,171 @@ class _DenunciarServicoPageState extends State<DenunciarServicoPage> {
     return Scaffold(
       appBar: const AppBarCustom(title: 'Denunciar atendimento'),
       backgroundColor: AppColors.fundo,
-      body: FutureBuilder<AtendimentoResumo?>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const AsyncLoadingView(label: 'Carregando atendimento.');
-          }
-          if (snapshot.hasError) {
-            return AsyncErrorView(
-              message: 'Não foi possível carregar este atendimento.',
-              onRetry: () => setState(() {
-                _future = _carregar(arguments);
-                _future?.ignore();
-              }),
-            );
-          }
-          final atendimento = snapshot.data;
-          if (atendimento == null) {
-            return const EmptyStateView(
-              title: 'Atendimento indisponível',
-              message: 'Abra a denúncia pelos detalhes de um atendimento.',
-              icon: Icons.flag_outlined,
-            );
-          }
+      body: SafeArea(
+        top: false,
+        child: FutureBuilder<AtendimentoResumo?>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const AsyncLoadingView(label: 'Carregando atendimento.');
+            }
+            if (snapshot.hasError) {
+              return AsyncErrorView(
+                message: 'Não foi possível carregar este atendimento.',
+                onRetry: () => setState(() {
+                  _future = _carregar(arguments);
+                  _future?.ignore();
+                }),
+              );
+            }
+            final atendimento = snapshot.data;
+            if (atendimento == null) {
+              return const EmptyStateView(
+                title: 'Atendimento indisponível',
+                message: 'Abra a denúncia pelos detalhes de um atendimento.',
+                icon: Icons.flag_outlined,
+              );
+            }
+            final denunciadoId = _denunciadoId(atendimento);
+            if (denunciadoId == null || denunciadoId <= 0) {
+              return const EmptyStateView(
+                title: 'Denúncia indisponível',
+                message:
+                    'Apenas o cliente e o profissional vinculados a esta solicitação podem enviar uma denúncia.',
+                icon: Icons.lock_outline,
+              );
+            }
+            final denunciandoProfissional =
+                AppServices.instance.auth.usuarioAtual?['tipo'] == 'cliente';
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Relato para moderação',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${atendimento.profissional} - ${atendimento.categoria}',
-                        style: const TextStyle(color: AppColors.textoSuave),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Explique o que aconteceu com clareza. A equipe administrativa analisará o relato e poderá solicitar mais informações.',
-                        style: TextStyle(height: 1.35),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Form(
-                key: _formKey,
-                child: Card(
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              children: [
+                Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        DropdownButtonFormField<String>(
-                          initialValue: _motivo,
-                          decoration: const InputDecoration(
-                            labelText: 'Motivo',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            for (final motivo in _motivos)
-                              DropdownMenuItem(
-                                value: motivo,
-                                child: Text(
-                                  motivo == 'Conteudo ofensivo'
-                                      ? 'Conteúdo ofensivo'
-                                      : motivo,
-                                ),
-                              ),
-                          ],
-                          onChanged: _enviando
-                              ? null
-                              : (value) => setState(
-                                  () => _motivo = value ?? _motivos.first,
-                                ),
+                        Text(
+                          denunciandoProfissional
+                              ? 'Denunciar profissional'
+                              : 'Denunciar cliente',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          denunciandoProfissional
+                              ? 'Profissional: ${atendimento.profissional}'
+                              : 'Cliente vinculado a esta solicitação',
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Solicitação #${atendimento.solicitacao.id} · ${atendimento.categoria}',
+                          style: const TextStyle(color: AppColors.textoSuave),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _descricaoController,
-                          decoration: const InputDecoration(
-                            labelText: 'Descrição',
-                            hintText:
-                                'Descreva o problema com pelo menos 20 caracteres.',
-                            border: OutlineInputBorder(),
-                          ),
-                          minLines: 5,
-                          maxLines: 8,
-                          validator: (value) {
-                            final erro = validarCampoObrigatorio(value);
-                            if (erro != null) return erro;
-                            return value!.trim().length < 20
-                                ? 'Descreva melhor o ocorrido.'
-                                : null;
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        FilledButton.icon(
-                          onPressed: _enviando
-                              ? null
-                              : () => _enviar(atendimento),
-                          icon: _enviando
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.flag_outlined),
-                          label: Text(
-                            _enviando ? 'Enviando...' : 'Enviar denúncia',
-                          ),
+                        const Text(
+                          'Não é preciso cancelar para denunciar. O envio não altera a situação da solicitação nem aplica punições automaticamente.',
+                          style: TextStyle(height: 1.35),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                const SizedBox(height: 12),
+                Form(
+                  key: _formKey,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'O que aconteceu?',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Escolha o motivo e descreva o ocorrido. A equipe administrativa analisará sua denúncia.',
+                            style: TextStyle(color: AppColors.textoSuave),
+                          ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            key: const ValueKey('denuncia-motivo'),
+                            initialValue: _motivo,
+                            isExpanded: true,
+                            itemHeight: null,
+                            decoration: const InputDecoration(
+                              labelText: 'Motivo',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: [
+                              for (final motivo in _motivos)
+                                DropdownMenuItem(
+                                  value: motivo,
+                                  child: Text(
+                                    motivo == 'Conteudo ofensivo'
+                                        ? 'Conteúdo ofensivo'
+                                        : motivo,
+                                  ),
+                                ),
+                            ],
+                            onChanged: _enviando
+                                ? null
+                                : (value) => setState(
+                                    () => _motivo = value ?? _motivos.first,
+                                  ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            key: const ValueKey('denuncia-descricao'),
+                            controller: _descricaoController,
+                            enabled: !_enviando,
+                            decoration: const InputDecoration(
+                              labelText: 'Descrição',
+                              hintText:
+                                  'Descreva o problema com pelo menos 20 caracteres.',
+                              border: OutlineInputBorder(),
+                            ),
+                            minLines: 5,
+                            maxLines: 8,
+                            validator: (value) {
+                              final erro = validarCampoObrigatorio(value);
+                              if (erro != null) return erro;
+                              return value!.trim().length < 20
+                                  ? 'Descreva melhor o ocorrido.'
+                                  : null;
+                            },
+                          ),
+                          const SizedBox(height: 14),
+                          FilledButton.icon(
+                            key: const ValueKey('denuncia-enviar'),
+                            onPressed: _enviando
+                                ? null
+                                : () => _enviar(atendimento),
+                            icon: _enviando
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.flag_outlined),
+                            label: Text(
+                              _enviando ? 'Enviando...' : 'Enviar denúncia',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
