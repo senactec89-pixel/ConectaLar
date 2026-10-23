@@ -4,6 +4,7 @@ import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../models/solicitacao.dart';
+import '../../services/api_page.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -17,7 +18,8 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  late Future<List<AtendimentoResumo>> _conversasFuture;
+  late Future<ApiPage<AtendimentoResumo>> _conversasFuture;
+  bool _carregandoMais = false;
 
   @override
   void initState() {
@@ -25,21 +27,65 @@ class _ChatPageState extends State<ChatPage> {
     _conversasFuture = _carregarConversas();
   }
 
-  Future<List<AtendimentoResumo>> _carregarConversas() async {
+  Future<ApiPage<AtendimentoResumo>> _carregarConversas({
+    int pagina = 1,
+  }) async {
     final services = AppServices.instance;
     if (services.emDemonstracao) {
-      return ConectaLarMockStore.instance.servicos;
+      final items = ConectaLarMockStore.instance.servicos;
+      return ApiPage(
+        items: items,
+        page: 1,
+        limit: items.length,
+        total: items.length,
+        hasMore: false,
+      );
     }
 
-    final response = await services.servicos.minhas();
-    return listFromApi(response['solicitacoes'], atendimentoResumoFromApi);
+    final response = await services.servicos.minhas(pagina: pagina);
+    return apiPageFromResponse(
+      response,
+      itemsKey: 'solicitacoes',
+      mapper: atendimentoResumoFromApi,
+      fallbackPage: pagina,
+    );
   }
 
   void _recarregar() {
     setState(() {
-      _conversasFuture = _carregarConversas();
+      _conversasFuture = _carregarConversas(pagina: 1);
       _conversasFuture.ignore();
     });
+  }
+
+  Future<void> _carregarMais() async {
+    if (_carregandoMais) return;
+    setState(() => _carregandoMais = true);
+    try {
+      final atual = await _conversasFuture;
+      if (!atual.hasMore) return;
+      final proxima = await _carregarConversas(pagina: atual.page + 1);
+      final porId = <int, AtendimentoResumo>{
+        for (final item in atual.items) item.solicitacao.id: item,
+        for (final item in proxima.items) item.solicitacao.id: item,
+      };
+      if (!mounted) return;
+      setState(() {
+        _conversasFuture = Future.value(
+          proxima.copyWith(items: porId.values.toList(growable: false)),
+        );
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar mais conversas.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _carregandoMais = false);
+    }
   }
 
   Future<void> _abrirConversa(int solicitacaoId) async {
@@ -59,7 +105,7 @@ class _ChatPageState extends State<ChatPage> {
       backgroundColor: AppColors.fundo,
       body: AnimatedBuilder(
         animation: store,
-        builder: (context, _) => FutureBuilder<List<AtendimentoResumo>>(
+        builder: (context, _) => FutureBuilder<ApiPage<AtendimentoResumo>>(
           future: _conversasFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
@@ -72,7 +118,8 @@ class _ChatPageState extends State<ChatPage> {
                 icon: Icons.chat_bubble_outline_rounded,
               );
             }
-            final conversas = (snapshot.data ?? const <AtendimentoResumo>[])
+            final pagina = snapshot.requireData;
+            final conversas = pagina.items
                 .where(
                   (servico) =>
                       servico.solicitacao.status ==
@@ -120,6 +167,26 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     const SizedBox(height: 12),
                   ],
+                if (pagina.hasMore) ...[
+                  const SizedBox(height: 4),
+                  Center(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('chat-carregar-mais'),
+                      onPressed: _carregandoMais ? null : _carregarMais,
+                      icon: _carregandoMais
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        _carregandoMais
+                            ? 'Carregando conversas'
+                            : 'Carregar mais conversas',
+                      ),
+                    ),
+                  ),
+                ],
               ],
             );
           },

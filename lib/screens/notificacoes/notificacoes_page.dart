@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../models/notificacao.dart';
+import '../../services/api_page.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -16,8 +17,9 @@ class NotificacoesPage extends StatefulWidget {
 }
 
 class _NotificacoesPageState extends State<NotificacoesPage> {
-  late Future<List<Notificacao>> _future;
+  late Future<ApiPage<Notificacao>> _future;
   bool _ocupado = false;
+  bool _carregandoMais = false;
 
   @override
   void initState() {
@@ -26,15 +28,30 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
     _future.ignore();
   }
 
-  Future<List<Notificacao>> _carregar() async {
-    if (!AppServices.instance.auth.autenticado) return const [];
-    final response = await AppServices.instance.notificacoes.listar();
-    return listFromApi(response['notificacoes'], notificacaoFromApi);
+  Future<ApiPage<Notificacao>> _carregar({int pagina = 1}) async {
+    if (!AppServices.instance.auth.autenticado) {
+      return const ApiPage(
+        items: [],
+        page: 1,
+        limit: 20,
+        total: 0,
+        hasMore: false,
+      );
+    }
+    final response = await AppServices.instance.notificacoes.listar(
+      pagina: pagina,
+    );
+    return apiPageFromResponse(
+      response,
+      itemsKey: 'notificacoes',
+      mapper: notificacaoFromApi,
+      fallbackPage: pagina,
+    );
   }
 
   Future<void> _recarregar() async {
     if (!mounted) return;
-    final carregamento = _carregar();
+    final carregamento = _carregar(pagina: 1);
     setState(() {
       _future = carregamento;
     });
@@ -42,6 +59,36 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
       await carregamento;
     } catch (_) {
       // O FutureBuilder apresenta a falha e oferece nova tentativa.
+    }
+  }
+
+  Future<void> _carregarMais() async {
+    if (_carregandoMais || _ocupado) return;
+    setState(() => _carregandoMais = true);
+    try {
+      final atual = await _future;
+      if (!atual.hasMore) return;
+      final proxima = await _carregar(pagina: atual.page + 1);
+      final porId = <int, Notificacao>{
+        for (final item in atual.items) item.id: item,
+        for (final item in proxima.items) item.id: item,
+      };
+      if (!mounted) return;
+      setState(() {
+        _future = Future.value(
+          proxima.copyWith(items: porId.values.toList(growable: false)),
+        );
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar mais notificações.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _carregandoMais = false);
     }
   }
 
@@ -127,7 +174,7 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
         children: [
           if (_ocupado) const LinearProgressIndicator(),
           Expanded(
-            child: FutureBuilder<List<Notificacao>>(
+            child: FutureBuilder<ApiPage<Notificacao>>(
               future: _future,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
@@ -143,7 +190,8 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
                     icon: Icons.notifications_none_rounded,
                   );
                 }
-                final notificacoes = snapshot.data ?? const <Notificacao>[];
+                final pagina = snapshot.requireData;
+                final notificacoes = pagina.items;
                 if (notificacoes.isEmpty) {
                   return const EmptyStateView(
                     title: 'Tudo em dia',
@@ -156,9 +204,32 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
-                    itemCount: notificacoes.length,
+                    itemCount: notificacoes.length + (pagina.hasMore ? 1 : 0),
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
+                      if (index == notificacoes.length) {
+                        return Center(
+                          child: OutlinedButton.icon(
+                            key: const ValueKey('notificacoes-carregar-mais'),
+                            onPressed: _carregandoMais || _ocupado
+                                ? null
+                                : _carregarMais,
+                            icon: _carregandoMais
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.expand_more_rounded),
+                            label: Text(
+                              _carregandoMais
+                                  ? 'Carregando notificações'
+                                  : 'Carregar mais notificações',
+                            ),
+                          ),
+                        );
+                      }
                       final notificacao = notificacoes[index];
                       return Card(
                         child: ListTile(

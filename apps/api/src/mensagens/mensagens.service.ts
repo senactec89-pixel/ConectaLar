@@ -7,6 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import {
+  paginationMetadata,
+  parsePaginationQuery,
+} from '../common/pagination.js';
 import { MensagemAtendimentoEntity } from '../database/entities/mensagem-atendimento.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
@@ -24,17 +28,27 @@ export class MensagensService {
     private readonly notificacoes: NotificacoesService,
   ) {}
 
-  async listar(user: AuthenticatedUser, solicitacaoId: number) {
+  async listar(
+    user: AuthenticatedUser,
+    solicitacaoId: number,
+    query: Record<string, unknown> = {},
+  ) {
     const solicitacao = await this.carregarSolicitacao(solicitacaoId);
     assertParticipante(user, solicitacao);
+    const pagination = parsePaginationQuery(query);
 
-    const mensagens = await this.mensagens.find({
+    const [mensagens, total] = await this.mensagens.findAndCount({
       where: { solicitacaoId },
       relations: { autor: true },
-      order: { criadoEm: 'ASC' },
+      order: { criadoEm: 'DESC', id: 'DESC' },
+      skip: pagination.skip,
+      take: pagination.limite,
     });
 
-    return { mensagens: mensagens.map(mensagemResponse) };
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      mensagens: mensagens.reverse().map(mensagemResponse),
+    };
   }
 
   async enviar(user: AuthenticatedUser, solicitacaoId: number, body: unknown) {

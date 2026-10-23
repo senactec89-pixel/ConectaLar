@@ -179,10 +179,19 @@ void main() {
       responder: (request) async {
         if (request.url.path != '/denuncias/me') return null;
         consultas++;
+        final pagina = request.url.queryParameters['pagina'] ?? '1';
+        final id = pagina == '1' ? 4 : 5;
         return jsonResponse({
+          'paginacao': {
+            'pagina': int.parse(pagina),
+            'limite': 20,
+            'total': 2,
+            'totalPaginas': 2,
+            'temMais': pagina == '1',
+          },
           'denuncias': [
             {
-              'id': 4,
+              'id': id,
               'solicitacaoId': 1001,
               'denuncianteId': 501,
               'denunciadoId': 101,
@@ -197,7 +206,7 @@ void main() {
                 'dataServico': '2026-10-25',
                 'profissional': 'Carlos Silva',
               },
-              'motivo': 'Conduta inadequada',
+              'motivo': id == 4 ? 'Conduta inadequada' : 'Segundo relato',
               'descricao': 'Relato completo enviado para a equipe analisar.',
               'status': 'resolvida',
               'decisao': 'Relato analisado e medidas administrativas tomadas.',
@@ -219,6 +228,17 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Ver atendimento'), findsOneWidget);
+    final carregar = find.byKey(const ValueKey('denuncias-carregar-mais'));
+    await tester.scrollUntilVisible(
+      carregar,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(carregar);
+    await tester.pumpAndSettle();
+    expect(consultas, 2);
+    expect(find.text('Conduta inadequada'), findsOneWidget);
+    expect(find.text('Segundo relato'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

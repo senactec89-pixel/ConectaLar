@@ -36,15 +36,26 @@ test('historico consulta apenas denuncias enviadas pelo usuario', async () => {
   const service = new DenunciasService(
     {},
     {
-      async find(value) { opcoes = value; return [item]; },
+      async findAndCount(value) { opcoes = value; return [[item], 21]; },
     },
     {},
     {},
   );
 
-  const response = await service.listarMinhas({ id: 30, tipo: 'cliente' });
+  const response = await service.listarMinhas(
+    { id: 30, tipo: 'cliente' },
+    { pagina: '2', limite: '20' },
+  );
   assert.deepEqual(opcoes.where, { denuncianteId: 30 });
-  assert.equal(opcoes.take, 50);
+  assert.equal(opcoes.skip, 20);
+  assert.equal(opcoes.take, 20);
+  assert.deepEqual(response.paginacao, {
+    pagina: 2,
+    limite: 20,
+    total: 21,
+    totalPaginas: 2,
+    temMais: false,
+  });
   assert.equal(response.denuncias[0].denunciado.nome, 'Profissional');
   assert.deepEqual(response.denuncias[0].atendimento, {
     id: 10,

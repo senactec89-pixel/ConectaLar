@@ -1298,6 +1298,9 @@ paths:
         - Solicitacoes
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
       responses:
         '200':
           description: Visible service requests
@@ -1307,8 +1310,11 @@ paths:
                 type: object
                 additionalProperties: false
                 required:
+                  - paginacao
                   - solicitacoes
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   solicitacoes:
                     type: array
                     items:
@@ -2380,6 +2386,8 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
       responses:
         '200':
           description: Messages ordered from oldest to newest
@@ -2387,8 +2395,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [mensagens]
+                required: [paginacao, mensagens]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   mensagens:
                     type: array
                     items:
@@ -2639,6 +2649,9 @@ paths:
       tags: [Denuncias]
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
       responses:
         '200':
           description: Reports submitted by the user
@@ -2646,8 +2659,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [denuncias]
+                required: [paginacao, denuncias]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   denuncias:
                     type: array
                     items:
@@ -2722,11 +2737,13 @@ paths:
   /notificacoes/me:
     get:
       operationId: getMinhasNotificacoes
-      summary: Lists up to 50 notifications for the authenticated user
+      summary: Lists notifications for the authenticated user
       tags: [Notificacoes]
       security:
         - bearerAuth: []
       parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
         - name: lida
           in: query
           description: Set to false to return unread notifications only; true behaves like the default and returns all notifications.
@@ -2746,8 +2763,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [notificacoes]
+                required: [paginacao, notificacoes]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   notificacoes:
                     type: array
                     items:
@@ -2961,6 +2980,22 @@ components:
       scheme: bearer
       bearerFormat: JWT
   parameters:
+    PaginaQuery:
+      name: pagina
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 99999
+        default: 1
+    LimiteQuery:
+      name: limite
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 20
     ResourceId:
       name: id
       in: path
@@ -3013,6 +3048,16 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    Paginacao:
+      type: object
+      additionalProperties: false
+      required: [pagina, limite, total, totalPaginas, temMais]
+      properties:
+        pagina: { type: integer, minimum: 1 }
+        limite: { type: integer, minimum: 1, maximum: 50 }
+        total: { type: integer, minimum: 0 }
+        totalPaginas: { type: integer, minimum: 1 }
+        temMais: { type: boolean }
     HabilitacaoResponse:
       type: object
       required: [habilitacao]

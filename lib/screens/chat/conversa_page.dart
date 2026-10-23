@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../models/mensagem.dart';
 import '../../models/solicitacao.dart';
+import '../../services/api_page.dart';
 import '../../services/api_mappers.dart';
 import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
@@ -26,9 +27,12 @@ class _ConversaPageState extends State<ConversaPage> {
   int? _solicitacaoAtual;
   bool _enviando = false;
   bool _atualizando = false;
+  bool _carregandoAnteriores = false;
   bool _seguirRecentes = true;
   bool _mostrarIrRecentes = false;
   double _posicaoAnterior = 0;
+  double? _extensaoAntesDeCarregar;
+  double? _posicaoAntesDeCarregar;
 
   @override
   void initState() {
@@ -55,6 +59,10 @@ class _ConversaPageState extends State<ConversaPage> {
   void _restaurarPosicao(_ConversaData data) {
     if (identical(data, _dadosExibidos)) return;
     _dadosExibidos = data;
+    final extensaoAntesDeCarregar = _extensaoAntesDeCarregar;
+    final posicaoAntesDeCarregar = _posicaoAntesDeCarregar;
+    _extensaoAntesDeCarregar = null;
+    _posicaoAntesDeCarregar = null;
     void aplicar() {
       if (!mounted ||
           !_mensagensScroll.hasClients ||
@@ -62,6 +70,13 @@ class _ConversaPageState extends State<ConversaPage> {
         return;
       }
       final limite = _mensagensScroll.position.maxScrollExtent;
+      if (extensaoAntesDeCarregar != null && posicaoAntesDeCarregar != null) {
+        final deslocamento = limite - extensaoAntesDeCarregar;
+        _mensagensScroll.jumpTo(
+          (posicaoAntesDeCarregar + deslocamento).clamp(0, limite),
+        );
+        return;
+      }
       _mensagensScroll.jumpTo(
         _seguirRecentes ? limite : _posicaoAnterior.clamp(0, limite),
       );
@@ -90,8 +105,62 @@ class _ConversaPageState extends State<ConversaPage> {
   }
 
   Future<void> _atualizar() async {
-    if (_atualizando || _enviando || _solicitacaoAtual == null) return;
+    if (_atualizando ||
+        _enviando ||
+        _carregandoAnteriores ||
+        _solicitacaoAtual == null) {
+      return;
+    }
     await _recarregarDados();
+  }
+
+  Future<void> _carregarMensagensAnteriores(_ConversaData data) async {
+    if (_carregandoAnteriores || !data.temMensagensAnteriores) return;
+    if (_mensagensScroll.hasClients) {
+      _extensaoAntesDeCarregar = _mensagensScroll.position.maxScrollExtent;
+      _posicaoAntesDeCarregar = _mensagensScroll.offset;
+    }
+    _seguirRecentes = false;
+    setState(() => _carregandoAnteriores = true);
+    try {
+      final response = await AppServices.instance.mensagens.listar(
+        data.atendimento.solicitacao.id,
+        pagina: data.paginaMensagens + 1,
+      );
+      final anterior = apiPageFromResponse(
+        response,
+        itemsKey: 'mensagens',
+        mapper: mensagemFromApi,
+        fallbackPage: data.paginaMensagens + 1,
+      );
+      final ids = <int>{};
+      final mensagens = <Mensagem>[
+        for (final mensagem in [...anterior.items, ...data.mensagens])
+          if (ids.add(mensagem.id)) mensagem,
+      ];
+      if (!mounted) return;
+      final atualizada = data.copyWith(
+        mensagens: mensagens,
+        paginaMensagens: anterior.page,
+        temMensagensAnteriores: anterior.hasMore,
+      );
+      setState(() {
+        _dataFuture = Future.value(atualizada);
+        _dataFuture?.ignore();
+      });
+    } catch (_) {
+      _extensaoAntesDeCarregar = null;
+      _posicaoAntesDeCarregar = null;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar mensagens anteriores.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _carregandoAnteriores = false);
+    }
   }
 
   Future<_ConversaData?> _recarregarDados() async {
@@ -148,6 +217,8 @@ class _ConversaPageState extends State<ConversaPage> {
         mensagens: store.mensagensDaSolicitacao(solicitacaoId),
         usuarioAtualId: store.usuarioAtual.id,
         papelAtual: store.usuarioAtual.tipo.valorBanco,
+        paginaMensagens: 1,
+        temMensagensAnteriores: false,
       );
     }
 
@@ -158,11 +229,18 @@ class _ConversaPageState extends State<ConversaPage> {
     final solicitacao = responses[0]['solicitacao'];
     if (solicitacao is! Map<String, dynamic>) return null;
 
+    final paginaMensagens = apiPageFromResponse(
+      responses[1],
+      itemsKey: 'mensagens',
+      mapper: mensagemFromApi,
+    );
     return _ConversaData(
       atendimento: atendimentoResumoFromApi(solicitacao),
-      mensagens: listFromApi(responses[1]['mensagens'], mensagemFromApi),
+      mensagens: paginaMensagens.items,
       usuarioAtualId: intValue(services.auth.usuarioAtual?['id']),
       papelAtual: stringValue(services.auth.usuarioAtual?['tipo']),
+      paginaMensagens: paginaMensagens.page,
+      temMensagensAnteriores: paginaMensagens.hasMore,
     );
   }
 
@@ -267,7 +345,8 @@ class _ConversaPageState extends State<ConversaPage> {
             _restaurarPosicao(data);
             return Column(
               children: [
-                if (_atualizando || _enviando) const LinearProgressIndicator(),
+                if (_atualizando || _enviando || _carregandoAnteriores)
+                  const LinearProgressIndicator(),
                 _ContextoServico(
                   atendimento: data.atendimento,
                   onDetalhes: _enviando || _atualizando ? null : _abrirDetalhes,
@@ -282,6 +361,22 @@ class _ConversaPageState extends State<ConversaPage> {
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
                           children: [
+                            if (data.temMensagensAnteriores) ...[
+                              Center(
+                                child: OutlinedButton.icon(
+                                  key: const ValueKey(
+                                    'chat-carregar-anteriores',
+                                  ),
+                                  onPressed: _carregandoAnteriores
+                                      ? null
+                                      : () =>
+                                            _carregarMensagensAnteriores(data),
+                                  icon: const Icon(Icons.expand_less_rounded),
+                                  label: const Text('Mensagens anteriores'),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             if (data.mensagens.isEmpty)
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -351,12 +446,32 @@ class _ConversaData {
     required this.mensagens,
     required this.usuarioAtualId,
     required this.papelAtual,
+    required this.paginaMensagens,
+    required this.temMensagensAnteriores,
   });
 
   final AtendimentoResumo atendimento;
   final List<Mensagem> mensagens;
   final int usuarioAtualId;
   final String papelAtual;
+  final int paginaMensagens;
+  final bool temMensagensAnteriores;
+
+  _ConversaData copyWith({
+    List<Mensagem>? mensagens,
+    int? paginaMensagens,
+    bool? temMensagensAnteriores,
+  }) {
+    return _ConversaData(
+      atendimento: atendimento,
+      mensagens: mensagens ?? this.mensagens,
+      usuarioAtualId: usuarioAtualId,
+      papelAtual: papelAtual,
+      paginaMensagens: paginaMensagens ?? this.paginaMensagens,
+      temMensagensAnteriores:
+          temMensagensAnteriores ?? this.temMensagensAnteriores,
+    );
+  }
 
   bool get conversaAberta =>
       atendimento.solicitacao.status == StatusSolicitacao.aguardandoResposta ||

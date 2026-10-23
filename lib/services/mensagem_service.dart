@@ -5,8 +5,15 @@ class MensagemService {
 
   final ApiService _api;
 
-  Future<Map<String, dynamic>> listar(int solicitacaoId) {
-    return _api.get('solicitacoes/$solicitacaoId/mensagens');
+  Future<Map<String, dynamic>> listar(
+    int solicitacaoId, {
+    int pagina = 1,
+    int limite = 20,
+  }) {
+    return _api.get(
+      'solicitacoes/$solicitacaoId/mensagens',
+      queryParameters: {'pagina': '$pagina', 'limite': '$limite'},
+    );
   }
 
   Future<Map<String, dynamic>> enviar({

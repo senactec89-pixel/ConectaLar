@@ -9,8 +9,11 @@ class ServicoService {
     return _api.post('solicitacoes', body: dados);
   }
 
-  Future<Map<String, dynamic>> minhas() {
-    return _api.get('solicitacoes/me');
+  Future<Map<String, dynamic>> minhas({int pagina = 1, int limite = 20}) {
+    return _api.get(
+      'solicitacoes/me',
+      queryParameters: {'pagina': '$pagina', 'limite': '$limite'},
+    );
   }
 
   Future<Map<String, dynamic>> obter(int solicitacaoId) {

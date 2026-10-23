@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import '../../services/api_page.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -15,7 +16,8 @@ class DenunciasPage extends StatefulWidget {
 }
 
 class _DenunciasPageState extends State<DenunciasPage> {
-  late Future<List<Map<String, dynamic>>> _denunciasFuture;
+  late Future<ApiPage<Map<String, dynamic>>> _denunciasFuture;
+  bool _carregandoMais = false;
 
   @override
   void initState() {
@@ -23,19 +25,52 @@ class _DenunciasPageState extends State<DenunciasPage> {
     _denunciasFuture = _carregar();
   }
 
-  Future<List<Map<String, dynamic>>> _carregar() async {
-    final response = await AppServices.instance.denuncias.minhas();
-    final denuncias = response['denuncias'];
-    if (denuncias is! List) {
-      throw const FormatException('Resposta de denúncias inválida.');
-    }
-    return denuncias.whereType<Map<String, dynamic>>().toList(growable: false);
+  Future<ApiPage<Map<String, dynamic>>> _carregar({int pagina = 1}) async {
+    final response = await AppServices.instance.denuncias.minhas(
+      pagina: pagina,
+    );
+    return apiPageFromResponse(
+      response,
+      itemsKey: 'denuncias',
+      mapper: (item) => item,
+      fallbackPage: pagina,
+    );
   }
 
   Future<void> _atualizar() async {
-    final future = _carregar();
+    final future = _carregar(pagina: 1);
     setState(() => _denunciasFuture = future);
     await future;
+  }
+
+  Future<void> _carregarMais() async {
+    if (_carregandoMais) return;
+    setState(() => _carregandoMais = true);
+    try {
+      final atual = await _denunciasFuture;
+      if (!atual.hasMore) return;
+      final proxima = await _carregar(pagina: atual.page + 1);
+      final porId = <int, Map<String, dynamic>>{
+        for (final item in atual.items) intValue(item['id']): item,
+        for (final item in proxima.items) intValue(item['id']): item,
+      };
+      if (!mounted) return;
+      setState(() {
+        _denunciasFuture = Future.value(
+          proxima.copyWith(items: porId.values.toList(growable: false)),
+        );
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível carregar mais denúncias.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _carregandoMais = false);
+    }
   }
 
   @override
@@ -52,7 +87,7 @@ class _DenunciasPageState extends State<DenunciasPage> {
         ],
       ),
       backgroundColor: AppColors.fundo,
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+      body: FutureBuilder<ApiPage<Map<String, dynamic>>>(
         future: _denunciasFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -64,7 +99,8 @@ class _DenunciasPageState extends State<DenunciasPage> {
               onRetry: _atualizar,
             );
           }
-          final denuncias = snapshot.requireData;
+          final pagina = snapshot.requireData;
+          final denuncias = pagina.items;
           if (denuncias.isEmpty) {
             return const EmptyStateView(
               title: 'Nenhuma denúncia enviada',
@@ -78,10 +114,29 @@ class _DenunciasPageState extends State<DenunciasPage> {
             child: ListView.separated(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: AppInsets.page,
-              itemCount: denuncias.length + 1,
+              itemCount: denuncias.length + 1 + (pagina.hasMore ? 1 : 0),
               separatorBuilder: (_, _) => const SizedBox(height: AppSpace.md),
               itemBuilder: (context, index) {
                 if (index == 0) return const _CabecalhoDenuncias();
+                if (index == denuncias.length + 1) {
+                  return Center(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('denuncias-carregar-mais'),
+                      onPressed: _carregandoMais ? null : _carregarMais,
+                      icon: _carregandoMais
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        _carregandoMais
+                            ? 'Carregando denúncias'
+                            : 'Carregar mais denúncias',
+                      ),
+                    ),
+                  );
+                }
                 return _DenunciaCard(denuncia: denuncias[index - 1]);
               },
             ),

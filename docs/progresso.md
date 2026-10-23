@@ -24,18 +24,18 @@ O nucleo do app Flutter e da API NestJS/MySQL esta implementado para demonstraca
 - GPS sob consentimento, filtro por distancia e raio de atendimento, com mapa Android de coordenadas profissionais aproximadas;
 - solicitacoes com endereco cadastrado, oferta escolhida, data, horario e os cinco estados oficiais;
 - protecao do endereco completo antes das condicoes autorizadas;
-- chat por solicitacao, com bloqueio visual quando a conversa esta encerrada;
+- chat por solicitacao, com bloqueio visual quando a conversa esta encerrada e carregamento progressivo das mensagens anteriores;
 - conclusao e avaliacoes dos participantes;
 - upload de documentos PDF/JPEG/PNG, varredura ClamAV configuravel, storage local ou Cloudflare R2, leitura administrativa autenticada e preview de imagem/PDF no app;
 - regra de selo profissional baseada em documento de identidade aprovado;
 - denuncias, notificacoes internas e auditoria administrativa;
 - modulos administrativos para usuarios, documentos, categorias, avaliacoes, denuncias e auditoria.
+- pedidos, conversas, notificacoes e denuncias pessoais paginados, sem truncamento silencioso das listas.
 
 ## Validacoes recentes
 
-- API: `npm.cmd test` aprovado em 16/10/2026 com 33 testes.
-- Flutter: `flutter analyze` aprovado em 16/10/2026.
-- Flutter: `flutter test` aprovado em 16/10/2026 com 180 testes.
+- API: `npm.cmd test` aprovado em 23/10/2026 com 73 testes, incluindo validacao de limites, metadados e ordenacao da paginacao.
+- Flutter: `flutter analyze --no-pub` e `flutter test --no-pub` aprovados em 23/10/2026, com 240 testes.
 - Android debug: `flutter build apk --debug` aprovado em 16/10/2026, incluindo armazenamento seguro e compartilhamento nativo da exportacao LGPD.
 - Android debug recompilado com GPS e mapa habilitados por chave ficticia somente para validacao de build; a exibicao real depende de chave Google Maps restrita.
 - Integracao LGPD com MySQL local: migration, exportacao, exclusao, invalidacao do token e bloqueio do login antigo aprovados em 16/10/2026.

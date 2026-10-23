@@ -7,6 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import {
+  paginationMetadata,
+  parsePaginationQuery,
+} from '../common/pagination.js';
 import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -86,18 +90,26 @@ export class DenunciasService {
     return { denuncia: denunciaResponse(denuncia) };
   }
 
-  async listarMinhas(user: AuthenticatedUser) {
-    const denuncias = await this.denuncias.find({
+  async listarMinhas(
+    user: AuthenticatedUser,
+    query: Record<string, unknown> = {},
+  ) {
+    const pagination = parsePaginationQuery(query);
+    const [denuncias, total] = await this.denuncias.findAndCount({
       where: { denuncianteId: user.id },
       relations: {
         solicitacao: { categoria: true, profissional: { usuario: true } },
         denunciado: true,
       },
-      order: { criadoEm: 'DESC' },
-      take: 50,
+      order: { criadoEm: 'DESC', id: 'DESC' },
+      skip: pagination.skip,
+      take: pagination.limite,
     });
 
-    return { denuncias: denuncias.map(denunciaResponse) };
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      denuncias: denuncias.map(denunciaResponse),
+    };
   }
 
   async listarModeracao(query: Record<string, unknown>) {

@@ -5,10 +5,18 @@ class NotificacaoService {
 
   final ApiService _api;
 
-  Future<Map<String, dynamic>> listar({bool apenasNaoLidas = false}) {
+  Future<Map<String, dynamic>> listar({
+    bool apenasNaoLidas = false,
+    int pagina = 1,
+    int limite = 20,
+  }) {
     return _api.get(
       'notificacoes/me',
-      queryParameters: apenasNaoLidas ? {'naoLidas': 'true'} : null,
+      queryParameters: {
+        if (apenasNaoLidas) 'naoLidas': 'true',
+        'pagina': '$pagina',
+        'limite': '$limite',
+      },
     );
   }
 

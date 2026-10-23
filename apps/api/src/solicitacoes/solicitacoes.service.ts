@@ -8,6 +8,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import {
+  paginationMetadata,
+  parsePaginationQuery,
+} from '../common/pagination.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
@@ -190,7 +194,8 @@ export class SolicitacoesService {
     return this.responder(reloaded, user);
   }
 
-  async minhas(user: AuthenticatedUser) {
+  async minhas(user: AuthenticatedUser, query: Record<string, unknown> = {}) {
+    const pagination = parsePaginationQuery(query);
     const builder = this.solicitacoes
       .createQueryBuilder('solicitacao')
       .leftJoinAndSelect('solicitacao.cliente', 'cliente')
@@ -198,7 +203,10 @@ export class SolicitacoesService {
       .leftJoinAndSelect('profissional.usuario', 'profissionalUsuario')
       .leftJoinAndSelect('solicitacao.categoria', 'categoria')
       .leftJoinAndSelect('solicitacao.endereco', 'endereco')
-      .orderBy('solicitacao.criadoEm', 'DESC');
+      .orderBy('solicitacao.criadoEm', 'DESC')
+      .addOrderBy('solicitacao.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
 
     if (user.tipo === UsuarioTipo.Cliente) {
       builder.where('solicitacao.cliente_id = :userId', { userId: user.id });
@@ -210,7 +218,7 @@ export class SolicitacoesService {
       throw forbidden();
     }
 
-    const solicitacoes = await builder.getMany();
+    const [solicitacoes, total] = await builder.getManyAndCount();
     const avaliadas =
       solicitacoes.length === 0
         ? []
@@ -223,6 +231,7 @@ export class SolicitacoesService {
           });
     const idsAvaliados = new Set(avaliadas.map((a) => a.solicitacaoId));
     return {
+      paginacao: paginationMetadata(pagination, total),
       solicitacoes: solicitacoes.map((solicitacao) =>
         solicitacaoResponse(
           solicitacao,

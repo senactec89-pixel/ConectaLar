@@ -21,7 +21,10 @@ class DenunciaService {
     );
   }
 
-  Future<Map<String, dynamic>> minhas() {
-    return _api.get('denuncias/me');
+  Future<Map<String, dynamic>> minhas({int pagina = 1, int limite = 20}) {
+    return _api.get(
+      'denuncias/me',
+      queryParameters: {'pagina': '$pagina', 'limite': '$limite'},
+    );
   }
 }

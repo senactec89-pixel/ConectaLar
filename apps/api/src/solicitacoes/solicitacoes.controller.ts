@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -23,8 +24,11 @@ export class SolicitacoesController {
   }
 
   @Get('me')
-  minhas(@UsuarioAtual() user: AuthenticatedUser) {
-    return this.solicitacoes.minhas(user);
+  minhas(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.solicitacoes.minhas(user, query);
   }
 
   @Get(':id')

@@ -32,8 +32,11 @@ export class DenunciasController {
 
   @Get('denuncias/me')
   @UseGuards(AuthGuard)
-  listarMinhas(@UsuarioAtual() user: AuthenticatedUser) {
-    return this.denuncias.listarMinhas(user);
+  listarMinhas(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.denuncias.listarMinhas(user, query);
   }
 
   @Get('denuncias/moderacao')

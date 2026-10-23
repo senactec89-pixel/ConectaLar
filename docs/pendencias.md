@@ -29,6 +29,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Exportacao LGPD em JSON e exclusao de conta com senha atual, confirmacao forte, anonimizacao e invalidacao de sessoes.
 - Login Google implementado com validacao do ID token na API, primeiro acesso com tipo/termos e vinculo seguro por identificador estavel.
 - Busca por GPS implementada sem rastreamento em segundo plano, com raio do cliente, area atendida pelo profissional e mapa Android aproximado.
+- Paginacao de pedidos, lista de conversas, mensagens, notificacoes e denuncias pessoais implementada na API e no Flutter, com carregamento progressivo e limite maximo por pagina.
 
 ## Ajustes tecnicos ainda pendentes
 
@@ -38,7 +39,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - Definir e implementar politica de retencao, expiracao e descarte de documentos.
 - Trocar rate limit em memoria por solucao adequada se houver multiplas instancias.
 - Definir expiracao e politica de sessoes simultaneas no Flutter e na API.
-- Definir paginacao para busca, historico, chat e listas administrativas conforme volume esperado.
+- Completar a paginacao da busca, dos historicos e das listas administrativas conforme volume esperado. Chat, pedidos e listas pessoais ja possuem paginacao.
 - Revisar mensagens genericas de erro para distinguir conexao, permissao, validacao e estado vazio.
 - Atualizar relatorios historicos que ainda citam contagens antigas de testes ou pendencias ja resolvidas.
 

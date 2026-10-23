@@ -14,7 +14,7 @@ Esta matriz resume o que existe no código de main em 0264eab. “Implementado�
 | Documentos e selo | Seletor PDF/JPEG/PNG até 5 MB, envio, status e decisões administrativas. | Acesso administrativo seguro ao conteúdo, verificação do tipo real de arquivo e regra do selo com vários documentos. |
 | Denúncias | Cliente pode denunciar pelo app; API lista e registra moderação. | Homologar ações, permissões e trilha de auditoria conforme política final. |
 | Administração | Painel, usuários, documentos, categorias, denúncias, avaliações e auditoria. | Criar administrador e histórico administrativo ainda não têm tela Flutter dedicada; definir MFA e permissões. |
-| Notificações e histórico | Notificações internas persistidas e histórico de atendimentos. | Garantir recuperação quando a criação de aviso falhar; adicionar paginação e fechar retenção. |
+| Notificações e histórico | Notificações internas persistidas; pedidos, chat, notificações e denúncias pessoais paginados. | Garantir recuperação quando a criação de aviso falhar; ampliar paginação para histórico/listas administrativas e fechar retenção. |
 | Termos e privacidade | Consulta e registro de aceite estão implementados. | Revisar conteúdo final, política de retenção e canal de suporte/privacidade antes da publicação. |
 
 ## Evidência disponível

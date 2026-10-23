@@ -163,7 +163,7 @@ Administrators can choose only one of the controlled icon identifiers accepted b
 Service request routes:
 
 - `POST /solicitacoes` with `Authorization: Bearer <token>` for `cliente`
-- `GET /solicitacoes/me` with `Authorization: Bearer <token>` for participants or `administrador`
+- `GET /solicitacoes/me?pagina=1&limite=20` with `Authorization: Bearer <token>` for participants or `administrador`
 - `GET /solicitacoes/:id` with `Authorization: Bearer <token>` for participants or `administrador`
 - `PATCH /solicitacoes/:id/aceitar` with `Authorization: Bearer <token>` for the requested `profissional` or `empresa`
 - `PATCH /solicitacoes/:id/recusar` with `Authorization: Bearer <token>` for the requested `profissional` or `empresa`
@@ -195,7 +195,7 @@ History responses reuse service request data that is already authorized for the 
 
 Chat routes:
 
-- `GET /solicitacoes/:solicitacaoId/mensagens` with `Authorization: Bearer <token>` for participants or `administrador`
+- `GET /solicitacoes/:solicitacaoId/mensagens?pagina=1&limite=20` with `Authorization: Bearer <token>` for participants or `administrador`
 - `POST /solicitacoes/:solicitacaoId/mensagens` with `Authorization: Bearer <token>` for the requesting `cliente` or requested `profissional`/`empresa`
 
 Messages are linked to a service request. New messages are allowed only while the request is `aguardando_resposta` or `aceita_agendada`; final states keep the history available to authorized participants without reopening the service.
@@ -203,7 +203,7 @@ Messages are linked to a service request. New messages are allowed only while th
 Report routes:
 
 - `POST /solicitacoes/:solicitacaoId/denuncias` with `Authorization: Bearer <token>` for the requesting `cliente` or requested `profissional`/`empresa`
-- `GET /denuncias/me` with `Authorization: Bearer <token>`
+- `GET /denuncias/me?pagina=1&limite=20` with `Authorization: Bearer <token>`
 - `GET /denuncias/moderacao` with `Authorization: Bearer <token>` for `administrador`
 - `GET /denuncias/moderacao?status=pendente` with `Authorization: Bearer <token>` for `administrador`
 - `PATCH /denuncias/:id/moderacao` with `Authorization: Bearer <token>` for `administrador`
@@ -222,13 +222,15 @@ Reviews can be created only after `conclusao_confirmada`. Each participant can r
 
 Notification routes:
 
-- `GET /notificacoes/me` with `Authorization: Bearer <token>`
-- `GET /notificacoes/me?naoLidas=true` with `Authorization: Bearer <token>`
+- `GET /notificacoes/me?pagina=1&limite=20` with `Authorization: Bearer <token>`
+- `GET /notificacoes/me?naoLidas=true&pagina=1&limite=20` with `Authorization: Bearer <token>`
 - `GET /notificacoes/me/resumo` with `Authorization: Bearer <token>`
 - `PATCH /notificacoes/:id/lida` with `Authorization: Bearer <token>`
 - `PATCH /notificacoes/me/lidas` with `Authorization: Bearer <token>`
 
 Internal notifications are created for real backend events such as new requests, request acceptance/refusal/cancellation/conclusion, received messages, and received reviews. Notification registration is auxiliary and must not alter the service state if it fails.
+
+The personal request, message, report, and notification lists accept `pagina` and `limite`. Limits from 1 to 50 are accepted. Responses include `paginacao` with the current page, limit, total records, total pages, and whether another page exists.
 
 Document verification routes:
 

@@ -200,4 +200,51 @@ void main() {
     expect(find.text('Pedido atualizado'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('notificações carregam a próxima página e preservam as atuais', (
+    tester,
+  ) async {
+    final paginas = <String?>[];
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path != '/notificacoes/me') return null;
+        final pagina = request.url.queryParameters['pagina'] ?? '1';
+        paginas.add(pagina);
+        final id = pagina == '1' ? 1 : 2;
+        return jsonResponse({
+          'paginacao': {
+            'pagina': int.parse(pagina),
+            'limite': 20,
+            'total': 2,
+            'totalPaginas': 2,
+            'temMais': pagina == '1',
+          },
+          'notificacoes': [
+            {
+              'id': id,
+              'titulo': 'Notificação $id',
+              'mensagem': 'Conteúdo $id',
+              'lida': false,
+              'tipo': 'solicitacao',
+              'recursoTipo': null,
+              'recursoId': null,
+              'criadoEm': '2026-10-11T12:00:00Z',
+            },
+          ],
+        });
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.notificacoes);
+    await tester.tap(find.byKey(const ValueKey('notificacoes-carregar-mais')));
+    await tester.pumpAndSettle();
+
+    expect(paginas, ['1', '2']);
+    expect(find.text('Notificação 1'), findsOneWidget);
+    expect(find.text('Notificação 2'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('notificacoes-carregar-mais')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { UsuarioAtual } from '../auth/usuario-atual.decorator.js';
@@ -13,8 +21,9 @@ export class MensagensController {
   listar(
     @UsuarioAtual() user: AuthenticatedUser,
     @Param('solicitacaoId') solicitacaoId: string,
+    @Query() query: Record<string, unknown>,
   ) {
-    return this.mensagens.listar(user, parseId(solicitacaoId));
+    return this.mensagens.listar(user, parseId(solicitacaoId), query);
   }
 
   @Post()

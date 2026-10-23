@@ -191,4 +191,45 @@ void main() {
     expect(find.text('Buscar profissionais'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('meus serviços carrega páginas seguintes sem repetir pedidos', (
+    tester,
+  ) async {
+    final paginasConsultadas = <String?>[];
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path != '/solicitacoes/me') return null;
+        final pagina = request.url.queryParameters['pagina'] ?? '1';
+        paginasConsultadas.add(pagina);
+        final id = pagina == '1' ? 1001 : 2002;
+        return jsonResponse({
+          'paginacao': {
+            'pagina': int.parse(pagina),
+            'limite': 20,
+            'total': 2,
+            'totalPaginas': 2,
+            'temMais': pagina == '1',
+          },
+          'solicitacoes': [
+            {...FrontendPreviewClient().pedidos.first, 'id': id},
+          ],
+        });
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.meusServicos);
+    final carregar = find.byKey(const ValueKey('servicos-carregar-mais'));
+    await tester.scrollUntilVisible(
+      carregar,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(carregar);
+    await tester.pumpAndSettle();
+
+    expect(paginasConsultadas, ['1', '2']);
+    expect(find.byKey(const ValueKey('servico-1001')), findsOneWidget);
+    expect(find.byKey(const ValueKey('servico-2002')), findsOneWidget);
+    expect(find.byKey(const ValueKey('servicos-carregar-mais')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }

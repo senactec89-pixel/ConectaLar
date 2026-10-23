@@ -6,6 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import {
+  paginationMetadata,
+  parsePaginationQuery,
+} from '../common/pagination.js';
 import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 
@@ -26,18 +30,23 @@ export class NotificacoesService {
   ) {}
 
   async listarMinhas(user: AuthenticatedUser, query: Record<string, unknown>) {
+    const pagination = parsePaginationQuery(query);
     const somenteNaoLidas = query.lida === 'false' || query.naoLidas === 'true';
     const where = somenteNaoLidas
       ? { usuarioId: user.id, lida: false }
       : { usuarioId: user.id };
 
-    const notificacoes = await this.notificacoes.find({
+    const [notificacoes, total] = await this.notificacoes.findAndCount({
       where,
-      order: { criadoEm: 'DESC' },
-      take: 50,
+      order: { criadoEm: 'DESC', id: 'DESC' },
+      skip: pagination.skip,
+      take: pagination.limite,
     });
 
-    return { notificacoes: notificacoes.map(notificacaoResponse) };
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      notificacoes: notificacoes.map(notificacaoResponse),
+    };
   }
 
   async resumoMinhas(user: AuthenticatedUser) {
