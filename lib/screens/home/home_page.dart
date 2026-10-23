@@ -512,8 +512,8 @@ class _HomeHero extends StatelessWidget {
         final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
         final compact = constraints.maxWidth < 380 || textoAmpliado;
         final imageSize = (constraints.maxWidth * 0.37).clamp(132.0, 152.0);
-        const heroHeight = 306.0;
-        const searchBottom = 12.0;
+        const heroHeight = 326.0;
+        const searchBottom = 16.0;
         const imageGap = 8.0;
         final imageTop = textoAmpliado
             ? (constraints.maxWidth < 380 ? 165.0 : 128.0)
@@ -573,7 +573,7 @@ class _HomeHero extends StatelessWidget {
               SizedBox(
                 width: constraints.maxWidth,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -582,7 +582,7 @@ class _HomeHero extends StatelessWidget {
                         compact: compact,
                         onNotificationsTap: onNotificationsTap,
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 32),
                       Padding(
                         padding: EdgeInsets.only(right: imageSize - 2),
                         child: _Greeting(compact: compact, fullText: true),
@@ -604,7 +604,7 @@ class _HomeHero extends StatelessWidget {
               fundo,
               imagem,
               Positioned(
-                top: 12,
+                top: 20,
                 left: 20,
                 right: 20,
                 child: _BrandHeader(
@@ -613,7 +613,7 @@ class _HomeHero extends StatelessWidget {
                 ),
               ),
               Positioned(
-                top: 86,
+                top: 108,
                 left: 20,
                 right: imageSize + 30,
                 child: _Greeting(compact: compact),
@@ -650,19 +650,20 @@ class _BrandHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 46,
-          height: 46,
+          width: compact ? 52 : 58,
+          height: compact ? 52 : 58,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.86),
             borderRadius: BorderRadius.circular(15),
           ),
-          child: const Icon(
-            Icons.home_work_rounded,
-            color: AppColors.verde,
-            size: 29,
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'assets/branding/conectalar_launcher_icon.png',
+            fit: BoxFit.cover,
+            semanticLabel: 'Marca ConectaLar',
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -681,12 +682,12 @@ class _BrandHeader extends StatelessWidget {
                 ),
                 style: TextStyle(
                   color: AppColors.texto,
-                  fontSize: compact ? 19 : 21,
+                  fontSize: compact ? 22 : 25,
                   fontWeight: FontWeight.w800,
                   height: 1,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
               Text(
                 'Serviços residenciais mais perto de você',
                 maxLines: textoAmpliado ? null : 2,
@@ -695,7 +696,7 @@ class _BrandHeader extends StatelessWidget {
                     : TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textoSuave,
-                  fontSize: 12,
+                  fontSize: 13,
                 ),
               ),
             ],

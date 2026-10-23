@@ -69,6 +69,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/branding/
     - assets/images/home/
 
 flutter_launcher_icons:
