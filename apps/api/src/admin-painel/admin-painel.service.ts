@@ -50,6 +50,7 @@ export class AdminPainelService {
       categoriasAtivas,
       solicitacoesAguardando,
       solicitacoesAgendadas,
+      solicitacoesEmRevisao,
       solicitacoesConcluidas,
     ] = await Promise.all([
       this.usuarios.count({ where: { ativo: true } }),
@@ -83,6 +84,14 @@ export class AdminPainelService {
         where: { status: SolicitacaoStatus.AceitaAgendada },
       }),
       this.solicitacoes.count({
+        where: {
+          status: In([
+            SolicitacaoStatus.ConclusaoContestada,
+            SolicitacaoStatus.NaoComparecimentoInformado,
+          ]),
+        },
+      }),
+      this.solicitacoes.count({
         where: { status: SolicitacaoStatus.ConclusaoConfirmada },
       }),
     ]);
@@ -109,6 +118,7 @@ export class AdminPainelService {
       atendimentos: {
         aguardandoResposta: solicitacoesAguardando,
         aceitaAgendada: solicitacoesAgendadas,
+        emRevisao: solicitacoesEmRevisao,
         conclusaoConfirmada: solicitacoesConcluidas,
       },
     };

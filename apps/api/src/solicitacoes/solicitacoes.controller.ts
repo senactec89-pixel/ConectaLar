@@ -56,6 +56,41 @@ export class SolicitacoesController {
     return this.solicitacoes.concluir(user, parseId(id));
   }
 
+  @Patch(':id/conclusao/confirmar')
+  confirmarConclusao(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.solicitacoes.confirmarConclusao(user, parseId(id));
+  }
+
+  @Patch(':id/conclusao/contestar')
+  contestarConclusao(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.contestarConclusao(user, parseId(id), body);
+  }
+
+  @Patch(':id/nao-comparecimento')
+  informarNaoComparecimento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.informarNaoComparecimento(user, parseId(id), body);
+  }
+
+  @Patch(':id/nao-comparecimento/contestar')
+  contestarNaoComparecimento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.contestarNaoComparecimento(user, parseId(id), body);
+  }
+
   @Post(':id/reagendamento')
   proporReagendamento(
     @UsuarioAtual() user: AuthenticatedUser,

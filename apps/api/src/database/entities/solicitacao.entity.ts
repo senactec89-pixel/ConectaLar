@@ -118,6 +118,30 @@ export class SolicitacaoEntity {
   })
   cancelamentoMotivo!: string | null;
 
+  @Column({
+    name: 'conclusao_contestacao_motivo',
+    type: 'varchar',
+    length: 600,
+    nullable: true,
+  })
+  conclusaoContestacaoMotivo!: string | null;
+
+  @Column({
+    name: 'nao_comparecimento_motivo',
+    type: 'varchar',
+    length: 600,
+    nullable: true,
+  })
+  naoComparecimentoMotivo!: string | null;
+
+  @Column({
+    name: 'nao_comparecimento_por_id',
+    type: 'int',
+    unsigned: true,
+    nullable: true,
+  })
+  naoComparecimentoPorId!: number | null;
+
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;
 

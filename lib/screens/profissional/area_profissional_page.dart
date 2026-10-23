@@ -1523,6 +1523,9 @@ String _status(Object? value) => switch (value) {
   'aceita_agendada' => 'Aceita e agendada',
   'recusada' => 'Recusada',
   'cancelada' => 'Cancelada',
+  'conclusao_pendente' => 'Aguardando confirmação do cliente',
+  'conclusao_contestada' => 'Conclusão contestada',
+  'nao_comparecimento_informado' => 'Não comparecimento informado',
   'conclusao_confirmada' => 'Conclusão confirmada',
   _ => 'Status desconhecido',
 };

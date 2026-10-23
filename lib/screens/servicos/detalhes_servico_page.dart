@@ -316,9 +316,118 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   Future<void> _concluir() {
     return _executarTransicao(
       AppServices.instance.servicos.concluir,
+      widget.store.marcarServicoRealizado,
+      'Atendimento marcado como realizado. Aguardando confirmação do cliente.',
+      'Só é possível marcar como realizado após o horário do atendimento.',
+    );
+  }
+
+  Future<void> _confirmarConclusao() {
+    return _executarTransicao(
+      AppServices.instance.servicos.confirmarConclusao,
       widget.store.confirmarConclusao,
-      'Conclusão confirmada pelo cliente.',
-      'A conclusão só pode ser confirmada após o aceite e agendamento.',
+      'Conclusão confirmada.',
+      'Não foi possível confirmar a conclusão.',
+    );
+  }
+
+  Future<String?> _pedirMotivo({
+    required String titulo,
+    required String label,
+    required String ajuda,
+  }) async {
+    final controller = TextEditingController();
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: Text(titulo),
+        content: TextField(
+          controller: controller,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: 600,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            labelText: label,
+            helperText: ajuda,
+            helperMaxLines: 3,
+            alignLabelWithHint: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    final texto = controller.text.trim();
+    controller.dispose();
+    if (confirmar != true) return null;
+    if (texto.length < 20) {
+      _notificar('Explique a situação em pelo menos 20 caracteres.');
+      return null;
+    }
+    return texto;
+  }
+
+  Future<void> _contestarConclusao() async {
+    final motivo = await _pedirMotivo(
+      titulo: 'Contestar conclusão',
+      label: 'O que precisa ser revisto?',
+      ajuda: 'A contestação ficará registrada no histórico do atendimento.',
+    );
+    if (motivo == null) return;
+    await _executarTransicao(
+      (id) =>
+          AppServices.instance.servicos.contestarConclusao(id, motivo: motivo),
+      widget.store.contestarConclusao,
+      'Contestação registrada.',
+      'Não foi possível registrar a contestação.',
+    );
+  }
+
+  Future<void> _informarNaoComparecimento() async {
+    final motivo = await _pedirMotivo(
+      titulo: 'Informar não comparecimento',
+      label: 'Descreva o ocorrido',
+      ajuda:
+          'Não haverá penalidade automática. O registro poderá ser contestado e analisado.',
+    );
+    if (motivo == null) return;
+    await _executarTransicao(
+      (id) => AppServices.instance.servicos.informarNaoComparecimento(
+        id,
+        motivo: motivo,
+      ),
+      widget.store.informarNaoComparecimento,
+      'Não comparecimento registrado.',
+      'Não foi possível registrar o não comparecimento.',
+    );
+  }
+
+  Future<void> _contestarNaoComparecimento() async {
+    final motivo = await _pedirMotivo(
+      titulo: 'Contestar não comparecimento',
+      label: 'Explique por que discorda',
+      ajuda:
+          'Sua resposta ficará disponível para análise e para a outra parte.',
+    );
+    if (motivo == null) return;
+    await _executarTransicao(
+      (id) => AppServices.instance.servicos.contestarNaoComparecimento(
+        id,
+        motivo: motivo,
+      ),
+      widget.store.contestarNaoComparecimento,
+      'Contestação registrada.',
+      'Não foi possível registrar a contestação.',
     );
   }
 
@@ -615,6 +724,25 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
           const SizedBox(height: 16),
         ],
+        if (solicitacao.status == StatusSolicitacao.conclusaoContestada &&
+            (solicitacao.conclusaoContestacaoMotivo?.isNotEmpty ?? false)) ...[
+          _OcorrenciaCard(
+            titulo: 'Conclusão contestada',
+            mensagem: solicitacao.conclusaoContestacaoMotivo!,
+            icon: Icons.report_problem_outlined,
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (solicitacao.status ==
+                StatusSolicitacao.naoComparecimentoInformado &&
+            (solicitacao.naoComparecimentoMotivo?.isNotEmpty ?? false)) ...[
+          _OcorrenciaCard(
+            titulo: 'Não comparecimento informado',
+            mensagem: solicitacao.naoComparecimentoMotivo!,
+            icon: Icons.person_off_outlined,
+          ),
+          const SizedBox(height: 16),
+        ],
         if (solicitacao.status != StatusSolicitacao.recusada &&
             solicitacao.status != StatusSolicitacao.cancelada) ...[
           _AcoesAtendimento(
@@ -632,7 +760,16 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             onAceitar: () => _aceitar(),
             onRecusar: () => _recusar(),
             onConcluir: () => _concluir(),
+            onConfirmarConclusao: () => _confirmarConclusao(),
+            onContestarConclusao: () => _contestarConclusao(),
+            onInformarNaoComparecimento: () => _informarNaoComparecimento(),
+            onContestarNaoComparecimento: () => _contestarNaoComparecimento(),
+            atorId: intValue(_ator['id']),
           ),
+        ],
+        if (solicitacao.eventos.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _HistoricoAtendimento(eventos: solicitacao.eventos),
         ],
         if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada &&
             !atendimento.avaliado &&
@@ -796,6 +933,143 @@ String _statusReagendamento(Object? value) => switch (value) {
   _ => 'indisponível',
 };
 
+class _OcorrenciaCard extends StatelessWidget {
+  const _OcorrenciaCard({
+    required this.titulo,
+    required this.mensagem,
+    required this.icon,
+  });
+
+  final String titulo;
+  final String mensagem;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: AppColors.erro),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  Text(mensagem),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Este registro não aplica penalidade automática.',
+                    style: TextStyle(color: AppColors.textoSuave),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoricoAtendimento extends StatelessWidget {
+  const _HistoricoAtendimento({required this.eventos});
+
+  final List<Map<String, dynamic>> eventos;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Histórico do atendimento',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            for (var index = 0; index < eventos.length; index++) ...[
+              _EventoAtendimento(evento: eventos[index]),
+              if (index < eventos.length - 1) const Divider(height: 20),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EventoAtendimento extends StatelessWidget {
+  const _EventoAtendimento({required this.evento});
+
+  final Map<String, dynamic> evento;
+
+  @override
+  Widget build(BuildContext context) {
+    final ator = evento['ator'];
+    final nome = ator is Map<String, dynamic> ? '${ator['nome']}' : null;
+    final motivo = evento['motivo']?.toString().trim();
+    final data = DateTime.tryParse('${evento['criadoEm']}')?.toLocal();
+    final quando = data == null
+        ? ''
+        : '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year} às ${data.hour.toString().padLeft(2, '0')}:${data.minute.toString().padLeft(2, '0')}';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.history_rounded,
+          size: 20,
+          color: AppColors.verdeEscuro,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _eventoTitulo('${evento['tipo']}'),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              if (nome != null || quando.isNotEmpty)
+                Text(
+                  [
+                    ?nome,
+                    if (quando.isNotEmpty) quando,
+                  ].join(' · '),
+                  style: const TextStyle(color: AppColors.textoSuave),
+                ),
+              if (motivo != null && motivo.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(motivo),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _eventoTitulo(String tipo) => switch (tipo) {
+  'solicitacao_criada' => 'Solicitação criada',
+  'solicitacao_aceita' => 'Solicitação aceita',
+  'solicitacao_recusada' => 'Solicitação recusada',
+  'solicitacao_cancelada' => 'Solicitação cancelada',
+  'servico_marcado_realizado' => 'Profissional marcou o serviço como realizado',
+  'conclusao_confirmada' => 'Cliente confirmou a conclusão',
+  'conclusao_contestada' => 'Cliente contestou a conclusão',
+  'nao_comparecimento_informado' => 'Não comparecimento informado',
+  'nao_comparecimento_contestado' => 'Não comparecimento contestado',
+  'estado_importado' => 'Situação anterior registrada',
+  _ => 'Atendimento atualizado',
+};
+
 class _AcoesAtendimento extends StatelessWidget {
   const _AcoesAtendimento({
     required this.solicitacao,
@@ -805,6 +1079,11 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.onAceitar,
     required this.onRecusar,
     required this.onConcluir,
+    required this.onConfirmarConclusao,
+    required this.onContestarConclusao,
+    required this.onInformarNaoComparecimento,
+    required this.onContestarNaoComparecimento,
+    required this.atorId,
     required this.cliente,
     required this.profissional,
     required this.ocupada,
@@ -817,6 +1096,11 @@ class _AcoesAtendimento extends StatelessWidget {
   final VoidCallback onAceitar;
   final VoidCallback onRecusar;
   final VoidCallback onConcluir;
+  final VoidCallback onConfirmarConclusao;
+  final VoidCallback onContestarConclusao;
+  final VoidCallback onInformarNaoComparecimento;
+  final VoidCallback onContestarNaoComparecimento;
+  final int atorId;
   final bool cliente;
   final bool profissional;
   final bool ocupada;
@@ -826,16 +1110,44 @@ class _AcoesAtendimento extends StatelessWidget {
     final aguardando =
         solicitacao.status == StatusSolicitacao.aguardandoResposta;
     final agendada = solicitacao.status == StatusSolicitacao.aceitaAgendada;
+    final conclusaoPendente =
+        solicitacao.status == StatusSolicitacao.conclusaoPendente;
+    final conclusaoContestada =
+        solicitacao.status == StatusSolicitacao.conclusaoContestada;
+    final naoComparecimento =
+        solicitacao.status == StatusSolicitacao.naoComparecimentoInformado;
     final concluida =
         solicitacao.status == StatusSolicitacao.conclusaoConfirmada;
     final participante = cliente || profissional;
-    final podeConversar = participante && (aguardando || agendada);
+    final podeConversar =
+        participante &&
+        (aguardando ||
+            agendada ||
+            conclusaoPendente ||
+            conclusaoContestada ||
+            naoComparecimento);
     final podeAceitar = profissional && aguardando;
     final podeRecusar = profissional && aguardando;
-    final podeCancelar = cliente && (aguardando || agendada);
-    final podeConcluir = cliente && agendada;
-    final temAcaoPrincipal = podeAceitar || podeConcluir;
-    final temAcoesSecundarias = podeConversar || podeRecusar || podeCancelar;
+    final podeCancelar =
+        (cliente && (aguardando || agendada)) || (profissional && agendada);
+    final podeMarcarRealizado = profissional && agendada;
+    final podeConfirmarConclusao =
+        cliente && (conclusaoPendente || conclusaoContestada);
+    final podeContestarConclusao = cliente && conclusaoPendente;
+    final podeInformarNaoComparecimento = participante && agendada;
+    final podeContestarNaoComparecimento =
+        participante &&
+        naoComparecimento &&
+        solicitacao.naoComparecimentoPorId != atorId;
+    final temAcaoPrincipal =
+        podeAceitar || podeMarcarRealizado || podeConfirmarConclusao;
+    final temAcoesSecundarias =
+        podeConversar ||
+        podeRecusar ||
+        podeCancelar ||
+        podeContestarConclusao ||
+        podeInformarNaoComparecimento ||
+        podeContestarNaoComparecimento;
 
     return Card(
       child: Padding(
@@ -853,7 +1165,11 @@ class _AcoesAtendimento extends StatelessWidget {
             if (temAcaoPrincipal) ...[
               const SizedBox(height: 12),
               Text(
-                podeAceitar ? 'Próxima ação' : 'Após realizar o serviço',
+                podeAceitar
+                    ? 'Próxima ação'
+                    : podeConfirmarConclusao
+                    ? 'Confirmação do cliente'
+                    : 'Após realizar o serviço',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textoSuave,
                   fontWeight: FontWeight.w700,
@@ -869,11 +1185,18 @@ class _AcoesAtendimento extends StatelessWidget {
                         icon: const Icon(Icons.check_rounded),
                         label: const Text('Aceitar solicitação'),
                       )
+                    : podeConfirmarConclusao
+                    ? FilledButton.icon(
+                        key: const ValueKey('detalhes-confirmar-conclusao'),
+                        onPressed: ocupada ? null : onConfirmarConclusao,
+                        icon: const Icon(Icons.verified_outlined),
+                        label: const Text('Confirmar conclusão'),
+                      )
                     : FilledButton.icon(
                         key: const ValueKey('detalhes-concluir'),
                         onPressed: ocupada ? null : onConcluir,
                         icon: const Icon(Icons.task_alt_rounded),
-                        label: const Text('Confirmar conclusão'),
+                        label: const Text('Marcar como realizado'),
                       ),
               ),
             ],
@@ -921,6 +1244,24 @@ class _AcoesAtendimento extends StatelessWidget {
                       onPressed: ocupada ? null : onCancelar,
                       icon: const Icon(Icons.cancel_outlined),
                       label: const Text('Cancelar'),
+                    ),
+                  if (podeContestarConclusao)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onContestarConclusao,
+                      icon: const Icon(Icons.report_problem_outlined),
+                      label: const Text('Contestar conclusão'),
+                    ),
+                  if (podeInformarNaoComparecimento)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onInformarNaoComparecimento,
+                      icon: const Icon(Icons.person_off_outlined),
+                      label: const Text('Não comparecimento'),
+                    ),
+                  if (podeContestarNaoComparecimento)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onContestarNaoComparecimento,
+                      icon: const Icon(Icons.gavel_outlined),
+                      label: const Text('Contestar ocorrência'),
                     ),
                 ],
               ),

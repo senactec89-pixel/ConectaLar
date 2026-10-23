@@ -348,6 +348,11 @@ class _AdminPageState extends State<AdminPage> {
                   value: '${atendimentos['aceitaAgendada'] ?? '—'}',
                   icon: Icons.event_available_outlined,
                 ),
+                _Indicador(
+                  label: 'Atendimentos em revisão',
+                  value: '${atendimentos['emRevisao'] ?? '—'}',
+                  icon: Icons.rule_folder_outlined,
+                ),
               ];
               return Wrap(
                 spacing: 10,

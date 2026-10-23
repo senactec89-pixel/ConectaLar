@@ -44,6 +44,9 @@ export class MensagensService {
       ![
         SolicitacaoStatus.AguardandoResposta,
         SolicitacaoStatus.AceitaAgendada,
+        SolicitacaoStatus.ConclusaoPendente,
+        SolicitacaoStatus.ConclusaoContestada,
+        SolicitacaoStatus.NaoComparecimentoInformado,
       ].includes(solicitacao.status)
     ) {
       throw badRequest('CHAT_INDISPONIVEL');

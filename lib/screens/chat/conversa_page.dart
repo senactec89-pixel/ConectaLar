@@ -360,7 +360,11 @@ class _ConversaData {
 
   bool get conversaAberta =>
       atendimento.solicitacao.status == StatusSolicitacao.aguardandoResposta ||
-      atendimento.solicitacao.status == StatusSolicitacao.aceitaAgendada;
+      atendimento.solicitacao.status == StatusSolicitacao.aceitaAgendada ||
+      atendimento.solicitacao.status == StatusSolicitacao.conclusaoPendente ||
+      atendimento.solicitacao.status == StatusSolicitacao.conclusaoContestada ||
+      atendimento.solicitacao.status ==
+          StatusSolicitacao.naoComparecimentoInformado;
 
   bool get podeEnviar {
     final solicitacao = atendimento.solicitacao;

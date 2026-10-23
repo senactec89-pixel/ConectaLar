@@ -1382,7 +1382,29 @@ paths:
   /solicitacoes/{id}/cancelar:
     patch:
       operationId: patchSolicitacaoCancelar
-      summary: Client cancels a pending or accepted request
+      summary: A participant cancels a request before the appointment starts
+      description: A client can cancel a pending or accepted request. A professional can cancel an accepted request. A reason is always required and the event is audited.
+      tags:
+        - Solicitacoes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoCancelamentoRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/concluir:
+    patch:
+      operationId: patchSolicitacaoConcluir
+      summary: Professional marks an accepted appointment as performed
       tags:
         - Solicitacoes
       security:
@@ -1394,16 +1416,71 @@ paths:
           $ref: '#/components/responses/SolicitacaoResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
-  /solicitacoes/{id}/concluir:
+  /solicitacoes/{id}/conclusao/confirmar:
     patch:
-      operationId: patchSolicitacaoConcluir
-      summary: Client confirms conclusion of an accepted request
-      tags:
-        - Solicitacoes
-      security:
-        - bearerAuth: []
+      operationId: patchSolicitacaoConfirmarConclusao
+      summary: Client confirms that the service was completed
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
       parameters:
         - $ref: '#/components/parameters/SolicitacaoId'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/conclusao/contestar:
+    patch:
+      operationId: patchSolicitacaoContestarConclusao
+      summary: Client disputes a completion reported by the professional
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoAtendimentoRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/nao-comparecimento:
+    patch:
+      operationId: patchSolicitacaoNaoComparecimento
+      summary: A participant reports a no-show after the appointment starts
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoAtendimentoRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/nao-comparecimento/contestar:
+    patch:
+      operationId: patchSolicitacaoContestarNaoComparecimento
+      summary: The other participant disputes a no-show report
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoAtendimentoRequest'
       responses:
         '200':
           $ref: '#/components/responses/SolicitacaoResponse'
@@ -2136,10 +2213,11 @@ paths:
                       categoriasAtivas: {type: integer, minimum: 0}
                   atendimentos:
                     type: object
-                    required: [aguardandoResposta, aceitaAgendada, conclusaoConfirmada]
+                    required: [aguardandoResposta, aceitaAgendada, emRevisao, conclusaoConfirmada]
                     properties:
                       aguardandoResposta: {type: integer, minimum: 0}
                       aceitaAgendada: {type: integer, minimum: 0}
+                      emRevisao: {type: integer, minimum: 0}
                       conclusaoConfirmada: {type: integer, minimum: 0}
         default:
           $ref: '#/components/responses/ApiErrorResponse'
@@ -3559,6 +3637,11 @@ components:
         - intervaloMinutos
         - reagendamento
         - reagendamentos
+        - cancelamentoMotivo
+        - conclusaoContestacaoMotivo
+        - naoComparecimentoMotivo
+        - naoComparecimentoPorId
+        - eventos
         - precoInicial
         - cliente
         - profissional
@@ -3618,6 +3701,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Reagendamento'
+        cancelamentoMotivo:
+          type: [string, 'null']
+        conclusaoContestacaoMotivo:
+          type: [string, 'null']
+        naoComparecimentoMotivo:
+          type: [string, 'null']
+        naoComparecimentoPorId:
+          type: [integer, 'null']
+          minimum: 1
+        eventos:
+          type: array
+          items:
+            $ref: '#/components/schemas/SolicitacaoEvento'
         fusoHorario:
           type: string
           const: America/Sao_Paulo
@@ -3673,6 +3769,9 @@ components:
         - aceita_agendada
         - recusada
         - cancelada
+        - conclusao_pendente
+        - conclusao_contestada
+        - nao_comparecimento_informado
         - conclusao_confirmada
     Disponibilidade:
       type: object
@@ -4048,6 +4147,49 @@ components:
         dataServico: {type: string, format: date}
         horarioServico: {type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$'}
         motivo: {type: string, minLength: 10, maxLength: 400}
+    MotivoAtendimentoRequest:
+      type: object
+      additionalProperties: false
+      required: [motivo]
+      properties:
+        motivo:
+          type: string
+          minLength: 20
+          maxLength: 600
+    MotivoCancelamentoRequest:
+      type: object
+      additionalProperties: false
+      required: [motivo]
+      properties:
+        motivo:
+          type: string
+          minLength: 10
+          maxLength: 400
+    SolicitacaoEvento:
+      type: object
+      additionalProperties: false
+      required: [id, tipo, statusAnterior, statusNovo, motivo, ator, criadoEm]
+      properties:
+        id: {type: integer, minimum: 1}
+        tipo: {type: string}
+        statusAnterior:
+          oneOf:
+            - $ref: '#/components/schemas/SolicitacaoStatus'
+            - type: 'null'
+        statusNovo:
+          $ref: '#/components/schemas/SolicitacaoStatus'
+        motivo: {type: [string, 'null']}
+        ator:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, nome, tipo]
+              properties:
+                id: {type: integer, minimum: 1}
+                nome: {type: string}
+                tipo: {$ref: '#/components/schemas/UsuarioTipo'}
+            - type: 'null'
+        criadoEm: {type: string, format: date-time}
     Reagendamento:
       type: object
       additionalProperties: false

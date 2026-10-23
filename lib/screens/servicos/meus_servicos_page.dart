@@ -296,7 +296,14 @@ class _ServicoCard extends StatelessWidget {
                   children: [
                     if (solicitacao.status ==
                             StatusSolicitacao.aguardandoResposta ||
-                        solicitacao.status == StatusSolicitacao.aceitaAgendada)
+                        solicitacao.status ==
+                            StatusSolicitacao.aceitaAgendada ||
+                        solicitacao.status ==
+                            StatusSolicitacao.conclusaoPendente ||
+                        solicitacao.status ==
+                            StatusSolicitacao.conclusaoContestada ||
+                        solicitacao.status ==
+                            StatusSolicitacao.naoComparecimentoInformado)
                       OutlinedButton.icon(
                         onPressed: () => Navigator.pushNamed(
                           context,
@@ -334,6 +341,9 @@ class _StatusPill extends StatelessWidget {
       StatusSolicitacao.aceitaAgendada => AppColors.verde,
       StatusSolicitacao.recusada => AppColors.erro,
       StatusSolicitacao.cancelada => AppColors.textoSuave,
+      StatusSolicitacao.conclusaoPendente => const Color(0xFF9A6415),
+      StatusSolicitacao.conclusaoContestada => AppColors.erro,
+      StatusSolicitacao.naoComparecimentoInformado => AppColors.erro,
       StatusSolicitacao.conclusaoConfirmada => AppColors.verdeEscuro,
     };
 
@@ -444,7 +454,12 @@ enum _FiltroServicos {
   aguardando('aguardando', 'Aguardando', [
     StatusSolicitacao.aguardandoResposta,
   ]),
-  agendados('agendados', 'Agendados', [StatusSolicitacao.aceitaAgendada]),
+  agendados('agendados', 'Em andamento', [
+    StatusSolicitacao.aceitaAgendada,
+    StatusSolicitacao.conclusaoPendente,
+    StatusSolicitacao.conclusaoContestada,
+    StatusSolicitacao.naoComparecimentoInformado,
+  ]),
   historico('historico', 'Histórico', [
     StatusSolicitacao.recusada,
     StatusSolicitacao.cancelada,

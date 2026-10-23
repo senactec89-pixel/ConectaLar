@@ -16,6 +16,7 @@ import { ProfissionalPerfilEntity } from './entities/profissional-perfil.entity.
 import { ProfissionalServicoEntity } from './entities/profissional-servico.entity.js';
 import { PrivacidadeSolicitacaoEntity } from './entities/privacidade-solicitacao.entity.js';
 import { SolicitacaoEntity } from './entities/solicitacao.entity.js';
+import { SolicitacaoEventoEntity } from './entities/solicitacao-evento.entity.js';
 import { SolicitacaoReagendamentoEntity } from './entities/solicitacao-reagendamento.entity.js';
 import { TermoAceiteEntity } from './entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from './entities/usuario-email-verificacao.entity.js';
@@ -78,6 +79,7 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       ProfissionalServicoEntity,
       CategoriaEntity,
       SolicitacaoEntity,
+      SolicitacaoEventoEntity,
       MensagemAtendimentoEntity,
       AvaliacaoEntity,
       ClientePerfilEntity,

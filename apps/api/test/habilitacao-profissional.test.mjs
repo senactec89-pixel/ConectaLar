@@ -116,7 +116,10 @@ function solicitacoesFixture(status = 'aguardando_resposta') {
   const manager = { async findOne(type) { return type === ProfissionalPerfilEntity ? p : solicitacao; },
     async save() { assert.fail('Nao pode gravar aceite sem habilitacao'); } };
   const repo = { async findOne() { return solicitacao; },
-    manager: { async transaction(_isolation, fn) { return fn(manager); } } };
+    manager: {
+      async transaction(_isolation, fn) { return fn(manager); },
+      getRepository() { return { async find() { return []; } }; },
+    } };
   const service = new SolicitacoesService({ async count() { return 0; } }, {}, {}, {}, {},
     { async findOne() { return p; } }, repo,
     { async find() { return []; }, async findOne() { return null; } }, {},

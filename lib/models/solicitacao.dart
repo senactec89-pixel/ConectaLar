@@ -5,6 +5,9 @@ enum StatusSolicitacao {
   aceitaAgendada('aceita_agendada'),
   recusada('recusada'),
   cancelada('cancelada'),
+  conclusaoPendente('conclusao_pendente'),
+  conclusaoContestada('conclusao_contestada'),
+  naoComparecimentoInformado('nao_comparecimento_informado'),
   conclusaoConfirmada('conclusao_confirmada');
 
   const StatusSolicitacao(this.valorBanco);
@@ -16,6 +19,10 @@ enum StatusSolicitacao {
     StatusSolicitacao.aceitaAgendada => 'Aceita e agendada',
     StatusSolicitacao.recusada => 'Recusada',
     StatusSolicitacao.cancelada => 'Cancelada',
+    StatusSolicitacao.conclusaoPendente => 'Aguardando confirmação',
+    StatusSolicitacao.conclusaoContestada => 'Conclusão contestada',
+    StatusSolicitacao.naoComparecimentoInformado =>
+      'Não comparecimento informado',
     StatusSolicitacao.conclusaoConfirmada => 'Conclusão confirmada',
   };
 }
@@ -46,6 +53,10 @@ class Solicitacao {
     this.reagendamento,
     this.reagendamentos = const [],
     this.cancelamentoMotivo,
+    this.conclusaoContestacaoMotivo,
+    this.naoComparecimentoMotivo,
+    this.naoComparecimentoPorId,
+    this.eventos = const [],
   });
 
   final int id;
@@ -68,6 +79,10 @@ class Solicitacao {
   final Map<String, dynamic>? reagendamento;
   final List<Map<String, dynamic>> reagendamentos;
   final String? cancelamentoMotivo;
+  final String? conclusaoContestacaoMotivo;
+  final String? naoComparecimentoMotivo;
+  final int? naoComparecimentoPorId;
+  final List<Map<String, dynamic>> eventos;
   final double? precoInicial;
   final StatusSolicitacao status;
   final DateTime criadoEm;

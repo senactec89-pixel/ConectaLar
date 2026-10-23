@@ -136,6 +136,16 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
     cancelamentoMotivo: nullableString(json['cancelamentoMotivo']),
+    conclusaoContestacaoMotivo: nullableString(
+      json['conclusaoContestacaoMotivo'],
+    ),
+    naoComparecimentoMotivo: nullableString(json['naoComparecimentoMotivo']),
+    naoComparecimentoPorId: json['naoComparecimentoPorId'] == null
+        ? null
+        : intValue(json['naoComparecimentoPorId']),
+    eventos: (json['eventos'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
     precoInicial: doubleValueOrNull(json['precoInicial']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),

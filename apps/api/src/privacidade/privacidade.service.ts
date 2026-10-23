@@ -125,6 +125,9 @@ export class PrivacidadeService {
           status: [
             SolicitacaoStatus.AguardandoResposta,
             SolicitacaoStatus.AceitaAgendada,
+            SolicitacaoStatus.ConclusaoPendente,
+            SolicitacaoStatus.ConclusaoContestada,
+            SolicitacaoStatus.NaoComparecimentoInformado,
           ],
         })
         .andWhere(

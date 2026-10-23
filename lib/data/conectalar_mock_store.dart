@@ -296,11 +296,46 @@ class ConectaLarMockStore extends ChangeNotifier {
     );
   }
 
-  bool confirmarConclusao(int solicitacaoId) {
+  bool marcarServicoRealizado(int solicitacaoId) {
     return _transicionar(
       solicitacaoId,
       permitido: [StatusSolicitacao.aceitaAgendada],
+      novoStatus: StatusSolicitacao.conclusaoPendente,
+    );
+  }
+
+  bool confirmarConclusao(int solicitacaoId) {
+    return _transicionar(
+      solicitacaoId,
+      permitido: [
+        StatusSolicitacao.conclusaoPendente,
+        StatusSolicitacao.conclusaoContestada,
+      ],
       novoStatus: StatusSolicitacao.conclusaoConfirmada,
+    );
+  }
+
+  bool contestarConclusao(int solicitacaoId) {
+    return _transicionar(
+      solicitacaoId,
+      permitido: [StatusSolicitacao.conclusaoPendente],
+      novoStatus: StatusSolicitacao.conclusaoContestada,
+    );
+  }
+
+  bool informarNaoComparecimento(int solicitacaoId) {
+    return _transicionar(
+      solicitacaoId,
+      permitido: [StatusSolicitacao.aceitaAgendada],
+      novoStatus: StatusSolicitacao.naoComparecimentoInformado,
+    );
+  }
+
+  bool contestarNaoComparecimento(int solicitacaoId) {
+    return _transicionar(
+      solicitacaoId,
+      permitido: [StatusSolicitacao.naoComparecimentoInformado],
+      novoStatus: StatusSolicitacao.conclusaoContestada,
     );
   }
 
@@ -393,8 +428,25 @@ class ConectaLarMockStore extends ChangeNotifier {
       profissionalId: solicitacao.profissionalId,
       categoriaId: solicitacao.categoriaId,
       descricao: solicitacao.descricao,
+      bairroAtendimento: solicitacao.bairroAtendimento,
+      enderecoProtegido: solicitacao.enderecoProtegido,
+      enderecoCompletoLiberado: solicitacao.enderecoCompletoLiberado,
+      enderecoId: solicitacao.enderecoId,
+      enderecoAtendimento: solicitacao.enderecoAtendimento,
+      profissionalUsuarioId: solicitacao.profissionalUsuarioId,
+      servicoId: solicitacao.servicoId,
+      nomeServico: solicitacao.nomeServico,
       dataServico: solicitacao.dataServico,
       horarioServico: solicitacao.horarioServico,
+      duracaoMinutos: solicitacao.duracaoMinutos,
+      intervaloMinutos: solicitacao.intervaloMinutos,
+      reagendamento: solicitacao.reagendamento,
+      reagendamentos: solicitacao.reagendamentos,
+      cancelamentoMotivo: solicitacao.cancelamentoMotivo,
+      conclusaoContestacaoMotivo: solicitacao.conclusaoContestacaoMotivo,
+      naoComparecimentoMotivo: solicitacao.naoComparecimentoMotivo,
+      naoComparecimentoPorId: solicitacao.naoComparecimentoPorId,
+      eventos: solicitacao.eventos,
       precoInicial: solicitacao.precoInicial,
       status: status,
       criadoEm: solicitacao.criadoEm,

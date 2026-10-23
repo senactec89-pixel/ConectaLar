@@ -78,7 +78,13 @@ class _ChatPageState extends State<ChatPage> {
                       servico.solicitacao.status ==
                           StatusSolicitacao.aguardandoResposta ||
                       servico.solicitacao.status ==
-                          StatusSolicitacao.aceitaAgendada,
+                          StatusSolicitacao.aceitaAgendada ||
+                      servico.solicitacao.status ==
+                          StatusSolicitacao.conclusaoPendente ||
+                      servico.solicitacao.status ==
+                          StatusSolicitacao.conclusaoContestada ||
+                      servico.solicitacao.status ==
+                          StatusSolicitacao.naoComparecimentoInformado,
                 )
                 .toList(growable: false);
 

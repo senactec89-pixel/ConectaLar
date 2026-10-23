@@ -39,6 +39,40 @@ class ServicoService {
     return _api.patch('solicitacoes/$solicitacaoId/concluir');
   }
 
+  Future<Map<String, dynamic>> confirmarConclusao(int solicitacaoId) {
+    return _api.patch('solicitacoes/$solicitacaoId/conclusao/confirmar');
+  }
+
+  Future<Map<String, dynamic>> contestarConclusao(
+    int solicitacaoId, {
+    required String motivo,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/conclusao/contestar',
+      body: {'motivo': motivo},
+    );
+  }
+
+  Future<Map<String, dynamic>> informarNaoComparecimento(
+    int solicitacaoId, {
+    required String motivo,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/nao-comparecimento',
+      body: {'motivo': motivo},
+    );
+  }
+
+  Future<Map<String, dynamic>> contestarNaoComparecimento(
+    int solicitacaoId, {
+    required String motivo,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/nao-comparecimento/contestar',
+      body: {'motivo': motivo},
+    );
+  }
+
   Future<Map<String, dynamic>> proporReagendamento(
     int solicitacaoId, {
     required String dataServico,

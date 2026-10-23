@@ -206,6 +206,45 @@ void main() {
   );
 
   testWidgets(
+    'conclusão bilateral separa a declaração profissional da confirmação do cliente',
+    (tester) async {
+      await _sessao(
+        'profissional',
+        (_) async => _json({
+          'solicitacao': _pedido(status: 'aceita_agendada'),
+        }),
+      );
+      await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
+      await tester.scrollUntilVisible(
+        find.text('Ações do atendimento'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Marcar como realizado'), findsOneWidget);
+      expect(find.text('Confirmar conclusão'), findsNothing);
+      expect(find.text('Cancelar'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _sessao(
+        'cliente',
+        (_) async => _json({
+          'solicitacao': _pedido(status: 'conclusao_pendente'),
+        }),
+      );
+      await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
+      await tester.scrollUntilVisible(
+        find.text('Ações do atendimento'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Confirmar conclusão'), findsOneWidget);
+      expect(find.text('Contestar conclusão'), findsOneWidget);
+      expect(find.text('Marcar como realizado'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'profissional avalia o cliente e a avaliação enviada não pode ser repetida',
     (tester) async {
       final paths = <String>[];

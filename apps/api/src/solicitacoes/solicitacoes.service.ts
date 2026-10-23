@@ -15,6 +15,7 @@ import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.ent
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { EnderecoAtendimentoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import {
   ReagendamentoStatus,
@@ -157,7 +158,21 @@ export class SolicitacoesService {
       status: SolicitacaoStatus.AguardandoResposta,
     });
 
-    const saved = await this.solicitacoes.save(solicitacao);
+    const saved = await this.solicitacoes.manager.transaction(async (manager) => {
+      const criada = await manager.save(SolicitacaoEntity, solicitacao);
+      await manager.save(
+        SolicitacaoEventoEntity,
+        manager.create(SolicitacaoEventoEntity, {
+          solicitacaoId: criada.id,
+          atorId: user.id,
+          tipo: 'solicitacao_criada',
+          statusAnterior: null,
+          statusNovo: criada.status,
+          motivo: null,
+        }),
+      );
+      return criada;
+    });
     const reloaded = await this.carregar(saved.id);
     await this.notificarSeguro({
       usuarioId: profissional.usuarioId,
@@ -227,6 +242,7 @@ export class SolicitacoesService {
       SolicitacaoStatus.AguardandoResposta,
       SolicitacaoStatus.AceitaAgendada,
       user,
+      'solicitacao_aceita',
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.clienteId,
@@ -247,6 +263,7 @@ export class SolicitacoesService {
       SolicitacaoStatus.AguardandoResposta,
       SolicitacaoStatus.Recusada,
       user,
+      'solicitacao_recusada',
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.clienteId,
@@ -262,19 +279,45 @@ export class SolicitacoesService {
   async cancelar(user: AuthenticatedUser, id: number, body: unknown) {
     const motivo = textField(objectBody(body), 'motivo', 10, 400);
     const solicitacao = await this.carregar(id);
-    assertClienteParticipante(user, solicitacao);
+    assertParticipante(user, solicitacao);
+    if (user.tipo === UsuarioTipo.Administrador) throw forbidden();
+    if (
+      solicitacao.status === SolicitacaoStatus.AguardandoResposta &&
+      user.id !== solicitacao.clienteId
+    ) {
+      throw forbidden();
+    }
+    if (
+      solicitacao.status === SolicitacaoStatus.AceitaAgendada &&
+      agendamentoJaIniciou(solicitacao)
+    ) {
+      throw new ConflictException({
+        code: 'CANCELAMENTO_APOS_INICIO',
+        message:
+          'O atendimento ja iniciou. Registre um nao comparecimento ou use a ajuda e seguranca.',
+      });
+    }
     await this.transicionar(
       solicitacao,
       [SolicitacaoStatus.AguardandoResposta, SolicitacaoStatus.AceitaAgendada],
       SolicitacaoStatus.Cancelada,
       user,
+      'solicitacao_cancelada',
+      motivo,
+      (atual) => {
+        atual.cancelamentoMotivo = motivo;
+      },
     );
-    await this.solicitacoes.update(id, { cancelamentoMotivo: motivo });
+    const canceladoPeloCliente = user.id === solicitacao.clienteId;
     await this.notificarSeguro({
-      usuarioId: solicitacao.profissional.usuarioId,
+      usuarioId: canceladoPeloCliente
+        ? solicitacao.profissional.usuarioId
+        : solicitacao.clienteId,
       tipo: NotificacaoTipo.SolicitacaoCancelada,
       titulo: 'Solicitacao cancelada',
-      mensagem: 'O cliente cancelou uma solicitacao de atendimento.',
+      mensagem: canceladoPeloCliente
+        ? 'O cliente cancelou uma solicitacao de atendimento.'
+        : 'O profissional cancelou um atendimento agendado.',
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
@@ -283,12 +326,35 @@ export class SolicitacoesService {
 
   async concluir(user: AuthenticatedUser, id: number) {
     const solicitacao = await this.carregar(id);
-    assertClienteParticipante(user, solicitacao);
+    assertProfissionalParticipante(user, solicitacao);
+    exigirAgendamentoIniciado(solicitacao);
     const response = await this.transicionar(
       solicitacao,
       SolicitacaoStatus.AceitaAgendada,
+      SolicitacaoStatus.ConclusaoPendente,
+      user,
+      'servico_marcado_realizado',
+    );
+    await this.notificarSeguro({
+      usuarioId: solicitacao.clienteId,
+      tipo: NotificacaoTipo.ConclusaoPendente,
+      titulo: 'Confirme a conclusao',
+      mensagem: 'O profissional informou que o atendimento foi realizado.',
+      recursoTipo: 'solicitacao',
+      recursoId: solicitacao.id,
+    });
+    return response;
+  }
+
+  async confirmarConclusao(user: AuthenticatedUser, id: number) {
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    const response = await this.transicionar(
+      solicitacao,
+      [SolicitacaoStatus.ConclusaoPendente, SolicitacaoStatus.ConclusaoContestada],
       SolicitacaoStatus.ConclusaoConfirmada,
       user,
+      'conclusao_confirmada',
     );
     await this.notificarSeguro({
       usuarioId: solicitacao.profissional.usuarioId,
@@ -298,6 +364,108 @@ export class SolicitacoesService {
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
+    return response;
+  }
+
+  async contestarConclusao(user: AuthenticatedUser, id: number, body: unknown) {
+    const motivo = textField(objectBody(body), 'motivo', 20, 600);
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    const response = await this.transicionar(
+      solicitacao,
+      SolicitacaoStatus.ConclusaoPendente,
+      SolicitacaoStatus.ConclusaoContestada,
+      user,
+      'conclusao_contestada',
+      motivo,
+      (atual) => {
+        atual.conclusaoContestacaoMotivo = motivo;
+      },
+    );
+    await this.notificarSeguro({
+      usuarioId: solicitacao.profissional.usuarioId,
+      tipo: NotificacaoTipo.ConclusaoContestada,
+      titulo: 'Conclusao contestada',
+      mensagem: 'O cliente informou que o atendimento precisa ser revisto.',
+      recursoTipo: 'solicitacao',
+      recursoId: solicitacao.id,
+    });
+    return response;
+  }
+
+  async informarNaoComparecimento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const motivo = textField(objectBody(body), 'motivo', 20, 600);
+    const solicitacao = await this.carregar(id);
+    assertParticipante(user, solicitacao);
+    if (user.tipo === UsuarioTipo.Administrador) throw forbidden();
+    exigirAgendamentoIniciado(solicitacao);
+    const destinatarioId =
+      user.id === solicitacao.clienteId
+        ? solicitacao.profissional.usuarioId
+        : solicitacao.clienteId;
+    const response = await this.transicionar(
+      solicitacao,
+      SolicitacaoStatus.AceitaAgendada,
+      SolicitacaoStatus.NaoComparecimentoInformado,
+      user,
+      'nao_comparecimento_informado',
+      motivo,
+      (atual) => {
+        atual.naoComparecimentoMotivo = motivo;
+        atual.naoComparecimentoPorId = user.id;
+      },
+    );
+    await this.notificarSeguro({
+      usuarioId: destinatarioId,
+      tipo: NotificacaoTipo.NaoComparecimento,
+      titulo: 'Nao comparecimento informado',
+      mensagem: 'A outra parte registrou um nao comparecimento no atendimento.',
+      recursoTipo: 'solicitacao',
+      recursoId: solicitacao.id,
+    });
+    return response;
+  }
+
+  async contestarNaoComparecimento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const motivo = textField(objectBody(body), 'motivo', 20, 600);
+    const solicitacao = await this.carregar(id);
+    assertParticipante(user, solicitacao);
+    if (
+      user.tipo === UsuarioTipo.Administrador ||
+      solicitacao.naoComparecimentoPorId === user.id
+    ) {
+      throw forbidden();
+    }
+    const response = await this.transicionar(
+      solicitacao,
+      SolicitacaoStatus.NaoComparecimentoInformado,
+      SolicitacaoStatus.ConclusaoContestada,
+      user,
+      'nao_comparecimento_contestado',
+      motivo,
+      (atual) => {
+        atual.conclusaoContestacaoMotivo = motivo;
+      },
+    );
+    const destinatarioId = solicitacao.naoComparecimentoPorId;
+    if (destinatarioId !== null) {
+      await this.notificarSeguro({
+        usuarioId: destinatarioId,
+        tipo: NotificacaoTipo.ConclusaoContestada,
+        titulo: 'Ocorrencia contestada',
+        mensagem: 'A outra parte contestou o nao comparecimento informado.',
+        recursoTipo: 'solicitacao',
+        recursoId: solicitacao.id,
+      });
+    }
     return response;
   }
 
@@ -409,6 +577,9 @@ export class SolicitacoesService {
     origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
     destino: SolicitacaoStatus,
     user: AuthenticatedUser,
+    eventoTipo: string,
+    motivo: string | null = null,
+    atualizar?: (solicitacao: SolicitacaoEntity) => void,
   ) {
     await this.solicitacoes.manager.transaction(
       'READ COMMITTED',
@@ -451,8 +622,21 @@ export class SolicitacoesService {
             disponibilidade,
           );
         }
+        const statusAnterior = atual.status;
         atual.status = destino;
+        atualizar?.(atual);
         await manager.save(SolicitacaoEntity, atual);
+        await manager.save(
+          SolicitacaoEventoEntity,
+          manager.create(SolicitacaoEventoEntity, {
+            solicitacaoId: atual.id,
+            atorId: user.id,
+            tipo: eventoTipo,
+            statusAnterior,
+            statusNovo: destino,
+            motivo,
+          }),
+        );
       },
     );
     return this.responder(await this.carregar(solicitacao.id), user);
@@ -471,6 +655,12 @@ export class SolicitacoesService {
       where: { solicitacaoId: solicitacao.id },
       order: { criadoEm: 'DESC' },
     });
+    const eventos = await this.solicitacoes.manager.getRepository(SolicitacaoEventoEntity).find({
+      where: { solicitacaoId: solicitacao.id },
+      relations: { ator: true },
+      order: { criadoEm: 'DESC' },
+      take: 100,
+    });
     return {
       solicitacao: {
         ...solicitacaoResponse(solicitacao, user, avaliado),
@@ -478,6 +668,7 @@ export class SolicitacoesService {
           ? null
           : reagendamentoResponse(reagendamentos[0]),
         reagendamentos: reagendamentos.map(reagendamentoResponse),
+        eventos: eventos.map(eventoResponse),
       },
     };
   }
@@ -627,6 +818,9 @@ function solicitacaoResponse(
       user !== undefined && podeVerMotivoCancelamento(solicitacao, user)
         ? solicitacao.cancelamentoMotivo
         : null,
+    conclusaoContestacaoMotivo: solicitacao.conclusaoContestacaoMotivo,
+    naoComparecimentoMotivo: solicitacao.naoComparecimentoMotivo,
+    naoComparecimentoPorId: solicitacao.naoComparecimentoPorId,
     cliente: {
       id: solicitacao.cliente.id,
       nome: solicitacao.cliente.nome,
@@ -665,6 +859,9 @@ function enderecoCompletoLiberado(
     if (!podeAtender(solicitacao.profissional)) return false;
     return [
       SolicitacaoStatus.AceitaAgendada,
+      SolicitacaoStatus.ConclusaoPendente,
+      SolicitacaoStatus.ConclusaoContestada,
+      SolicitacaoStatus.NaoComparecimentoInformado,
       SolicitacaoStatus.ConclusaoConfirmada,
     ].includes(solicitacao.status);
   }
@@ -769,6 +966,21 @@ function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
     motivo: item.motivo,
     status: item.status,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
+    criadoEm: item.criadoEm.toISOString(),
+  };
+}
+
+function eventoResponse(item: SolicitacaoEventoEntity) {
+  return {
+    id: item.id,
+    tipo: item.tipo,
+    statusAnterior: item.statusAnterior,
+    statusNovo: item.statusNovo,
+    motivo: item.motivo,
+    ator:
+      item.ator === null
+        ? null
+        : { id: item.ator.id, nome: item.ator.nome, tipo: item.ator.tipo },
     criadoEm: item.criadoEm.toISOString(),
   };
 }
@@ -880,6 +1092,42 @@ function assertAgendamentoFuturo(
       message: 'Escolha uma data e horario futuros para o atendimento.',
     });
   }
+}
+
+function agendamentoJaIniciou(solicitacao: SolicitacaoEntity): boolean {
+  const agora = civilAgora();
+  const dataHorario = `${solicitacao.dataServico}T${solicitacao.horarioServico}`;
+  return dataHorario <= `${agora.data}T${agora.horario}`;
+}
+
+function exigirAgendamentoIniciado(solicitacao: SolicitacaoEntity): void {
+  if (!agendamentoJaIniciou(solicitacao)) {
+    throw new ConflictException({
+      code: 'ATENDIMENTO_NAO_INICIADO',
+      message: 'Esta acao fica disponivel a partir do horario do atendimento.',
+    });
+  }
+}
+
+function civilAgora(): { data: string; horario: string } {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: fusoAgenda,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(new Date())
+    .reduce<Record<string, string>>((resultado, parte) => {
+      resultado[parte.type] = parte.value;
+      return resultado;
+    }, {});
+  return {
+    data: `${partes.year}-${partes.month}-${partes.day}`,
+    horario: `${partes.hour}:${partes.minute}`,
+  };
 }
 
 function snapshotEndereco(

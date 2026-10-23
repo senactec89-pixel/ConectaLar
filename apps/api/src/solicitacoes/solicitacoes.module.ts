@@ -8,6 +8,7 @@ import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.ent
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { SolicitacaoReagendamentoEntity } from '../database/entities/solicitacao-reagendamento.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
@@ -27,6 +28,7 @@ import { SolicitacoesService } from './solicitacoes.service.js';
       ProfissionalDisponibilidadeEntity,
       ProfissionalPerfilEntity,
       SolicitacaoEntity,
+      SolicitacaoEventoEntity,
       SolicitacaoReagendamentoEntity,
       ProfissionalBloqueioEntity,
       UsuarioEntity,
