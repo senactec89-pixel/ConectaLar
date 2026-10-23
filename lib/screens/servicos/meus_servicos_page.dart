@@ -163,6 +163,7 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                     if (servicos.isEmpty)
                       _ListaVazia(
                         filtro: _filtro,
+                        haMaisPedidos: pagina.hasMore,
                         onBuscar: () =>
                             Navigator.pushNamed(context, AppRoutes.busca),
                         onVerTodos: () =>
@@ -473,16 +474,26 @@ class _ResumoIcone extends StatelessWidget {
 class _ListaVazia extends StatelessWidget {
   const _ListaVazia({
     required this.filtro,
+    required this.haMaisPedidos,
     required this.onBuscar,
     required this.onVerTodos,
   });
 
   final _FiltroServicos filtro;
+  final bool haMaisPedidos;
   final VoidCallback onBuscar;
   final VoidCallback onVerTodos;
 
   @override
   Widget build(BuildContext context) {
+    if (haMaisPedidos) {
+      return const EmptyStateView(
+        title: 'Ainda há pedidos para conferir',
+        message:
+            'Nenhum pedido deste filtro apareceu entre os já carregados. Carregue mais pedidos para continuar procurando.',
+        icon: Icons.manage_search_outlined,
+      );
+    }
     final (titulo, mensagem) = switch (filtro) {
       _FiltroServicos.todos => (
         'Você ainda não tem solicitações',

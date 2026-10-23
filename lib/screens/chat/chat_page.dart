@@ -153,10 +153,13 @@ class _ChatPageState extends State<ChatPage> {
                 ),
                 const SizedBox(height: 16),
                 if (conversas.isEmpty)
-                  const EmptyStateView(
-                    title: 'Nenhuma conversa ativa',
-                    message:
-                        'As conversas ficam disponíveis enquanto a solicitação estiver ativa.',
+                  EmptyStateView(
+                    title: pagina.hasMore
+                        ? 'Ainda há pedidos para conferir'
+                        : 'Nenhuma conversa ativa',
+                    message: pagina.hasMore
+                        ? 'Não há conversas ativas entre os pedidos carregados. Carregue mais para continuar procurando.'
+                        : 'As conversas ficam disponíveis enquanto a solicitação estiver ativa.',
                     icon: Icons.chat_bubble_outline_rounded,
                   )
                 else
