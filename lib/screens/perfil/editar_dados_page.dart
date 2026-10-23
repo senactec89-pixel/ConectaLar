@@ -185,12 +185,12 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Mantenha seu perfil atualizado',
+                              'Perfil e contato',
                               style: Theme.of(context).textTheme.headlineSmall,
                             ),
                             const SizedBox(height: AppSpace.sm),
                             Text(
-                              'Essas informações ajudam a identificar sua conta e organizar seus atendimentos.',
+                              'Confira seu e-mail e atualize os dados usados para identificar e contatar você.',
                               style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(color: AppColors.textoSuave),
                             ),
@@ -200,6 +200,24 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                 padding: AppInsets.card,
                                 child: Column(
                                   children: [
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.contact_page_outlined,
+                                          color: AppColors.verdeEscuro,
+                                        ),
+                                        const SizedBox(width: AppSpace.sm),
+                                        Expanded(
+                                          child: Text(
+                                            'Informações pessoais',
+                                            style: Theme.of(
+                                              context,
+                                            ).textTheme.titleMedium,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: AppSpace.lg),
                                     TextFormField(
                                       key: const ValueKey('perfil-nome'),
                                       controller: _nome,
@@ -231,7 +249,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         labelText: 'E-mail',
                                         prefixIcon: Icon(Icons.mail_outline),
                                         helperText:
-                                            'Para alterar o e-mail, confirme a titularidade da conta.',
+                                            'E-mail vinculado à conta. Você pode consultá-lo aqui.',
                                         helperMaxLines: 10,
                                       ),
                                     ),

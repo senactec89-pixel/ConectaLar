@@ -10,11 +10,11 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
-  testWidgets('seguranca explica exportacao e exige confirmacao forte', (
+  testWidgets('privacidade explica exportacao e exige confirmacao forte', (
     tester,
   ) async {
     await configurarFrontend();
-    await abrirFrontend(tester, AppRoutes.seguranca, width: 360, textScale: 2);
+    await abrirFrontend(tester, AppRoutes.privacidade, width: 360, textScale: 2);
 
     expect(find.text('Exportar meus dados'), findsOneWidget);
     expect(find.text('Excluir minha conta'), findsOneWidget);
@@ -73,7 +73,7 @@ void main() {
         return null;
       },
     );
-    await abrirFrontend(tester, AppRoutes.seguranca);
+    await abrirFrontend(tester, AppRoutes.privacidade);
 
     final acaoExcluir = find.byKey(const ValueKey('seguranca-excluir-conta'));
     await tester.scrollUntilVisible(
@@ -107,7 +107,7 @@ void main() {
     tester,
   ) async {
     await configurarFrontend(papel: 'administrador');
-    await abrirFrontend(tester, AppRoutes.seguranca);
+    await abrirFrontend(tester, AppRoutes.privacidade);
 
     expect(find.text('Exportar meus dados'), findsOneWidget);
     expect(find.text('Conta administrativa'), findsOneWidget);

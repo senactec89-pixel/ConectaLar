@@ -183,7 +183,7 @@ class _PerfilPageState extends State<PerfilPage> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                usuario.tipo.valorBanco,
+                                _tipoConta(usuario),
                                 style: const TextStyle(
                                   color: AppColors.textoSuave,
                                   fontWeight: FontWeight.w700,
@@ -198,11 +198,16 @@ class _PerfilPageState extends State<PerfilPage> {
                 ),
                 const SizedBox(height: 14),
                 const _DadosProtegidos(),
-                const SizedBox(height: 14),
+                const SizedBox(height: AppSpace.xl),
+                Text(
+                  'Perfil e contato',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpace.sm),
                 _PerfilOpcao(
                   icon: Icons.badge_outlined,
                   title: 'Meus dados',
-                  subtitle: 'Editar nome e telefone; consultar e-mail',
+                  subtitle: 'Nome, telefone e e-mail da conta',
                   onTap: () async {
                     final atualizado = await Navigator.pushNamed(
                       context,
@@ -231,21 +236,25 @@ class _PerfilPageState extends State<PerfilPage> {
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.notificacoes),
                 ),
+                const SizedBox(height: AppSpace.lg),
+                Text(
+                  'Acesso e privacidade',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpace.sm),
                 _PerfilOpcao(
                   icon: Icons.lock_outline,
                   title: 'Segurança',
-                  subtitle: 'Sessão, senha e recuperação de acesso',
+                  subtitle: 'Senha, recuperação e autenticação',
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.seguranca),
                 ),
-                _ContaDetalhes(usuario: usuario),
-                const SizedBox(height: 14),
                 _PerfilOpcao(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacidade',
-                  subtitle: 'Exportar dados ou excluir a conta pela LGPD',
+                  subtitle: 'Controle dos seus dados pessoais',
                   onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.seguranca),
+                      Navigator.pushNamed(context, AppRoutes.privacidade),
                 ),
                 _PerfilOpcao(
                   icon: Icons.logout_rounded,
@@ -406,85 +415,6 @@ class _DadosProtegidos extends StatelessWidget {
                 color: AppColors.texto,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContaDetalhes extends StatelessWidget {
-  const _ContaDetalhes({required this.usuario});
-
-  final Usuario usuario;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: AppInsets.card,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.badge_outlined, color: AppColors.verdeEscuro),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Dados da conta',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpace.md),
-            _ContaLinha(rotulo: 'E-mail', valor: usuario.email),
-            _ContaLinha(
-              rotulo: 'Telefone',
-              valor: usuario.telefone ?? 'Não informado',
-            ),
-            _ContaLinha(rotulo: 'Tipo de conta', valor: _tipoConta(usuario)),
-            if (usuario.bairro != null && usuario.bairro!.trim().isNotEmpty)
-              _ContaLinha(rotulo: 'Região principal', valor: usuario.bairro!),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ContaLinha extends StatelessWidget {
-  const _ContaLinha({required this.rotulo, required this.valor});
-
-  final String rotulo;
-  final String valor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 112,
-            child: Text(
-              rotulo,
-              style: const TextStyle(
-                color: AppColors.textoSuave,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              valor,
-              style: const TextStyle(
-                color: AppColors.texto,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),

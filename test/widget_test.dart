@@ -326,7 +326,11 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Segurança'));
+    await tester.scrollUntilVisible(
+      find.text('Segurança'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Segurança'));
     await tester.pumpAndSettle();

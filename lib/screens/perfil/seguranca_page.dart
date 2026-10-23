@@ -14,7 +14,9 @@ import '../../widgets/action_label.dart';
 import 'mfa_admin_card.dart';
 
 class SegurancaPage extends StatefulWidget {
-  const SegurancaPage({super.key});
+  const SegurancaPage({this.mostrarPrivacidade = false, super.key});
+
+  final bool mostrarPrivacidade;
 
   @override
   State<SegurancaPage> createState() => _SegurancaPageState();
@@ -154,7 +156,9 @@ class _SegurancaPageState extends State<SegurancaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Segurança'),
+      appBar: AppBarCustom(
+        title: widget.mostrarPrivacidade ? 'Privacidade' : 'Segurança',
+      ),
       backgroundColor: AppColors.fundo,
       body: SafeArea(
         top: false,
@@ -167,183 +171,165 @@ class _SegurancaPageState extends State<SegurancaPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Cuide do acesso à sua conta',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: AppSpace.sm),
-                    Text(
-                      'Atualize sua senha periodicamente e não compartilhe seus dados de acesso.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textoSuave,
+                    if (!widget.mostrarPrivacidade) ...[
+                      Text(
+                        'Cuide do acesso à sua conta',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                    const SizedBox(height: AppSpace.lg),
-                    const _DicaSeguranca(),
-                    const SizedBox(height: AppSpace.lg),
-                    Card(
-                      child: Padding(
-                        padding: AppInsets.card,
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Alterar senha',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              const SizedBox(height: AppSpace.lg),
-                              _CampoSenha(
-                                key: const ValueKey('seguranca-senha-atual'),
-                                controller: _senhaAtual,
-                                label: 'Senha atual',
-                                ocultar: _ocultarAtual,
-                                onToggle: () => setState(
-                                  () => _ocultarAtual = !_ocultarAtual,
+                      const SizedBox(height: AppSpace.sm),
+                      Text(
+                        'Atualize sua senha periodicamente e não compartilhe seus dados de acesso.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textoSuave,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.lg),
+                      const _DicaSeguranca(),
+                      const SizedBox(height: AppSpace.lg),
+                      Card(
+                        child: Padding(
+                          padding: AppInsets.card,
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  'Alterar senha',
+                                  style: Theme.of(context).textTheme.titleLarge,
                                 ),
-                                validator: validarSenha,
-                              ),
-                              const SizedBox(height: AppSpace.md),
-                              _CampoSenha(
-                                key: const ValueKey('seguranca-senha-nova'),
-                                controller: _novaSenha,
-                                label: 'Nova senha',
-                                ocultar: _ocultarNova,
-                                onToggle: () => setState(
-                                  () => _ocultarNova = !_ocultarNova,
+                                const SizedBox(height: AppSpace.lg),
+                                _CampoSenha(
+                                  key: const ValueKey('seguranca-senha-atual'),
+                                  controller: _senhaAtual,
+                                  label: 'Senha atual',
+                                  ocultar: _ocultarAtual,
+                                  onToggle: () => setState(
+                                    () => _ocultarAtual = !_ocultarAtual,
+                                  ),
+                                  validator: validarSenha,
                                 ),
-                                validator: validarSenhaForte,
-                              ),
-                              const SizedBox(height: AppSpace.md),
-                              _CampoSenha(
-                                key: const ValueKey(
-                                  'seguranca-confirmar-senha',
+                                const SizedBox(height: AppSpace.md),
+                                _CampoSenha(
+                                  key: const ValueKey('seguranca-senha-nova'),
+                                  controller: _novaSenha,
+                                  label: 'Nova senha',
+                                  ocultar: _ocultarNova,
+                                  onToggle: () => setState(
+                                    () => _ocultarNova = !_ocultarNova,
+                                  ),
+                                  validator: validarSenhaForte,
                                 ),
-                                controller: _confirmarSenha,
-                                label: 'Confirme a nova senha',
-                                ocultar: _ocultarConfirmacao,
-                                onToggle: () => setState(
-                                  () => _ocultarConfirmacao =
-                                      !_ocultarConfirmacao,
+                                const SizedBox(height: AppSpace.md),
+                                _CampoSenha(
+                                  key: const ValueKey(
+                                    'seguranca-confirmar-senha',
+                                  ),
+                                  controller: _confirmarSenha,
+                                  label: 'Confirme a nova senha',
+                                  ocultar: _ocultarConfirmacao,
+                                  onToggle: () => setState(
+                                    () => _ocultarConfirmacao =
+                                        !_ocultarConfirmacao,
+                                  ),
+                                  validator: (valor) {
+                                    final erro = validarSenhaForte(valor);
+                                    if (erro != null) return erro;
+                                    if (valor != _novaSenha.text) {
+                                      return 'As senhas não coincidem.';
+                                    }
+                                    return null;
+                                  },
                                 ),
-                                validator: (valor) {
-                                  final erro = validarSenhaForte(valor);
-                                  if (erro != null) return erro;
-                                  if (valor != _novaSenha.text) {
-                                    return 'As senhas não coincidem.';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: AppSpace.lg),
-                              FilledButton.icon(
-                                key: const ValueKey('seguranca-salvar'),
-                                onPressed: _salvando ? null : _alterarSenha,
-                                icon: _salvando
-                                    ? const ButtonProgressIndicator()
-                                    : const Icon(Icons.lock_reset_rounded),
-                                label: ActionLabel(
-                                  busy: _salvando,
-                                  text: _salvando
-                                      ? 'Atualizando...'
-                                      : 'Atualizar senha',
+                                const SizedBox(height: AppSpace.lg),
+                                FilledButton.icon(
+                                  key: const ValueKey('seguranca-salvar'),
+                                  onPressed: _salvando ? null : _alterarSenha,
+                                  icon: _salvando
+                                      ? const ButtonProgressIndicator()
+                                      : const Icon(Icons.lock_reset_rounded),
+                                  label: ActionLabel(
+                                    busy: _salvando,
+                                    text: _salvando
+                                        ? 'Atualizando...'
+                                        : 'Atualizar senha',
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpace.md),
-                    Card(
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.help_outline_rounded,
-                          color: AppColors.verdeEscuro,
-                        ),
-                        title: const Text('Esqueceu sua senha?'),
-                        subtitle: const Text(
-                          'Solicite um código para recuperar o acesso.',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.recuperacaoSenha,
-                        ),
-                      ),
-                    ),
-                    if (AppServices.instance.auth.usuarioAtual?['tipo'] ==
-                        'administrador') ...[
                       const SizedBox(height: AppSpace.md),
-                      const MfaAdminCard(),
-                    ],
-                    const SizedBox(height: AppSpace.lg),
-                    Text(
-                      'Privacidade e seus dados',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: AppSpace.sm),
-                    Text(
-                      'Pela LGPD, você pode receber uma cópia dos dados ligados à sua conta ou solicitar a exclusão.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textoSuave,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpace.md),
-                    Card(
-                      child: Column(
-                        children: [
-                          ListTile(
-                            key: const ValueKey('seguranca-exportar-dados'),
-                            leading: const Icon(
-                              Icons.download_outlined,
-                              color: AppColors.verdeEscuro,
-                            ),
-                            title: const Text('Exportar meus dados'),
-                            subtitle: const Text(
-                              'Gera um arquivo JSON. Senhas e segredos de acesso nunca são incluídos.',
-                            ),
-                            trailing: _exportando
-                                ? const SizedBox.square(
-                                    dimension: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.chevron_right),
-                            onTap: _exportando || _excluindo
-                                ? null
-                                : _exportarDados,
+                      Card(
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.help_outline_rounded,
+                            color: AppColors.verdeEscuro,
                           ),
-                          const Divider(height: 1),
-                          if (AppServices.instance.auth.usuarioAtual?['tipo'] ==
-                              'administrador')
-                            const ListTile(
-                              leading: Icon(
-                                Icons.admin_panel_settings_outlined,
-                                color: AppColors.textoSuave,
-                              ),
-                              title: Text('Conta administrativa'),
-                              subtitle: Text(
-                                'Para preservar a auditoria, outro administrador deve desativar esta conta.',
-                              ),
-                            )
-                          else
+                          title: const Text('Esqueceu sua senha?'),
+                          subtitle: const Text(
+                            'Solicite um código para recuperar o acesso.',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.recuperacaoSenha,
+                          ),
+                        ),
+                      ),
+                      if (AppServices.instance.auth.usuarioAtual?['tipo'] ==
+                          'administrador') ...[
+                        const SizedBox(height: AppSpace.md),
+                        const MfaAdminCard(),
+                      ],
+                      const SizedBox(height: AppSpace.md),
+                      Card(
+                        child: ListTile(
+                          key: const ValueKey('seguranca-abrir-privacidade'),
+                          leading: const Icon(
+                            Icons.privacy_tip_outlined,
+                            color: AppColors.verdeEscuro,
+                          ),
+                          title: const Text('Privacidade e dados'),
+                          subtitle: const Text(
+                            'Exporte seus dados e consulte as opções da conta.',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.privacidade,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (widget.mostrarPrivacidade) ...[
+                      Text(
+                        'Seus dados e sua privacidade',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      const SizedBox(height: AppSpace.lg),
+                      Text(
+                        'Pela LGPD, você pode receber uma cópia dos dados ligados à sua conta ou solicitar a exclusão.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textoSuave,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      Card(
+                        child: Column(
+                          children: [
                             ListTile(
-                              key: const ValueKey('seguranca-excluir-conta'),
+                              key: const ValueKey('seguranca-exportar-dados'),
                               leading: const Icon(
-                                Icons.delete_forever_outlined,
-                                color: AppColors.erro,
+                                Icons.download_outlined,
+                                color: AppColors.verdeEscuro,
                               ),
-                              title: const Text(
-                                'Excluir minha conta',
-                                style: TextStyle(color: AppColors.erro),
-                              ),
+                              title: const Text('Exportar meus dados'),
                               subtitle: const Text(
-                                'Remove seus dados pessoais e encerra todas as sessões. Atendimentos em aberto precisam ser finalizados antes.',
+                                'Gera um arquivo JSON. Senhas e segredos de acesso nunca são incluídos.',
                               ),
-                              trailing: _excluindo
+                              trailing: _exportando
                                   ? const SizedBox.square(
                                       dimension: 22,
                                       child: CircularProgressIndicator(
@@ -353,11 +339,54 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                   : const Icon(Icons.chevron_right),
                               onTap: _exportando || _excluindo
                                   ? null
-                                  : _excluirConta,
+                                  : _exportarDados,
                             ),
-                        ],
+                            const Divider(height: 1),
+                            if (AppServices
+                                    .instance
+                                    .auth
+                                    .usuarioAtual?['tipo'] ==
+                                'administrador')
+                              const ListTile(
+                                leading: Icon(
+                                  Icons.admin_panel_settings_outlined,
+                                  color: AppColors.textoSuave,
+                                ),
+                                title: Text('Conta administrativa'),
+                                subtitle: Text(
+                                  'Para preservar a auditoria, outro administrador deve desativar esta conta.',
+                                ),
+                              )
+                            else
+                              ListTile(
+                                key: const ValueKey('seguranca-excluir-conta'),
+                                leading: const Icon(
+                                  Icons.delete_forever_outlined,
+                                  color: AppColors.erro,
+                                ),
+                                title: const Text(
+                                  'Excluir minha conta',
+                                  style: TextStyle(color: AppColors.erro),
+                                ),
+                                subtitle: const Text(
+                                  'Remove seus dados pessoais e encerra todas as sessões. Atendimentos em aberto precisam ser finalizados antes.',
+                                ),
+                                trailing: _excluindo
+                                    ? const SizedBox.square(
+                                        dimension: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.chevron_right),
+                                onTap: _exportando || _excluindo
+                                    ? null
+                                    : _excluirConta,
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

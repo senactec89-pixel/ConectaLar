@@ -36,7 +36,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: '$largura px');
 
       final ajuda = find.text(
-        'Para alterar o e-mail, confirme a titularidade da conta.',
+        'E-mail vinculado à conta. Você pode consultá-lo aqui.',
       );
       await tester.scrollUntilVisible(
         ajuda,

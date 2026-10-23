@@ -53,6 +53,7 @@ abstract final class AppRoutes {
   static const enderecos = '/perfil/enderecos';
   static const editarDados = '/perfil/dados';
   static const seguranca = '/perfil/seguranca';
+  static const privacidade = '/perfil/privacidade';
   static const recuperacaoSenha = '/senha/recuperacao';
   static const verificacaoEmail = '/email/verificacao';
   static const notificacoes = '/notificacoes';
@@ -95,6 +96,7 @@ abstract final class AppRoutes {
     enderecos: (_) => const EnderecosPage(),
     editarDados: (_) => const EditarDadosPage(),
     seguranca: (_) => const SegurancaPage(),
+    privacidade: (_) => const SegurancaPage(mostrarPrivacidade: true),
     recuperacaoSenha: (_) => const RecuperacaoSenhaPage(),
     verificacaoEmail: (_) => const VerificacaoEmailPage(),
     notificacoes: (_) => const NotificacoesPage(),
@@ -116,38 +118,40 @@ abstract final class AppRoutes {
     adminCategorias: (_) => const AdminPage(modulo: AdminModulo.categorias),
     adminAuditoria: (_) => const AdminPage(modulo: AdminModulo.auditoria),
   };
-  static Map<String, WidgetBuilder> get routes => _builders.map((
-    route,
-    builder,
-  ) {
-    const publicas = {
-      home,
-      login,
-      cadastro,
-      termos,
-      busca,
-      resultados,
-      perfilProfissional,
-      recuperacaoSenha,
-    };
-    if (publicas.contains(route)) return MapEntry(route, builder);
-    if (route == verificacaoEmail || route == seguranca) {
-      return MapEntry(
-        route,
-        (context) =>
-            SessionGate(builder: builder, permitirEmailNaoVerificado: true),
-      );
-    }
-    final Set<String>? papeis = route.startsWith('/admin')
-        ? {'administrador'}
-        : route.startsWith('/profissionais/')
-        ? {'profissional', 'empresa'}
-        : {favoritos, solicitarServico, enderecos, editarDados}.contains(route)
-        ? {'cliente'}
-        : null;
-    return MapEntry(
-      route,
-      (context) => SessionGate(builder: builder, papeis: papeis),
-    );
-  });
+  static Map<String, WidgetBuilder> get routes =>
+      _builders.map((route, builder) {
+        const publicas = {
+          home,
+          login,
+          cadastro,
+          termos,
+          busca,
+          resultados,
+          perfilProfissional,
+          recuperacaoSenha,
+        };
+        if (publicas.contains(route)) return MapEntry(route, builder);
+        if (route == verificacaoEmail ||
+            route == seguranca ||
+            route == privacidade) {
+          return MapEntry(
+            route,
+            (context) =>
+                SessionGate(builder: builder, permitirEmailNaoVerificado: true),
+          );
+        }
+        final Set<String>? papeis = route.startsWith('/admin')
+            ? {'administrador'}
+            : route.startsWith('/profissionais/')
+            ? {'profissional', 'empresa'}
+            : route == editarDados
+            ? {'cliente', 'profissional', 'empresa', 'administrador'}
+            : {favoritos, solicitarServico, enderecos}.contains(route)
+            ? {'cliente'}
+            : null;
+        return MapEntry(
+          route,
+          (context) => SessionGate(builder: builder, papeis: papeis),
+        );
+      });
 }
