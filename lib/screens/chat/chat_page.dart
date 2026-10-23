@@ -51,9 +51,30 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  void _recarregar() {
+  Future<ApiPage<AtendimentoResumo>> _atualizarPaginas(int atePagina) async {
+    final porId = <int, AtendimentoResumo>{};
+    ApiPage<AtendimentoResumo>? ultima;
+    for (var pagina = 1; pagina <= atePagina; pagina++) {
+      final carregada = await _carregarConversas(pagina: pagina);
+      for (final item in carregada.items) {
+        porId[item.solicitacao.id] = item;
+      }
+      ultima = carregada;
+      if (!carregada.hasMore) break;
+    }
+    return ultima!.copyWith(items: porId.values.toList(growable: false));
+  }
+
+  Future<void> _recarregar() async {
+    var atePagina = 1;
+    try {
+      atePagina = (await _conversasFuture).page;
+    } catch (_) {
+      // O estado de erro ainda permite tentar novamente desde a primeira página.
+    }
+    if (!mounted) return;
     setState(() {
-      _conversasFuture = _carregarConversas(pagina: 1);
+      _conversasFuture = _atualizarPaginas(atePagina);
       _conversasFuture.ignore();
     });
   }
@@ -94,7 +115,7 @@ class _ChatPageState extends State<ChatPage> {
       AppRoutes.conversa,
       arguments: solicitacaoId,
     );
-    if (mounted) _recarregar();
+    if (mounted) await _recarregar();
   }
 
   @override
@@ -108,7 +129,8 @@ class _ChatPageState extends State<ChatPage> {
         builder: (context, _) => FutureBuilder<ApiPage<AtendimentoResumo>>(
           future: _conversasFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const AsyncLoadingView(label: 'Carregando conversas.');
             }
             if (snapshot.hasError) {
@@ -140,8 +162,13 @@ class _ChatPageState extends State<ChatPage> {
                 .toList(growable: false);
 
             return ListView(
+              key: const PageStorageKey('conversas-lista'),
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
+                if (snapshot.connectionState != ConnectionState.done) ...[
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 12),
+                ],
                 const Text(
                   'Chat e negociação',
                   style: TextStyle(
