@@ -977,25 +977,25 @@ class _GpsAtivo extends StatelessWidget {
                 const SizedBox(width: AppSpace.sm),
                 const Expanded(
                   child: Text(
-                    'Localizacao atual',
+                    'Localização atual',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(
                   key: const ValueKey('busca-remover-gps'),
-                  tooltip: 'Remover localizacao',
+                  tooltip: 'Remover localização',
                   onPressed: onRemover,
                   icon: const Icon(Icons.close_rounded),
                 ),
               ],
             ),
             const Text(
-              'Usada somente nesta busca e nao salva no seu perfil.',
+              'Usada somente nesta busca e não salva no seu perfil.',
               style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: AppSpace.sm),
             Text(
-              'Distancia maxima',
+              'Distância máxima',
               style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: AppSpace.xs),
@@ -1106,7 +1106,7 @@ class _MapaResultados extends StatelessWidget {
         .toList(growable: false);
     if (localizados.isEmpty) {
       return const EmptyStateView(
-        title: 'Nenhuma localizacao disponivel no mapa.',
+        title: 'Nenhuma localização disponível no mapa.',
         message: 'Use a lista para consultar os profissionais encontrados.',
         icon: Icons.location_off_outlined,
       );
@@ -1115,62 +1115,134 @@ class _MapaResultados extends StatelessWidget {
     final centro = posicao == null
         ? _centroProfissionais(localizados)
         : LatLng(posicao!.latitude, posicao!.longitude);
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      child: SizedBox(
-        key: const ValueKey('busca-mapa'),
-        height: 360,
-        child: GoogleMap(
-          key: ValueKey(
-            'map-${centro.latitude}-${centro.longitude}-${localizados.length}',
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.lg,
+              AppSpace.lg,
+              AppSpace.lg,
+              AppSpace.md,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.map_outlined, color: AppColors.verdeEscuro),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Profissionais no mapa',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppSpace.xs),
+                      Text(
+                        localizados.length == 1
+                            ? '1 profissional com região aproximada'
+                            : '${localizados.length} profissionais com região aproximada',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          initialCameraPosition: CameraPosition(
-            target: centro,
-            zoom: posicao == null ? 10.5 : _zoomParaRaio(raioKm),
+          SizedBox(
+            key: const ValueKey('busca-mapa'),
+            height: 320,
+            child: GoogleMap(
+              key: ValueKey(
+                'map-${centro.latitude}-${centro.longitude}-${localizados.length}',
+              ),
+              initialCameraPosition: CameraPosition(
+                target: centro,
+                zoom: posicao == null ? 10.5 : _zoomParaRaio(raioKm),
+              ),
+              markers: {
+                if (posicao != null)
+                  Marker(
+                    markerId: const MarkerId('minha-localizacao'),
+                    position: centro,
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                      HSVColor.fromColor(AppColors.verdeEscuro).hue,
+                    ),
+                    infoWindow: const InfoWindow(
+                      title: 'Sua região aproximada',
+                    ),
+                  ),
+                for (final profissional in localizados)
+                  Marker(
+                    markerId: MarkerId('profissional-${profissional.id}'),
+                    position: LatLng(
+                      profissional.latitudeAproximada!,
+                      profissional.longitudeAproximada!,
+                    ),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                      HSVColor.fromColor(AppColors.verde).hue,
+                    ),
+                    infoWindow: InfoWindow(
+                      title: profissional.nome,
+                      snippet: profissional.distanciaKm == null
+                          ? profissional.bairro
+                          : '${profissional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
+                      onTap: () => onProfissionalTap(profissional),
+                    ),
+                  ),
+              },
+              circles: {
+                if (posicao != null)
+                  Circle(
+                    circleId: const CircleId('raio-busca'),
+                    center: centro,
+                    radius: raioKm * 1000,
+                    fillColor: AppColors.verde.withValues(alpha: 0.08),
+                    strokeColor: AppColors.verde.withValues(alpha: 0.55),
+                    strokeWidth: 2,
+                  ),
+              },
+              mapToolbarEnabled: false,
+              myLocationButtonEnabled: false,
+              myLocationEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: true,
+              zoomGesturesEnabled: true,
+            ),
           ),
-          markers: {
-            if (posicao != null)
-              Marker(
-                markerId: const MarkerId('minha-localizacao'),
-                position: centro,
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                  BitmapDescriptor.hueAzure,
+          Padding(
+            padding: AppInsets.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpace.lg,
+                  runSpacing: AppSpace.sm,
+                  children: [
+                    const _LegendaMapa(
+                      cor: AppColors.verde,
+                      titulo: 'Profissional',
+                    ),
+                    if (posicao != null)
+                      const _LegendaMapa(
+                        cor: AppColors.verdeEscuro,
+                        titulo: 'Sua região',
+                      ),
+                  ],
                 ),
-                infoWindow: const InfoWindow(title: 'Sua localizacao'),
-              ),
-            for (final profissional in localizados)
-              Marker(
-                markerId: MarkerId('profissional-${profissional.id}'),
-                position: LatLng(
-                  profissional.latitudeAproximada!,
-                  profissional.longitudeAproximada!,
+                const SizedBox(height: AppSpace.sm),
+                Text(
+                  'As posições são aproximadas. Toque em um marcador para consultar o perfil.',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                infoWindow: InfoWindow(
-                  title: profissional.nome,
-                  snippet: profissional.distanciaKm == null
-                      ? profissional.bairro
-                      : '${profissional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
-                  onTap: () => onProfissionalTap(profissional),
-                ),
-              ),
-          },
-          circles: {
-            if (posicao != null)
-              Circle(
-                circleId: const CircleId('raio-busca'),
-                center: centro,
-                radius: raioKm * 1000,
-                fillColor: AppColors.verde.withValues(alpha: 0.08),
-                strokeColor: AppColors.verde.withValues(alpha: 0.55),
-                strokeWidth: 2,
-              ),
-          },
-          mapToolbarEnabled: false,
-          myLocationButtonEnabled: false,
-          myLocationEnabled: false,
-          zoomControlsEnabled: false,
-          compassEnabled: true,
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1195,6 +1267,23 @@ class _MapaResultados extends StatelessWidget {
     <= 25 => 10.5,
     _ => 9.5,
   };
+}
+
+class _LegendaMapa extends StatelessWidget {
+  const _LegendaMapa({required this.cor, required this.titulo});
+
+  final Color cor;
+  final String titulo;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(Icons.location_on_rounded, size: 18, color: cor),
+      const SizedBox(width: AppSpace.xs),
+      Text(titulo, style: Theme.of(context).textTheme.labelMedium),
+    ],
+  );
 }
 
 class _EstadoVazioBusca extends StatelessWidget {
