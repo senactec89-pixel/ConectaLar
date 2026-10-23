@@ -32,6 +32,8 @@ class _BuscaPageState extends State<BuscaPage> {
   final _termoController = TextEditingController();
   final _bairroController = TextEditingController();
   final _cidadeController = TextEditingController();
+  final _termoFocusNode = FocusNode();
+  final _bairroFocusNode = FocusNode();
   final _scrollController = ScrollController();
   late final BuscaEstado _memoria;
   late final int _revisaoMemoria;
@@ -87,6 +89,18 @@ class _BuscaPageState extends State<BuscaPage> {
       _cidadeController.clear();
       _memoria.rolagem = 0;
       _categoriaSelecionada = arguments;
+    } else if (arguments is CampoBuscaInicial) {
+      if (arguments == CampoBuscaInicial.bairro) {
+        _memoria.localizacaoExpandida = true;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (arguments == CampoBuscaInicial.bairro) {
+          _bairroFocusNode.requestFocus();
+        } else {
+          _termoFocusNode.requestFocus();
+        }
+      });
     }
     _argumentosLidos = true;
     if (_temFiltros) {
@@ -113,6 +127,8 @@ class _BuscaPageState extends State<BuscaPage> {
     _termoController.dispose();
     _bairroController.dispose();
     _cidadeController.dispose();
+    _termoFocusNode.dispose();
+    _bairroFocusNode.dispose();
     super.dispose();
   }
 
@@ -442,7 +458,9 @@ class _BuscaPageState extends State<BuscaPage> {
                       padding: AppInsets.card,
                       child: _FiltrosBusca(
                         termoController: _termoController,
+                        termoFocusNode: _termoFocusNode,
                         bairroController: _bairroController,
+                        bairroFocusNode: _bairroFocusNode,
                         cidadeController: _cidadeController,
                         localizacaoExpandida: _memoria.localizacaoExpandida,
                         onAlternarLocalizacao: () => setState(
@@ -669,7 +687,9 @@ class _BarraComparacao extends StatelessWidget {
 class _FiltrosBusca extends StatelessWidget {
   const _FiltrosBusca({
     required this.termoController,
+    required this.termoFocusNode,
     required this.bairroController,
+    required this.bairroFocusNode,
     required this.cidadeController,
     required this.localizacaoExpandida,
     required this.onAlternarLocalizacao,
@@ -693,7 +713,9 @@ class _FiltrosBusca extends StatelessWidget {
   });
 
   final TextEditingController termoController;
+  final FocusNode termoFocusNode;
   final TextEditingController bairroController;
+  final FocusNode bairroFocusNode;
   final TextEditingController cidadeController;
   final bool localizacaoExpandida;
   final VoidCallback onAlternarLocalizacao;
@@ -723,6 +745,7 @@ class _FiltrosBusca extends StatelessWidget {
         TextField(
           key: const ValueKey('busca-termo'),
           controller: termoController,
+          focusNode: termoFocusNode,
           onChanged: onTextoAlterado,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
@@ -821,6 +844,7 @@ class _FiltrosBusca extends StatelessWidget {
           TextField(
             key: const ValueKey('busca-bairro'),
             controller: bairroController,
+            focusNode: bairroFocusNode,
             onChanged: onTextoAlterado,
             textInputAction: TextInputAction.search,
             decoration: const InputDecoration(

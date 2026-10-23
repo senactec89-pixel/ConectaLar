@@ -9,6 +9,7 @@ import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../widgets/async_state_view.dart';
 import '../../models/categoria.dart';
+import '../../models/busca_estado.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
@@ -83,7 +84,14 @@ class _HomePageState extends State<HomePage> {
               content: snapshot.data ?? const HomeContent(),
               onRetry: _retry,
               retrying: snapshot.connectionState == ConnectionState.waiting,
-              onSearchTap: () => _openRoute(AppRoutes.busca),
+              onSearchTap: () => _openRoute(
+                AppRoutes.busca,
+                arguments: CampoBuscaInicial.servico,
+              ),
+              onBairroTap: () => _openRoute(
+                AppRoutes.busca,
+                arguments: CampoBuscaInicial.bairro,
+              ),
               onNotificationsTap: () => _openRoute(AppRoutes.notificacoes),
               onCategoryTap: (category) =>
                   _openRoute(AppRoutes.busca, arguments: category),
@@ -109,6 +117,7 @@ class _HomeContentView extends StatelessWidget {
     required this.onRetry,
     required this.retrying,
     required this.onSearchTap,
+    required this.onBairroTap,
     required this.onNotificationsTap,
     required this.onCategoryTap,
     required this.onProfessionalTap,
@@ -118,6 +127,7 @@ class _HomeContentView extends StatelessWidget {
   final VoidCallback onRetry;
   final bool retrying;
   final VoidCallback onSearchTap;
+  final VoidCallback onBairroTap;
   final VoidCallback onNotificationsTap;
   final ValueChanged<Categoria> onCategoryTap;
   final ValueChanged<Profissional> onProfessionalTap;
@@ -132,6 +142,7 @@ class _HomeContentView extends StatelessWidget {
           children: [
             _HomeHero(
               onSearchTap: onSearchTap,
+              onBairroTap: onBairroTap,
               onNotificationsTap: onNotificationsTap,
             ),
             Padding(
@@ -500,10 +511,12 @@ class _MapFallback extends StatelessWidget {
 class _HomeHero extends StatelessWidget {
   const _HomeHero({
     required this.onSearchTap,
+    required this.onBairroTap,
     required this.onNotificationsTap,
   });
 
   final VoidCallback onSearchTap;
+  final VoidCallback onBairroTap;
   final VoidCallback onNotificationsTap;
 
   @override
@@ -589,7 +602,11 @@ class _HomeHero extends StatelessWidget {
                         child: _Greeting(compact: compact, fullText: true),
                       ),
                       const SizedBox(height: 24),
-                      _SearchButton(onTap: onSearchTap, compact: compact),
+                      _SearchButton(
+                        onTap: onSearchTap,
+                        onBairroTap: onBairroTap,
+                        compact: compact,
+                      ),
                     ],
                   ),
                 ),
@@ -623,7 +640,11 @@ class _HomeHero extends StatelessWidget {
                 left: 20,
                 right: 20,
                 bottom: 12,
-                child: _SearchButton(onTap: onSearchTap, compact: compact),
+                child: _SearchButton(
+                  onTap: onSearchTap,
+                  onBairroTap: onBairroTap,
+                  compact: compact,
+                ),
               ),
             ],
           ),
@@ -672,7 +693,7 @@ class _BrandHeader extends StatelessWidget {
               ConectaLarWordmark(fontSize: textoAmpliado ? 15 : 21),
               const SizedBox(height: 4),
               Text(
-                'Serviços para cuidar do seu lar',
+                'Profissionais perto de você',
                 maxLines: textoAmpliado ? null : 1,
                 overflow: textoAmpliado
                     ? TextOverflow.clip
@@ -764,7 +785,7 @@ class _Greeting extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Encontre profissionais para cuidar do seu lar',
+          'Busque, compare e solicite atendimento.',
           maxLines: fullText ? null : 2,
           overflow: fullText ? TextOverflow.clip : TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -779,86 +800,122 @@ class _Greeting extends StatelessWidget {
 }
 
 class _SearchButton extends StatelessWidget {
-  const _SearchButton({required this.onTap, required this.compact});
+  const _SearchButton({
+    required this.onTap,
+    required this.onBairroTap,
+    required this.compact,
+  });
 
   static const height = 66.0;
 
   final VoidCallback onTap;
+  final VoidCallback onBairroTap;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(12) > 18;
-    return Semantics(
-      button: true,
-      label: 'Buscar serviço ou profissional e informar o bairro',
-      child: Material(
-        color: Colors.white,
-        elevation: 4,
-        shadowColor: const Color(0x1A1E5E41),
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          key: const ValueKey('home-search'),
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: ExcludeSemantics(
-            child: SizedBox(
-              height: height,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 15),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search_rounded,
-                      color: AppColors.textoSuave,
-                      size: 26,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        textoAmpliado
-                            ? 'Busca'
-                            : 'Digite o serviço ou categoria',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textoSuave,
-                          fontSize: 12,
+    return Material(
+      color: AppColors.branco,
+      elevation: 4,
+      shadowColor: const Color(0x1A1E5E41),
+      borderRadius: BorderRadius.circular(22),
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  label: 'Buscar serviço ou profissional',
+                  child: InkWell(
+                    key: const ValueKey('home-search'),
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(AppRadii.field),
+                    child: ExcludeSemantics(
+                      child: SizedBox(
+                        height: height,
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              color: AppColors.verdeEscuro,
+                              size: 26,
+                            ),
+                            const SizedBox(width: AppSpace.sm),
+                            Expanded(
+                              child: Text(
+                                textoAmpliado
+                                    ? 'Busca'
+                                    : compact
+                                    ? 'Buscar serviço'
+                                    : 'Buscar serviço ou profissional',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.texto,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    Container(
-                      width: 1,
-                      height: 34,
-                      color: const Color(0xFFE4EAE6),
-                    ),
-                    SizedBox(width: compact ? 8 : 11),
-                    Icon(
-                      Icons.location_on_rounded,
-                      color: AppColors.verdeEscuro,
-                      size: 19,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      compact ? 'Bairro' : 'Seu bairro',
-                      style: const TextStyle(
-                        color: AppColors.texto,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (!textoAmpliado) ...[
-                      const SizedBox(width: 3),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.textoSuave,
-                        size: 18,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: AppSpace.sm),
+              Semantics(
+                button: true,
+                label: 'Filtrar por bairro',
+                child: Material(
+                  color: AppColors.verdeClaro,
+                  borderRadius: BorderRadius.circular(AppRadii.field),
+                  child: InkWell(
+                    key: const ValueKey('home-bairro'),
+                    onTap: onBairroTap,
+                    borderRadius: BorderRadius.circular(AppRadii.field),
+                    child: ExcludeSemantics(
+                      child: SizedBox(
+                        height: 48,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: textoAmpliado
+                                ? AppSpace.md
+                                : AppSpace.sm,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                color: AppColors.verdeEscuro,
+                                size: 19,
+                              ),
+                              if (!textoAmpliado) ...[
+                                const SizedBox(width: AppSpace.xs),
+                                const Text(
+                                  'Bairro',
+                                  style: TextStyle(
+                                    color: AppColors.verdeEscuro,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

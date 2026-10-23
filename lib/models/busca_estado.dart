@@ -1,5 +1,7 @@
 import 'categoria.dart';
 
+enum CampoBuscaInicial { servico, bairro }
+
 /// Estado temporário da interface; não é persistido no aparelho.
 class BuscaEstado {
   String termo = '';

@@ -25,7 +25,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Encontre profissionais para cuidar do seu lar'),
+      find.text('Busque, compare e solicite atendimento.'),
       findsOneWidget,
     );
     expect(find.text('Categorias'), findsOneWidget);
@@ -42,6 +42,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Buscar profissionais'), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const ValueKey('busca-termo')))
+          .focusNode
+          ?.hasFocus,
+      isTrue,
+    );
+  });
+
+  testWidgets('o atalho de bairro da Home abre o filtro correspondente', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ConectaLarApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('home-bairro')));
+    await tester.pumpAndSettle();
+
+    final bairro = find.byKey(const ValueKey('busca-bairro'));
+    expect(bairro, findsOneWidget);
+    expect(tester.widget<TextField>(bairro).focusNode?.hasFocus, isTrue);
   });
 
   testWidgets('a categoria da Home abre a busca filtrada', (tester) async {

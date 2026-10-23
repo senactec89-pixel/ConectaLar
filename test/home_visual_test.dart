@@ -49,7 +49,7 @@ void main() {
             reason: '${tester.getSize(buscaCompacta)} em $largura',
           );
           final descricao = find.text(
-            'Encontre profissionais para cuidar do seu lar',
+            'Busque, compare e solicite atendimento.',
           );
           expect(
             tester.renderObject<RenderParagraph>(descricao).didExceedMaxLines,
