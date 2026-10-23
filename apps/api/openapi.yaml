@@ -4,6 +4,146 @@ info:
   version: 0.1.0
   description: HTTP contract for the routes currently implemented by the ConectaLar API.
 paths:
+  /profissionais/me/habilitacao:
+    get:
+      operationId: getMinhaHabilitacao
+      summary: Returns security prerequisites, separately from document approval
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Own professional or company status; no biometric or criminal data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HabilitacaoResponse'
+        '403':
+          description: Requires a professional or company account with verified email
+  /profissionais/me/habilitacao/identidade:
+    post:
+      operationId: postIniciarIdentidade
+      summary: Starts hosted identity verification with ID ZapSign
+      description: Requires explicit user consent. The app receives a validated hosted URL; the provider API key stays server-side. A successful identity check alone never grants eligibility.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [consentimento]
+              properties:
+                consentimento: { type: boolean, const: true }
+      responses:
+        '201':
+          description: Hosted identity verification created or resumed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  identidade: { $ref: '#/components/schemas/IdentidadeProfissional' }
+        '503': { description: Provider credentials unavailable or provider request failed; account stays pending }
+        '400':
+          description: Consent is missing or unexpected fields were supplied
+        '403':
+          description: Professional or company role required
+    get:
+      operationId: getStatusIdentidadeProfissional
+      summary: Refreshes own hosted identity verification state
+      description: Queries the server-side provider while a verification remains pending and exposes no CPF or document details.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current state; does not authorize service attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  identidade: { $ref: '#/components/schemas/IdentidadeProfissional' }
+        '403': { description: Professional or company role required }
+  /profissionais/me/habilitacao/revisao:
+    post:
+      operationId: postSolicitarRevisaoHabilitacao
+      summary: Records an idempotent review request without lifting suspension
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: false }
+      responses:
+        '201':
+          description: Review requested or already pending; no authorization to attend
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HabilitacaoResponse'
+        '400':
+          description: Unexpected fields
+        '404':
+          description: Professional profile must be created first
+  /admin/profissionais/habilitacoes:
+    get:
+      operationId: getHabilitacoesAdmin
+      summary: Lists eligibility reviews, requiring administrator MFA
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: pagina
+          schema: { type: integer, minimum: 1, maximum: 99999, default: 1 }
+      responses:
+        '200':
+          description: Thirty records per page, sorted by profile id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pagina: { type: integer }
+                  total: { type: integer }
+                  profissionais:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        nome: { type: string }
+                        habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
+        '403':
+          description: Administrator role and active MFA required
+  /admin/profissionais/{id}/habilitacao:
+    patch:
+      operationId: patchHabilitacaoAdmin
+      summary: Audits suspension or review; cannot approve identity or antecedents
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [acao, motivo]
+              properties:
+                acao: { type: string, enum: [iniciar_analise, suspender, reabrir] }
+                motivo: { type: string, enum: [revisao_cadastral, suspeita_fraude, solicitacao_titular] }
+      responses:
+        '200':
+          description: Decision and audit committed atomically; still blocked for attendance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HabilitacaoResponse'
+        '403':
+          description: Administrator MFA required; self-review forbidden
+        '409':
+          description: Approval unavailable while integrations and legal policy are pending, or suspended review not reopened
   /health:
     get:
       operationId: getHealth
@@ -213,13 +353,39 @@ paths:
     delete:
       operationId: deleteAuthMeFoto
       summary: Removes the authenticated account profile photo
-      tags:
-        - Auth
+      tags: [Auth]
       security:
         - bearerAuth: []
       responses:
         '200':
           description: Profile photo removed and session user returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/me/dados:
+    patch:
+      operationId: patchAuthMeDados
+      summary: Updates the authenticated account name and unique phone number
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome]
+              properties:
+                nome: {type: string, minLength: 3, maxLength: 140}
+                telefone: {type: [string, 'null'], maxLength: 32}
+      responses:
+        '200':
+          description: Personal data updated and refreshed session returned
           content:
             application/json:
               schema:
@@ -794,6 +960,7 @@ paths:
     get:
       operationId: getMeusDocumentosVerificacao
       summary: Lists verification documents owned by the authenticated professional
+      description: Also returns eligibility prerequisites. Document approval does not authorize appointments.
       tags: [Profissionais]
       security:
         - bearerAuth: []
@@ -804,8 +971,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [documentos]
+                required: [documentos, habilitacao]
                 properties:
+                  habilitacao:
+                    $ref: '#/components/schemas/HabilitacaoProfissional'
                   documentos:
                     type: array
                     items:
@@ -1049,6 +1218,7 @@ paths:
   /solicitacoes:
     post:
       operationId: postSolicitacao
+      description: Currently returns 409 PROFISSIONAL_HABILITACAO_PENDENTE for all profiles until identity, phone and background-policy prerequisites are implemented. Legacy document approval does not bypass this check.
       summary: Creates a service request in aguardando_resposta
       tags:
         - Solicitacoes
@@ -1141,7 +1311,7 @@ paths:
     patch:
       operationId: patchSolicitacaoAceitar
       summary: Provider accepts a pending request and creates an accepted appointment
-      description: Revalida disponibilidade e bloqueia outro atendimento aceito na mesma data e horário. Transições simultâneas são serializadas por perfil e solicitação; conflito retorna 409. Duração e capacidade por empresa continuam pendentes.
+      description: Atualmente bloqueado com 409 PROFISSIONAL_HABILITACAO_PENDENTE enquanto identidade, telefone e politica de antecedentes nao estiverem integrados. O selo documental nao libera o aceite. A checagem ocorre sob lock do perfil. Disponibilidade e concorrencia continuam sendo regras adicionais.
       tags:
         - Solicitacoes
       security:
@@ -1198,6 +1368,48 @@ paths:
           $ref: '#/components/responses/SolicitacaoResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/reagendamento:
+    post:
+      operationId: postSolicitacaoReagendamento
+      summary: Professional proposes a new date after an unforeseen event
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReagendamentoRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/reagendamento/responder:
+    patch:
+      operationId: patchSolicitacaoReagendamentoResponder
+      summary: Client accepts or refuses the latest pending proposal
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [aceitar]
+              properties:
+                aceitar: {type: boolean}
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /admin/painel/auditoria:
     get:
       operationId: getAdminPainelAuditoria
@@ -1247,6 +1459,11 @@ paths:
       summary: Avaliações aprovadas recebidas pelo profissional autenticado
       security:
         - bearerAuth: []
+      parameters:
+        - {name: pagina, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: limite, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
+        - {name: nota, in: query, schema: {type: integer, minimum: 1, maximum: 5}}
+        - {name: comComentario, in: query, schema: {type: boolean, default: false}}
       responses:
         '200':
           $ref: '#/components/responses/AvaliacoesPublicadasResponse'
@@ -1259,12 +1476,16 @@ paths:
       operationId: getAvaliacoesPublicasProfissional
       tags: [Profissionais]
       summary: Avaliações aprovadas de um perfil público ativo
-      description: Retorna as 50 avaliações mais recentes, sem identificadores de clientes ou solicitações. A média e a quantidade consideram todas as avaliações aprovadas.
+      description: Retorna avaliações paginadas, sem identificadores de clientes ou solicitações. A média e a quantidade do resumo consideram todas as avaliações aprovadas.
       parameters:
         - name: id
           in: path
           required: true
           schema: {type: integer, minimum: 1}
+        - {name: pagina, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: limite, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 10}}
+        - {name: nota, in: query, schema: {type: integer, minimum: 1, maximum: 5}}
+        - {name: comComentario, in: query, schema: {type: boolean, default: false}}
       responses:
         '200':
           $ref: '#/components/responses/AvaliacoesPublicadasResponse'
@@ -1273,7 +1494,7 @@ paths:
   /profissionais/me/servicos:
     get:
       operationId: getMeusServicos
-      summary: Lists the authenticated professional's service offers
+      summary: Lists all authenticated professional service offers, including paused ones
       tags: [Profissionais]
       security:
         - bearerAuth: []
@@ -1409,6 +1630,43 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Disponibilidade'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/bloqueios:
+    get:
+      operationId: getMeusBloqueiosAgenda
+      summary: Lists vacation and unforeseen-event date blocks
+      tags: [Profissionais]
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: Date blocks
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+    post:
+      operationId: postMeuBloqueioAgenda
+      summary: Blocks a date range in the professional agenda
+      tags: [Profissionais]
+      security: [{bearerAuth: []}]
+      responses:
+        '201':
+          description: Date range blocked
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /profissionais/me/bloqueios/{id}:
+    delete:
+      operationId: deleteMeuBloqueioAgenda
+      summary: Removes an owned agenda block
+      tags: [Profissionais]
+      security: [{bearerAuth: []}]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Block removed
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /clientes/me:
@@ -2550,6 +2808,36 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    HabilitacaoResponse:
+      type: object
+      required: [habilitacao]
+      properties:
+        habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
+    HabilitacaoProfissional:
+      type: object
+      required: [estado, podeAtender, documentoAnalisado, etapas, mensagem, revisaoSolicitadaEm]
+      properties:
+        estado: { type: string, enum: [pendente, em_analise, suspenso] }
+        podeAtender: { type: boolean, const: false }
+        documentoAnalisado: { type: boolean }
+        mensagem: { type: string }
+        revisaoSolicitadaEm: { type: [string, 'null'], format: date-time }
+        etapas:
+          type: array
+          items:
+            type: object
+            properties:
+              codigo: { type: string, enum: [perfil, email, telefone, identidade, antecedentes, aprovacao] }
+              status: { type: string, enum: [cadastrado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria] }
+    IdentidadeProfissional:
+      type: object
+      required: [estado, disponivel, url, expiraEm, resolvidaEm]
+      properties:
+        estado: { type: string, enum: [nao_iniciada, iniciando, pendente, confirmada, revisao_necessaria, expirada, falha] }
+        disponivel: { type: boolean }
+        url: { type: [string, 'null'], format: uri }
+        expiraEm: { type: [string, 'null'], format: date-time }
+        resolvidaEm: { type: [string, 'null'], format: date-time }
     HealthStatus:
       type: object
       additionalProperties: false
@@ -2986,6 +3274,11 @@ components:
             - 'null'
         verificado:
           type: boolean
+          description: Document review only, not identity proof or authorization to attend.
+        podeReceberSolicitacoes:
+          type: boolean
+          const: false
+          description: False until the external verification and eligibility workflow is implemented and approved.
         fotoPerfilUrl:
           type:
             - string
@@ -3179,6 +3472,10 @@ components:
         - enderecoAtendimento
         - dataServico
         - horarioServico
+        - duracaoMinutos
+        - intervaloMinutos
+        - reagendamento
+        - reagendamentos
         - precoInicial
         - cliente
         - profissional
@@ -3222,6 +3519,22 @@ components:
           format: date
         horarioServico:
           type: string
+        duracaoMinutos:
+          type: integer
+          minimum: 15
+          maximum: 480
+        intervaloMinutos:
+          type: integer
+          minimum: 0
+          maximum: 480
+        reagendamento:
+          oneOf:
+            - $ref: '#/components/schemas/Reagendamento'
+            - type: 'null'
+        reagendamentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reagendamento'
         precoInicial:
           type:
             - number
@@ -3549,7 +3862,7 @@ components:
     AvaliacoesPublicadas:
       type: object
       additionalProperties: false
-      required: [resumo, avaliacoes]
+      required: [resumo, paginacao, avaliacoes]
       properties:
         resumo:
           type: object
@@ -3575,10 +3888,19 @@ components:
               nota: {type: integer, minimum: 1, maximum: 5}
               comentario: {type: [string, 'null']}
               criadoEm: {type: string, format: date-time}
+        paginacao:
+          type: object
+          additionalProperties: false
+          required: [pagina, limite, total, totalPaginas]
+          properties:
+            pagina: {type: integer, minimum: 1}
+            limite: {type: integer, minimum: 1, maximum: 50}
+            total: {type: integer, minimum: 0}
+            totalPaginas: {type: integer, minimum: 1}
     ServicoProfissional:
       type: object
       additionalProperties: false
-      required: [id, nome, categoria, categoriaId, precoInicial, ativo]
+      required: [id, nome, categoria, categoriaId, precoInicial, duracaoMinutos, intervaloMinutos, ativo]
       properties:
         id:
           type: integer
@@ -3597,6 +3919,8 @@ components:
           minimum: 0
         ativo:
           type: boolean
+        duracaoMinutos: {type: integer, minimum: 15, maximum: 480}
+        intervaloMinutos: {type: integer, minimum: 0, maximum: 480}
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
@@ -3617,6 +3941,39 @@ components:
           type: [number, 'null']
           minimum: 0
           maximum: 99999999.99
+        ativo:
+          type: boolean
+          description: Whether the offer is publicly available. Defaults to true for a new offer.
+        duracaoMinutos:
+          type: integer
+          minimum: 15
+          maximum: 480
+          default: 60
+        intervaloMinutos:
+          type: integer
+          minimum: 0
+          maximum: 480
+          default: 30
+    ReagendamentoRequest:
+      type: object
+      additionalProperties: false
+      required: [dataServico, horarioServico, motivo]
+      properties:
+        dataServico: {type: string, format: date}
+        horarioServico: {type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$'}
+        motivo: {type: string, minLength: 10, maxLength: 400}
+    Reagendamento:
+      type: object
+      additionalProperties: false
+      required: [id, dataServico, horarioServico, motivo, status, respondidoEm, criadoEm]
+      properties:
+        id: {type: integer, minimum: 1}
+        dataServico: {type: string, format: date}
+        horarioServico: {type: string}
+        motivo: {type: string}
+        status: {type: string, enum: [pendente, aceito, recusado, cancelado]}
+        respondidoEm: {type: [string, 'null'], format: date-time}
+        criadoEm: {type: string, format: date-time}
     DisponibilidadeInput:
       type: object
       additionalProperties: false

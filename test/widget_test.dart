@@ -1,6 +1,7 @@
 import 'package:conectarlar_app/app/app.dart';
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
+import 'package:conectarlar_app/data/conectalar_mock_store.dart';
 import 'package:conectarlar_app/models/home_content.dart';
 import 'package:conectarlar_app/screens/admin/admin_pages.dart';
 import 'package:conectarlar_app/screens/auth/recuperacao_senha_page.dart';
@@ -87,60 +88,71 @@ void main() {
     expect(find.text('Carlos Silva'), findsNothing);
   });
 
-  testWidgets('o perfil profissional mostra detalhes e abre solicitação', (
-    tester,
-  ) async {
-    await tester.pumpWidget(const ConectaLarApp());
-    await tester.pumpAndSettle();
+  testWidgets(
+    'o perfil mostra detalhes mas bloqueia solicitação sem habilitação',
+    (tester) async {
+      await tester.pumpWidget(const ConectaLarApp());
+      await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(
-      find.text('Carlos Silva'),
-      500,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Carlos Silva'));
-    await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Carlos Silva'),
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Carlos Silva'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Perfil profissional'), findsOneWidget);
-    expect(find.text('Eletricista residencial'), findsOneWidget);
-    expect(find.text('Serviços oferecidos'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Antes de solicitar'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Antes de solicitar'), findsOneWidget);
+      expect(find.text('Perfil profissional'), findsOneWidget);
+      expect(find.text('Eletricista residencial'), findsOneWidget);
+      expect(find.text('Serviços oferecidos'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Antes de solicitar'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Antes de solicitar'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('perfil-solicitar-servico')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('perfil-solicitar-servico')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Solicitar serviço'), findsOneWidget);
-    expect(find.text('Serviço e local'), findsOneWidget);
-    expect(find.textContaining('O envio não confirma'), findsOneWidget);
-  });
+      expect(find.text('Solicitar serviço'), findsNothing);
+      expect(find.text('Habilitação pendente'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const ValueKey('perfil-solicitar-servico')),
+            )
+            .onPressed,
+        isNull,
+      );
+    },
+  );
 
-  testWidgets('a solicitação enviada inicia aguardando resposta', (
+  testWidgets('formulário isolado de demonstração inicia aguardando resposta', (
     tester,
   ) async {
     final amanha = DateTime.now().add(const Duration(days: 1));
     final dataAtendimento =
         '${amanha.day.toString().padLeft(2, '0')}/'
         '${amanha.month.toString().padLeft(2, '0')}/${amanha.year}';
-    await tester.pumpWidget(const ConectaLarApp());
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(
-      find.text('Carlos Silva'),
-      500,
-      scrollable: find.byType(Scrollable).first,
+    // This checks the existing form in isolation, not professional eligibility.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        routes: AppRoutes.routes,
+        onGenerateInitialRoutes: (_) => [
+          MaterialPageRoute<void>(
+            settings: RouteSettings(
+              name: AppRoutes.solicitarServico,
+              arguments: ConectaLarMockStore.instance.profissionais.first,
+            ),
+            builder: AppRoutes.routes[AppRoutes.solicitarServico]!,
+          ),
+        ],
+      ),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Carlos Silva'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const ValueKey('perfil-solicitar-servico')));
     await tester.pumpAndSettle();
 
     await tester.enterText(

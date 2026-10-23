@@ -246,6 +246,18 @@ class AuthService extends ChangeNotifier {
     return response;
   }
 
+  Future<Map<String, dynamic>> atualizarDadosPessoais({
+    required String nome,
+    String? telefone,
+  }) async {
+    final response = await _api.patch(
+      'auth/me/dados',
+      body: {'nome': nome, 'telefone': telefone ?? ''},
+    );
+    await _registrarSessao(response);
+    return response;
+  }
+
   Future<Map<String, dynamic>> removerFotoPerfil() async {
     final response = await _api.delete('auth/me/foto');
     await _registrarSessao(response);

@@ -8,4 +8,6 @@ export enum NotificacaoTipo {
   AvaliacaoRecebida = 'avaliacao_recebida',
   DocumentoAprovado = 'documento_aprovado',
   DocumentoRejeitado = 'documento_rejeitado',
+  ReagendamentoProposto = 'reagendamento_proposto',
+  ReagendamentoRespondido = 'reagendamento_respondido',
 }

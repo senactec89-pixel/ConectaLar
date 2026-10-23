@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
@@ -15,12 +15,18 @@ import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.ent
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
+import {
+  ReagendamentoStatus,
+  SolicitacaoReagendamentoEntity,
+} from '../database/entities/solicitacao-reagendamento.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
+import { exigirHabilitacao, podeAtender } from '../verificacao/habilitacao-profissional.js';
 
 interface CriarSolicitacaoInput {
   readonly profissionalId: number;
@@ -50,6 +56,10 @@ export class SolicitacoesService {
     private readonly profissionais: Repository<ProfissionalPerfilEntity>,
     @InjectRepository(SolicitacaoEntity)
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
+    @InjectRepository(SolicitacaoReagendamentoEntity)
+    private readonly reagendamentos: Repository<SolicitacaoReagendamentoEntity>,
+    @InjectRepository(ProfissionalBloqueioEntity)
+    private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly notificacoes: NotificacoesService,
@@ -80,6 +90,8 @@ export class SolicitacoesService {
         message: 'Profissional nao encontrado.',
       });
     }
+
+    exigirHabilitacao(profissional);
 
     const oferta =
       input.servicoId === null
@@ -118,6 +130,8 @@ export class SolicitacoesService {
       profissional.id,
       input.dataServico,
       input.horarioServico,
+      oferta?.duracaoMinutos ?? 60,
+      oferta?.intervaloMinutos ?? 30,
     );
 
     const solicitacao = this.solicitacoes.create({
@@ -131,6 +145,8 @@ export class SolicitacoesService {
       bairroAtendimento: input.bairroAtendimento,
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
+      duracaoMinutos: oferta?.duracaoMinutos ?? 60,
+      intervaloMinutos: oferta?.intervaloMinutos ?? 30,
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       status: SolicitacaoStatus.AguardandoResposta,
     });
@@ -277,6 +293,108 @@ export class SolicitacoesService {
     return response;
   }
 
+  async proporReagendamento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const input = parseReagendamento(body);
+    const solicitacao = await this.carregar(id);
+    assertProfissionalParticipante(user, solicitacao);
+    if (solicitacao.status !== SolicitacaoStatus.AceitaAgendada) {
+      throw new ConflictException({
+        code: 'REAGENDAMENTO_INDISPONIVEL',
+        message: 'Somente atendimentos aceitos podem ser reagendados.',
+      });
+    }
+    await this.validarDisponibilidade(
+      solicitacao.profissionalId,
+      input.dataServico,
+      input.horarioServico,
+      solicitacao.duracaoMinutos,
+      solicitacao.intervaloMinutos,
+      solicitacao.id,
+    );
+    await this.reagendamentos.update(
+      { solicitacaoId: id, status: ReagendamentoStatus.Pendente },
+      { status: ReagendamentoStatus.Cancelado, respondidoEm: new Date() },
+    );
+    await this.reagendamentos.save(
+      this.reagendamentos.create({
+        solicitacaoId: id,
+        dataProposta: input.dataServico,
+        horarioProposto: input.horarioServico,
+        motivo: input.motivo,
+        status: ReagendamentoStatus.Pendente,
+        respondidoEm: null,
+      }),
+    );
+    await this.notificarSeguro({
+      usuarioId: solicitacao.clienteId,
+      tipo: NotificacaoTipo.ReagendamentoProposto,
+      titulo: 'Nova proposta de reagendamento',
+      mensagem: 'O profissional propôs uma nova data para o atendimento.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
+  }
+
+  async responderReagendamento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const aceitar = parseRespostaReagendamento(body);
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const atual = await manager.findOne(SolicitacaoEntity, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const proposta = await manager.findOne(SolicitacaoReagendamentoEntity, {
+        where: { solicitacaoId: id, status: ReagendamentoStatus.Pendente },
+        order: { criadoEm: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (atual === null || proposta === null || atual.status !== SolicitacaoStatus.AceitaAgendada) {
+        throw new ConflictException({
+          code: 'REAGENDAMENTO_INDISPONIVEL',
+          message: 'Esta proposta não está mais disponível.',
+        });
+      }
+      if (aceitar) {
+        await this.validarAgendaComManager(
+          manager,
+          atual.profissionalId,
+          proposta.dataProposta,
+          proposta.horarioProposto,
+          atual.duracaoMinutos,
+          atual.intervaloMinutos,
+          atual.id,
+        );
+        atual.dataServico = proposta.dataProposta;
+        atual.horarioServico = proposta.horarioProposto;
+        await manager.save(SolicitacaoEntity, atual);
+      }
+      proposta.status = aceitar ? ReagendamentoStatus.Aceito : ReagendamentoStatus.Recusado;
+      proposta.respondidoEm = new Date();
+      await manager.save(SolicitacaoReagendamentoEntity, proposta);
+    });
+    await this.notificarSeguro({
+      usuarioId: solicitacao.profissional.usuarioId,
+      tipo: NotificacaoTipo.ReagendamentoRespondido,
+      titulo: aceitar ? 'Reagendamento confirmado' : 'Reagendamento recusado',
+      mensagem: aceitar
+        ? 'O cliente confirmou a nova data do atendimento.'
+        : 'O cliente recusou a proposta. Converse para combinar outra opção.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
+  }
+
   private async transicionar(
     solicitacao: SolicitacaoEntity,
     origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
@@ -304,6 +422,7 @@ export class SolicitacoesService {
           });
         }
         if (destino === SolicitacaoStatus.AceitaAgendada) {
+          exigirHabilitacao(perfil);
           if (perfil === null || !perfil.ativo)
             throw badRequest('PROFISSIONAL_INDISPONIVEL');
           const disponibilidade = await manager.find(
@@ -312,32 +431,16 @@ export class SolicitacoesService {
               where: { profissionalId: perfil.id, ativo: true },
             },
           );
-          if (
-            !horarioDisponivel(
-              disponibilidade,
-              atual.dataServico,
-              atual.horarioServico,
-            )
-          ) {
-            throw new ConflictException({
-              code: 'HORARIO_INDISPONIVEL',
-              message: 'Horário fora da disponibilidade.',
-            });
-          }
-          const ocupados = await manager.count(SolicitacaoEntity, {
-            where: {
-              profissionalId: perfil.id,
-              dataServico: atual.dataServico,
-              horarioServico: atual.horarioServico,
-              status: SolicitacaoStatus.AceitaAgendada,
-            },
-          });
-          if (ocupados > 0) {
-            throw new ConflictException({
-              code: 'HORARIO_OCUPADO',
-              message: 'Já existe atendimento neste horário.',
-            });
-          }
+          await this.validarAgendaComManager(
+            manager,
+            perfil.id,
+            atual.dataServico,
+            atual.horarioServico,
+            atual.duracaoMinutos,
+            atual.intervaloMinutos,
+            atual.id,
+            disponibilidade,
+          );
         }
         atual.status = destino;
         await manager.save(SolicitacaoEntity, atual);
@@ -355,7 +458,19 @@ export class SolicitacoesService {
       (await this.avaliacoes.count({
         where: { solicitacaoId: solicitacao.id, avaliadorId: user.id },
       })) > 0;
-    return { solicitacao: solicitacaoResponse(solicitacao, user, avaliado) };
+    const reagendamentos = await this.reagendamentos.find({
+      where: { solicitacaoId: solicitacao.id },
+      order: { criadoEm: 'DESC' },
+    });
+    return {
+      solicitacao: {
+        ...solicitacaoResponse(solicitacao, user, avaliado),
+        reagendamento: reagendamentos[0] === undefined
+          ? null
+          : reagendamentoResponse(reagendamentos[0]),
+        reagendamentos: reagendamentos.map(reagendamentoResponse),
+      },
+    };
   }
 
   private async carregar(id: number): Promise<SolicitacaoEntity> {
@@ -382,6 +497,9 @@ export class SolicitacoesService {
     profissionalId: number,
     dataServico: string,
     horarioServico: string,
+    duracaoMinutos: number,
+    intervaloMinutos: number,
+    ignorarSolicitacaoId?: number,
   ): Promise<void> {
     const disponibilidades = await this.disponibilidades.find({
       where: { profissionalId, ativo: true },
@@ -389,8 +507,72 @@ export class SolicitacoesService {
     if (disponibilidades.length === 0) {
       throw badRequest('DISPONIBILIDADE_NAO_CADASTRADA');
     }
-    if (!horarioDisponivel(disponibilidades, dataServico, horarioServico)) {
+    if (!horarioDisponivel(disponibilidades, dataServico, horarioServico, duracaoMinutos)) {
       throw badRequest('HORARIO_INDISPONIVEL');
+    }
+    await this.validarAgendaComManager(
+      this.solicitacoes.manager,
+      profissionalId,
+      dataServico,
+      horarioServico,
+      duracaoMinutos,
+      intervaloMinutos,
+      ignorarSolicitacaoId,
+      disponibilidades,
+    );
+  }
+
+  private async validarAgendaComManager(
+    manager: EntityManager,
+    profissionalId: number,
+    dataServico: string,
+    horarioServico: string,
+    duracaoMinutos: number,
+    intervaloMinutos: number,
+    ignorarSolicitacaoId?: number,
+    disponibilidadesCarregadas?: readonly ProfissionalDisponibilidadeEntity[],
+  ) {
+    const disponibilidades = disponibilidadesCarregadas ?? await manager.find(
+      ProfissionalDisponibilidadeEntity,
+      { where: { profissionalId, ativo: true } },
+    );
+    if (!horarioDisponivel(disponibilidades, dataServico, horarioServico, duracaoMinutos)) {
+      throw new ConflictException({
+        code: 'HORARIO_INDISPONIVEL',
+        message: 'O atendimento não cabe no período disponível.',
+      });
+    }
+    const bloqueio = await manager
+      .createQueryBuilder(ProfissionalBloqueioEntity, 'bloqueio')
+      .where('bloqueio.profissional_id = :profissionalId', { profissionalId })
+      .andWhere(':dataServico BETWEEN bloqueio.data_inicio AND bloqueio.data_fim', { dataServico })
+      .getOne();
+    if (bloqueio !== null) {
+      throw new ConflictException({
+        code: 'DATA_BLOQUEADA',
+        message: 'O profissional bloqueou esta data na agenda.',
+      });
+    }
+    const ocupados = await manager.find(SolicitacaoEntity, {
+      where: {
+        profissionalId,
+        dataServico,
+        status: SolicitacaoStatus.AceitaAgendada,
+      },
+    });
+    const inicio = minutos(horarioServico);
+    const fim = inicio + duracaoMinutos + intervaloMinutos;
+    const conflita = ocupados.some((item) => {
+      if (item.id === ignorarSolicitacaoId) return false;
+      const inicioExistente = minutos(item.horarioServico);
+      const fimExistente = inicioExistente + item.duracaoMinutos + item.intervaloMinutos;
+      return intervalosConflitam(inicio, fim, inicioExistente, fimExistente);
+    });
+    if (conflita) {
+      throw new ConflictException({
+        code: 'HORARIO_OCUPADO',
+        message: 'Este horário se sobrepõe a outro atendimento ou intervalo.',
+      });
     }
   }
 
@@ -428,6 +610,8 @@ function solicitacaoResponse(
         : null,
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
+    duracaoMinutos: solicitacao.duracaoMinutos,
+    intervaloMinutos: solicitacao.intervaloMinutos,
     precoInicial: numberOrNull(solicitacao.precoInicial),
     cliente: {
       id: solicitacao.cliente.id,
@@ -464,6 +648,7 @@ function enderecoCompletoLiberado(
     [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(user.tipo) &&
     solicitacao.profissional.usuarioId === user.id
   ) {
+    if (!podeAtender(solicitacao.profissional)) return false;
     return [
       SolicitacaoStatus.AceitaAgendada,
       SolicitacaoStatus.ConclusaoConfirmada,
@@ -545,6 +730,47 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
     dataServico: dateField(value.dataServico),
     horarioServico: timeField(value.horarioServico),
   };
+}
+
+function parseReagendamento(body: unknown) {
+  const value = objectBody(body);
+  return {
+    dataServico: dateField(value.dataServico),
+    horarioServico: timeField(value.horarioServico),
+    motivo: textField(value, 'motivo', 10, 400),
+  };
+}
+
+function parseRespostaReagendamento(body: unknown): boolean {
+  const value = objectBody(body);
+  if (typeof value.aceitar !== 'boolean') throw badRequest('RESPOSTA_INVALIDA');
+  return value.aceitar;
+}
+
+function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
+  return {
+    id: item.id,
+    dataServico: item.dataProposta,
+    horarioServico: item.horarioProposto,
+    motivo: item.motivo,
+    status: item.status,
+    respondidoEm: item.respondidoEm?.toISOString() ?? null,
+    criadoEm: item.criadoEm.toISOString(),
+  };
+}
+
+function minutos(horario: string): number {
+  const [hora = '0', minuto = '0'] = horario.split(':');
+  return Number(hora) * 60 + Number(minuto);
+}
+
+export function intervalosConflitam(
+  inicioA: number,
+  fimA: number,
+  inicioB: number,
+  fimB: number,
+): boolean {
+  return inicioA < fimB && inicioB < fimA;
 }
 
 function objectBody(body: unknown): Record<string, unknown> {

@@ -401,6 +401,13 @@ class _AdminPageState extends State<AdminPage> {
             onTap: () => _abrir(AdminModulo.documentos),
           ),
           _AdminAtalho(
+            icon: Icons.fact_check_outlined,
+            title: 'Habilitações profissionais',
+            subtitle: 'Pendências e solicitações de revisão',
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.adminHabilitacoes),
+          ),
+          _AdminAtalho(
             icon: Icons.report_outlined,
             title: 'Revisar denúncias',
             subtitle: 'Registrar decisão sem punição automática',
@@ -1484,6 +1491,8 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
   'categoria_criada' => 'Categoria criada',
   'categoria_atualizada' => 'Categoria atualizada',
   'documento_analisado' => 'Documento analisado',
+  'habilitacao_analisada' => 'Habilitação analisada',
+  'habilitacao_revisao_solicitada' => 'Revisão de habilitação solicitada',
   'denuncia_moderada' => 'Denúncia moderada',
   'avaliacao_moderada' => 'Avaliação moderada',
   _ => 'Ação administrativa',
@@ -1492,6 +1501,7 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
 String _rotuloAlvoAuditoria(String? alvo) => switch (alvo) {
   'usuario' => 'Usuário',
   'documento_verificacao' => 'Documento',
+  'habilitacao_profissional' => 'Habilitação profissional',
   'categoria' => 'Categoria',
   'denuncia' => 'Denúncia',
   'avaliacao' => 'Avaliação',

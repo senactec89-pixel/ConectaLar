@@ -1,4 +1,6 @@
 export enum AdminAuditoriaAcao {
+  HabilitacaoAnalisada = 'habilitacao_analisada',
+  HabilitacaoRevisaoSolicitada = 'habilitacao_revisao_solicitada',
   UsuarioAtivado = 'usuario_ativado',
   UsuarioDesativado = 'usuario_desativado',
   AdministradorCriado = 'administrador_criado',

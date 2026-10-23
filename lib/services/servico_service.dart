@@ -32,4 +32,30 @@ class ServicoService {
   Future<Map<String, dynamic>> concluir(int solicitacaoId) {
     return _api.patch('solicitacoes/$solicitacaoId/concluir');
   }
+
+  Future<Map<String, dynamic>> proporReagendamento(
+    int solicitacaoId, {
+    required String dataServico,
+    required String horarioServico,
+    required String motivo,
+  }) {
+    return _api.post(
+      'solicitacoes/$solicitacaoId/reagendamento',
+      body: {
+        'dataServico': dataServico,
+        'horarioServico': horarioServico,
+        'motivo': motivo,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> responderReagendamento(
+    int solicitacaoId, {
+    required bool aceitar,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/reagendamento/responder',
+      body: {'aceitar': aceitar},
+    );
+  }
 }

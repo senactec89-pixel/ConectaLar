@@ -77,98 +77,107 @@ void main() {
     }
   });
 
-  testWidgets('atalhos do perfil preservam avaliações e oferta ao solicitar', (
-    tester,
-  ) async {
-    var consultas = 0;
-    await configurarFrontend(
-      responder: (request) async {
-        if (request.url.path == '/profissionais/44/avaliacoes') {
-          consultas++;
-          return jsonResponse({
-            'resumo': {'notaMedia': 4.8, 'quantidadeAvaliacoes': 1},
-            'avaliacoes': [
-              {
-                'nota': 5,
-                'comentario': 'Atendimento cuidadoso.',
-                'criadoEm': '2026-10-12T12:00:00Z',
-              },
-            ],
-          });
-        }
-        return null;
-      },
-    );
-    const profissional = Profissional(
-      id: 44,
-      usuarioId: 144,
-      nome: 'Maria Eduarda de Almeida e Souza',
-      descricao:
-          'Instalação e manutenção residencial com atendimento na região.',
-      bairro: 'Jardim das Flores',
-      precoInicial: 80,
-      verificado: true,
-      servicos: ['Nome antigo do catálogo'],
-      ofertas: [
-        OfertaProfissional(
-          id: 501,
-          nome: 'Instalação de equipamentos residenciais',
-          precoInicial: 250,
-        ),
-        OfertaProfissional(
-          id: 502,
-          nome: 'Manutenção de equipamentos residenciais',
-        ),
-      ],
-    );
-    for (final width in [360.0, 390.0, 412.0]) {
-      await tester.pumpWidget(const SizedBox.shrink());
-      final antes = consultas;
-      Object? argumento;
-      await abrirFrontend(
-        tester,
-        AppRoutes.perfilProfissional,
-        arguments: profissional,
-        width: width,
-        textScale: 2,
-        overrides: {
-          AppRoutes.solicitarServico: (context) {
-            argumento = ModalRoute.of(context)!.settings.arguments;
-            return const Scaffold(body: Text('Formulário de solicitação'));
-          },
+  testWidgets(
+    'atalhos preservam avaliações e ofertas sem liberar perfil pendente',
+    (tester) async {
+      var consultas = 0;
+      await configurarFrontend(
+        responder: (request) async {
+          if (request.url.path == '/profissionais/44/avaliacoes') {
+            consultas++;
+            return jsonResponse({
+              'resumo': {'notaMedia': 4.8, 'quantidadeAvaliacoes': 1},
+              'avaliacoes': [
+                {
+                  'nota': 5,
+                  'comentario': 'Atendimento cuidadoso.',
+                  'criadoEm': '2026-10-12T12:00:00Z',
+                },
+              ],
+            });
+          }
+          return null;
         },
       );
-      expect(consultas, antes + 1);
-      for (final atalho in [
-        ('servicos', 'Serviços oferecidos'),
-        ('avaliacoes', 'Avaliações de clientes'),
-        ('sobre', 'Sobre o profissional'),
-      ]) {
-        final botao = find.byKey(ValueKey('perfil-atalho-${atalho.$1}'));
-        await tester.ensureVisible(botao);
-        await tester.pumpAndSettle();
-        expect(tester.getSize(botao).height, greaterThanOrEqualTo(48));
-        await tester.tap(botao);
-        await tester.pumpAndSettle();
-        expect(find.text(atalho.$2).hitTestable(), findsOneWidget);
-        expect(tester.takeException(), isNull, reason: '$width: ${atalho.$1}');
-      }
-      expect(
-        consultas,
-        antes + 1,
-        reason: 'Navegar nas seções não refaz a consulta.',
+      const profissional = Profissional(
+        id: 44,
+        usuarioId: 144,
+        nome: 'Maria Eduarda de Almeida e Souza',
+        descricao:
+            'Instalação e manutenção residencial com atendimento na região.',
+        bairro: 'Jardim das Flores',
+        precoInicial: 80,
+        verificado: true,
+        servicos: ['Nome antigo do catálogo'],
+        ofertas: [
+          OfertaProfissional(
+            id: 501,
+            nome: 'Instalação de equipamentos residenciais',
+            precoInicial: 250,
+          ),
+          OfertaProfissional(
+            id: 502,
+            nome: 'Manutenção de equipamentos residenciais',
+          ),
+        ],
       );
-      expect(find.text('A partir de R\$ 250,00'), findsOneWidget);
-      expect(find.text('Preço inicial sob consulta'), findsOneWidget);
-      expect(find.text('Nome antigo do catálogo'), findsNothing);
-      final solicitar = find.byKey(const ValueKey('perfil-solicitar-servico'));
-      expect(solicitar.hitTestable(), findsOneWidget);
-      await tester.tap(solicitar);
-      await tester.pumpAndSettle();
-      expect(identical(argumento, profissional), isTrue);
-      expect(tester.takeException(), isNull);
-    }
-  });
+      for (final width in [360.0, 390.0, 412.0]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        final antes = consultas;
+        Object? argumento;
+        await abrirFrontend(
+          tester,
+          AppRoutes.perfilProfissional,
+          arguments: profissional,
+          width: width,
+          textScale: 2,
+          overrides: {
+            AppRoutes.solicitarServico: (context) {
+              argumento = ModalRoute.of(context)!.settings.arguments;
+              return const Scaffold(body: Text('Formulário de solicitação'));
+            },
+          },
+        );
+        expect(consultas, antes + 1);
+        for (final atalho in [
+          ('servicos', 'Serviços oferecidos'),
+          ('avaliacoes', 'Avaliações de clientes'),
+          ('sobre', 'Sobre o profissional'),
+        ]) {
+          final botao = find.byKey(ValueKey('perfil-atalho-${atalho.$1}'));
+          await tester.ensureVisible(botao);
+          await tester.pumpAndSettle();
+          expect(tester.getSize(botao).height, greaterThanOrEqualTo(48));
+          await tester.tap(botao);
+          await tester.pumpAndSettle();
+          expect(find.text(atalho.$2).hitTestable(), findsOneWidget);
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '$width: ${atalho.$1}',
+          );
+        }
+        expect(
+          consultas,
+          antes + 1,
+          reason: 'Navegar nas seções não refaz a consulta.',
+        );
+        expect(find.text('A partir de R\$ 250,00'), findsOneWidget);
+        expect(find.text('Preço inicial sob consulta'), findsOneWidget);
+        expect(find.text('Nome antigo do catálogo'), findsNothing);
+        final solicitar = find.byKey(
+          const ValueKey('perfil-solicitar-servico'),
+        );
+        expect(solicitar.hitTestable(), findsOneWidget);
+        await tester.tap(solicitar);
+        await tester.pumpAndSettle();
+        expect(argumento, isNull);
+        expect(tester.widget<FilledButton>(solicitar).onPressed, isNull);
+        expect(find.text('Habilitação pendente'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets(
     'perfil sem foto ou preços por oferta mantém leitura e valores reais',

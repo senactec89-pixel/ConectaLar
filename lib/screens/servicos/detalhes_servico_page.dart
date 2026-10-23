@@ -272,6 +272,136 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     );
   }
 
+  Future<void> _proporReagendamento() async {
+    if (_enviando) return;
+    final motivo = TextEditingController();
+    var data = _atendimento.solicitacao.dataServico;
+    final horarioAtual = _atendimento.solicitacao.horarioServico.split(':');
+    var horario = TimeOfDay(
+      hour: int.tryParse(horarioAtual.first) ?? 9,
+      minute: horarioAtual.length > 1 ? int.tryParse(horarioAtual[1]) ?? 0 : 0,
+    );
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          title: const Text('Propor reagendamento'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final escolhida = await showDatePicker(
+                    context: context,
+                    initialDate: data,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 730)),
+                  );
+                  if (escolhida != null) setDialogState(() => data = escolhida);
+                },
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: Text(_dataBr(data)),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final escolhido = await showTimePicker(
+                    context: context,
+                    initialTime: horario,
+                  );
+                  if (escolhido != null) {
+                    setDialogState(() => horario = escolhido);
+                  }
+                },
+                icon: const Icon(Icons.schedule_outlined),
+                label: Text(_hora(horario)),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: motivo,
+                minLines: 2,
+                maxLines: 4,
+                maxLength: 400,
+                decoration: const InputDecoration(
+                  labelText: 'Explique o imprevisto',
+                  hintText: 'Informe o motivo e ajude o cliente a decidir.',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Voltar'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (motivo.text.trim().length < 10) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Explique o motivo em pelo menos 10 caracteres.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Enviar proposta'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmar != true) {
+      motivo.dispose();
+      return;
+    }
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos.proporReagendamento(
+        _atendimento.solicitacao.id,
+        dataServico: _dataApi(data),
+        horarioServico: _hora(horario),
+        motivo: motivo.text.trim(),
+      );
+      final solicitacao = response['solicitacao'];
+      if (mounted && solicitacao is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
+        _notificar('Proposta enviada ao cliente.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) _notificar(error.message);
+    } finally {
+      motivo.dispose();
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _responderReagendamento(bool aceitar) async {
+    if (_enviando) return;
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos
+          .responderReagendamento(
+            _atendimento.solicitacao.id,
+            aceitar: aceitar,
+          );
+      final solicitacao = response['solicitacao'];
+      if (mounted && solicitacao is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
+        _notificar(aceitar ? 'Nova data confirmada.' : 'Proposta recusada.');
+      }
+    } on ApiException catch (error) {
+      if (mounted) _notificar(error.message);
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
   Future<void> _avaliar() async {
     if (_enviando) return;
     setState(() => _enviando = true);
@@ -372,7 +502,8 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 _DetalheLinha(
                   icon: Icons.event_outlined,
                   label: 'Data e horário',
-                  value: '$dataFormatada às ${solicitacao.horarioServico}',
+                  value:
+                      '$dataFormatada às ${solicitacao.horarioServico}\n${solicitacao.duracaoMinutos} min de serviço + ${solicitacao.intervaloMinutos} min de intervalo',
                 ),
                 _DetalheLinha(
                   icon: Icons.location_on_outlined,
@@ -396,6 +527,18 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
         ),
         const SizedBox(height: 16),
+        if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
+          _ReagendamentoCard(
+            proposta: solicitacao.reagendamento,
+            historico: solicitacao.reagendamentos,
+            cliente: _clienteParticipante,
+            profissional: _profissionalParticipante,
+            ocupada: _enviando,
+            onPropor: _proporReagendamento,
+            onResponder: _responderReagendamento,
+          ),
+        if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
+          const SizedBox(height: 16),
         _AcoesAtendimento(
           solicitacao: solicitacao,
           avaliado: atendimento.avaliado,
@@ -437,6 +580,134 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     );
   }
 }
+
+class _ReagendamentoCard extends StatelessWidget {
+  const _ReagendamentoCard({
+    required this.proposta,
+    required this.historico,
+    required this.cliente,
+    required this.profissional,
+    required this.ocupada,
+    required this.onPropor,
+    required this.onResponder,
+  });
+
+  final Map<String, dynamic>? proposta;
+  final List<Map<String, dynamic>> historico;
+  final bool cliente;
+  final bool profissional;
+  final bool ocupada;
+  final VoidCallback onPropor;
+  final ValueChanged<bool> onResponder;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendente = proposta?['status'] == 'pendente';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.update_outlined, color: AppColors.verdeEscuro),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Imprevistos e reagendamento',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            if (proposta != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '${_dataApiBr(proposta!['dataServico'])} às ${proposta!['horarioServico']}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text('${proposta!['motivo']}'),
+              const SizedBox(height: 4),
+              Text(
+                'Situação: ${_statusReagendamento(proposta!['status'])}',
+                style: const TextStyle(color: AppColors.textoSuave),
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Caso o profissional não possa comparecer, pode sugerir outra data para confirmação do cliente.',
+                style: TextStyle(color: AppColors.textoSuave),
+              ),
+            ],
+            if (cliente && pendente) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: ocupada ? null : () => onResponder(false),
+                      child: const Text('Recusar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: ocupada ? null : () => onResponder(true),
+                      child: const Text('Confirmar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (profissional) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: ocupada ? null : onPropor,
+                icon: const Icon(Icons.edit_calendar_outlined),
+                label: Text(
+                  pendente ? 'Substituir proposta' : 'Propor nova data',
+                ),
+              ),
+            ],
+            if (historico.length > 1) ...[
+              const SizedBox(height: 10),
+              Text(
+                '${historico.length} propostas registradas no histórico',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _dataApi(DateTime data) =>
+    '${data.year.toString().padLeft(4, '0')}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
+
+String _dataBr(DateTime data) =>
+    '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+
+String _dataApiBr(Object? value) {
+  final partes = '$value'.split('-');
+  return partes.length == 3
+      ? '${partes[2]}/${partes[1]}/${partes[0]}'
+      : '$value';
+}
+
+String _hora(TimeOfDay value) =>
+    '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+String _statusReagendamento(Object? value) => switch (value) {
+  'pendente' => 'aguardando cliente',
+  'aceito' => 'confirmado',
+  'recusado' => 'recusado',
+  'cancelado' => 'substituído',
+  _ => 'indisponível',
+};
 
 class _AcoesAtendimento extends StatelessWidget {
   const _AcoesAtendimento({

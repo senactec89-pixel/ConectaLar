@@ -5,8 +5,10 @@ import '../../widgets/unsaved_form_guard.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
+import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../services/api_service.dart';
+import '../../utils/situacao_documental.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
@@ -48,6 +50,10 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
   List<Map<String, dynamic>> _ofertasAtuais = [];
   bool _consultandoCep = false;
   String? _ultimoCepConsultado;
+  Map<String, dynamic>? _perfilAtual;
+  List<Map<String, dynamic>> _disponibilidades = const [];
+  SituacaoDocumental? _situacaoDocumental;
+  Map<String, dynamic> _habilitacao = const {};
 
   @override
   void initState() {
@@ -67,6 +73,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
         if (!mounted) return;
         final perfil = response['profissional'];
         if (perfil is Map<String, dynamic>) {
+          _perfilAtual = Map<String, dynamic>.from(perfil);
           _editando = true;
           _descricaoController.text = '${perfil['descricao'] ?? ''}';
           _bairroController.text = '${perfil['bairro'] ?? ''}';
@@ -85,8 +92,65 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
     } catch (_) {
       _erroPerfil = 'Não foi possível carregar seus dados profissionais.';
     } finally {
-      if (mounted) setState(() => _carregandoPerfil = false);
+      if (mounted) {
+        setState(() => _carregandoPerfil = false);
+        _carregarProgressoComplementar().then((_) {
+          if (mounted) setState(() {});
+        });
+      }
     }
+  }
+
+  Future<void> _carregarProgressoComplementar() async {
+    try {
+      final response = await AppServices.instance.profissionais.meusServicos();
+      if (response['servicos'] is List) {
+        _ofertasAtuais = _servicosExistentes({
+          'servicos': response['servicos'],
+        });
+      }
+    } catch (_) {
+      // O perfil ainda mantém as ofertas ativas disponíveis para edição.
+    }
+    try {
+      final response = await AppServices.instance.profissionais
+          .minhaDisponibilidade();
+      _disponibilidades = (response['disponibilidades'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+    } catch (_) {
+      _disponibilidades = const [];
+    }
+    try {
+      final response = await AppServices.instance.verificacao.meusDocumentos();
+      final documentos = listFromApi(
+        response['documentos'],
+        documentoVerificacaoFromApi,
+      );
+      _situacaoDocumental = situacaoDocumentoIdentidade(documentos);
+      final habilitacao = response['habilitacao'];
+      _habilitacao = habilitacao is Map
+          ? Map<String, dynamic>.from(habilitacao)
+          : const {};
+    } catch (_) {
+      _situacaoDocumental = null;
+      _habilitacao = const {};
+    }
+  }
+
+  Future<void> _abrirEtapa(String route) async {
+    await Navigator.pushNamed(context, route);
+    if (mounted) await _carregarPerfil();
+  }
+
+  void _abrirPerfilPublico() {
+    final perfil = _perfilAtual;
+    if (perfil == null) return;
+    Navigator.pushNamed(
+      context,
+      AppRoutes.perfilProfissional,
+      arguments: profissionalFromApi(perfil),
+    );
   }
 
   @override
@@ -126,9 +190,20 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
     try {
       if (AppServices.instance.auth.autenticado) {
         final profissionais = AppServices.instance.profissionais;
-        final resposta = await profissionais.meuPerfil();
-        _ofertasAtuais = _servicosExistentes(resposta['profissional']);
-        await profissionais.salvarMeuPerfil({
+        final respostas = await Future.wait([
+          profissionais.meuPerfil(),
+          profissionais.meusServicos(),
+        ]);
+        final perfilAtual = respostas[0]['profissional'];
+        final resposta = respostas[1];
+        if (resposta['servicos'] is List) {
+          _ofertasAtuais = _servicosExistentes({
+            'servicos': resposta['servicos'],
+          });
+        } else if (perfilAtual is Map<String, dynamic>) {
+          _ofertasAtuais = _servicosExistentes(perfilAtual);
+        }
+        final salvo = await profissionais.salvarMeuPerfil({
           'descricao': _descricaoController.text.trim(),
           'bairro': _bairroController.text.trim(),
           'cep': _cepController.text.trim().isEmpty
@@ -144,6 +219,11 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
           'precoInicial': precoInicial,
           'servicos': _ofertasAtuais,
         });
+        final perfil = salvo['profissional'];
+        if (perfil is Map<String, dynamic>) {
+          _perfilAtual = Map<String, dynamic>.from(perfil);
+          _ofertasAtuais = _servicosExistentes(perfil);
+        }
       } else if (!AppServices.instance.emDemonstracao) {
         throw StateError('Entre na sua conta para continuar.');
       }
@@ -217,6 +297,9 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             'nome': servico['nome'],
             'categoriaId': ?categoriaId,
             'precoInicial': ?preco,
+            'duracaoMinutos': servico['duracaoMinutos'] ?? 60,
+            'intervaloMinutos': servico['intervaloMinutos'] ?? 30,
+            'ativo': servico['ativo'] != false,
           };
         })
         .toList(growable: false);
@@ -265,14 +348,22 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                   ),
                   const SizedBox(height: AppSpace.lg),
                   _EtapasCadastro(
-                    onServicos: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.servicosProfissional,
+                    dadosConcluidos: _perfilAtual != null,
+                    servicosConcluidos: _ofertasAtuais.any(
+                      (item) => item['ativo'] != false,
                     ),
-                    onDocumentos: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.documentosProfissional,
+                    disponibilidadeConcluida: _disponibilidades.any(
+                      (item) => item['ativo'] != false,
                     ),
+                    documentosConcluidos:
+                        _situacaoDocumental?.estado ==
+                        SituacaoDocumentalEstado.aprovado,
+                    onServicos: () =>
+                        _abrirEtapa(AppRoutes.servicosProfissional),
+                    onDisponibilidade: () =>
+                        _abrirEtapa(AppRoutes.disponibilidadeProfissional),
+                    onDocumentos: () =>
+                        _abrirEtapa(AppRoutes.documentosProfissional),
                   ),
                   const SizedBox(height: AppSpace.lg),
                   _FormularioProfissional(
@@ -291,6 +382,22 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                     consultandoCep: _consultandoCep,
                     onConsultarCep: _consultarCep,
                     onContinuar: () => _continuar(),
+                  ),
+                  const SizedBox(height: AppSpace.lg),
+                  _ChecklistCadastro(
+                    perfilCriado: _perfilAtual != null,
+                    possuiServico: _ofertasAtuais.any(
+                      (item) => item['ativo'] != false,
+                    ),
+                    possuiDisponibilidade: _disponibilidades.any(
+                      (item) => item['ativo'] != false,
+                    ),
+                    emailConfirmado: AppServices.instance.auth.emailVerificado,
+                    situacaoDocumental: _situacaoDocumental,
+                    habilitado: _habilitacao['podeAtender'] == true,
+                    onVerPerfil: _perfilAtual == null
+                        ? null
+                        : _abrirPerfilPublico,
                   ),
                   const SizedBox(height: AppSpace.lg),
                   const _PedidosNoPerfilRemovidos(),
@@ -512,9 +619,22 @@ class _FormularioProfissional extends StatelessWidget {
 }
 
 class _EtapasCadastro extends StatelessWidget {
-  const _EtapasCadastro({required this.onServicos, required this.onDocumentos});
+  const _EtapasCadastro({
+    required this.dadosConcluidos,
+    required this.servicosConcluidos,
+    required this.disponibilidadeConcluida,
+    required this.documentosConcluidos,
+    required this.onServicos,
+    required this.onDisponibilidade,
+    required this.onDocumentos,
+  });
 
+  final bool dadosConcluidos;
+  final bool servicosConcluidos;
+  final bool disponibilidadeConcluida;
+  final bool documentosConcluidos;
   final VoidCallback onServicos;
+  final VoidCallback onDisponibilidade;
   final VoidCallback onDocumentos;
 
   @override
@@ -522,11 +642,28 @@ class _EtapasCadastro extends StatelessWidget {
     spacing: 8,
     runSpacing: 8,
     children: [
-      const _EtapaCadastroPill(numero: '1', titulo: 'Dados', ativa: true),
-      _EtapaCadastroPill(numero: '2', titulo: 'Serviços', onTap: onServicos),
+      _EtapaCadastroPill(
+        numero: '1',
+        titulo: 'Dados',
+        ativa: true,
+        concluida: dadosConcluidos,
+      ),
+      _EtapaCadastroPill(
+        numero: '2',
+        titulo: 'Serviços',
+        concluida: servicosConcluidos,
+        onTap: onServicos,
+      ),
       _EtapaCadastroPill(
         numero: '3',
+        titulo: 'Disponibilidade',
+        concluida: disponibilidadeConcluida,
+        onTap: onDisponibilidade,
+      ),
+      _EtapaCadastroPill(
+        numero: '4',
         titulo: 'Documentos',
+        concluida: documentosConcluidos,
         onTap: onDocumentos,
       ),
     ],
@@ -538,35 +675,175 @@ class _EtapaCadastroPill extends StatelessWidget {
     required this.numero,
     required this.titulo,
     this.ativa = false,
+    this.concluida = false,
     this.onTap,
   });
 
   final String numero;
   final String titulo;
   final bool ativa;
+  final bool concluida;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final cor = ativa ? AppColors.verde : AppColors.textoSuave;
+    final cor = ativa || concluida ? AppColors.verde : AppColors.textoSuave;
     return ActionChip(
       onPressed: onTap,
       avatar: CircleAvatar(
         radius: 12,
         backgroundColor: ativa ? AppColors.verde : AppColors.verdeClaro,
-        child: Text(
-          numero,
-          style: TextStyle(
-            color: ativa ? Colors.white : AppColors.verdeEscuro,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        child: concluida
+            ? Icon(
+                Icons.check,
+                size: 15,
+                color: ativa ? Colors.white : AppColors.verdeEscuro,
+              )
+            : Text(
+                numero,
+                style: TextStyle(
+                  color: ativa ? Colors.white : AppColors.verdeEscuro,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
       ),
       label: Text(titulo),
       labelStyle: TextStyle(color: cor, fontWeight: FontWeight.w700),
       backgroundColor: ativa ? AppColors.verdeClaro : Colors.white,
       side: const BorderSide(color: AppColors.borda),
+    );
+  }
+}
+
+class _ChecklistCadastro extends StatelessWidget {
+  const _ChecklistCadastro({
+    required this.perfilCriado,
+    required this.possuiServico,
+    required this.possuiDisponibilidade,
+    required this.emailConfirmado,
+    required this.situacaoDocumental,
+    required this.habilitado,
+    required this.onVerPerfil,
+  });
+
+  final bool perfilCriado;
+  final bool possuiServico;
+  final bool possuiDisponibilidade;
+  final bool emailConfirmado;
+  final SituacaoDocumental? situacaoDocumental;
+  final bool habilitado;
+  final VoidCallback? onVerPerfil;
+
+  @override
+  Widget build(BuildContext context) {
+    final documentoAprovado =
+        situacaoDocumental?.estado == SituacaoDocumentalEstado.aprovado;
+    final itens = [
+      (
+        'Dados profissionais',
+        perfilCriado,
+        'Preencha sua apresentação e região.',
+      ),
+      ('Serviço ativo', possuiServico, 'Cadastre ao menos uma oferta ativa.'),
+      (
+        'Disponibilidade',
+        possuiDisponibilidade,
+        'Informe ao menos um período semanal.',
+      ),
+      (
+        'E-mail confirmado',
+        emailConfirmado,
+        'Confirme o código enviado por e-mail.',
+      ),
+      (
+        'Documento de identificação',
+        documentoAprovado,
+        situacaoDocumental?.orientacao ?? 'Envie o documento para análise.',
+      ),
+    ];
+    final concluidos = itens.where((item) => item.$2).length;
+    return Card(
+      key: const ValueKey('checklist-cadastro-profissional'),
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Preparação para receber solicitações',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              '$concluidos de ${itens.length} itens básicos concluídos',
+              style: const TextStyle(color: AppColors.textoSuave),
+            ),
+            const SizedBox(height: AppSpace.sm),
+            LinearProgressIndicator(value: concluidos / itens.length),
+            const SizedBox(height: AppSpace.md),
+            for (final item in itens)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpace.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      item.$2
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked,
+                      color: item.$2 ? AppColors.verde : AppColors.textoSuave,
+                      size: 21,
+                    ),
+                    const SizedBox(width: AppSpace.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.$1,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          if (!item.$2)
+                            Text(
+                              item.$3,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  habilitado
+                      ? Icons.verified_user_rounded
+                      : Icons.security_outlined,
+                  color: habilitado ? AppColors.verde : AppColors.textoSuave,
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    habilitado
+                        ? 'Habilitação de segurança concluída. Seu perfil pode receber solicitações.'
+                        : 'Mesmo após concluir os itens básicos, o atendimento só é liberado quando todas as verificações de segurança forem aprovadas.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.md),
+            OutlinedButton.icon(
+              onPressed: onVerPerfil,
+              icon: const Icon(Icons.visibility_outlined),
+              label: const Text('Ver meu perfil público'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

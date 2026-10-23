@@ -28,9 +28,9 @@ export class LocalizacaoEAreaAtendimento1760120000000
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await dropCheckConstraint(queryRunner, 'profissionais', 'chk_profissionais_raio_atendimento');
     await queryRunner.query(`
       ALTER TABLE profissionais
-        DROP CHECK chk_profissionais_raio_atendimento,
         DROP INDEX idx_profissionais_regiao,
         DROP COLUMN raio_atendimento_km,
         DROP COLUMN precisao_geografica,
@@ -47,4 +47,17 @@ export class LocalizacaoEAreaAtendimento1760120000000
         DROP COLUMN latitude
     `);
   }
+}
+
+async function dropCheckConstraint(
+  queryRunner: QueryRunner,
+  tableName: string,
+  constraintName: string,
+): Promise<void> {
+  const rows = (await queryRunner.query('SELECT VERSION() AS version')) as Array<{
+    version: string;
+  }>;
+  const version = rows[0]?.version?.toLowerCase() ?? '';
+  const operation = version.includes('mariadb') ? 'DROP CONSTRAINT' : 'DROP CHECK';
+  await queryRunner.query(`ALTER TABLE ${tableName} ${operation} ${constraintName}`);
 }

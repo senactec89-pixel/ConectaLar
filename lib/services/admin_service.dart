@@ -5,6 +5,20 @@ class AdminService {
 
   final ApiService _api;
 
+  Future<Map<String, dynamic>> habilitacoes({int pagina = 1}) => _api.get(
+    'admin/profissionais/habilitacoes',
+    queryParameters: {'pagina': '$pagina'},
+  );
+
+  Future<Map<String, dynamic>> analisarHabilitacao(
+    int id,
+    String acao,
+    String motivo,
+  ) => _api.patch(
+    'admin/profissionais/$id/habilitacao',
+    body: {'acao': acao, 'motivo': motivo},
+  );
+
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
 
   Future<Map<String, dynamic>> auditoria() =>

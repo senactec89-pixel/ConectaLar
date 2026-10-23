@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { UsuarioEntity } from './usuario.entity.js';
 import { ProfissionalServicoEntity } from './profissional-servico.entity.js';
+import type { EstadoHabilitacao } from '../../verificacao/habilitacao-profissional.js';
 
 @Entity({ name: 'profissionais' })
 @Index('uq_profissionais_usuario', ['usuarioId'], { unique: true })
@@ -63,6 +64,12 @@ export class ProfissionalPerfilEntity {
 
   @Column({ type: 'boolean', default: false })
   verificado!: boolean;
+
+  @Column({ name: 'habilitacao_estado', type: 'varchar', length: 24, default: 'pendente' })
+  habilitacaoEstado!: EstadoHabilitacao;
+
+  @Column({ name: 'habilitacao_revisao_em', type: 'datetime', nullable: true })
+  habilitacaoRevisaoEm!: Date | null;
 
   @Column({ type: 'boolean', default: true })
   ativo!: boolean;

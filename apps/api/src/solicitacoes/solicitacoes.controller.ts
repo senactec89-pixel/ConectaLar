@@ -51,6 +51,24 @@ export class SolicitacoesController {
   concluir(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
     return this.solicitacoes.concluir(user, parseId(id));
   }
+
+  @Post(':id/reagendamento')
+  proporReagendamento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.proporReagendamento(user, parseId(id), body);
+  }
+
+  @Patch(':id/reagendamento/responder')
+  responderReagendamento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.responderReagendamento(user, parseId(id), body);
+  }
 }
 
 function parseId(value: string): number {

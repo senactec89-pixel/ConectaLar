@@ -14,6 +14,7 @@ class Profissional {
     this.precoInicial,
     this.categoriaIds = const [],
     this.verificado = false,
+    this.podeReceberSolicitacoes = false,
     this.fotoAsset,
     this.fotoUrl,
     this.notaMedia,
@@ -61,6 +62,7 @@ class Profissional {
 
   // Este valor é uma projeção da API baseada em documentos aprovados.
   final bool verificado;
+  final bool podeReceberSolicitacoes;
 }
 
 class OfertaProfissional {
@@ -69,9 +71,13 @@ class OfertaProfissional {
     required this.nome,
     this.categoriaId,
     this.precoInicial,
+    this.duracaoMinutos = 60,
+    this.intervaloMinutos = 30,
   });
   final int id;
   final String nome;
   final int? categoriaId;
   final double? precoInicial;
+  final int duracaoMinutos;
+  final int intervaloMinutos;
 }

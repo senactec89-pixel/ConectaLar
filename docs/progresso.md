@@ -1,5 +1,15 @@
 # Progresso do ConectaLar
 
+## Atualizacao de seguranca em 18/10/2026
+
+Preparado o fluxo de habilitacao separado do selo documental, com bloqueio na API,
+pendencias no app e revisao administrativa auditada com MFA. O adaptador ID ZapSign
+e a tela de identidade estao implementados, mas a chave nao foi configurada, a
+migracao nao foi aplicada/homologada e o fluxo nao foi testado com o fornecedor.
+Telefone e antecedentes continuam pendentes e nao ha liberacao de novos
+atendimentos nesta fase. A lista historica de funcionalidades abaixo nao significa
+que a demo anterior de solicitacoes continue liberada. Ver [detalhes](habilitacao-profissional.md).
+
 Atualizado em 16/10/2026 para o estado atual do `main`.
 
 ## Estado do produto

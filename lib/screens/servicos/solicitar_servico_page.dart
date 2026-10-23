@@ -191,7 +191,12 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       return;
     }
     if (_disponibilidades.isNotEmpty &&
-        !_horarioDentroDaDisponibilidade(data, horario, _disponibilidades)) {
+        !_horarioDentroDaDisponibilidade(
+          data,
+          horario,
+          _disponibilidades,
+          _ofertaSelecionada?.duracaoMinutos ?? 60,
+        )) {
       _mostrarErro(
         'Escolha uma data e horário dentro da disponibilidade informada pelo profissional.',
       );
@@ -676,6 +681,8 @@ class _FormularioSolicitacao extends StatelessWidget {
                           const SizedBox(height: 10),
                           _SugestoesAgenda(
                             itens: itens,
+                            duracaoMinutos:
+                                ofertaSelecionada?.duracaoMinutos ?? 60,
                             dataController: dataController,
                             horarioController: horarioController,
                           ),
@@ -1160,15 +1167,17 @@ class _SugestoesAgenda extends StatelessWidget {
     required this.itens,
     required this.dataController,
     required this.horarioController,
+    required this.duracaoMinutos,
   });
 
   final List<Disponibilidade> itens;
   final TextEditingController dataController;
   final TextEditingController horarioController;
+  final int duracaoMinutos;
 
   @override
   Widget build(BuildContext context) {
-    final sugestoes = _proximasSugestoes(itens);
+    final sugestoes = _proximasSugestoes(itens, duracaoMinutos);
     if (sugestoes.isEmpty) return const SizedBox.shrink();
 
     return Column(
@@ -1387,21 +1396,27 @@ bool _horarioDentroDaDisponibilidade(
   DateTime data,
   String horario,
   List<Disponibilidade> disponibilidades,
+  int duracaoMinutos,
 ) {
   final diaApi = _diaSemanaApi(data);
+  final inicio = _minutos(horario);
+  if (inicio == null) return false;
   return disponibilidades.any(
     (item) =>
         item.ativo &&
         item.diaSemana == diaApi &&
-        item.horaInicio.compareTo(horario) <= 0 &&
-        horario.compareTo(item.horaFim) < 0,
+        (_minutos(item.horaInicio) ?? 1440) <= inicio &&
+        inicio + duracaoMinutos <= (_minutos(item.horaFim) ?? -1),
   );
 }
 
 int _diaSemanaApi(DateTime data) =>
     data.weekday == DateTime.sunday ? 0 : data.weekday;
 
-List<_SugestaoAgenda> _proximasSugestoes(List<Disponibilidade> itens) {
+List<_SugestaoAgenda> _proximasSugestoes(
+  List<Disponibilidade> itens,
+  int duracaoMinutos,
+) {
   final hoje = DateTime.now();
   final sugestoes = <_SugestaoAgenda>[];
   for (var offset = 0; offset < 21 && sugestoes.length < 8; offset++) {
@@ -1416,7 +1431,7 @@ List<_SugestaoAgenda> _proximasSugestoes(List<Disponibilidade> itens) {
       if (inicio == null || fim == null || inicio >= fim) continue;
       for (
         var minuto = inicio;
-        minuto < fim && sugestoes.length < 8;
+        minuto + duracaoMinutos <= fim && sugestoes.length < 8;
         minuto += 60
       ) {
         final horario = _horarioTexto(minuto);

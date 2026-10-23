@@ -19,12 +19,16 @@ import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
+import { podeAtender } from '../verificacao/habilitacao-profissional.js';
 
 interface ProfissionalServicoInput {
   readonly id?: number | null;
   readonly nome: string;
   readonly categoriaId?: number | null;
   readonly precoInicial?: number | null;
+  readonly ativo?: boolean;
+  readonly duracaoMinutos: number;
+  readonly intervaloMinutos: number;
 }
 
 interface UpsertPerfilInput {
@@ -328,7 +332,7 @@ export class ProfissionaisService {
     return {
       mes,
       disponibilidade: disponibilidade.map(disponibilidadeResponse),
-      atendimentos: atendimentos.map(agendaAtendimentoResponse),
+      atendimentos: atendimentos.map((item) => agendaAtendimentoResponse(item, podeAtender(perfil))),
     };
   }
 
@@ -338,7 +342,7 @@ export class ProfissionaisService {
       servicos:
         perfil === null
           ? []
-          : (perfil.servicos ?? []).filter((s) => s.ativo).map(servicoResponse),
+          : (perfil.servicos ?? []).map(servicoResponse),
     };
   }
 
@@ -360,9 +364,7 @@ export class ProfissionaisService {
       servicos:
         reloaded === null
           ? []
-          : (reloaded.servicos ?? [])
-              .filter((s) => s.ativo)
-              .map(servicoResponse),
+          : (reloaded.servicos ?? []).map(servicoResponse),
     };
   }
 
@@ -462,7 +464,9 @@ export class ProfissionaisService {
       oferta.nome = input.nome;
       oferta.categoriaId = input.categoriaId ?? null;
       oferta.precoInicial = decimalOrNull(input.precoInicial);
-      oferta.ativo = true;
+      oferta.duracaoMinutos = input.duracaoMinutos;
+      oferta.intervaloMinutos = input.intervaloMinutos;
+      oferta.ativo = input.ativo ?? true;
       const saved = await manager.save(ProfissionalServicoEntity, oferta);
       usados.add(saved.id);
     }
@@ -513,30 +517,53 @@ export class ProfissionaisService {
     return { ...perfilPublico(perfil), ...resumos.get(perfil.usuarioId) };
   }
 
-  async avaliacoesPublicas(id: number) {
+  async avaliacoesPublicas(id: number, query: Record<string, unknown>) {
     const { profissional } = await this.obter(id);
-    return this.avaliacoesDoUsuario(profissional.usuarioId);
+    return this.avaliacoesDoUsuario(profissional.usuarioId, query);
   }
 
-  async minhasAvaliacoes(user: AuthenticatedUser) {
+  async minhasAvaliacoes(
+    user: AuthenticatedUser,
+    query: Record<string, unknown>,
+  ) {
     await this.carregarUsuarioProfissional(user);
-    return this.avaliacoesDoUsuario(user.id);
+    return this.avaliacoesDoUsuario(user.id, query);
   }
 
-  private async avaliacoesDoUsuario(usuarioId: number) {
-    const [resumos, avaliacoes] = await Promise.all([
+  private async avaliacoesDoUsuario(
+    usuarioId: number,
+    query: Record<string, unknown>,
+  ) {
+    const filtros = parseAvaliacoesQuery(query);
+    const consulta = this.avaliacoes
+      .createQueryBuilder('avaliacao')
+      .where('avaliacao.avaliadoId = :usuarioId', { usuarioId })
+      .andWhere('avaliacao.moderacaoStatus = :status', {
+        status: AvaliacaoModeracaoStatus.Aprovada,
+      });
+    if (filtros.nota !== null) {
+      consulta.andWhere('avaliacao.nota = :nota', { nota: filtros.nota });
+    }
+    if (filtros.comComentario) {
+      consulta.andWhere("TRIM(COALESCE(avaliacao.comentario, '')) <> ''");
+    }
+    consulta
+      .orderBy('avaliacao.criadoEm', 'DESC')
+      .skip((filtros.pagina - 1) * filtros.limite)
+      .take(filtros.limite);
+
+    const [resumos, [avaliacoes, total]] = await Promise.all([
       this.resumosAvaliacoes([usuarioId]),
-      this.avaliacoes.find({
-        where: {
-          avaliadoId: usuarioId,
-          moderacaoStatus: AvaliacaoModeracaoStatus.Aprovada,
-        },
-        order: { criadoEm: 'DESC' },
-        take: 50,
-      }),
+      consulta.getManyAndCount(),
     ]);
     return {
       resumo: resumos.get(usuarioId),
+      paginacao: {
+        pagina: filtros.pagina,
+        limite: filtros.limite,
+        total,
+        totalPaginas: Math.max(1, Math.ceil(total / filtros.limite)),
+      },
       avaliacoes: avaliacoes.map((a) => ({
         id: a.id,
         nota: a.nota,
@@ -545,6 +572,33 @@ export class ProfissionaisService {
       })),
     };
   }
+}
+
+function parseAvaliacoesQuery(query: Record<string, unknown>) {
+  const pagina = query.pagina ?? '1';
+  const limite = query.limite ?? '10';
+  const nota = query.nota;
+  const comComentario = query.comComentario ?? 'false';
+  if (
+    typeof pagina !== 'string' ||
+    !/^[1-9]\d{0,4}$/.test(pagina) ||
+    typeof limite !== 'string' ||
+    !/^(?:[1-9]|[1-4]\d|50)$/.test(limite) ||
+    (nota !== undefined &&
+      (typeof nota !== 'string' || !/^[1-5]$/.test(nota))) ||
+    (comComentario !== 'true' && comComentario !== 'false')
+  ) {
+    throw new BadRequestException({
+      code: 'FILTROS_AVALIACOES_INVALIDOS',
+      message: 'Filtros de avaliações inválidos.',
+    });
+  }
+  return {
+    pagina: Number(pagina),
+    limite: Number(limite),
+    nota: nota === undefined ? null : Number(nota),
+    comComentario: comComentario === 'true',
+  };
 }
 
 function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
@@ -558,8 +612,7 @@ function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
     precoInicial: numberOrNull(solicitacao.precoInicial),
-    enderecoCompletoLiberado:
-      solicitacao.status === SolicitacaoStatus.AceitaAgendada,
+    enderecoCompletoLiberado: false,
     enderecoAtendimento: null,
     enderecoCompleto: null,
     cliente: {
@@ -588,16 +641,16 @@ function disponibilidadeResponse(item: ProfissionalDisponibilidadeEntity) {
   };
 }
 
-function agendaAtendimentoResponse(solicitacao: SolicitacaoEntity) {
+function agendaAtendimentoResponse(solicitacao: SolicitacaoEntity, autorizado: boolean) {
   return {
     ...solicitacaoProfissionalResumo(solicitacao),
-    enderecoCompletoLiberado: true,
+    enderecoCompletoLiberado: autorizado && solicitacao.endereco != null,
     enderecoAtendimento:
-      solicitacao.endereco === null
+      !autorizado || solicitacao.endereco == null
         ? null
         : enderecoResponse(solicitacao.endereco),
     enderecoCompleto:
-      solicitacao.endereco === null
+      !autorizado || solicitacao.endereco == null
         ? null
         : enderecoResponse(solicitacao.endereco),
   };
@@ -637,6 +690,7 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     longitudeAproximada: coordenadaAproximada(perfil.longitude),
     precoInicial: numberOrNull(perfil.precoInicial),
     verificado: perfil.verificado,
+    podeReceberSolicitacoes: podeAtender(perfil),
     servicos,
   };
 }
@@ -654,6 +708,8 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
           },
     categoriaId: servico.categoriaId,
     precoInicial: numberOrNull(servico.precoInicial),
+    duracaoMinutos: servico.duracaoMinutos,
+    intervaloMinutos: servico.intervaloMinutos,
     ativo: servico.ativo,
   };
 }
@@ -825,8 +881,27 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       nome: textField(body, 'nome', 2, 90),
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
+      ativo: optionalBoolean(body.ativo),
+      duracaoMinutos: durationField(body.duracaoMinutos, 60),
+      intervaloMinutos: durationField(body.intervaloMinutos, 30, true),
     };
   });
+}
+
+function durationField(value: unknown, fallback: number, allowZero = false): number {
+  if (value === undefined || value === null || value === '') return fallback;
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  const minimum = allowZero ? 0 : 15;
+  if (!Number.isInteger(parsed) || Number(parsed) < minimum || Number(parsed) > 480) {
+    throw badRequest('DURACAO_INVALIDA');
+  }
+  return Number(parsed);
+}
+
+function optionalBoolean(value: unknown): boolean | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'boolean') throw badRequest('CAMPO_INVALIDO');
+  return value;
 }
 
 function parseServicosBody(body: unknown): readonly ProfissionalServicoInput[] {

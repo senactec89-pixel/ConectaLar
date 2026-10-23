@@ -46,6 +46,12 @@ export class ProfissionalServicoEntity {
   })
   precoInicial!: string | null;
 
+  @Column({ name: 'duracao_minutos', type: 'smallint', unsigned: true, default: 60 })
+  duracaoMinutos!: number;
+
+  @Column({ name: 'intervalo_minutos', type: 'smallint', unsigned: true, default: 30 })
+  intervaloMinutos!: number;
+
   @Column({ type: 'boolean', default: true })
   ativo!: boolean;
 

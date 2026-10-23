@@ -536,6 +536,41 @@ export class AuthService {
     return this.authResponse(saved);
   }
 
+  async atualizarDadosPessoais(user: AuthenticatedUser, body: unknown) {
+    const input = parseDadosPessoais(body);
+    const usuario = await this.usuarioAtivo(user.id);
+    if (input.telefoneNormalizado !== null) {
+      const existente = await this.usuarios
+        .createQueryBuilder('usuario')
+        .where('usuario.telefoneNormalizado = :telefoneNormalizado', {
+          telefoneNormalizado: input.telefoneNormalizado,
+        })
+        .andWhere('usuario.id <> :id', { id: usuario.id })
+        .getOne();
+      if (existente !== null) {
+        throw new ConflictException({
+          code: 'TELEFONE_JA_CADASTRADO',
+          message: 'Este telefone ja esta vinculado a outra conta.',
+        });
+      }
+    }
+
+    usuario.nome = input.nome;
+    usuario.telefone = input.telefone;
+    usuario.telefoneNormalizado = input.telefoneNormalizado;
+    try {
+      return this.authResponse(await this.usuarios.save(usuario));
+    } catch (error) {
+      if (isDuplicateError(error)) {
+        throw new ConflictException({
+          code: 'TELEFONE_JA_CADASTRADO',
+          message: 'Este telefone ja esta vinculado a outra conta.',
+        });
+      }
+      throw error;
+    }
+  }
+
   async removerFotoPerfil(user: AuthenticatedUser) {
     const usuario = await this.usuarioAtivo(user.id);
     const fotoAnterior = usuario.fotoPerfil;
@@ -835,6 +870,20 @@ function stringField(value: Record<string, unknown>, key: string): string {
   }
 
   return field;
+}
+
+function parseDadosPessoais(body: unknown) {
+  const value = objectBody(body);
+  const nome = stringField(value, 'nome').trim();
+  const telefone = optionalStringField(value, 'telefone')?.trim() || null;
+  if (nome.length < 3 || nome.length > 140) {
+    throw badRequest('NOME_INVALIDO');
+  }
+  return {
+    nome,
+    telefone,
+    telefoneNormalizado: normalizarTelefoneOpcional(telefone),
+  };
 }
 
 function optionalStringField(

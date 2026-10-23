@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -26,6 +26,33 @@ export class DisponibilidadeController {
     @Body() body: unknown,
   ) {
     return this.disponibilidade.salvarMinha(user, body);
+  }
+
+  @Get('profissionais/me/bloqueios')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  meusBloqueios(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.disponibilidade.meusBloqueios(user);
+  }
+
+  @Post('profissionais/me/bloqueios')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  criarBloqueio(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.disponibilidade.criarBloqueio(user, body);
+  }
+
+  @Delete('profissionais/me/bloqueios/:id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  removerBloqueio(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.disponibilidade.removerBloqueio(user, parseId(id));
   }
 
   // Rotas literais devem preceder :id; "me" não é um ID de perfil público.

@@ -10,6 +10,12 @@ interface SafeHttpResponse {
   json(body: { statusCode: number; message: string }): void;
 }
 
+interface SafeHttpRequest {
+  readonly method?: string;
+  readonly path?: string;
+  readonly route?: { readonly path?: string | readonly string[] };
+}
+
 const publicErrors: Readonly<Record<string, string>> = {
   HORARIO_OCUPADO:
     'Este horário já tem um atendimento agendado. Escolha outro horário.',
@@ -28,7 +34,7 @@ const publicErrors: Readonly<Record<string, string>> = {
   INTERVALO_INVALIDO:
     'O horário inicial deve ser menor que o horário final.',
   DISPONIBILIDADE_INVALIDA:
-    'Confira os horários cadastrados e tente novamente.',
+    'Revise os dias e horários selecionados e tente novamente.',
   DISPONIBILIDADE_SOBREPOSTA:
     'Existem horários sobrepostos no mesmo dia. Ajuste antes de salvar.',
   ENDERECO_INVALIDO: 'Selecione um endereço cadastrado válido.',
@@ -76,11 +82,29 @@ const publicErrors: Readonly<Record<string, string>> = {
   COORDENADA_INVALIDA: 'Nao foi possivel identificar esta localizacao.',
   VARREDURA_DOCUMENTO_OBRIGATORIA:
     'A verificação de segurança de documentos não está disponível agora.',
+  VERIFICACAO_SEGURANCA_INDISPONIVEL:
+    'A verificação de segurança está indisponível. O arquivo não foi enviado; tente novamente mais tarde.',
+  PERFIL_PROFISSIONAL_NAO_ENCONTRADO:
+    'Salve seu perfil profissional antes de continuar.',
+  PERFIL_PROFISSIONAL_OBRIGATORIO:
+    'Complete seus dados profissionais antes de enviar documentos.',
+  USUARIO_NAO_ELEGIVEL:
+    'Esta ação está disponível somente para contas profissionais.',
+  SERVICOS_INVALIDOS: 'Revise os serviços e tente salvar novamente.',
+  DIA_SEMANA_INVALIDO: 'Selecione um dia da semana válido.',
+  MOTIVO_INVALIDO: 'Informe um motivo com pelo menos 3 caracteres.',
+  PERIODO_INVALIDO: 'Confira o período selecionado.',
+  PERIODO_COM_ATENDIMENTOS:
+    'Há atendimentos confirmados nesse período. Reagende-os antes de bloquear a agenda.',
+  TIPO_DOCUMENTO_NAO_PERMITIDO:
+    'Selecione um dos tipos de documento disponíveis.',
+  REFERENCIA_ARQUIVO_INVALIDA: 'Selecione novamente o arquivo do documento.',
 };
 
 @Catch()
 export class SafeExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
+    const request = host.switchToHttp().getRequest<SafeHttpRequest>();
     const response = host.switchToHttp().getResponse<SafeHttpResponse>();
     const requestedStatus =
       exception instanceof HttpException ? exception.getStatus() : 500;
@@ -93,22 +117,34 @@ export class SafeExceptionFilter implements ExceptionFilter {
           ? 'Error'
           : 'UnknownException';
 
-    // Deliberately omit exception messages, stacks, URLs, headers, and bodies.
+    const body =
+      exception instanceof HttpException ? exception.getResponse() : null;
+    const rawCode =
+      typeof body === 'object' && body !== null && 'code' in body
+        ? body.code
+        : null;
+    const code =
+      typeof rawCode === 'string' && /^[A-Z0-9_]{1,80}$/.test(rawCode)
+        ? rawCode
+        : undefined;
+    const route = safeRoute(request);
+
+    // Keep route and stable error code; omit query, headers, bodies, user IDs,
+    // exception messages, and stack traces.
     console.error(
       JSON.stringify({
         level: 'error',
         event: 'http_exception',
         statusCode,
         errorType,
+        ...(typeof request.method === 'string'
+          ? { method: request.method }
+          : {}),
+        ...(route === null ? {} : { route }),
+        ...(code === undefined ? {} : { code }),
       }),
     );
 
-    const body =
-      exception instanceof HttpException ? exception.getResponse() : null;
-    const code =
-      typeof body === 'object' && body !== null && 'code' in body
-        ? body.code
-        : null;
     const publicMessage =
       typeof code === 'string' ? publicErrors[code] : undefined;
     response.status(statusCode).json({
@@ -120,4 +156,20 @@ export class SafeExceptionFilter implements ExceptionFilter {
           : 'Request could not be processed'),
     });
   }
+}
+
+function safeRoute(request: SafeHttpRequest): string | null {
+  const routePath = request.route?.path;
+  const path =
+    typeof routePath === 'string'
+      ? routePath
+      : typeof request.path === 'string'
+        ? request.path
+        : null;
+  if (path === null) return null;
+  return path
+    .split('/')
+    .map((segment) => (/^\d+$/.test(segment) ? ':id' : segment))
+    .join('/')
+    .slice(0, 180);
 }

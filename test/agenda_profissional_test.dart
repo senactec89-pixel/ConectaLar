@@ -140,6 +140,26 @@ void main() {
     );
   });
 
+  testWidgets('agenda alterna para lista compacta e oferece atalho Hoje', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async =>
+          request.url.path.endsWith('/agenda') ? jsonResponse(_dados()) : null,
+    );
+    await _abrir(tester);
+    await tester.tap(find.text('Lista'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ListTile), findsNWidgets(2));
+    expect(find.text('Atendimento 1'), findsOneWidget);
+    expect(find.text('Atendimento 2'), findsOneWidget);
+    expect(find.byKey(ValueKey('agenda-dia-$_mes-8')), findsNothing);
+    expect(find.byTooltip('Ir para hoje'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'mudar mês consulta a agenda correta e limpa os indicadores anteriores',
     (tester) async {

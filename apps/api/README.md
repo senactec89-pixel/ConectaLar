@@ -22,6 +22,8 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `GOOGLE_OAUTH_CLIENT_IDS` | falls back to `GOOGLE_WEB_CLIENT_ID` | Optional comma-separated audience allow-list for multiple trusted OAuth clients |
 | `CORS_ALLOWED_ORIGINS` | none | Comma-separated exact Web origins allowed in production; non-browser Android requests have no Origin header |
 | `GOOGLE_MAPS_SERVER_API_KEY` | none | Optional restricted server key for geocoding; CEP lookup and regional fallback continue without it |
+| `ID_ZAPSIGN_ENABLED` | `false` | Must be explicitly `true` to start hosted identity checks; does not enable professional attendance |
+| `ID_ZAPSIGN_API_KEY` | none | Server-only ID ZapSign credential; set after the privacy notice and migration are reviewed |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |

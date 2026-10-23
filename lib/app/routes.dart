@@ -24,6 +24,7 @@ import '../screens/auth/recuperacao_senha_page.dart';
 import '../screens/profissional/cadastro_profissional_page.dart';
 import '../screens/profissional/disponibilidade_page.dart';
 import '../screens/profissional/documentos_verificacao_page.dart';
+import '../screens/admin/habilitacoes_page.dart';
 import '../screens/profissional/perfil_profissional_page.dart';
 import '../screens/profissional/area_profissional_page.dart';
 import '../screens/profissional/avaliacoes_recebidas_page.dart';
@@ -68,6 +69,7 @@ abstract final class AppRoutes {
   static const adminCriarAdministrador = '/admin/usuarios/novo-administrador';
   static const adminHistorico = '/admin/historico';
   static const adminDocumentos = '/admin/documentos';
+  static const adminHabilitacoes = '/admin/habilitacoes';
   static const adminDenuncias = '/admin/denuncias';
   static const adminAvaliacoes = '/admin/avaliacoes';
   static const adminCategorias = '/admin/categorias';
@@ -99,8 +101,7 @@ abstract final class AppRoutes {
     disponibilidadeProfissional: (_) => const DisponibilidadePage(),
     documentosProfissional: (_) => const DocumentosVerificacaoPage(),
     areaProfissional: (_) => const AreaProfissionalPage(),
-    detalhesSolicitacaoProfissional: (_) =>
-        const DetalheSolicitacaoProfissionalPage(),
+    detalhesSolicitacaoProfissional: (_) => const DetalhesServicoPage(),
     servicosProfissional: (_) => const ServicosProfissionalPage(),
     perfilProfissionalPrivado: (_) => const PerfilProfissionalPrivadoPage(),
     avaliacoesRecebidas: (_) => const AvaliacoesRecebidasPage(),
@@ -109,6 +110,7 @@ abstract final class AppRoutes {
     adminCriarAdministrador: (_) => const CriarAdministradorPage(),
     adminHistorico: (_) => const HistoricoAdminPage(),
     adminDocumentos: (_) => const AdminPage(modulo: AdminModulo.documentos),
+    adminHabilitacoes: (_) => const HabilitacoesPage(),
     adminDenuncias: (_) => const AdminPage(modulo: AdminModulo.denuncias),
     adminAvaliacoes: (_) => const AdminPage(modulo: AdminModulo.avaliacoes),
     adminCategorias: (_) => const AdminPage(modulo: AdminModulo.categorias),

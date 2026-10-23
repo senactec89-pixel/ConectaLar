@@ -11,14 +11,17 @@ import { MensagemAtendimentoEntity } from './entities/mensagem-atendimento.entit
 import { NotificacaoEntity } from './entities/notificacao.entity.js';
 import { ProfissionalDocumentoVerificacaoEntity } from './entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalDisponibilidadeEntity } from './entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from './entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from './entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from './entities/profissional-servico.entity.js';
 import { PrivacidadeSolicitacaoEntity } from './entities/privacidade-solicitacao.entity.js';
 import { SolicitacaoEntity } from './entities/solicitacao.entity.js';
+import { SolicitacaoReagendamentoEntity } from './entities/solicitacao-reagendamento.entity.js';
 import { TermoAceiteEntity } from './entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from './entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from './entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from './entities/usuario.entity.js';
+import { ProfissionalIdentidadeVerificacaoEntity } from './entities/profissional-identidade-verificacao.entity.js';
 
 function requiredDatabaseValue(name: string): string {
   const value = process.env[name];
@@ -98,6 +101,7 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       ClienteEnderecoEntity,
       FavoritoProfissionalEntity,
       ProfissionalDisponibilidadeEntity,
+      ProfissionalBloqueioEntity,
       NotificacaoEntity,
       ProfissionalDocumentoVerificacaoEntity,
       DenunciaEntity,
@@ -105,7 +109,9 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       TermoAceiteEntity,
       UsuarioSenhaResetEntity,
       UsuarioEmailVerificacaoEntity,
+      ProfissionalIdentidadeVerificacaoEntity,
       PrivacidadeSolicitacaoEntity,
+      SolicitacaoReagendamentoEntity,
     ],
   };
 }

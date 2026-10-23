@@ -61,8 +61,12 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
       theme: AppTheme.light,
       initialRoute: _initialRoute(),
       routes: AppRoutes.routes,
-      builder: (context, child) =>
-          AppServices.instance.modoDemo ? DemoBanner(child: child!) : child!,
+      builder: (context, child) {
+        final content = AppServices.instance.modoDemo
+            ? DemoBanner(child: child!)
+            : child!;
+        return SafeArea(child: content);
+      },
     );
   }
 

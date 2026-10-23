@@ -65,11 +65,36 @@ class ProfissionalService {
     return _api.get('profissionais/me/painel');
   }
 
-  Future<Map<String, dynamic>> minhasAvaliacoes() =>
-      _api.get('profissionais/me/avaliacoes');
+  Future<Map<String, dynamic>> minhasAvaliacoes({
+    int pagina = 1,
+    int limite = 10,
+    int? nota,
+    bool comComentario = false,
+  }) => _api.get(
+    'profissionais/me/avaliacoes',
+    queryParameters: {
+      'pagina': '$pagina',
+      'limite': '$limite',
+      if (nota != null) 'nota': '$nota',
+      if (comComentario) 'comComentario': 'true',
+    },
+  );
 
-  Future<Map<String, dynamic>> avaliacoesPublicas(int profissionalId) =>
-      _api.get('profissionais/$profissionalId/avaliacoes');
+  Future<Map<String, dynamic>> avaliacoesPublicas(
+    int profissionalId, {
+    int pagina = 1,
+    int limite = 10,
+    int? nota,
+    bool comComentario = false,
+  }) => _api.get(
+    'profissionais/$profissionalId/avaliacoes',
+    queryParameters: {
+      'pagina': '$pagina',
+      'limite': '$limite',
+      if (nota != null) 'nota': '$nota',
+      if (comComentario) 'comComentario': 'true',
+    },
+  );
 
   Future<Map<String, dynamic>> minhaAgenda({String? mes}) {
     return _api.get(
@@ -107,5 +132,24 @@ class ProfissionalService {
       'profissionais/me/disponibilidade',
       body: {'disponibilidades': disponibilidades},
     );
+  }
+
+  Future<Map<String, dynamic>> meusBloqueios() {
+    return _api.get('profissionais/me/bloqueios');
+  }
+
+  Future<Map<String, dynamic>> criarBloqueio({
+    required String dataInicio,
+    required String dataFim,
+    required String motivo,
+  }) {
+    return _api.post(
+      'profissionais/me/bloqueios',
+      body: {'dataInicio': dataInicio, 'dataFim': dataFim, 'motivo': motivo},
+    );
+  }
+
+  Future<Map<String, dynamic>> removerBloqueio(int id) {
+    return _api.delete('profissionais/me/bloqueios/$id');
   }
 }

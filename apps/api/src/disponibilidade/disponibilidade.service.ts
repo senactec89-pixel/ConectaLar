@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,8 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 
 interface DisponibilidadeInput {
   readonly diaSemana: number;
@@ -23,8 +27,12 @@ export class DisponibilidadeService {
   constructor(
     @InjectRepository(ProfissionalDisponibilidadeEntity)
     private readonly disponibilidades: Repository<ProfissionalDisponibilidadeEntity>,
+    @InjectRepository(ProfissionalBloqueioEntity)
+    private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
     @InjectRepository(ProfissionalPerfilEntity)
     private readonly profissionais: Repository<ProfissionalPerfilEntity>,
+    @InjectRepository(SolicitacaoEntity)
+    private readonly solicitacoes: Repository<SolicitacaoEntity>,
   ) {}
 
   async listarPublica(profissionalId: number) {
@@ -80,6 +88,58 @@ export class DisponibilidadeService {
     return this.minha(user);
   }
 
+  async meusBloqueios(user: AuthenticatedUser) {
+    const profissional = await this.carregarMeuProfissional(user);
+    const bloqueios = await this.bloqueios.find({
+      where: { profissionalId: profissional.id },
+      order: { dataInicio: 'ASC', criadoEm: 'ASC' },
+    });
+    return { bloqueios: bloqueios.map(bloqueioResponse) };
+  }
+
+  async criarBloqueio(user: AuthenticatedUser, body: unknown) {
+    const profissional = await this.carregarMeuProfissional(user);
+    const input = parseBloqueio(body);
+    const atendimentos = await this.solicitacoes
+      .createQueryBuilder('solicitacao')
+      .where('solicitacao.profissional_id = :profissionalId', {
+        profissionalId: profissional.id,
+      })
+      .andWhere('solicitacao.status = :status', {
+        status: SolicitacaoStatus.AceitaAgendada,
+      })
+      .andWhere('solicitacao.data_servico BETWEEN :inicio AND :fim', {
+        inicio: input.dataInicio,
+        fim: input.dataFim,
+      })
+      .getCount();
+    if (atendimentos > 0) {
+      throw new ConflictException({
+        code: 'PERIODO_COM_ATENDIMENTOS',
+        message: 'Reagende os atendimentos confirmados antes de bloquear este período.',
+      });
+    }
+    const saved = await this.bloqueios.save(
+      this.bloqueios.create({ profissionalId: profissional.id, ...input }),
+    );
+    return { bloqueio: bloqueioResponse(saved) };
+  }
+
+  async removerBloqueio(user: AuthenticatedUser, id: number) {
+    const profissional = await this.carregarMeuProfissional(user);
+    const bloqueio = await this.bloqueios.findOne({
+      where: { id, profissionalId: profissional.id },
+    });
+    if (bloqueio === null) {
+      throw new NotFoundException({
+        code: 'BLOQUEIO_NAO_ENCONTRADO',
+        message: 'Bloqueio de agenda nao encontrado.',
+      });
+    }
+    await this.bloqueios.remove(bloqueio);
+    return { ok: true };
+  }
+
   private async carregarMeuProfissional(
     user: AuthenticatedUser,
   ): Promise<ProfissionalPerfilEntity> {
@@ -129,15 +189,23 @@ export function horarioDisponivel(
   disponibilidades: readonly ProfissionalDisponibilidadeEntity[],
   dataServico: Date | string,
   horarioServico: string,
+  duracaoMinutos = 0,
 ): boolean {
   const diaSemana = diaSemanaUtc(dataServico);
+  const inicio = minutos(horarioServico);
+  const fim = inicio + duracaoMinutos;
   return disponibilidades.some(
     (item) =>
       item.ativo &&
       item.diaSemana === diaSemana &&
-      item.horaInicio <= horarioServico &&
-      horarioServico < item.horaFim,
+      minutos(item.horaInicio) <= inicio &&
+      fim <= minutos(item.horaFim),
   );
+}
+
+function minutos(horario: string): number {
+  const [hora = '0', minuto = '0'] = horario.split(':');
+  return Number(hora) * 60 + Number(minuto);
 }
 
 function disponibilidadeResponse(item: ProfissionalDisponibilidadeEntity) {
@@ -148,6 +216,39 @@ function disponibilidadeResponse(item: ProfissionalDisponibilidadeEntity) {
     horaFim: item.horaFim,
     ativo: item.ativo,
   };
+}
+
+function bloqueioResponse(item: ProfissionalBloqueioEntity) {
+  return {
+    id: item.id,
+    dataInicio: item.dataInicio,
+    dataFim: item.dataFim,
+    motivo: item.motivo,
+    criadoEm: item.criadoEm.toISOString(),
+  };
+}
+
+function parseBloqueio(body: unknown) {
+  const value = objectBody(body);
+  const dataInicio = dateField(value.dataInicio);
+  const dataFim = dateField(value.dataFim);
+  if (dataInicio > dataFim) throw badRequest('PERIODO_INVALIDO');
+  const motivo = value.motivo;
+  if (typeof motivo !== 'string' || motivo.trim().length < 3 || motivo.trim().length > 160) {
+    throw badRequest('MOTIVO_INVALIDO');
+  }
+  return { dataInicio, dataFim, motivo: motivo.trim() };
+}
+
+function dateField(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw badRequest('DATA_INVALIDA');
+  }
+  const parsed = new Date(`${value}T12:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) {
+    throw badRequest('DATA_INVALIDA');
+  }
+  return value;
 }
 
 function parseDisponibilidades(body: unknown): readonly DisponibilidadeInput[] {

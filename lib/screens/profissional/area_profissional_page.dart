@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import '../../models/documento_verificacao.dart';
+import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../services/api_service.dart';
+import '../../utils/situacao_documental.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
@@ -22,6 +25,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   String _filtro = 'Todas';
   DateTime _mesAgenda = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _diaSelecionado;
+  bool _agendaEmLista = false;
   final Set<int> _decidindo = {};
 
   @override
@@ -63,6 +67,17 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
       _mesAgenda = DateTime(_mesAgenda.year, _mesAgenda.month + variacao);
       _diaSelecionado = null;
       _future = _carregar();
+    });
+  }
+
+  void _irParaHoje() {
+    final hoje = DateTime.now();
+    setState(() {
+      final mudouMes =
+          _mesAgenda.year != hoje.year || _mesAgenda.month != hoje.month;
+      _mesAgenda = DateTime(hoje.year, hoje.month);
+      _diaSelecionado = DateTime(hoje.year, hoje.month, hoje.day);
+      if (mudouMes) _future = _carregar();
     });
   }
 
@@ -235,14 +250,16 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           final lista = _tab == 0
               ? novos.take(3).toList()
               : _tab == 2
-              ? atendimentosDoMes
-                    .where(
-                      (p) => _mesmoDia(
-                        _dataDoServico(p['dataServico']),
-                        diaSelecionado,
-                      ),
-                    )
-                    .toList()
+              ? _agendaEmLista
+                    ? atendimentosDoMes
+                    : atendimentosDoMes
+                          .where(
+                            (p) => _mesmoDia(
+                              _dataDoServico(p['dataServico']),
+                              diaSelecionado,
+                            ),
+                          )
+                          .toList()
               : _filtrar(pedidos);
           return RefreshIndicator(
             onRefresh: _atualizar,
@@ -258,30 +275,6 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   const SizedBox(height: 5),
                   const Text(
                     'Organize seus atendimentos e responda aos clientes.',
-                  ),
-                  const SizedBox(height: 12),
-                  FutureBuilder<Map<String, dynamic>>(
-                    future: AppServices.instance.profissionais.meuPerfil(),
-                    builder: (context, profile) {
-                      final p = profile.data?['profissional'];
-                      final verificado =
-                          p is Map<String, dynamic> && p['verificado'] == true;
-                      return _BadgeCard(
-                        icon: verificado
-                            ? Icons.verified_rounded
-                            : Icons.verified_user_outlined,
-                        title: verificado
-                            ? 'Perfil verificado'
-                            : 'Verificação documental',
-                        text: verificado
-                            ? 'A análise documental foi aprovada. O selo não garante segurança, qualidade ou resultado.'
-                            : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.documentosProfissional,
-                        ),
-                      );
-                    },
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -307,6 +300,31 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 20),
                   _SectionTitle(
+                    'Aguardando sua resposta',
+                    onTap: () => _abrirTab(1),
+                  ),
+                  const SizedBox(height: 8),
+                  if (novos.isEmpty)
+                    const _EmptyCard(
+                      text: 'Nenhuma solicitação aguardando resposta.',
+                    )
+                  else
+                    ...novos
+                        .take(3)
+                        .map(
+                          (p) => _PedidoCard(
+                            pedido: p,
+                            onChanged: () => _atualizar(),
+                            onAccept: _decidindo.contains(_id(p))
+                                ? null
+                                : () => _decidir(_id(p), true),
+                            onDecline: _decidindo.contains(_id(p))
+                                ? null
+                                : () => _decidir(_id(p), false),
+                          ),
+                        ),
+                  const SizedBox(height: 18),
+                  _SectionTitle(
                     'Próximos atendimentos',
                     onTap: () => _abrirTab(2),
                   ),
@@ -316,21 +334,35 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                       text: 'Nenhum atendimento agendado no momento.',
                     )
                   else
-                    ...agendados
-                        .take(2)
-                        .map(
-                          (p) => _PedidoCard(
-                            pedido: p,
-                            onAccept: null,
-                            onDecline: null,
-                          ),
+                    _PedidoCard(
+                      pedido: agendados.first,
+                      onAccept: null,
+                      onDecline: null,
+                    ),
+                  const SizedBox(height: AppSpace.md),
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: AppServices.instance.profissionais.meuPerfil(),
+                    builder: (context, profile) {
+                      final p = profile.data?['profissional'];
+                      final verificado =
+                          p is Map<String, dynamic> && p['verificado'] == true;
+                      return _BadgeCard(
+                        icon: verificado
+                            ? Icons.verified_rounded
+                            : Icons.verified_user_outlined,
+                        title: verificado
+                            ? 'Documento analisado'
+                            : 'Verificação documental',
+                        text: verificado
+                            ? 'Documento aprovado. A habilitação de segurança continua pendente e os atendimentos estão bloqueados.'
+                            : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.documentosProfissional,
                         ),
-                  const SizedBox(height: 18),
-                  _SectionTitle(
-                    'Solicitações recentes',
-                    onTap: () => _abrirTab(1),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 8),
                 ] else if (_tab == 2) ...[
                   Text(
                     'Minha agenda',
@@ -341,18 +373,55 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     'Veja os dias com atendimentos e confira seus horários antes de aceitar novos pedidos.',
                   ),
                   const SizedBox(height: 14),
-                  _CalendarioAgenda(
-                    mes: _mesAgenda,
-                    diaSelecionado: diaSelecionado,
-                    atendimentosPorDia: atendimentosPorDia,
-                    diasSemanaComDisponibilidade: disponibilidade
-                        .map((item) => int.tryParse('${item['diaSemana']}'))
-                        .whereType<int>()
-                        .toSet(),
-                    onDiaSelecionado: (dia) =>
-                        setState(() => _diaSelecionado = dia),
-                    onMudarMes: _mudarMesAgenda,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(
+                              value: false,
+                              icon: Icon(Icons.calendar_month_outlined),
+                              label: Text('Calendário'),
+                            ),
+                            ButtonSegment(
+                              value: true,
+                              icon: Icon(Icons.view_agenda_outlined),
+                              label: Text('Lista'),
+                            ),
+                          ],
+                          selected: {_agendaEmLista},
+                          onSelectionChanged: (value) =>
+                              setState(() => _agendaEmLista = value.first),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpace.sm),
+                      IconButton.filledTonal(
+                        tooltip: 'Ir para hoje',
+                        onPressed: _irParaHoje,
+                        icon: const Icon(Icons.today_outlined),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: AppSpace.md),
+                  if (!_agendaEmLista)
+                    _CalendarioAgenda(
+                      mes: _mesAgenda,
+                      diaSelecionado: diaSelecionado,
+                      atendimentosPorDia: atendimentosPorDia,
+                      diasSemanaComDisponibilidade: disponibilidade
+                          .map((item) => int.tryParse('${item['diaSemana']}'))
+                          .whereType<int>()
+                          .toSet(),
+                      onDiaSelecionado: (dia) =>
+                          setState(() => _diaSelecionado = dia),
+                      onMudarMes: _mudarMesAgenda,
+                    )
+                  else
+                    _CabecalhoMesAgenda(
+                      mes: _mesAgenda,
+                      onMudarMes: _mudarMesAgenda,
+                      quantidade: atendimentosDoMes.length,
+                    ),
                 ] else ...[
                   Text(
                     'Pedidos recebidos',
@@ -387,7 +456,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 8),
                 ],
-                if (_tab == 2) ...[
+                if (_tab == 2 && !_agendaEmLista) ...[
                   const SizedBox(height: AppSpace.md),
                   Text(
                     '${diaSelecionado.day} de ${_nomeMes(diaSelecionado).toLowerCase()}',
@@ -423,12 +492,15 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   const _SectionTitle('Atendimentos do dia'),
                   const SizedBox(height: 8),
                 ],
-                if (lista.isEmpty)
+                if (_tab != 0 && lista.isEmpty)
                   _tab == 2
                       ? EmptyStateView(
-                          title: 'Nenhum atendimento neste dia',
-                          message:
-                              'Somente pedidos aceitos aparecem na agenda. Solicitações aguardando resposta ainda não reservam horário.',
+                          title: _agendaEmLista
+                              ? 'Nenhum atendimento neste mês'
+                              : 'Nenhum atendimento neste dia',
+                          message: _agendaEmLista
+                              ? 'Use as setas para consultar outro mês ou configure sua disponibilidade.'
+                              : 'Somente pedidos aceitos aparecem na agenda. Solicitações aguardando resposta ainda não reservam horário.',
                           icon: Icons.event_available_outlined,
                         )
                       : _EmptyCard(
@@ -445,25 +517,27 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                             },
                           },
                         )
-                else
+                else if (_tab != 0)
                   ...lista.map(
-                    (pedido) => _PedidoCard(
-                      pedido: pedido,
-                      onChanged: () => setState(() {
-                        _future = _carregar();
-                        _future.ignore();
-                      }),
-                      onAccept:
-                          !_decidindo.contains(_id(pedido)) &&
-                              pedido['status'] == 'aguardando_resposta'
-                          ? () => _decidir(_id(pedido), true)
-                          : null,
-                      onDecline:
-                          !_decidindo.contains(_id(pedido)) &&
-                              pedido['status'] == 'aguardando_resposta'
-                          ? () => _decidir(_id(pedido), false)
-                          : null,
-                    ),
+                    (pedido) => _agendaEmLista && _tab == 2
+                        ? _AgendaItemCompacto(pedido: pedido)
+                        : _PedidoCard(
+                            pedido: pedido,
+                            onChanged: () => setState(() {
+                              _future = _carregar();
+                              _future.ignore();
+                            }),
+                            onAccept:
+                                !_decidindo.contains(_id(pedido)) &&
+                                    pedido['status'] == 'aguardando_resposta'
+                                ? () => _decidir(_id(pedido), true)
+                                : null,
+                            onDecline:
+                                !_decidindo.contains(_id(pedido)) &&
+                                    pedido['status'] == 'aguardando_resposta'
+                                ? () => _decidir(_id(pedido), false)
+                                : null,
+                          ),
                   ),
                 if (_tab == 2) ...[
                   const SizedBox(height: AppSpace.md),
@@ -764,16 +838,19 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
   late Future<Map<String, dynamic>> _future = AppServices.instance.profissionais
       .meusServicos();
   bool _salvando = false;
+
   Future<void> _editar({Map<String, dynamic>? servico}) async {
     final nome = TextEditingController(text: '${servico?['nome'] ?? ''}');
     if (_salvando) return;
     setState(() => _salvando = true);
     List<Map<String, dynamic>> categorias;
+    Map<String, dynamic> atual;
     try {
       final response = await AppServices.instance.categorias.listar();
       categorias = (response['categorias'] as List? ?? [])
           .whereType<Map<String, dynamic>>()
           .toList();
+      atual = await AppServices.instance.profissionais.meusServicos();
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -796,55 +873,230 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
+    var duracaoMinutos =
+        int.tryParse('${servico?['duracaoMinutos'] ?? 60}') ?? 60;
+    var intervaloMinutos =
+        int.tryParse('${servico?['intervaloMinutos'] ?? 30}') ?? 30;
     final form = GlobalKey<FormState>();
-    final ok = await showDialog<bool>(
+    var enviando = false;
+    String? erro;
+    final salvo = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          title: Text(servico == null ? 'Adicionar serviço' : 'Editar serviço'),
+          content: Form(
+            key: form,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nome,
+                  enabled: !enviando,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do serviço',
+                  ),
+                  maxLength: 90,
+                  validator: (v) =>
+                      (v ?? '').trim().length < 2 ? 'Informe o nome.' : null,
+                ),
+                DropdownButtonFormField<int>(
+                  initialValue: categoriaId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria (opcional)',
+                  ),
+                  items: [
+                    const DropdownMenuItem<int>(
+                      value: null,
+                      child: Text('Sem categoria'),
+                    ),
+                    for (final categoria in categorias)
+                      DropdownMenuItem(
+                        value: int.tryParse('${categoria['id']}'),
+                        child: Text('${categoria['nome']}'),
+                      ),
+                  ],
+                  onChanged: enviando ? null : (value) => categoriaId = value,
+                ),
+                TextFormField(
+                  controller: preco,
+                  enabled: !enviando,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Preço inicial (R\$)',
+                  ),
+                  validator: validarPrecoOpcional,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: '$duracaoMinutos',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Duração estimada',
+                    prefixIcon: Icon(Icons.timer_outlined),
+                  ),
+                  items: const [30, 45, 60, 90, 120, 180, 240]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: '$value',
+                          child: Text('$value minutos'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: enviando
+                      ? null
+                      : (value) =>
+                            duracaoMinutos = int.tryParse(value ?? '') ?? 60,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: '$intervaloMinutos',
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Intervalo para deslocamento',
+                    prefixIcon: Icon(Icons.directions_car_outlined),
+                  ),
+                  items: const [0, 15, 30, 45, 60]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: '$value',
+                          child: Text('$value minutos'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: enviando
+                      ? null
+                      : (value) =>
+                            intervaloMinutos = int.tryParse(value ?? '') ?? 30,
+                ),
+                if (erro != null) ...[
+                  const SizedBox(height: 12),
+                  Text(erro!, style: const TextStyle(color: AppColors.erro)),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: enviando ? null : () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton.icon(
+              onPressed: enviando
+                  ? null
+                  : () async {
+                      if (!form.currentState!.validate()) return;
+                      setDialogState(() {
+                        enviando = true;
+                        erro = null;
+                      });
+                      try {
+                        final servicos = _servicosParaSalvar(atual);
+                        final novo = <String, dynamic>{
+                          if (servico != null) 'id': servico['id'],
+                          'nome': nome.text.trim(),
+                          'categoriaId': categoriaId,
+                          'precoInicial': parsePrecoInicial(preco.text),
+                          'ativo': servico?['ativo'] != false,
+                          'duracaoMinutos': duracaoMinutos,
+                          'intervaloMinutos': intervaloMinutos,
+                        };
+                        if (servico == null) {
+                          if (servicos.length >= 12) {
+                            throw const ApiException(
+                              'Você pode cadastrar até 12 serviços.',
+                            );
+                          }
+                          servicos.add(novo);
+                        } else {
+                          final index = servicos.indexWhere(
+                            (item) => item['id'] == servico['id'],
+                          );
+                          if (index < 0) {
+                            throw const ApiException(
+                              'Este serviço não está mais disponível. Atualize a lista.',
+                            );
+                          }
+                          servicos[index] = novo;
+                        }
+                        final response = await AppServices
+                            .instance
+                            .profissionais
+                            .salvarMeusServicos(servicos);
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext, response);
+                        }
+                      } on ApiException catch (error) {
+                        setDialogState(() {
+                          enviando = false;
+                          erro = error.message;
+                        });
+                      } catch (_) {
+                        setDialogState(() {
+                          enviando = false;
+                          erro =
+                              'Não foi possível salvar. Verifique sua conexão e tente novamente.';
+                        });
+                      }
+                    },
+              icon: enviando
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: Text(enviando ? 'Salvando...' : 'Salvar'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (salvo != null && mounted) {
+      setState(() {
+        _future = Future.value(salvo);
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Serviço salvo.')));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    nome.dispose();
+    preco.dispose();
+  }
+
+  List<Map<String, dynamic>> _servicosParaSalvar(
+    Map<String, dynamic> response,
+  ) => (response['servicos'] as List? ?? [])
+      .whereType<Map<String, dynamic>>()
+      .map(
+        (item) => <String, dynamic>{
+          'id': item['id'],
+          'nome': item['nome'],
+          'categoriaId': item['categoriaId'] ?? item['categoria']?['id'],
+          'precoInicial': item['precoInicial'],
+          'ativo': item['ativo'] != false,
+          'duracaoMinutos': item['duracaoMinutos'] ?? 60,
+          'intervaloMinutos': item['intervaloMinutos'] ?? 30,
+        },
+      )
+      .toList();
+
+  Future<void> _alterarStatus(Map<String, dynamic> servico) async {
+    if (_salvando) return;
+    final ativo = servico['ativo'] == true;
+    final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        scrollable: true,
-        title: Text(servico == null ? 'Adicionar serviço' : 'Editar serviço'),
-        content: Form(
-          key: form,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: nome,
-                decoration: const InputDecoration(labelText: 'Nome do serviço'),
-                maxLength: 90,
-                validator: (v) =>
-                    (v ?? '').trim().length < 2 ? 'Informe o nome.' : null,
-              ),
-              DropdownButtonFormField<int>(
-                initialValue: categoriaId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Categoria (opcional)',
-                ),
-                items: [
-                  const DropdownMenuItem<int>(
-                    value: null,
-                    child: Text('Sem categoria'),
-                  ),
-                  for (final categoria in categorias)
-                    DropdownMenuItem(
-                      value: int.tryParse('${categoria['id']}'),
-                      child: Text('${categoria['nome']}'),
-                    ),
-                ],
-                onChanged: (value) => categoriaId = value,
-              ),
-              TextFormField(
-                controller: preco,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Preço inicial (R\$)',
-                ),
-                validator: validarPrecoOpcional,
-              ),
-            ],
-          ),
+        title: Text(ativo ? 'Pausar oferta?' : 'Reativar oferta?'),
+        content: Text(
+          ativo
+              ? 'Ela deixará de aparecer para clientes, mas seus dados serão preservados.'
+              : 'Ela voltará a aparecer no catálogo para novos pedidos.',
         ),
         actions: [
           TextButton(
@@ -852,67 +1104,47 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () {
-              if (form.currentState!.validate()) Navigator.pop(context, true);
-            },
-            child: const Text('Salvar'),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(ativo ? 'Pausar' : 'Reativar'),
           ),
         ],
       ),
     );
-    if (ok != true) return;
+    if (confirmar != true || !mounted) return;
     setState(() => _salvando = true);
     try {
       final atual = await AppServices.instance.profissionais.meusServicos();
-      final servicos = (atual['servicos'] as List? ?? [])
-          .whereType<Map<String, dynamic>>()
-          .map(
-            (e) => <String, dynamic>{
-              'id': e['id'],
-              'nome': e['nome'],
-              'categoriaId': e['categoriaId'] ?? e['categoria']?['id'],
-              'precoInicial': e['precoInicial'],
-            },
-          )
-          .toList();
-      final novo = <String, dynamic>{
-        if (servico != null) 'id': servico['id'],
-        'nome': nome.text.trim(),
-        'categoriaId': categoriaId,
-        'precoInicial': parsePrecoInicial(preco.text),
-      };
-      if (servico == null) {
-        if (servicos.length >= 12) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Você pode cadastrar até 12 serviços.'),
-              ),
-            );
-          }
-          return;
-        }
-        servicos.add(novo);
-      } else {
-        final index = servicos.indexWhere((e) => e['id'] == servico['id']);
-        if (index >= 0) servicos[index] = novo;
+      final servicos = _servicosParaSalvar(atual);
+      final index = servicos.indexWhere((item) => item['id'] == servico['id']);
+      if (index < 0) {
+        throw const ApiException(
+          'Este serviço não está mais disponível. Atualize a lista.',
+        );
       }
-      await AppServices.instance.profissionais.salvarMeusServicos(servicos);
+      servicos[index]['ativo'] = !ativo;
+      final response = await AppServices.instance.profissionais
+          .salvarMeusServicos(servicos);
+      if (!mounted) return;
+      setState(() {
+        _future = Future.value(response);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ativo ? 'Oferta pausada.' : 'Oferta reativada.'),
+        ),
+      );
+    } on ApiException catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Serviço salvo.')));
-        setState(() {
-          _future = AppServices.instance.profissionais.meusServicos();
-          _future.ignore();
-        });
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Não foi possível salvar. Verifique o perfil e a categoria.',
+              'Não foi possível alterar a oferta. Tente novamente.',
             ),
           ),
         );
@@ -926,10 +1158,35 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
   Widget build(BuildContext context) => Scaffold(
     appBar: const AppBarCustom(title: 'Meus serviços'),
     backgroundColor: AppColors.fundo,
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: _salvando ? null : () => _editar(),
-      icon: const Icon(Icons.add),
-      label: const Text('Adicionar'),
+    bottomNavigationBar: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _salvando ? null : () => _editar(),
+                icon: const Icon(Icons.add),
+                label: const Text('Adicionar serviço'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _salvando
+                    ? null
+                    : () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.disponibilidadeProfissional,
+                      ),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                label: const Text('Continuar'),
+              ),
+            ),
+          ],
+        ),
+      ),
     ),
     body: Column(
       children: [
@@ -971,6 +1228,14 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'Adicione as ofertas que você realiza. O preço final é combinado fora do aplicativo.',
                       icon: Icons.home_repair_service_outlined,
                     ),
+                  if (list.isEmpty) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _salvando ? null : () => _editar(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Adicionar primeiro serviço'),
+                    ),
+                  ],
                   ...list.map(
                     (e) => Card(
                       child: ListTile(
@@ -980,12 +1245,41 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         ),
                         title: Text('${e['nome']}'),
                         subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['ativo'] == true ? 'Ativo' : 'Inativo'}',
+                          '${e['categoria']?['nome'] ?? 'Sem categoria'} • ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo • ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
                         ),
                         isThreeLine: true,
-                        trailing: IconButton(
-                          onPressed: () => _editar(servico: e),
-                          icon: const Icon(Icons.edit_outlined),
+                        trailing: PopupMenuButton<String>(
+                          tooltip: 'Ações da oferta',
+                          enabled: !_salvando,
+                          onSelected: (acao) {
+                            if (acao == 'editar') {
+                              _editar(servico: e);
+                            } else {
+                              _alterarStatus(e);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'editar',
+                              child: ListTile(
+                                leading: Icon(Icons.edit_outlined),
+                                title: Text('Editar'),
+                              ),
+                            ),
+                            PopupMenuItem(
+                              value: 'status',
+                              child: ListTile(
+                                leading: Icon(
+                                  e['ativo'] == true
+                                      ? Icons.pause_circle_outline
+                                      : Icons.play_circle_outline,
+                                ),
+                                title: Text(
+                                  e['ativo'] == true ? 'Pausar' : 'Reativar',
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1009,8 +1303,29 @@ class PerfilProfissionalPrivadoPage extends StatefulWidget {
 
 class _PerfilProfissionalPrivadoPageState
     extends State<PerfilProfissionalPrivadoPage> {
-  late Future<Map<String, dynamic>> _future = AppServices.instance.profissionais
-      .meuPerfil();
+  late Future<Map<String, dynamic>> _future = _carregar();
+
+  Future<Map<String, dynamic>> _carregar() async {
+    final perfil = await AppServices.instance.profissionais.meuPerfil();
+    try {
+      final response = await AppServices.instance.verificacao.meusDocumentos();
+      return {
+        ...perfil,
+        'documentos': listFromApi(
+          response['documentos'],
+          documentoVerificacaoFromApi,
+        ),
+      };
+    } catch (_) {
+      return {...perfil, 'documentosIndisponiveis': true};
+    }
+  }
+
+  Future<void> _abrirDocumentos() async {
+    await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
+    if (mounted) setState(() => _future = _carregar());
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: const AppBarCustom(title: 'Meu perfil profissional'),
@@ -1028,13 +1343,20 @@ class _PerfilProfissionalPrivadoPageState
             message: 'Não foi possível carregar seu perfil profissional.',
             icon: Icons.person_outline_rounded,
             onRetry: () => setState(() {
-              _future = AppServices.instance.profissionais.meuPerfil();
+              _future = _carregar();
               _future.ignore();
             }),
           );
         }
-        final perfil = s.data?['profissional'];
+        final documentos = s.data?['documentos'];
+        final situacao = documentos is List<DocumentoVerificacao>
+            ? situacaoDocumentoIdentidade(documentos)
+            : null;
         final usuario = AppServices.instance.auth.usuarioAtual ?? {};
+        final perfilRaw = s.data?['profissional'];
+        final perfilPublico = perfilRaw is Map<String, dynamic>
+            ? profissionalFromApi(perfilRaw)
+            : null;
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
@@ -1043,9 +1365,23 @@ class _PerfilProfissionalPrivadoPageState
                 padding: const EdgeInsets.all(18),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 30,
-                      child: Icon(Icons.person_outline, size: 32),
+                      backgroundColor: AppColors.verdeClaro,
+                      backgroundImage:
+                          '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
+                          ? null
+                          : NetworkImage('${usuario['fotoPerfilUrl']}'),
+                      child: '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
+                          ? Text(
+                              _inicialNome(usuario['nome']),
+                              style: const TextStyle(
+                                color: AppColors.verdeEscuro,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -1067,27 +1403,54 @@ class _PerfilProfissionalPrivadoPageState
                 ),
               ),
             ),
+            if (perfilPublico != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.perfilProfissional,
+                  arguments: perfilPublico,
+                ),
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Ver meu perfil público'),
+              ),
+            ],
             const SizedBox(height: 12),
             _BadgeCard(
-              icon:
-                  perfil is Map<String, dynamic> && perfil['verificado'] == true
-                  ? Icons.verified
-                  : Icons.verified_user_outlined,
-              title:
-                  perfil is Map<String, dynamic> && perfil['verificado'] == true
-                  ? 'Verificado'
-                  : 'Verificação pendente',
-              text:
-                  'O selo depende da aprovação da administração e não garante segurança, qualidade ou resultado.',
-              onTap: () => Navigator.pushNamed(
-                context,
-                AppRoutes.documentosProfissional,
-              ),
+              icon: switch (situacao?.estado) {
+                SituacaoDocumentalEstado.aprovado => Icons.verified,
+                SituacaoDocumentalEstado.rejeitado => Icons.error_outline,
+                SituacaoDocumentalEstado.emAnalise => Icons.hourglass_top,
+                _ => Icons.upload_file_outlined,
+              },
+              title: situacao?.titulo ?? 'Situação documental indisponível',
+              text: situacao == null
+                  ? 'Abra seus documentos para atualizar a situação.'
+                  : [
+                      situacao.orientacao,
+                      if (situacao.motivo?.trim().isNotEmpty == true)
+                        'Motivo: ${situacao.motivo}',
+                    ].join('\n'),
+              onTap: _abrirDocumentos,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpace.lg),
+            const _PerfilSecaoTitulo(
+              titulo: 'Dados pessoais',
+              descricao: 'Informações privadas da sua conta.',
+            ),
+            _MenuRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Nome, telefone e foto',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
+            ),
+            const SizedBox(height: AppSpace.md),
+            const _PerfilSecaoTitulo(
+              titulo: 'Apresentação pública',
+              descricao: 'O que os clientes veem no catálogo.',
+            ),
             _MenuRow(
               icon: Icons.badge_outlined,
-              label: 'Dados profissionais',
+              label: 'Região atendida',
               onTap: _editarDadosProfissionais,
             ),
             _MenuRow(
@@ -1096,18 +1459,23 @@ class _PerfilProfissionalPrivadoPageState
               onTap: () =>
                   Navigator.pushNamed(context, AppRoutes.servicosProfissional),
             ),
+            const SizedBox(height: AppSpace.md),
+            const _PerfilSecaoTitulo(
+              titulo: 'Configurações do trabalho',
+              descricao: 'Agenda, segurança e histórico profissional.',
+            ),
             _MenuRow(
-              icon: Icons.location_on_outlined,
-              label: 'Região atendida',
-              onTap: _editarDadosProfissionais,
+              icon: Icons.schedule_outlined,
+              label: 'Disponibilidade e bloqueios',
+              onTap: () => Navigator.pushNamed(
+                context,
+                AppRoutes.disponibilidadeProfissional,
+              ),
             ),
             _MenuRow(
               icon: Icons.folder_outlined,
               label: 'Documentos e verificação',
-              onTap: () => Navigator.pushNamed(
-                context,
-                AppRoutes.documentosProfissional,
-              ),
+              onTap: _abrirDocumentos,
             ),
             _MenuRow(
               icon: Icons.star_outline_rounded,
@@ -1117,7 +1485,7 @@ class _PerfilProfissionalPrivadoPageState
             ),
             _MenuRow(
               icon: Icons.settings_outlined,
-              label: 'Configurações da conta',
+              label: 'Segurança e configurações da conta',
               onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
             ),
           ],
@@ -1132,11 +1500,16 @@ class _PerfilProfissionalPrivadoPageState
     );
     if (atualizado == true && mounted) {
       setState(() {
-        _future = AppServices.instance.profissionais.meuPerfil();
+        _future = _carregar();
         _future.ignore();
       });
     }
   }
+}
+
+String _inicialNome(Object? value) {
+  final nome = '${value ?? ''}'.trim();
+  return nome.isEmpty ? 'P' : nome.characters.first.toUpperCase();
 }
 
 String _status(Object? value) => switch (value) {
@@ -1230,7 +1603,7 @@ class _PedidoCard extends StatelessWidget {
                     onPressed: () async {
                       await Navigator.pushNamed(
                         context,
-                        AppRoutes.detalhesSolicitacaoProfissional,
+                        AppRoutes.detalhesServico,
                         arguments: id,
                       );
                       onChanged?.call();
@@ -1422,6 +1795,101 @@ class _MenuRow extends StatelessWidget {
       trailing: const Icon(Icons.chevron_right),
     ),
   );
+}
+
+class _PerfilSecaoTitulo extends StatelessWidget {
+  const _PerfilSecaoTitulo({required this.titulo, required this.descricao});
+  final String titulo;
+  final String descricao;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpace.sm),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: AppSpace.xs),
+        Text(descricao, style: const TextStyle(color: AppColors.textoSuave)),
+      ],
+    ),
+  );
+}
+
+class _CabecalhoMesAgenda extends StatelessWidget {
+  const _CabecalhoMesAgenda({
+    required this.mes,
+    required this.onMudarMes,
+    required this.quantidade,
+  });
+  final DateTime mes;
+  final ValueChanged<int> onMudarMes;
+  final int quantidade;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      IconButton(
+        tooltip: 'Mês anterior',
+        onPressed: () => onMudarMes(-1),
+        icon: const Icon(Icons.chevron_left),
+      ),
+      Expanded(
+        child: Column(
+          children: [
+            Text(
+              '${_nomeMes(mes)} ${mes.year}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              '$quantidade ${quantidade == 1 ? 'atendimento' : 'atendimentos'}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      IconButton(
+        tooltip: 'Próximo mês',
+        onPressed: () => onMudarMes(1),
+        icon: const Icon(Icons.chevron_right),
+      ),
+    ],
+  );
+}
+
+class _AgendaItemCompacto extends StatelessWidget {
+  const _AgendaItemCompacto({required this.pedido});
+  final Map<String, dynamic> pedido;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = int.tryParse('${pedido['id']}') ?? 0;
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpace.sm),
+      child: ListTile(
+        onTap: id <= 0
+            ? null
+            : () => Navigator.pushNamed(
+                context,
+                AppRoutes.detalhesSolicitacaoProfissional,
+                arguments: id,
+              ),
+        leading: const Icon(Icons.event_available_outlined),
+        title: Text(
+          '${pedido['nomeServico'] ?? pedido['categoria']?['nome'] ?? 'Atendimento'}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Text(
+          '${_dataHoraPedido(pedido['dataServico'], pedido['horarioServico'])}\n${pedido['bairroAtendimento'] ?? 'Região não informada'}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        isThreeLine: true,
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
 }
 
 class _CalendarioAgenda extends StatelessWidget {

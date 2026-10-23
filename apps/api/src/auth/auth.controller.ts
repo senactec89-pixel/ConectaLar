@@ -80,6 +80,15 @@ export class AuthController {
     return this.authService.alterarSenha(user, body);
   }
 
+  @Patch('me/dados')
+  @UseGuards(AuthGuard)
+  atualizarDadosPessoais(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.authService.atualizarDadosPessoais(user, body);
+  }
+
   @Put('me/foto')
   @UseGuards(AuthGuard)
   atualizarFotoPerfil(

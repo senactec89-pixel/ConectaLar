@@ -46,6 +46,7 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/auth\/email\/verificacao\/enviar:/);
   assert.match(openapi, /\/auth\/email\/verificacao\/confirmar:/);
   assert.match(openapi, /\/auth\/me\/foto:/);
+  assert.match(openapi, /\/auth\/me\/dados:/);
   assert.match(openapi, /\/usuarios\/\{id\}\/foto:/);
   assert.match(openapi, /\/profissionais\/me\/agenda:/);
   assert.match(openapi, /\/profissionais\/me\/documentos:/);
@@ -55,8 +56,14 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /enderecoAtendimento/);
   assert.match(openapi, /\/profissionais\/me\/avaliacoes:/);
   assert.match(openapi, /\/profissionais\/\{id\}\/avaliacoes:/);
+  assert.match(openapi, /name: pagina, in: query/);
+  assert.match(openapi, /name: comComentario, in: query/);
+  assert.match(openapi, /totalPaginas/);
   assert.match(openapi, /\/profissionais\/busca:/);
   assert.match(openapi, /servicoId/);
+  assert.match(openapi, /duracaoMinutos/);
+  assert.match(openapi, /\/profissionais\/me\/bloqueios:/);
+  assert.match(openapi, /\/solicitacoes\/\{id\}\/reagendamento:/);
   assert.match(openapi, /nomeServico/);
   assert.match(openapi, /fotoPerfilUrl/);
   assert.match(openapi, /googleVinculado/);

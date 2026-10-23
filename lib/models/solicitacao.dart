@@ -41,6 +41,10 @@ class Solicitacao {
     this.profissionalUsuarioId = 0,
     this.servicoId,
     this.nomeServico,
+    this.duracaoMinutos = 60,
+    this.intervaloMinutos = 30,
+    this.reagendamento,
+    this.reagendamentos = const [],
   });
 
   final int id;
@@ -58,6 +62,10 @@ class Solicitacao {
   final ClienteEndereco? enderecoAtendimento;
   final DateTime dataServico;
   final String horarioServico;
+  final int duracaoMinutos;
+  final int intervaloMinutos;
+  final Map<String, dynamic>? reagendamento;
+  final List<Map<String, dynamic>> reagendamentos;
   final double? precoInicial;
   final StatusSolicitacao status;
   final DateTime criadoEm;

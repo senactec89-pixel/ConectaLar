@@ -68,13 +68,20 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
     });
     try {
       final Map<String, dynamic> dados;
-      if (AppServices.instance.auth.autenticado) {
+      final tipo = AppServices.instance.auth.usuarioAtual?['tipo'];
+      if (AppServices.instance.auth.autenticado && tipo == 'cliente') {
         final response = await AppServices.instance.clientes.meuPerfil();
         final cliente = response['cliente'];
         if (cliente is! Map<String, dynamic>) {
           throw const ApiException('Não foi possível carregar seus dados.');
         }
         dados = cliente;
+      } else if (AppServices.instance.auth.autenticado) {
+        final usuario = AppServices.instance.auth.usuarioAtual;
+        if (usuario == null) {
+          throw const ApiException('Não foi possível carregar seus dados.');
+        }
+        dados = usuario;
       } else if (AppServices.instance.emDemonstracao) {
         final usuario = ConectaLarMockStore.instance.usuarioAtual;
         dados = {
@@ -111,14 +118,21 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
 
     setState(() => _salvando = true);
     try {
-      await AppServices.instance.clientes.atualizarMeuPerfil({
-        'nome': _nome.text.trim(),
-        'telefone': _telefone.text.trim(),
-        'bairroPrincipal': _bairro.text.trim(),
-        'cidade': _cidade.text.trim(),
-        'uf': _uf.text.trim().toUpperCase(),
-        'observacoes': _observacoes.text.trim(),
-      });
+      if (AppServices.instance.auth.usuarioAtual?['tipo'] == 'cliente') {
+        await AppServices.instance.clientes.atualizarMeuPerfil({
+          'nome': _nome.text.trim(),
+          'telefone': _telefone.text.trim(),
+          'bairroPrincipal': _bairro.text.trim(),
+          'cidade': _cidade.text.trim(),
+          'uf': _uf.text.trim().toUpperCase(),
+          'observacoes': _observacoes.text.trim(),
+        });
+      } else {
+        await AppServices.instance.auth.atualizarDadosPessoais(
+          nome: _nome.text.trim(),
+          telefone: _telefone.text.trim(),
+        );
+      }
       if (!mounted) return;
       Navigator.pop(context, true);
     } on ApiException catch (error) {
@@ -148,6 +162,8 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
   }
 
   Widget _scaffold(BuildContext context) {
+    final editaRegiao =
+        AppServices.instance.auth.usuarioAtual?['tipo'] == 'cliente';
     return Scaffold(
       appBar: const AppBarCustom(title: 'Meus dados'),
       backgroundColor: AppColors.fundo,
@@ -235,89 +251,94 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: AppSpace.md),
-                            Card(
-                              child: Padding(
-                                padding: AppInsets.card,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Sua região',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.titleMedium,
-                                    ),
-                                    const SizedBox(height: AppSpace.md),
-                                    TextFormField(
-                                      key: const ValueKey('perfil-bairro'),
-                                      controller: _bairro,
-                                      textCapitalization:
-                                          TextCapitalization.words,
-                                      textInputAction: TextInputAction.next,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Bairro principal',
-                                        prefixIcon: Icon(
-                                          Icons.location_on_outlined,
-                                        ),
+                            if (editaRegiao) ...[
+                              const SizedBox(height: AppSpace.md),
+                              Card(
+                                child: Padding(
+                                  padding: AppInsets.card,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Sua região',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.titleMedium,
                                       ),
-                                    ),
-                                    const SizedBox(height: AppSpace.md),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 3,
-                                          child: TextFormField(
-                                            key: const ValueKey(
-                                              'perfil-cidade',
-                                            ),
-                                            controller: _cidade,
-                                            textCapitalization:
-                                                TextCapitalization.words,
-                                            textInputAction:
-                                                TextInputAction.next,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Cidade',
-                                            ),
+                                      const SizedBox(height: AppSpace.md),
+                                      TextFormField(
+                                        key: const ValueKey('perfil-bairro'),
+                                        controller: _bairro,
+                                        textCapitalization:
+                                            TextCapitalization.words,
+                                        textInputAction: TextInputAction.next,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Bairro principal',
+                                          prefixIcon: Icon(
+                                            Icons.location_on_outlined,
                                           ),
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: TextFormField(
-                                            key: const ValueKey('perfil-uf'),
-                                            controller: _uf,
-                                            textCapitalization:
-                                                TextCapitalization.characters,
-                                            inputFormatters: [
-                                              LengthLimitingTextInputFormatter(
-                                                2,
+                                      ),
+                                      const SizedBox(height: AppSpace.md),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 3,
+                                            child: TextFormField(
+                                              key: const ValueKey(
+                                                'perfil-cidade',
                                               ),
-                                            ],
-                                            decoration: const InputDecoration(
-                                              labelText: 'UF',
+                                              controller: _cidade,
+                                              textCapitalization:
+                                                  TextCapitalization.words,
+                                              textInputAction:
+                                                  TextInputAction.next,
+                                              decoration: const InputDecoration(
+                                                labelText: 'Cidade',
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: AppSpace.md),
-                                    TextFormField(
-                                      key: const ValueKey('perfil-observacoes'),
-                                      controller: _observacoes,
-                                      minLines: 2,
-                                      maxLines: 4,
-                                      maxLength: 280,
-                                      textCapitalization:
-                                          TextCapitalization.sentences,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Observações (opcional)',
-                                        alignLabelWithHint: true,
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: TextFormField(
+                                              key: const ValueKey('perfil-uf'),
+                                              controller: _uf,
+                                              textCapitalization:
+                                                  TextCapitalization.characters,
+                                              inputFormatters: [
+                                                LengthLimitingTextInputFormatter(
+                                                  2,
+                                                ),
+                                              ],
+                                              decoration: const InputDecoration(
+                                                labelText: 'UF',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: AppSpace.md),
+                                      TextFormField(
+                                        key: const ValueKey(
+                                          'perfil-observacoes',
+                                        ),
+                                        controller: _observacoes,
+                                        minLines: 2,
+                                        maxLines: 4,
+                                        maxLength: 280,
+                                        textCapitalization:
+                                            TextCapitalization.sentences,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Observações (opcional)',
+                                          alignLabelWithHint: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                             const SizedBox(height: AppSpace.xl),
                             FilledButton.icon(
                               key: const ValueKey('perfil-salvar'),

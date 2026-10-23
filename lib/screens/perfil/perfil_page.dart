@@ -201,35 +201,9 @@ class _PerfilPageState extends State<PerfilPage> {
                 const SizedBox(height: 14),
                 _PerfilOpcao(
                   icon: Icons.badge_outlined,
-                  title: usuario.tipo.valorBanco == 'cliente'
-                      ? 'Meus dados'
-                      : 'Dados da conta',
-                  subtitle: usuario.tipo.valorBanco == 'cliente'
-                      ? 'Nome, e-mail e telefone'
-                      : 'Consultar nome, e-mail e telefone',
-                  trailingIcon: usuario.tipo.valorBanco == 'cliente'
-                      ? Icons.chevron_right
-                      : Icons.visibility_outlined,
+                  title: 'Meus dados',
+                  subtitle: 'Editar nome e telefone; consultar e-mail',
                   onTap: () async {
-                    if (usuario.tipo.valorBanco != 'cliente') {
-                      await showDialog<void>(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          scrollable: true,
-                          title: const Text('Dados da conta'),
-                          content: Text(
-                            '${usuario.nome}\n${usuario.email}\n${usuario.telefone ?? 'Telefone não informado'}',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Fechar'),
-                            ),
-                          ],
-                        ),
-                      );
-                      return;
-                    }
                     final atualizado = await Navigator.pushNamed(
                       context,
                       AppRoutes.editarDados,
@@ -526,14 +500,12 @@ class _PerfilOpcao extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.trailingIcon = Icons.chevron_right,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
-  final IconData trailingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -543,7 +515,7 @@ class _PerfilOpcao extends StatelessWidget {
         leading: Icon(icon, color: AppColors.verdeEscuro),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
         subtitle: Text(subtitle),
-        trailing: Icon(trailingIcon),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }

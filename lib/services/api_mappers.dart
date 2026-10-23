@@ -68,6 +68,7 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
     precoInicial: doubleValueOrNull(json['precoInicial']),
     categoriaIds: categoriaIds,
     verificado: boolValue(json['verificado']),
+    podeReceberSolicitacoes: json['podeReceberSolicitacoes'] == true,
     fotoUrl: apiUrlOrNull(json['fotoPerfilUrl']),
     servicos: servicos,
     ofertas: listFromApi(
@@ -79,6 +80,12 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
             ? null
             : intValue(s['categoria']?['id']),
         precoInicial: doubleValueOrNull(s['precoInicial']),
+        duracaoMinutos: s['duracaoMinutos'] == null
+            ? 60
+            : intValue(s['duracaoMinutos']),
+        intervaloMinutos: s['intervaloMinutos'] == null
+            ? 30
+            : intValue(s['intervaloMinutos']),
       ),
     ),
     notaMedia: doubleValueOrNull(json['notaMedia']),
@@ -116,6 +123,18 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         : null,
     dataServico: dateValue(json['dataServico']),
     horarioServico: stringValue(json['horarioServico']),
+    duracaoMinutos: json['duracaoMinutos'] == null
+        ? 60
+        : intValue(json['duracaoMinutos']),
+    intervaloMinutos: json['intervaloMinutos'] == null
+        ? 30
+        : intValue(json['intervaloMinutos']),
+    reagendamento: json['reagendamento'] is Map<String, dynamic>
+        ? json['reagendamento'] as Map<String, dynamic>
+        : null,
+    reagendamentos: (json['reagendamentos'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
     precoInicial: doubleValueOrNull(json['precoInicial']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),

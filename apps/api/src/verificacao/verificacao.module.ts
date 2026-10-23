@@ -9,6 +9,11 @@ import { DocumentoStorageService } from './documento-storage.service.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
 import { VerificacaoController } from './verificacao.controller.js';
 import { VerificacaoService } from './verificacao.service.js';
+import { HabilitacaoController } from './habilitacao.controller.js';
+import { HabilitacaoService } from './habilitacao.service.js';
+import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { ProfissionalIdentidadeVerificacaoEntity } from '../database/entities/profissional-identidade-verificacao.entity.js';
+import { IdZapSignProvider } from './id-zapsign.provider.js';
 
 @Module({
   imports: [
@@ -18,9 +23,11 @@ import { VerificacaoService } from './verificacao.service.js';
       AdminAuditoriaEntity,
       ProfissionalDocumentoVerificacaoEntity,
       ProfissionalPerfilEntity,
+      UsuarioEntity,
+      ProfissionalIdentidadeVerificacaoEntity,
     ]),
   ],
-  controllers: [VerificacaoController],
-  providers: [DocumentoStorageService, MalwareScannerService, VerificacaoService],
+  controllers: [VerificacaoController, HabilitacaoController],
+  providers: [DocumentoStorageService, MalwareScannerService, VerificacaoService, HabilitacaoService, IdZapSignProvider],
 })
 export class VerificacaoModule {}

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -16,6 +17,7 @@ import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { DocumentoStorageService } from './documento-storage.service.js';
 import { MalwareScannerService } from './malware-scanner.service.js';
+import { habilitacaoProfissional } from './habilitacao-profissional.js';
 
 interface EnviarDocumentoInput {
   readonly tipoDocumento: string;
@@ -96,9 +98,10 @@ export class VerificacaoService {
   async listarMeusDocumentos(user: AuthenticatedUser) {
     const perfil = await this.perfis.findOne({
       where: { usuarioId: user.id, ativo: true },
+      relations: { usuario: true },
     });
     if (perfil === null) {
-      return { documentos: [] };
+      return { documentos: [], habilitacao: habilitacaoProfissional(null) };
     }
 
     const documentos = await this.documentos.find({
@@ -107,7 +110,7 @@ export class VerificacaoService {
       take: 50,
     });
 
-    return { documentos: documentos.map(documentoResponse) };
+    return { documentos: documentos.map(documentoResponse), habilitacao: habilitacaoProfissional(perfil) };
   }
 
   async listarParaAnalise(query: Record<string, unknown>) {
@@ -164,7 +167,11 @@ export class VerificacaoService {
 
     documento.profissional.verificado =
       await this.profissionalTemIdentidadeAprovada(documento.profissionalId);
-    await this.perfis.save(documento.profissional);
+    // Do not overwrite a concurrent security suspension with this older
+    // profile snapshot loaded for document moderation.
+    await this.perfis.update(documento.profissionalId, {
+      verificado: documento.profissional.verificado,
+    });
 
     await this.registrarAuditoria(
       user.id,
@@ -217,7 +224,7 @@ export class VerificacaoService {
         titulo: aprovado ? 'Documento aprovado' : 'Documento precisa de ajuste',
         mensagem: aprovado
           ? ativouSelo
-            ? 'Seu selo de verificacao foi ativado pela administracao.'
+            ? 'Seu selo de verificacao foi ativado pela administracao. A analise documental nao libera atendimentos; a habilitacao de seguranca continua pendente.'
             : 'Seu documento foi aprovado pela administracao.'
           : 'Revise o motivo informado e envie uma nova verificacao.',
         recursoTipo: 'documento_verificacao',
@@ -243,6 +250,9 @@ export class VerificacaoService {
 function parseEnvioDocumento(body: unknown): EnviarDocumentoInput {
   const value = objectBody(body);
   const tipoDocumento = textField(value, 'tipoDocumento', 3, 60);
+  if (!['documento_identidade', 'comprovante_endereco', 'certificado_opcional', 'certificado_curso'].includes(tipoDocumento)) {
+    throw badRequest('TIPO_DOCUMENTO_NAO_PERMITIDO');
+  }
   const referenciaArquivo = optionalText(value.referenciaArquivo, 180);
   const arquivoBase64 = optionalText(value.arquivoBase64, 8_000_000);
   const mimeType = optionalText(value.mimeType, 80);
@@ -302,7 +312,15 @@ async function resolverReferenciaArquivo(
   if (!assinaturaCompativelComMime(conteudo, input.mimeType)) {
     throw badRequest('ASSINATURA_ARQUIVO_INVALIDA');
   }
-  const scan = await malwareScanner.scanBuffer(conteudo);
+  let scan;
+  try {
+    scan = await malwareScanner.scanBuffer(conteudo);
+  } catch {
+    throw new ServiceUnavailableException({
+      code: 'VERIFICACAO_SEGURANCA_INDISPONIVEL',
+      message: 'A verificacao de seguranca esta indisponivel.',
+    });
+  }
   if (!scan.clean) {
     throw badRequest('AMEACA_DOCUMENTO_DETECTADA');
   }

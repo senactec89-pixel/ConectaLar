@@ -1,5 +1,13 @@
 # Pendencias do ConectaLar
 
+## Atualizacao de seguranca em 18/10/2026
+
+Habilitacao profissional preparada; conta ID ZapSign criada e adaptador de identidade
+implementado, mas nao configurado nem homologado. Telefone, antecedentes e politica
+juridica permanecem pendentes. Esta versao
+bloqueia novas solicitacoes, aceites e acesso profissional ao endereco completo;
+documento aprovado nao libera atendimento. Ver [impacto e implantacao](habilitacao-profissional.md).
+
 Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
 
 ## Correcoes recentes incorporadas

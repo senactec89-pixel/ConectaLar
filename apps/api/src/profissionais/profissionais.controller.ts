@@ -85,13 +85,19 @@ export class ProfissionaisController {
   @Get('me/avaliacoes')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
-  minhasAvaliacoes(@UsuarioAtual() user: AuthenticatedUser) {
-    return this.profissionais.minhasAvaliacoes(user);
+  minhasAvaliacoes(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.profissionais.minhasAvaliacoes(user, query);
   }
 
   @Get(':id/avaliacoes')
-  avaliacoesPublicas(@Param('id') id: string) {
-    return this.profissionais.avaliacoesPublicas(parseId(id));
+  avaliacoesPublicas(
+    @Param('id') id: string,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.profissionais.avaliacoesPublicas(parseId(id), query);
   }
 
   @Get(':id')

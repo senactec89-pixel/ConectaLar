@@ -846,13 +846,19 @@ class _SolicitarServicoBar extends StatelessWidget {
         ),
         child: FilledButton.icon(
           key: const ValueKey('perfil-solicitar-servico'),
-          onPressed: () => Navigator.pushNamed(
-            context,
-            AppRoutes.solicitarServico,
-            arguments: profissional,
-          ),
+          onPressed: !profissional.podeReceberSolicitacoes
+              ? null
+              : () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.solicitarServico,
+                  arguments: profissional,
+                ),
           icon: const Icon(Icons.calendar_month_rounded),
-          label: const Text('Solicitar atendimento'),
+          label: Text(
+            profissional.podeReceberSolicitacoes
+                ? 'Solicitar atendimento'
+                : 'Habilitação pendente',
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../models/disponibilidade.dart';
 import '../../services/api_mappers.dart';
@@ -8,6 +9,7 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
+import '../../services/api_service.dart';
 
 class DisponibilidadePage extends StatefulWidget {
   const DisponibilidadePage({super.key});
@@ -18,13 +20,126 @@ class DisponibilidadePage extends StatefulWidget {
 
 class _DisponibilidadePageState extends State<DisponibilidadePage> {
   late Future<List<Disponibilidade>> _future;
+  late Future<List<Map<String, dynamic>>> _bloqueiosFuture;
   final List<Disponibilidade> _itens = [];
   bool _salvando = false;
+  bool _erroBloqueios = false;
 
   @override
   void initState() {
     super.initState();
     _future = _carregar();
+    _bloqueiosFuture = _carregarBloqueios();
+  }
+
+  Future<List<Map<String, dynamic>>> _carregarBloqueios() async {
+    if (!AppServices.instance.auth.autenticado ||
+        AppServices.instance.emDemonstracao) {
+      return const [];
+    }
+    try {
+      final response = await AppServices.instance.profissionais.meusBloqueios();
+      _erroBloqueios = false;
+      return (response['bloqueios'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+    } catch (_) {
+      _erroBloqueios = true;
+      return const [];
+    }
+  }
+
+  Future<void> _adicionarBloqueio() async {
+    final motivo = TextEditingController();
+    var inicio = DateTime.now();
+    var fim = inicio;
+    final salvo = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          title: const Text('Bloquear período'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(const Duration(days: 730)),
+                    initialDateRange: DateTimeRange(start: inicio, end: fim),
+                  );
+                  if (range != null) {
+                    setDialogState(() {
+                      inicio = range.start;
+                      fim = range.end;
+                    });
+                  }
+                },
+                icon: const Icon(Icons.date_range_outlined),
+                label: Text('${_dataBr(inicio)} a ${_dataBr(fim)}'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: motivo,
+                maxLength: 160,
+                decoration: const InputDecoration(
+                  labelText: 'Motivo',
+                  hintText: 'Férias, compromisso ou imprevisto',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                if (motivo.text.trim().length < 3) return;
+                try {
+                  await AppServices.instance.profissionais.criarBloqueio(
+                    dataInicio: _dataApi(inicio),
+                    dataFim: _dataApi(fim),
+                    motivo: motivo.text.trim(),
+                  );
+                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+                } catch (_) {
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text('Não foi possível bloquear o período.'),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Bloquear'),
+            ),
+          ],
+        ),
+      ),
+    );
+    motivo.dispose();
+    if (salvo == true && mounted) {
+      setState(() => _bloqueiosFuture = _carregarBloqueios());
+    }
+  }
+
+  Future<void> _removerBloqueio(int id) async {
+    try {
+      await AppServices.instance.profissionais.removerBloqueio(id);
+      if (mounted) setState(() => _bloqueiosFuture = _carregarBloqueios());
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Não foi possível remover o bloqueio.')),
+        );
+      }
+    }
   }
 
   Future<List<Disponibilidade>> _carregar() async {
@@ -41,14 +156,14 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
     return itens;
   }
 
-  Future<void> _salvar() async {
-    if (_salvando) return;
+  Future<bool> _salvar() async {
+    if (_salvando) return false;
     setState(() => _salvando = true);
     try {
       await AppServices.instance.profissionais.salvarMinhaDisponibilidade(
         _itens.map((item) => item.toApi()).toList(growable: false),
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Disponibilidade salva.')));
@@ -56,15 +171,30 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
         _future = _carregar();
         _future.ignore();
       });
+      return true;
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+      return false;
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Confira os horários. Eles não podem se sobrepor.'),
+          content: Text('Não foi possível salvar a disponibilidade.'),
         ),
       );
+      return false;
     } finally {
       if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  Future<void> _salvarEContinuar() async {
+    if (await _salvar() && mounted) {
+      await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
     }
   }
 
@@ -89,10 +219,35 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
     return Scaffold(
       appBar: const AppBarCustom(title: 'Disponibilidade'),
       backgroundColor: AppColors.fundo,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _salvando ? null : _adicionar,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Horário'),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _salvando ? null : _adicionar,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Adicionar horário'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _salvando ? null : _salvarEContinuar,
+                  icon: _salvando
+                      ? const ButtonProgressIndicator()
+                      : const Icon(Icons.arrow_forward_rounded),
+                  label: ActionLabel(
+                    busy: _salvando,
+                    text: _salvando ? 'Salvando...' : 'Salvar e continuar',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -180,19 +335,68 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                         ),
                         const SizedBox(height: AppSpace.md),
                       ],
-                    const SizedBox(height: AppSpace.md),
-                    FilledButton.icon(
-                      onPressed: _salvando ? null : _salvar,
-                      icon: _salvando
-                          ? const ButtonProgressIndicator()
-                          : const Icon(Icons.save_outlined),
-                      label: ActionLabel(
-                        busy: _salvando,
-                        text: _salvando
-                            ? 'Salvando...'
-                            : 'Salvar disponibilidade',
-                      ),
+                    const SizedBox(height: AppSpace.xl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Férias e imprevistos',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Bloquear período',
+                          onPressed: _adicionarBloqueio,
+                          icon: const Icon(Icons.event_busy_outlined),
+                        ),
+                      ],
                     ),
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _bloqueiosFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.done) {
+                          return const LinearProgressIndicator();
+                        }
+                        if (snapshot.hasError || _erroBloqueios) {
+                          return TextButton.icon(
+                            onPressed: () => setState(
+                              () => _bloqueiosFuture = _carregarBloqueios(),
+                            ),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text(
+                              'Tentar carregar bloqueios novamente',
+                            ),
+                          );
+                        }
+                        final itens = snapshot.data ?? const [];
+                        if (itens.isEmpty) {
+                          return const Text(
+                            'Nenhum período bloqueado.',
+                            style: TextStyle(color: AppColors.textoSuave),
+                          );
+                        }
+                        return Column(
+                          children: [
+                            for (final item in itens)
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.event_busy_outlined),
+                                title: Text('${item['motivo']}'),
+                                subtitle: Text(
+                                  '${_dataApiParaBr(item['dataInicio'])} a ${_dataApiParaBr(item['dataFim'])}',
+                                ),
+                                trailing: IconButton(
+                                  tooltip: 'Remover bloqueio',
+                                  onPressed: () =>
+                                      _removerBloqueio(item['id'] as int),
+                                  icon: const Icon(Icons.delete_outline),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpace.md),
                   ],
                 );
               },
@@ -445,4 +649,17 @@ int? _minutos(String horario) {
   if (normalizado == null) return null;
   final partes = normalizado.split(':');
   return int.parse(partes[0]) * 60 + int.parse(partes[1]);
+}
+
+String _dataApi(DateTime data) =>
+    '${data.year.toString().padLeft(4, '0')}-${data.month.toString().padLeft(2, '0')}-${data.day.toString().padLeft(2, '0')}';
+
+String _dataBr(DateTime data) =>
+    '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
+
+String _dataApiParaBr(Object? value) {
+  final partes = '$value'.split('-');
+  return partes.length == 3
+      ? '${partes[2]}/${partes[1]}/${partes[0]}'
+      : '$value';
 }

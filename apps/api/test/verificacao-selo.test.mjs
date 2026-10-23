@@ -23,7 +23,7 @@ function criarServico(documentos) {
     },
   };
   const perfisRepo = {
-    async save(perfil) {
+    async update(_id, perfil) {
       perfisSalvos.push({ ...perfil });
       return perfil;
     },

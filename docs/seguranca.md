@@ -1,5 +1,13 @@
 # Seguranca - estado atual e pendencias
 
+## Habilitacao residencial em 18/10/2026
+
+Analise documental nao equivale a identidade validada nem habilitacao para atender.
+Enquanto telefone, antecedentes e politica juridica estiverem pendentes, esta versao bloqueia
+novos pedidos/aceites e acesso do profissional a enderecos completos. A revisao
+administrativa exige MFA e nao permite aprovacao manual das verificacoes externas.
+Consultar [limites, testes e implantacao](habilitacao-profissional.md).
+
 Atualizado em 16/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
 
 ## Controles existentes

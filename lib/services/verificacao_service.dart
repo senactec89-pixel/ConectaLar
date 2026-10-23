@@ -5,6 +5,17 @@ class VerificacaoService {
 
   final ApiService _api;
 
+  Future<Map<String, dynamic>> solicitarRevisao() =>
+      _api.post('profissionais/me/habilitacao/revisao', body: {});
+
+  Future<Map<String, dynamic>> iniciarIdentidade() => _api.post(
+    'profissionais/me/habilitacao/identidade',
+    body: {'consentimento': true},
+  );
+
+  Future<Map<String, dynamic>> consultarIdentidade() =>
+      _api.get('profissionais/me/habilitacao/identidade');
+
   Future<Map<String, dynamic>> enviarDocumento({
     required String tipoDocumento,
     String? referenciaArquivo,
