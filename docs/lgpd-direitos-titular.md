@@ -6,7 +6,7 @@ Atualizado em 16/10/2026. Este documento explica o comportamento tecnico atual. 
 
 Na tela `Perfil > Seguranca`, o usuario escolhe **Exportar meus dados** e confirma a senha atual. A API gera um JSON versionado e o app abre o compartilhamento nativo do aparelho para que o titular escolha onde guardar o arquivo.
 
-O arquivo inclui dados cadastrais, foto, perfil, enderecos, ofertas, disponibilidade, documentos enviados, solicitacoes, mensagens enviadas, avaliacoes, denuncias relacionadas, notificacoes, favoritos, aceites e historico de pedidos de privacidade. Documentos e foto sao representados em Base64 quando o arquivo esta disponivel.
+O arquivo inclui dados cadastrais, foto, perfil, enderecos, ofertas, disponibilidade, documentos enviados, solicitacoes, historico de orcamentos, mensagens enviadas, avaliacoes, denuncias relacionadas, notificacoes, favoritos, aceites e historico de pedidos de privacidade. Documentos e foto sao representados em Base64 quando o arquivo esta disponivel.
 
 O arquivo nunca inclui hash de senha, token de sessao, codigo de verificacao, codigo de recuperacao ou segredo MFA. Identificadores de outras pessoas sao omitidos quando nao sao necessarios para explicar o registro ao titular.
 

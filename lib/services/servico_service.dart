@@ -98,4 +98,25 @@ class ServicoService {
       body: {'aceitar': aceitar},
     );
   }
+
+  Future<Map<String, dynamic>> proporOrcamento(
+    int solicitacaoId, {
+    required double valor,
+    required String descricao,
+  }) {
+    return _api.post(
+      'solicitacoes/$solicitacaoId/orcamentos',
+      body: {'valor': valor, 'descricao': descricao},
+    );
+  }
+
+  Future<Map<String, dynamic>> responderOrcamento(
+    int solicitacaoId, {
+    required bool aceitar,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/orcamentos/responder',
+      body: {'aceitar': aceitar},
+    );
+  }
 }

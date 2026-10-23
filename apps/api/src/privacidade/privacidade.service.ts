@@ -30,6 +30,7 @@ import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/pro
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
@@ -409,7 +410,7 @@ export class PrivacidadeService {
       .getMany();
     const solicitacaoIds = solicitacoes.map((item) => item.id);
 
-    const [mensagens, avaliacoes, denuncias, historicoPrivacidade] =
+    const [mensagens, avaliacoes, denuncias, orcamentos, historicoPrivacidade] =
       await Promise.all([
         solicitacaoIds.length === 0
           ? []
@@ -437,6 +438,12 @@ export class PrivacidadeService {
           })
           .orderBy('denuncia.criado_em', 'DESC')
           .getMany(),
+        solicitacaoIds.length === 0
+          ? []
+          : manager.find(SolicitacaoOrcamentoEntity, {
+              where: { solicitacaoId: In(solicitacaoIds) },
+              order: { criadoEm: 'ASC' },
+            }),
         manager.find(PrivacidadeSolicitacaoEntity, {
           where: { usuarioId: usuario.id },
           order: { criadoEm: 'DESC' },
@@ -486,6 +493,7 @@ export class PrivacidadeService {
         enderecoId: item.clienteId === usuario.id ? item.enderecoId : null,
       })),
       mensagensEnviadas: mensagens.map(semRelacoes),
+      orcamentosDeAtendimentos: orcamentos.map(semRelacoes),
       avaliacoes: avaliacoes.map((item) => ({
         ...semRelacoes(item),
         relacao:

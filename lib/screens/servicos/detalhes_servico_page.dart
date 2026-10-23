@@ -557,6 +557,167 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     }
   }
 
+  Future<void> _proporOrcamento() async {
+    if (_enviando) return;
+    var valorTexto =
+        _atendimento.solicitacao.precoFinal
+            ?.toStringAsFixed(2)
+            .replaceAll('.', ',') ??
+        '';
+    var descricao = '';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: const Text('Enviar orçamento final'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'O valor só se torna o preço final do atendimento depois que o cliente aceitar.',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              key: const ValueKey('orcamento-valor'),
+              initialValue: valorTexto,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (value) => valorTexto = value,
+              decoration: const InputDecoration(
+                labelText: 'Valor final (R\$)',
+                hintText: 'Ex.: 150,00',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const ValueKey('orcamento-descricao'),
+              onChanged: (value) => descricao = value,
+              minLines: 3,
+              maxLines: 6,
+              maxLength: 600,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'O que está incluído?',
+                helperText:
+                    'Descreva serviço, materiais e demais condições em pelo menos 10 caracteres.',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            key: const ValueKey('orcamento-enviar'),
+            onPressed: () {
+              final valor = double.tryParse(
+                valorTexto.trim().replaceAll(',', '.'),
+              );
+              final mensagem =
+                  valor == null || valor <= 0 || valor > 99999999.99
+                  ? 'Informe um valor final válido e maior que zero.'
+                  : descricao.trim().length < 10
+                  ? 'Descreva o que está incluído em pelo menos 10 caracteres.'
+                  : null;
+              if (mensagem != null) {
+                ScaffoldMessenger.of(
+                  dialogContext,
+                ).showSnackBar(SnackBar(content: Text(mensagem)));
+                return;
+              }
+              Navigator.pop(dialogContext, true);
+            },
+            child: const Text('Enviar ao cliente'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    final valor = double.tryParse(valorTexto.trim().replaceAll(',', '.'));
+    if (valor == null || valor <= 0 || valor > 99999999.99) {
+      _notificar('Informe um valor final válido e maior que zero.');
+      return;
+    }
+    if (descricao.trim().length < 10) {
+      _notificar('Descreva o que está incluído em pelo menos 10 caracteres.');
+      return;
+    }
+
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos.proporOrcamento(
+        _atendimento.solicitacao.id,
+        valor: valor,
+        descricao: descricao.trim(),
+      );
+      final solicitacao = response['solicitacao'];
+      if (mounted && solicitacao is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
+        _notificar('Orçamento enviado para o cliente analisar.');
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) await _atualizarAposConflito();
+      if (mounted) _notificar(error.message);
+    } catch (_) {
+      if (mounted) _notificar('Não foi possível enviar o orçamento.');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _responderOrcamento(bool aceitar) async {
+    if (_enviando) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(aceitar ? 'Aceitar orçamento?' : 'Recusar orçamento?'),
+        content: Text(
+          aceitar
+              ? 'O valor informado será registrado como preço final acordado. O pagamento continua sendo realizado fora do aplicativo.'
+              : 'O valor não será aceito. Você poderá conversar com o profissional para solicitar uma revisão.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            key: ValueKey(
+              aceitar
+                  ? 'orcamento-confirmar-aceite'
+                  : 'orcamento-confirmar-recusa',
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(aceitar ? 'Aceitar valor' : 'Recusar valor'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos.responderOrcamento(
+        _atendimento.solicitacao.id,
+        aceitar: aceitar,
+      );
+      final solicitacao = response['solicitacao'];
+      if (mounted && solicitacao is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
+        _notificar(aceitar ? 'Orçamento aceito.' : 'Orçamento recusado.');
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) await _atualizarAposConflito();
+      if (mounted) _notificar(error.message);
+    } catch (_) {
+      if (mounted) _notificar('Não foi possível responder ao orçamento.');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
+  }
+
   Future<void> _avaliar() async {
     if (_enviando) return;
     setState(() => _enviando = true);
@@ -683,11 +844,36 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                       ? 'A combinar fora do app'
                       : 'R\$ ${solicitacao.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')} - pagamento fora do app',
                 ),
+                if (solicitacao.precoFinal != null)
+                  _DetalheLinha(
+                    key: const ValueKey('preco-final-acordado'),
+                    icon: Icons.verified_outlined,
+                    label: 'Preço final acordado',
+                    value:
+                        '${_moeda(solicitacao.precoFinal!)} - pagamento fora do app',
+                  ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 16),
+        if (solicitacao.status == StatusSolicitacao.aceitaAgendada ||
+            solicitacao.orcamentos.isNotEmpty ||
+            solicitacao.precoFinal != null) ...[
+          _OrcamentoCard(
+            orcamento: solicitacao.orcamento,
+            historico: solicitacao.orcamentos,
+            precoFinal: solicitacao.precoFinal,
+            atendimentoAtivo:
+                solicitacao.status == StatusSolicitacao.aceitaAgendada,
+            cliente: _clienteParticipante,
+            profissional: _profissionalParticipante,
+            ocupada: _enviando,
+            onPropor: _proporOrcamento,
+            onResponder: _responderOrcamento,
+          ),
+          const SizedBox(height: 16),
+        ],
         if (solicitacao.status == StatusSolicitacao.aceitaAgendada)
           _ReagendamentoCard(
             proposta: solicitacao.reagendamento,
@@ -798,6 +984,185 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
         const SizedBox(height: 16),
         const _RegraStatus(),
       ],
+    );
+  }
+}
+
+class _OrcamentoCard extends StatelessWidget {
+  const _OrcamentoCard({
+    required this.orcamento,
+    required this.historico,
+    required this.precoFinal,
+    required this.atendimentoAtivo,
+    required this.cliente,
+    required this.profissional,
+    required this.ocupada,
+    required this.onPropor,
+    required this.onResponder,
+  });
+
+  final Map<String, dynamic>? orcamento;
+  final List<Map<String, dynamic>> historico;
+  final double? precoFinal;
+  final bool atendimentoAtivo;
+  final bool cliente;
+  final bool profissional;
+  final bool ocupada;
+  final VoidCallback onPropor;
+  final ValueChanged<bool> onResponder;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = '${orcamento?['status'] ?? ''}';
+    final pendente = status == 'pendente';
+    final valor = double.tryParse('${orcamento?['valor'] ?? ''}');
+    final descricao = '${orcamento?['descricao'] ?? ''}'.trim();
+    final podeResponder = atendimentoAtivo && cliente && pendente;
+    final podePropor = atendimentoAtivo && profissional;
+
+    return Card(
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.request_quote_outlined,
+                  color: AppColors.verdeEscuro,
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    'Orçamento do atendimento',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (status.isNotEmpty) _OrcamentoStatus(status: status),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            if (orcamento == null) ...[
+              Text(
+                profissional
+                    ? 'Informe o valor final e descreva claramente o que está incluído.'
+                    : 'O profissional ainda não enviou um orçamento final.',
+                style: const TextStyle(color: AppColors.textoSuave),
+              ),
+            ] else ...[
+              if (valor != null)
+                Text(
+                  _moeda(valor),
+                  key: const ValueKey('orcamento-valor-exibido'),
+                  style: const TextStyle(
+                    color: AppColors.texto,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              if (descricao.isNotEmpty) ...[
+                const SizedBox(height: AppSpace.xs),
+                Text(descricao),
+              ],
+              const SizedBox(height: AppSpace.sm),
+              Text(
+                pendente
+                    ? cliente
+                          ? 'Confira valor e escopo antes de decidir.'
+                          : 'Aguardando a decisão do cliente.'
+                    : status == 'aceito'
+                    ? 'Valor aceito pelo cliente e registrado no atendimento.'
+                    : status == 'recusado'
+                    ? 'O cliente recusou esta proposta.'
+                    : 'Esta proposta foi substituída por uma versão mais recente.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            if (precoFinal != null && status != 'aceito') ...[
+              const Divider(height: AppSpace.xl),
+              Text(
+                'Valor atualmente acordado: ${_moeda(precoFinal!)}',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+            if (podeResponder) ...[
+              const SizedBox(height: AppSpace.md),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      key: const ValueKey('orcamento-recusar'),
+                      onPressed: ocupada ? null : () => onResponder(false),
+                      child: const Text('Recusar'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(
+                    child: FilledButton(
+                      key: const ValueKey('orcamento-aceitar'),
+                      onPressed: ocupada ? null : () => onResponder(true),
+                      child: const Text('Aceitar valor'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            if (podePropor) ...[
+              const SizedBox(height: AppSpace.md),
+              OutlinedButton.icon(
+                key: const ValueKey('orcamento-propor'),
+                onPressed: ocupada ? null : onPropor,
+                icon: const Icon(Icons.edit_note_outlined),
+                label: Text(
+                  orcamento == null
+                      ? 'Enviar orçamento'
+                      : pendente
+                      ? 'Substituir proposta'
+                      : 'Enviar revisão',
+                ),
+              ),
+            ],
+            if (historico.length > 1) ...[
+              const SizedBox(height: AppSpace.sm),
+              Text(
+                '${historico.length} propostas preservadas no histórico',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+            const SizedBox(height: AppSpace.sm),
+            const Text(
+              'O ConectaLar registra o acordo, mas não processa o pagamento.',
+              style: TextStyle(color: AppColors.textoSuave),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrcamentoStatus extends StatelessWidget {
+  const _OrcamentoStatus({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (rotulo, icon, cor) = switch (status) {
+      'aceito' => ('Aceito', Icons.check_circle_outline, AppColors.verdeEscuro),
+      'recusado' => ('Recusado', Icons.cancel_outlined, AppColors.erro),
+      'substituido' => (
+        'Substituído',
+        Icons.history_outlined,
+        AppColors.textoSuave,
+      ),
+      _ => ('Pendente', Icons.schedule_outlined, const Color(0xFF8A5B12)),
+    };
+    return Tooltip(
+      message: rotulo,
+      child: Icon(icon, color: cor, semanticLabel: rotulo),
     );
   }
 }
@@ -943,6 +1308,9 @@ String _dataApiBr(Object? value) {
 String _hora(TimeOfDay value) =>
     '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
+String _moeda(double valor) =>
+    'R\$ ${valor.toStringAsFixed(2).replaceAll('.', ',')}';
+
 String _statusReagendamento(Object? value) => switch (value) {
   'pendente' => 'aguardando resposta',
   'aceito' => 'confirmado',
@@ -1084,6 +1452,9 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'reagendamento_proposto' => 'Nova data sugerida',
   'reagendamento_aceito' => 'Reagendamento confirmado',
   'reagendamento_recusado' => 'Reagendamento recusado',
+  'orcamento_proposto' => 'Orçamento final enviado',
+  'orcamento_aceito' => 'Cliente aceitou o orçamento',
+  'orcamento_recusado' => 'Cliente recusou o orçamento',
   'estado_importado' => 'Situação anterior registrada',
   _ => 'Atendimento atualizado',
 };
@@ -1412,6 +1783,7 @@ class _FormularioAvaliacao extends StatelessWidget {
 
 class _DetalheLinha extends StatelessWidget {
   const _DetalheLinha({
+    super.key,
     required this.icon,
     required this.label,
     required this.value,

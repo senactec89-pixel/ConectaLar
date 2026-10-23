@@ -100,6 +100,10 @@ const publicErrors: Readonly<Record<string, string>> = {
   TIPO_DOCUMENTO_NAO_PERMITIDO:
     'Selecione um dos tipos de documento disponíveis.',
   REFERENCIA_ARQUIVO_INVALIDA: 'Selecione novamente o arquivo do documento.',
+  VALOR_ORCAMENTO_INVALIDO:
+    'Informe um valor de orçamento válido, maior que zero e com até duas casas decimais.',
+  RESPOSTA_ORCAMENTO_INVALIDA:
+    'Informe se deseja aceitar ou recusar o orçamento.',
 };
 
 @Catch()

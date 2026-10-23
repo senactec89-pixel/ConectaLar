@@ -280,7 +280,8 @@ class _HistoricoCard extends StatelessWidget {
       for (final status in StatusSolicitacao.values)
         status.valorBanco: status.rotulo,
     };
-    final preco = num.tryParse('${item['precoInicial']}');
+    final precoFinal = num.tryParse('${item['precoFinal']}');
+    final precoInicial = num.tryParse('${item['precoInicial']}');
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpace.md),
       child: Padding(
@@ -312,12 +313,14 @@ class _HistoricoCard extends StatelessWidget {
             if (item['descricao'] is String) Text(item['descricao'] as String),
             const SizedBox(height: AppSpace.sm),
             Text(
-              preco == null
+              precoFinal != null
+                  ? 'Preço final acordado: R\$ ${precoFinal.toStringAsFixed(2).replaceAll('.', ',')}'
+                  : precoInicial == null
                   ? 'Preço inicial: a combinar'
-                  : 'Preço inicial: R\$ ${preco.toStringAsFixed(2).replaceAll('.', ',')}',
+                  : 'Preço inicial: R\$ ${precoInicial.toStringAsFixed(2).replaceAll('.', ',')}',
             ),
             const Text(
-              'Valores finais e pagamentos são combinados fora do app.',
+              'O pagamento é realizado fora do app.',
               style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: AppSpace.sm),

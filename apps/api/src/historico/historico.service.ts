@@ -104,6 +104,7 @@ function historicoResponse(solicitacao: SolicitacaoEntity) {
     dataServico: solicitacao.dataServico,
     horarioServico: solicitacao.horarioServico,
     precoInicial: numberOrNull(solicitacao.precoInicial),
+    precoFinal: numberOrNull(solicitacao.precoFinal),
     cliente: {
       id: solicitacao.cliente.id,
       nome: solicitacao.cliente.nome,
@@ -161,8 +162,8 @@ function optionalBooleanQuery(value: unknown): boolean | null {
   throw badRequest('FILTRO_INVALIDO');
 }
 
-function numberOrNull(value: string | null): number | null {
-  return value === null ? null : Number(value);
+function numberOrNull(value: string | null | undefined): number | null {
+  return value === null || value === undefined ? null : Number(value);
 }
 
 function badRequest(code: string): BadRequestException {

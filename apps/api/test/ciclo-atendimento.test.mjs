@@ -101,7 +101,7 @@ function fixture(status = 'aceita_agendada', dataServico = '2020-01-01') {
   };
   const service = new SolicitacoesService(
     { async count() { return 0; } }, {}, {}, {}, {}, {}, repo,
-    { async find() { return []; } }, {}, {},
+    { async find() { return []; } }, { async find() { return []; } }, {}, {},
     { async criar(input) { notificacoes.push(input); } },
   );
   return { service, solicitacao, eventos, notificacoes };

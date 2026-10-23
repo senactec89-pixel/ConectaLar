@@ -12,6 +12,8 @@ import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { DenunciaStatus } from '../domain/denuncia-status.js';
+import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
+import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 
 interface CriarDenunciaInput {
@@ -37,6 +39,7 @@ export class DenunciasService {
     private readonly denuncias: Repository<DenunciaEntity>,
     @InjectRepository(SolicitacaoEntity)
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
+    private readonly notificacoes: NotificacoesService,
   ) {}
 
   async criar(user: AuthenticatedUser, solicitacaoId: number, body: unknown) {
@@ -75,12 +78,21 @@ export class DenunciasService {
       }),
     );
 
+    denuncia.solicitacao = solicitacao;
+    denuncia.denunciado =
+      input.denunciadoId === solicitacao.clienteId
+        ? solicitacao.cliente
+        : solicitacao.profissional.usuario;
     return { denuncia: denunciaResponse(denuncia) };
   }
 
   async listarMinhas(user: AuthenticatedUser) {
     const denuncias = await this.denuncias.find({
       where: { denuncianteId: user.id },
+      relations: {
+        solicitacao: { categoria: true, profissional: { usuario: true } },
+        denunciado: true,
+      },
       order: { criadoEm: 'DESC' },
       take: 50,
     });
@@ -134,6 +146,21 @@ export class DenunciasService {
       saved.id,
       `Status: ${saved.status}`,
     );
+    try {
+      await this.notificacoes.criar({
+        usuarioId: saved.denuncianteId,
+        tipo: NotificacaoTipo.DenunciaAtualizada,
+        titulo: 'Denuncia atualizada',
+        mensagem:
+          saved.status === DenunciaStatus.EmAnalise
+            ? 'Sua denuncia entrou em analise.'
+            : 'A analise da sua denuncia foi concluida.',
+        recursoTipo: 'solicitacao',
+        recursoId: saved.solicitacaoId,
+      });
+    } catch {
+      // A notificacao nao pode desfazer a decisao administrativa.
+    }
     saved.solicitacao = denuncia.solicitacao;
     saved.denunciante = denuncia.denunciante;
     saved.denunciado = denuncia.denunciado;
@@ -227,6 +254,8 @@ function denunciaResponse(denuncia: DenunciaEntity) {
     solicitacaoId: denuncia.solicitacaoId,
     denuncianteId: denuncia.denuncianteId,
     denunciadoId: denuncia.denunciadoId,
+    denunciado: usuarioResumo(denuncia.denunciado) ?? null,
+    atendimento: atendimentoResumo(denuncia),
     motivo: denuncia.motivo,
     descricao: denuncia.descricao,
     status: denuncia.status,
@@ -234,6 +263,18 @@ function denunciaResponse(denuncia: DenunciaEntity) {
     analisadoEm: denuncia.analisadoEm?.toISOString() ?? null,
     criadoEm: denuncia.criadoEm.toISOString(),
     atualizadoEm: denuncia.atualizadoEm.toISOString(),
+  };
+}
+
+function atendimentoResumo(denuncia: DenunciaEntity) {
+  const solicitacao = denuncia.solicitacao;
+  if (solicitacao === undefined) return null;
+  return {
+    id: solicitacao.id,
+    nomeServico:
+      solicitacao.nomeServico ?? solicitacao.categoria?.nome ?? 'Atendimento',
+    dataServico: solicitacao.dataServico,
+    profissional: solicitacao.profissional?.usuario?.nome ?? null,
   };
 }
 

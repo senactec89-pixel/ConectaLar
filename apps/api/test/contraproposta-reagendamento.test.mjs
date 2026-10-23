@@ -131,7 +131,7 @@ function fixture() {
   };
   const service = new SolicitacoesService(
     { async count() { return 0; } }, {}, {}, {}, {}, {}, repo,
-    reagendamentos, {}, {},
+    reagendamentos, { async find() { return []; } }, {}, {},
     { async criar(input) { notificacoes.push(input); } },
   );
   return { service, solicitacao, propostas, eventos, notificacoes };

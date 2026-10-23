@@ -646,6 +646,7 @@ function solicitacaoProfissionalResumo(solicitacao: SolicitacaoEntity) {
     duracaoMinutos: solicitacao.duracaoMinutos,
     fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
+    precoFinal: numberOrNull(solicitacao.precoFinal),
     enderecoCompletoLiberado: false,
     enderecoAtendimento: null,
     enderecoCompleto: null,

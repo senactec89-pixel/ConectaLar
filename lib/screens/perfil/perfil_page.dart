@@ -236,6 +236,14 @@ class _PerfilPageState extends State<PerfilPage> {
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.notificacoes),
                 ),
+                if (usuario.tipo.valorBanco != 'administrador')
+                  _PerfilOpcao(
+                    icon: Icons.flag_outlined,
+                    title: 'Minhas denúncias',
+                    subtitle: 'Acompanhar relatos e decisões da análise',
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.minhasDenuncias),
+                  ),
                 const SizedBox(height: AppSpace.lg),
                 Text(
                   'Acesso e privacidade',

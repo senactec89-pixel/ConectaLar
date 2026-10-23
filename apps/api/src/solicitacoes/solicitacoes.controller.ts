@@ -108,6 +108,24 @@ export class SolicitacoesController {
   ) {
     return this.solicitacoes.responderReagendamento(user, parseId(id), body);
   }
+
+  @Post(':id/orcamentos')
+  proporOrcamento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.proporOrcamento(user, parseId(id), body);
+  }
+
+  @Patch(':id/orcamentos/responder')
+  responderOrcamento(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.responderOrcamento(user, parseId(id), body);
+  }
 }
 
 function parseId(value: string): number {

@@ -1529,6 +1529,49 @@ paths:
           $ref: '#/components/responses/SolicitacaoResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/orcamentos:
+    post:
+      operationId: postSolicitacaoOrcamento
+      summary: Professional proposes the final service price
+      description: Replaces only a pending proposal. A previous accepted price remains valid until the client explicitly accepts a revision.
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrcamentoRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/orcamentos/responder:
+    patch:
+      operationId: patchSolicitacaoOrcamentoResponder
+      summary: Client accepts or refuses the latest pending final-price proposal
+      tags: [Solicitacoes]
+      security: [{bearerAuth: []}]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [aceitar]
+              properties:
+                aceitar: {type: boolean}
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /admin/painel/auditoria:
     get:
       operationId: getAdminPainelAuditoria
@@ -3638,12 +3681,15 @@ components:
         - intervaloMinutos
         - reagendamento
         - reagendamentos
+        - orcamento
+        - orcamentos
         - cancelamentoMotivo
         - conclusaoContestacaoMotivo
         - naoComparecimentoMotivo
         - naoComparecimentoPorId
         - eventos
         - precoInicial
+        - precoFinal
         - cliente
         - profissional
         - categoria
@@ -3702,6 +3748,14 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Reagendamento'
+        orcamento:
+          oneOf:
+            - $ref: '#/components/schemas/Orcamento'
+            - type: 'null'
+        orcamentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Orcamento'
         cancelamentoMotivo:
           type: [string, 'null']
         conclusaoContestacaoMotivo:
@@ -3722,6 +3776,11 @@ components:
           type:
             - number
             - 'null'
+        precoFinal:
+          type:
+            - number
+            - 'null'
+          description: Final price explicitly accepted by the client. Payment is processed outside ConectaLar.
         cliente:
           type: object
           additionalProperties: false
@@ -4148,6 +4207,19 @@ components:
         dataServico: {type: string, format: date}
         horarioServico: {type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$'}
         motivo: {type: string, minLength: 10, maxLength: 400}
+    OrcamentoRequest:
+      type: object
+      additionalProperties: false
+      required: [valor, descricao]
+      properties:
+        valor:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 99999999.99
+        descricao:
+          type: string
+          minLength: 10
+          maxLength: 600
     MotivoAtendimentoRequest:
       type: object
       additionalProperties: false
@@ -4202,6 +4274,20 @@ components:
         horarioServico: {type: string}
         motivo: {type: string}
         status: {type: string, enum: [pendente, aceito, recusado, cancelado]}
+        respondidoEm: {type: [string, 'null'], format: date-time}
+        criadoEm: {type: string, format: date-time}
+    Orcamento:
+      type: object
+      additionalProperties: false
+      required: [id, propostoPorId, valor, descricao, status, respondidoEm, criadoEm]
+      properties:
+        id: {type: integer, minimum: 1}
+        propostoPorId: {type: integer, minimum: 1}
+        valor: {type: number, exclusiveMinimum: 0}
+        descricao: {type: string}
+        status:
+          type: string
+          enum: [pendente, aceito, recusado, substituido]
         respondidoEm: {type: [string, 'null'], format: date-time}
         criadoEm: {type: string, format: date-time}
     DisponibilidadeInput:
@@ -4376,8 +4462,8 @@ components:
           format: date-time
     Denuncia:
       type: object
-      additionalProperties: true
-      required: [id, solicitacaoId, denuncianteId, denunciadoId, motivo, descricao, status, decisao, analisadoEm, criadoEm, atualizadoEm]
+      additionalProperties: false
+      required: [id, solicitacaoId, denuncianteId, denunciadoId, denunciado, atendimento, motivo, descricao, status, decisao, analisadoEm, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4391,6 +4477,21 @@ components:
         denunciadoId:
           type: integer
           minimum: 1
+        denunciado:
+          oneOf:
+            - $ref: '#/components/schemas/UsuarioResumo'
+            - type: 'null'
+        atendimento:
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required: [id, nomeServico, dataServico, profissional]
+              properties:
+                id: {type: integer, minimum: 1}
+                nomeServico: {type: string}
+                dataServico: {type: string, format: date}
+                profissional: {type: [string, 'null']}
+            - type: 'null'
         motivo:
           type: string
         descricao:
@@ -4443,7 +4544,7 @@ components:
           minimum: 1
         tipo:
           type: string
-          enum: [solicitacao_criada, solicitacao_aceita, solicitacao_recusada, solicitacao_cancelada, solicitacao_concluida, mensagem_recebida, avaliacao_recebida, documento_aprovado, documento_rejeitado]
+          enum: [solicitacao_criada, solicitacao_aceita, solicitacao_recusada, solicitacao_cancelada, solicitacao_concluida, conclusao_pendente, conclusao_contestada, nao_comparecimento, mensagem_recebida, avaliacao_recebida, documento_aprovado, documento_rejeitado, reagendamento_proposto, reagendamento_respondido, orcamento_proposto, orcamento_respondido, denuncia_atualizada]
         titulo:
           type: string
           maxLength: 120
@@ -4466,7 +4567,7 @@ components:
     AtendimentoHistorico:
       type: object
       additionalProperties: true
-      required: [id, status, finalizado, descricao, bairroAtendimento, dataServico, horarioServico, criadoEm, atualizadoEm]
+      required: [id, status, finalizado, descricao, bairroAtendimento, dataServico, horarioServico, precoInicial, precoFinal, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4484,6 +4585,10 @@ components:
           format: date
         horarioServico:
           type: string
+        precoInicial:
+          type: [number, 'null']
+        precoFinal:
+          type: [number, 'null']
         criadoEm:
           type: string
           format: date-time
@@ -4502,7 +4607,7 @@ components:
     AtendimentoAgenda:
       type: object
       additionalProperties: false
-      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, duracaoMinutos, fusoHorario, precoInicial, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
+      required: [id, servicoId, nomeServico, enderecoAtendimento, status, descricao, bairroAtendimento, dataServico, horarioServico, duracaoMinutos, fusoHorario, precoInicial, precoFinal, enderecoCompletoLiberado, enderecoCompleto, cliente, categoria, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4528,6 +4633,8 @@ components:
           $ref: '#/components/schemas/DuracaoMinutos'
         fusoHorario: {type: string, const: America/Sao_Paulo}
         precoInicial:
+          type: [number, 'null']
+        precoFinal:
           type: [number, 'null']
         enderecoCompletoLiberado:
           type: boolean

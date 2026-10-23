@@ -107,6 +107,15 @@ export class SolicitacaoEntity {
   })
   precoInicial!: string | null;
 
+  @Column({
+    name: 'preco_final',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  precoFinal!: string | null;
+
   @Column({ type: 'varchar', length: 32 })
   status!: SolicitacaoStatus;
 

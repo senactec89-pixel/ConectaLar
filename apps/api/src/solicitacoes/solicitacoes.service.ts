@@ -21,10 +21,12 @@ import {
   ReagendamentoStatus,
   SolicitacaoReagendamentoEntity,
 } from '../database/entities/solicitacao-reagendamento.entity.js';
+import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
 import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
+import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
@@ -60,6 +62,8 @@ export class SolicitacoesService {
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
     @InjectRepository(SolicitacaoReagendamentoEntity)
     private readonly reagendamentos: Repository<SolicitacaoReagendamentoEntity>,
+    @InjectRepository(SolicitacaoOrcamentoEntity)
+    private readonly orcamentos: Repository<SolicitacaoOrcamentoEntity>,
     @InjectRepository(ProfissionalBloqueioEntity)
     private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
     @InjectRepository(UsuarioEntity)
@@ -155,6 +159,7 @@ export class SolicitacoesService {
       duracaoMinutos,
       intervaloMinutos: oferta?.intervaloMinutos ?? 30,
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
+      precoFinal: null,
       status: SolicitacaoStatus.AguardandoResposta,
     });
 
@@ -642,6 +647,158 @@ export class SolicitacoesService {
     return this.responder(await this.carregar(id), user);
   }
 
+  async proporOrcamento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const input = parseOrcamento(body);
+    const solicitacao = await this.carregar(id);
+    assertProfissionalParticipante(user, solicitacao);
+    if (
+      solicitacao.status !== SolicitacaoStatus.AceitaAgendada ||
+      agendamentoJaIniciou(solicitacao)
+    ) {
+      throw new ConflictException({
+        code: 'ORCAMENTO_INDISPONIVEL',
+        message:
+          'O orcamento so pode ser enviado antes do inicio de um atendimento aceito.',
+      });
+    }
+
+    await this.solicitacoes.manager.transaction(
+      'READ COMMITTED',
+      async (manager) => {
+        const atual = await manager.findOne(SolicitacaoEntity, {
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (
+          atual === null ||
+          atual.status !== SolicitacaoStatus.AceitaAgendada ||
+          agendamentoJaIniciou(atual)
+        ) {
+          throw new ConflictException({
+            code: 'ORCAMENTO_INDISPONIVEL',
+            message: 'Este atendimento nao aceita mais um novo orcamento.',
+          });
+        }
+
+        await manager.update(
+          SolicitacaoOrcamentoEntity,
+          { solicitacaoId: id, status: OrcamentoStatus.Pendente },
+          { status: OrcamentoStatus.Substituido, respondidoEm: new Date() },
+        );
+        await manager.save(
+          SolicitacaoOrcamentoEntity,
+          manager.create(SolicitacaoOrcamentoEntity, {
+            solicitacaoId: id,
+            propostoPorId: user.id,
+            valor: input.valor,
+            descricao: input.descricao,
+            status: OrcamentoStatus.Pendente,
+            respondidoEm: null,
+          }),
+        );
+        await manager.save(
+          SolicitacaoEventoEntity,
+          manager.create(SolicitacaoEventoEntity, {
+            solicitacaoId: id,
+            atorId: user.id,
+            tipo: 'orcamento_proposto',
+            statusAnterior: atual.status,
+            statusNovo: atual.status,
+            motivo: input.descricao,
+          }),
+        );
+      },
+    );
+
+    await this.notificarSeguro({
+      usuarioId: solicitacao.clienteId,
+      tipo: NotificacaoTipo.OrcamentoProposto,
+      titulo: 'Novo orcamento para analisar',
+      mensagem:
+        'O profissional enviou o valor final proposto para o atendimento.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
+  }
+
+  async responderOrcamento(
+    user: AuthenticatedUser,
+    id: number,
+    body: unknown,
+  ) {
+    const aceitar = parseRespostaOrcamento(body);
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    await this.solicitacoes.manager.transaction(
+      'READ COMMITTED',
+      async (manager) => {
+        const atual = await manager.findOne(SolicitacaoEntity, {
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const orcamento = await manager.findOne(SolicitacaoOrcamentoEntity, {
+          where: { solicitacaoId: id, status: OrcamentoStatus.Pendente },
+          order: { criadoEm: 'DESC' },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (
+          atual === null ||
+          orcamento === null ||
+          atual.status !== SolicitacaoStatus.AceitaAgendada ||
+          agendamentoJaIniciou(atual)
+        ) {
+          throw new ConflictException({
+            code: 'ORCAMENTO_INDISPONIVEL',
+            message: 'Este orcamento nao esta mais disponivel para resposta.',
+          });
+        }
+
+        if (aceitar) {
+          await manager.update(
+            SolicitacaoOrcamentoEntity,
+            { solicitacaoId: id, status: OrcamentoStatus.Aceito },
+            { status: OrcamentoStatus.Substituido },
+          );
+          atual.precoFinal = orcamento.valor;
+          await manager.save(SolicitacaoEntity, atual);
+        }
+        orcamento.status = aceitar
+          ? OrcamentoStatus.Aceito
+          : OrcamentoStatus.Recusado;
+        orcamento.respondidoEm = new Date();
+        await manager.save(SolicitacaoOrcamentoEntity, orcamento);
+        await manager.save(
+          SolicitacaoEventoEntity,
+          manager.create(SolicitacaoEventoEntity, {
+            solicitacaoId: id,
+            atorId: user.id,
+            tipo: aceitar ? 'orcamento_aceito' : 'orcamento_recusado',
+            statusAnterior: atual.status,
+            statusNovo: atual.status,
+            motivo: null,
+          }),
+        );
+      },
+    );
+
+    await this.notificarSeguro({
+      usuarioId: solicitacao.profissional.usuarioId,
+      tipo: NotificacaoTipo.OrcamentoRespondido,
+      titulo: aceitar ? 'Orcamento aceito' : 'Orcamento recusado',
+      mensagem: aceitar
+        ? 'O cliente aceitou o valor final proposto.'
+        : 'O cliente recusou o orcamento. Converse antes de enviar uma revisao.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
+  }
+
   private async transicionar(
     solicitacao: SolicitacaoEntity,
     origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
@@ -725,6 +882,10 @@ export class SolicitacoesService {
       where: { solicitacaoId: solicitacao.id },
       order: { criadoEm: 'DESC' },
     });
+    const orcamentos = await this.orcamentos.find({
+      where: { solicitacaoId: solicitacao.id },
+      order: { criadoEm: 'DESC' },
+    });
     const eventos = await this.solicitacoes.manager.getRepository(SolicitacaoEventoEntity).find({
       where: { solicitacaoId: solicitacao.id },
       relations: { ator: true },
@@ -738,6 +899,11 @@ export class SolicitacoesService {
           ? null
           : reagendamentoResponse(reagendamentos[0]),
         reagendamentos: reagendamentos.map(reagendamentoResponse),
+        orcamento:
+          orcamentos[0] === undefined
+            ? null
+            : orcamentoResponse(orcamentos[0]),
+        orcamentos: orcamentos.map(orcamentoResponse),
         eventos: eventos.map(eventoResponse),
       },
     };
@@ -884,6 +1050,7 @@ function solicitacaoResponse(
     intervaloMinutos: solicitacao.intervaloMinutos,
     fusoHorario: fusoAgenda,
     precoInicial: numberOrNull(solicitacao.precoInicial),
+    precoFinal: numberOrNull(solicitacao.precoFinal),
     cancelamentoMotivo:
       user !== undefined && podeVerMotivoCancelamento(solicitacao, user)
         ? solicitacao.cancelamentoMotivo
@@ -1028,6 +1195,36 @@ function parseRespostaReagendamento(body: unknown): boolean {
   return value.aceitar;
 }
 
+function parseOrcamento(body: unknown) {
+  const value = objectBody(body);
+  const raw = value.valor;
+  const texto =
+    typeof raw === 'number'
+      ? raw.toString()
+      : typeof raw === 'string'
+        ? raw.trim().replace(',', '.')
+        : '';
+  if (!/^\d{1,8}(\.\d{1,2})?$/.test(texto)) {
+    throw badRequest('VALOR_ORCAMENTO_INVALIDO');
+  }
+  const numero = Number(texto);
+  if (!Number.isFinite(numero) || numero <= 0 || numero > 99_999_999.99) {
+    throw badRequest('VALOR_ORCAMENTO_INVALIDO');
+  }
+  return {
+    valor: numero.toFixed(2),
+    descricao: textField(value, 'descricao', 10, 600),
+  };
+}
+
+function parseRespostaOrcamento(body: unknown): boolean {
+  const value = objectBody(body);
+  if (typeof value.aceitar !== 'boolean') {
+    throw badRequest('RESPOSTA_ORCAMENTO_INVALIDA');
+  }
+  return value.aceitar;
+}
+
 function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
   return {
     id: item.id,
@@ -1035,6 +1232,18 @@ function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
     dataServico: item.dataProposta,
     horarioServico: item.horarioProposto,
     motivo: item.motivo,
+    status: item.status,
+    respondidoEm: item.respondidoEm?.toISOString() ?? null,
+    criadoEm: item.criadoEm.toISOString(),
+  };
+}
+
+function orcamentoResponse(item: SolicitacaoOrcamentoEntity) {
+  return {
+    id: item.id,
+    propostoPorId: item.propostoPorId,
+    valor: numberOrNull(item.valor),
+    descricao: item.descricao,
     status: item.status,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
     criadoEm: item.criadoEm.toISOString(),
@@ -1246,8 +1455,8 @@ function timeField(value: unknown): string {
   return value;
 }
 
-function numberOrNull(value: string | null): number | null {
-  return value === null ? null : Number(value);
+function numberOrNull(value: string | null | undefined): number | null {
+  return value === null || value === undefined ? null : Number(value);
 }
 
 function forbidden(): ForbiddenException {

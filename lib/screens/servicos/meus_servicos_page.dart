@@ -280,7 +280,9 @@ class _ServicoCard extends StatelessWidget {
                   ),
                   _ResumoIcone(
                     icon: Icons.payments_outlined,
-                    text: solicitacao.precoInicial == null
+                    text: solicitacao.precoFinal != null
+                        ? 'Valor acordado: R\$ ${solicitacao.precoFinal!.toStringAsFixed(2).replaceAll('.', ',')}'
+                        : solicitacao.precoInicial == null
                         ? 'Preço a combinar fora do app'
                         : 'A partir de R\$ ${solicitacao.precoInicial!.toStringAsFixed(2).replaceAll('.', ',')}',
                   ),

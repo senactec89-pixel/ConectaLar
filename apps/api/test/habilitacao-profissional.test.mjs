@@ -122,7 +122,8 @@ function solicitacoesFixture(status = 'aguardando_resposta') {
     } };
   const service = new SolicitacoesService({ async count() { return 0; } }, {}, {}, {}, {},
     { async findOne() { return p; } }, repo,
-    { async find() { return []; }, async findOne() { return null; } }, {},
+    { async find() { return []; }, async findOne() { return null; } },
+    { async find() { return []; } }, {},
     { async findOne() { return cliente; } },
     { async criar() { assert.fail('Nao deve notificar aceite bloqueado'); } });
   return { service, p, solicitacao };

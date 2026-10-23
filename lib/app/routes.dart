@@ -18,6 +18,7 @@ import '../screens/home/home_page.dart';
 import '../screens/notificacoes/notificacoes_page.dart';
 import '../screens/perfil/enderecos_page.dart';
 import '../screens/perfil/editar_dados_page.dart';
+import '../screens/perfil/denuncias_page.dart';
 import '../screens/perfil/perfil_page.dart';
 import '../screens/perfil/seguranca_page.dart';
 import '../screens/auth/recuperacao_senha_page.dart';
@@ -52,6 +53,7 @@ abstract final class AppRoutes {
   static const perfil = '/perfil';
   static const enderecos = '/perfil/enderecos';
   static const editarDados = '/perfil/dados';
+  static const minhasDenuncias = '/perfil/denuncias';
   static const seguranca = '/perfil/seguranca';
   static const privacidade = '/perfil/privacidade';
   static const recuperacaoSenha = '/senha/recuperacao';
@@ -95,6 +97,7 @@ abstract final class AppRoutes {
     perfil: (_) => const PerfilPage(),
     enderecos: (_) => const EnderecosPage(),
     editarDados: (_) => const EditarDadosPage(),
+    minhasDenuncias: (_) => const DenunciasPage(),
     seguranca: (_) => const SegurancaPage(),
     privacidade: (_) => const SegurancaPage(mostrarPrivacidade: true),
     recuperacaoSenha: (_) => const RecuperacaoSenhaPage(),

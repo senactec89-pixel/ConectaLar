@@ -140,6 +140,9 @@ class FrontendPreviewClient extends http.BaseClient {
         'descricao': 'Exemplo fictício de atendimento para revisar a tela.',
         'bairroAtendimento': 'Centro',
         'precoInicial': 80,
+        'precoFinal': i == 2 ? 120 : null,
+        'orcamento': null,
+        'orcamentos': const [],
         'dataServico': DateTime.now()
             .add(Duration(days: i + 1))
             .toIso8601String()
@@ -432,6 +435,34 @@ class FrontendPreviewClient extends http.BaseClient {
             'status': 'aberta',
             'descricao': 'Relato de demonstração para conferir o layout.',
             'solicitacaoId': 1001,
+          },
+        ],
+      },
+      '/denuncias/me' => {
+        'denuncias': [
+          {
+            'id': 1,
+            'motivo': 'Conduta inadequada',
+            'status': 'em_analise',
+            'descricao':
+                'Relato fictício para conferir o acompanhamento da análise.',
+            'solicitacaoId': 1001,
+            'denunciadoId': 101,
+            'denunciado': {
+              'id': 101,
+              'nome': 'Carlos Silva',
+              'tipo': 'profissional',
+            },
+            'atendimento': {
+              'id': 1001,
+              'nomeServico': 'Instalação elétrica',
+              'dataServico': '2026-10-12',
+              'profissional': 'Carlos Silva',
+            },
+            'decisao': null,
+            'analisadoEm': null,
+            'criadoEm': '2026-10-11T12:00:00Z',
+            'atualizadoEm': '2026-10-11T12:00:00Z',
           },
         ],
       },

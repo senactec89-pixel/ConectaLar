@@ -135,6 +135,12 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     reagendamentos: (json['reagendamentos'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
+    orcamento: json['orcamento'] is Map<String, dynamic>
+        ? json['orcamento'] as Map<String, dynamic>
+        : null,
+    orcamentos: (json['orcamentos'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
     cancelamentoMotivo: nullableString(json['cancelamentoMotivo']),
     conclusaoContestacaoMotivo: nullableString(
       json['conclusaoContestacaoMotivo'],
@@ -147,6 +153,7 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
     precoInicial: doubleValueOrNull(json['precoInicial']),
+    precoFinal: doubleValueOrNull(json['precoFinal']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),
     criadoEm: dateTimeValue(json['criadoEm']),
     atualizadoEm: dateTimeValue(json['atualizadoEm']),

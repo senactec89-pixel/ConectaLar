@@ -52,11 +52,14 @@ class Solicitacao {
     this.intervaloMinutos = 30,
     this.reagendamento,
     this.reagendamentos = const [],
+    this.orcamento,
+    this.orcamentos = const [],
     this.cancelamentoMotivo,
     this.conclusaoContestacaoMotivo,
     this.naoComparecimentoMotivo,
     this.naoComparecimentoPorId,
     this.eventos = const [],
+    this.precoFinal,
   });
 
   final int id;
@@ -78,12 +81,15 @@ class Solicitacao {
   final int intervaloMinutos;
   final Map<String, dynamic>? reagendamento;
   final List<Map<String, dynamic>> reagendamentos;
+  final Map<String, dynamic>? orcamento;
+  final List<Map<String, dynamic>> orcamentos;
   final String? cancelamentoMotivo;
   final String? conclusaoContestacaoMotivo;
   final String? naoComparecimentoMotivo;
   final int? naoComparecimentoPorId;
   final List<Map<String, dynamic>> eventos;
   final double? precoInicial;
+  final double? precoFinal;
   final StatusSolicitacao status;
   final DateTime criadoEm;
   final DateTime atualizadoEm;

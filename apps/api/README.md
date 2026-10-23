@@ -60,7 +60,7 @@ The API uses allow-list CORS, basic security headers, a local in-memory request 
 
 The approved persistence stack is `@nestjs/typeorm` 12.0.2, TypeORM 1.1.2, and `mysql2` 3.24.5. `src/database/data-source.ts` is the explicit TypeORM CLI data source. It requires `DB_HOST`, `DB_USER`, and `DB_NAME`; `DB_PORT` defaults to 3306 and `DB_PASSWORD` defaults to an empty string for local development. It reads process environment variables only and does not load `.env` files.
 
-Schema synchronization and automatic migrations are disabled (`synchronize: false`, `migrationsRun: false`). The migrations create the `usuarios`, `usuario_senha_resets`, `admin_auditoria`, `termo_aceites`, `profissionais`, `profissional_servicos`, `profissional_disponibilidades`, `profissional_documentos_verificacao`, `denuncias`, `categorias`, `solicitacoes`, `mensagens_atendimento`, `avaliacoes`, `notificacoes`, `cliente_perfis`, `cliente_enderecos`, and `favoritos_profissionais` tables needed for the current RF001/RF028 groundwork. Do not point a migration command at the legacy database.
+Schema synchronization and automatic migrations are disabled (`synchronize: false`, `migrationsRun: false`). The migrations create the `usuarios`, `usuario_senha_resets`, `admin_auditoria`, `termo_aceites`, `profissionais`, `profissional_servicos`, `profissional_disponibilidades`, `profissional_documentos_verificacao`, `denuncias`, `categorias`, `solicitacoes`, `solicitacao_eventos`, `solicitacao_reagendamentos`, `solicitacao_orcamentos`, `mensagens_atendimento`, `avaliacoes`, `notificacoes`, `cliente_perfis`, `cliente_enderecos`, and `favoritos_profissionais` tables needed for the current RF001/RF028 groundwork. Do not point a migration command at the legacy database.
 
 The `.env.example` values are placeholders, not usable credentials. Supply local test database values only in the current PowerShell session or an ignored local file after a local MySQL database has been set up.
 
@@ -169,8 +169,12 @@ Service request routes:
 - `PATCH /solicitacoes/:id/recusar` with `Authorization: Bearer <token>` for the requested `profissional` or `empresa`
 - `PATCH /solicitacoes/:id/cancelar` with `Authorization: Bearer <token>` for the requesting `cliente`
 - `PATCH /solicitacoes/:id/concluir` with `Authorization: Bearer <token>` for the requesting `cliente`
+- `POST /solicitacoes/:id/orcamentos` with `Authorization: Bearer <token>` for the requested `profissional` or `empresa`
+- `PATCH /solicitacoes/:id/orcamentos/responder` with `Authorization: Bearer <token>` for the requesting `cliente`
 
 New requests always start as `aguardando_resposta`; they become `aceita_agendada` only after the requested provider accepts them. `POST /solicitacoes` accepts optional `enderecoId`, which must belong to the authenticated client and be active. Request responses always expose the attendance neighborhood. Full address data is returned only to the owning client, an administrator, or the requested professional/company after the request is `aceita_agendada` or `conclusao_confirmada`; otherwise the API returns `enderecoProtegido: true`.
+
+Final-price proposals are versioned. Only the professional can propose a value and only the client can accept or refuse it. A pending proposal may be replaced without deleting history, and `precoFinal` changes only after explicit client acceptance. Payments remain outside ConectaLar.
 
 Administrative dashboard and audit routes:
 
@@ -204,7 +208,7 @@ Report routes:
 - `GET /denuncias/moderacao?status=pendente` with `Authorization: Bearer <token>` for `administrador`
 - `PATCH /denuncias/:id/moderacao` with `Authorization: Bearer <token>` for `administrador`
 
-Reports are tied to an existing service request and can target only the opposite participant. Creating a report does not change the service request status, block an account, hide a review, or apply any punishment automatically. Administrative review records `em_analise`, `resolvida`, or `rejeitada`; final statuses require a decision note. Detailed targets, categories, penalties, contestation, and retention policies remain pending under P11/P13.
+Reports are tied to an existing service request and can target only the opposite participant. Creating a report does not change the service request status, block an account, hide a review, or apply any punishment automatically. `GET /denuncias/me` returns only reports submitted by the authenticated user, including the related attendance summary and administrative response. Administrative review records `em_analise`, `resolvida`, or `rejeitada`; final statuses require a decision note and notify the reporter. Detailed targets, categories, penalties, contestation, and retention policies remain pending under P11/P13.
 
 Review routes:
 

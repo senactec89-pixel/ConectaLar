@@ -13,4 +13,7 @@ export enum NotificacaoTipo {
   DocumentoRejeitado = 'documento_rejeitado',
   ReagendamentoProposto = 'reagendamento_proposto',
   ReagendamentoRespondido = 'reagendamento_respondido',
+  OrcamentoProposto = 'orcamento_proposto',
+  OrcamentoRespondido = 'orcamento_respondido',
+  DenunciaAtualizada = 'denuncia_atualizada',
 }
