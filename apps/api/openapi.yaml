@@ -1489,7 +1489,8 @@ paths:
   /solicitacoes/{id}/reagendamento:
     post:
       operationId: postSolicitacaoReagendamento
-      summary: Professional proposes a new date after an unforeseen event
+      summary: Client or professional proposes a new appointment date
+      description: A new proposal replaces the previous pending proposal. Only the other participant can answer it, and availability is checked again when it is accepted.
       tags: [Solicitacoes]
       security: [{bearerAuth: []}]
       parameters:
@@ -1508,7 +1509,7 @@ paths:
   /solicitacoes/{id}/reagendamento/responder:
     patch:
       operationId: patchSolicitacaoReagendamentoResponder
-      summary: Client accepts or refuses the latest pending proposal
+      summary: The other participant accepts or refuses the latest pending proposal
       tags: [Solicitacoes]
       security: [{bearerAuth: []}]
       parameters:
@@ -4193,9 +4194,10 @@ components:
     Reagendamento:
       type: object
       additionalProperties: false
-      required: [id, dataServico, horarioServico, motivo, status, respondidoEm, criadoEm]
+      required: [id, propostoPorId, dataServico, horarioServico, motivo, status, respondidoEm, criadoEm]
       properties:
         id: {type: integer, minimum: 1}
+        propostoPorId: {type: [integer, 'null'], minimum: 1}
         dataServico: {type: string, format: date}
         horarioServico: {type: string}
         motivo: {type: string}

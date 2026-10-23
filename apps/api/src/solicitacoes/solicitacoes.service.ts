@@ -477,40 +477,87 @@ export class SolicitacoesService {
     const input = parseReagendamento(body);
     assertAgendamentoFuturo(input.dataServico, input.horarioServico);
     const solicitacao = await this.carregar(id);
-    assertProfissionalParticipante(user, solicitacao);
+    assertParticipante(user, solicitacao);
+    if (user.tipo === UsuarioTipo.Administrador) throw forbidden();
     if (solicitacao.status !== SolicitacaoStatus.AceitaAgendada) {
       throw new ConflictException({
         code: 'REAGENDAMENTO_INDISPONIVEL',
         message: 'Somente atendimentos aceitos podem ser reagendados.',
       });
     }
-    await this.validarDisponibilidade(
-      solicitacao.profissionalId,
-      input.dataServico,
-      input.horarioServico,
-      solicitacao.duracaoMinutos,
-      solicitacao.intervaloMinutos,
-      solicitacao.id,
+    if (agendamentoJaIniciou(solicitacao)) {
+      throw new ConflictException({
+        code: 'REAGENDAMENTO_APOS_INICIO',
+        message:
+          'O atendimento ja iniciou. Use o fluxo de conclusao ou registre uma ocorrencia.',
+      });
+    }
+    await this.solicitacoes.manager.transaction(
+      'READ COMMITTED',
+      async (manager) => {
+        const atual = await manager.findOne(SolicitacaoEntity, {
+          where: { id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (
+          atual === null ||
+          atual.status !== SolicitacaoStatus.AceitaAgendada ||
+          agendamentoJaIniciou(atual)
+        ) {
+          throw new ConflictException({
+            code: 'REAGENDAMENTO_INDISPONIVEL',
+            message: 'Este atendimento nao pode mais ser reagendado.',
+          });
+        }
+        await this.validarAgendaComManager(
+          manager,
+          atual.profissionalId,
+          input.dataServico,
+          input.horarioServico,
+          atual.duracaoMinutos,
+          atual.intervaloMinutos,
+          atual.id,
+        );
+        await manager.update(
+          SolicitacaoReagendamentoEntity,
+          { solicitacaoId: id, status: ReagendamentoStatus.Pendente },
+          { status: ReagendamentoStatus.Cancelado, respondidoEm: new Date() },
+        );
+        await manager.save(
+          SolicitacaoReagendamentoEntity,
+          manager.create(SolicitacaoReagendamentoEntity, {
+            solicitacaoId: id,
+            propostoPorId: user.id,
+            dataProposta: input.dataServico,
+            horarioProposto: input.horarioServico,
+            motivo: input.motivo,
+            status: ReagendamentoStatus.Pendente,
+            respondidoEm: null,
+          }),
+        );
+        await manager.save(
+          SolicitacaoEventoEntity,
+          manager.create(SolicitacaoEventoEntity, {
+            solicitacaoId: id,
+            atorId: user.id,
+            tipo: 'reagendamento_proposto',
+            statusAnterior: atual.status,
+            statusNovo: atual.status,
+            motivo: input.motivo,
+          }),
+        );
+      },
     );
-    await this.reagendamentos.update(
-      { solicitacaoId: id, status: ReagendamentoStatus.Pendente },
-      { status: ReagendamentoStatus.Cancelado, respondidoEm: new Date() },
-    );
-    await this.reagendamentos.save(
-      this.reagendamentos.create({
-        solicitacaoId: id,
-        dataProposta: input.dataServico,
-        horarioProposto: input.horarioServico,
-        motivo: input.motivo,
-        status: ReagendamentoStatus.Pendente,
-        respondidoEm: null,
-      }),
-    );
+    const propostoPeloCliente = user.id === solicitacao.clienteId;
     await this.notificarSeguro({
-      usuarioId: solicitacao.clienteId,
+      usuarioId: propostoPeloCliente
+        ? solicitacao.profissional.usuarioId
+        : solicitacao.clienteId,
       tipo: NotificacaoTipo.ReagendamentoProposto,
       titulo: 'Nova proposta de reagendamento',
-      mensagem: 'O profissional propôs uma nova data para o atendimento.',
+      mensagem: propostoPeloCliente
+        ? 'O cliente sugeriu uma nova data para o atendimento.'
+        : 'O profissional sugeriu uma nova data para o atendimento.',
       recursoTipo: 'solicitacao',
       recursoId: id,
     });
@@ -524,7 +571,9 @@ export class SolicitacoesService {
   ) {
     const aceitar = parseRespostaReagendamento(body);
     const solicitacao = await this.carregar(id);
-    assertClienteParticipante(user, solicitacao);
+    assertParticipante(user, solicitacao);
+    if (user.tipo === UsuarioTipo.Administrador) throw forbidden();
+    let proponenteId: number | null = null;
     await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
       const atual = await manager.findOne(SolicitacaoEntity, {
         where: { id },
@@ -539,6 +588,14 @@ export class SolicitacoesService {
         throw new ConflictException({
           code: 'REAGENDAMENTO_INDISPONIVEL',
           message: 'Esta proposta não está mais disponível.',
+        });
+      }
+      proponenteId =
+        proposta.propostoPorId ?? solicitacao.profissional.usuarioId;
+      if (proponenteId === user.id) {
+        throw new ForbiddenException({
+          code: 'REAGENDAMENTO_RESPOSTA_PROPRIA',
+          message: 'A proposta deve ser respondida pela outra parte.',
         });
       }
       if (aceitar) {
@@ -558,17 +615,30 @@ export class SolicitacoesService {
       proposta.status = aceitar ? ReagendamentoStatus.Aceito : ReagendamentoStatus.Recusado;
       proposta.respondidoEm = new Date();
       await manager.save(SolicitacaoReagendamentoEntity, proposta);
+      await manager.save(
+        SolicitacaoEventoEntity,
+        manager.create(SolicitacaoEventoEntity, {
+          solicitacaoId: id,
+          atorId: user.id,
+          tipo: aceitar ? 'reagendamento_aceito' : 'reagendamento_recusado',
+          statusAnterior: atual.status,
+          statusNovo: atual.status,
+          motivo: null,
+        }),
+      );
     });
-    await this.notificarSeguro({
-      usuarioId: solicitacao.profissional.usuarioId,
-      tipo: NotificacaoTipo.ReagendamentoRespondido,
-      titulo: aceitar ? 'Reagendamento confirmado' : 'Reagendamento recusado',
-      mensagem: aceitar
-        ? 'O cliente confirmou a nova data do atendimento.'
-        : 'O cliente recusou a proposta. Converse para combinar outra opção.',
-      recursoTipo: 'solicitacao',
-      recursoId: id,
-    });
+    if (proponenteId !== null) {
+      await this.notificarSeguro({
+        usuarioId: proponenteId,
+        tipo: NotificacaoTipo.ReagendamentoRespondido,
+        titulo: aceitar ? 'Reagendamento confirmado' : 'Reagendamento recusado',
+        mensagem: aceitar
+          ? 'A outra parte confirmou a nova data do atendimento.'
+          : 'A outra parte recusou a proposta. Converse para combinar outra opcao.',
+        recursoTipo: 'solicitacao',
+        recursoId: id,
+      });
+    }
     return this.responder(await this.carregar(id), user);
   }
 
@@ -961,6 +1031,7 @@ function parseRespostaReagendamento(body: unknown): boolean {
 function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
   return {
     id: item.id,
+    propostoPorId: item.propostoPorId,
     dataServico: item.dataProposta,
     horarioServico: item.horarioProposto,
     motivo: item.motivo,

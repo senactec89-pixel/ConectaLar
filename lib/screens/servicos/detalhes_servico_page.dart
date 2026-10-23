@@ -433,7 +433,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
 
   Future<void> _proporReagendamento() async {
     if (_enviando) return;
-    final motivo = TextEditingController();
+    var motivo = '';
     var data = _atendimento.solicitacao.dataServico;
     final horarioAtual = _atendimento.solicitacao.horarioServico.split(':');
     var horario = TimeOfDay(
@@ -445,7 +445,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           scrollable: true,
-          title: const Text('Propor reagendamento'),
+          title: const Text('Sugerir nova data'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -479,13 +479,13 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: motivo,
+                onChanged: (value) => motivo = value,
                 minLines: 2,
                 maxLines: 4,
                 maxLength: 400,
                 decoration: const InputDecoration(
-                  labelText: 'Explique o imprevisto',
-                  hintText: 'Informe o motivo e ajude o cliente a decidir.',
+                  labelText: 'Explique a mudança',
+                  hintText: 'Informe o motivo para a outra parte decidir.',
                 ),
               ),
             ],
@@ -497,7 +497,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             ),
             FilledButton(
               onPressed: () {
-                if (motivo.text.trim().length < 10) {
+                if (motivo.trim().length < 10) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -515,27 +515,23 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
         ),
       ),
     );
-    if (confirmar != true) {
-      motivo.dispose();
-      return;
-    }
+    if (confirmar != true) return;
     setState(() => _enviando = true);
     try {
       final response = await AppServices.instance.servicos.proporReagendamento(
         _atendimento.solicitacao.id,
         dataServico: _dataApi(data),
         horarioServico: _hora(horario),
-        motivo: motivo.text.trim(),
+        motivo: motivo.trim(),
       );
       final solicitacao = response['solicitacao'];
       if (mounted && solicitacao is Map<String, dynamic>) {
         setState(() => _atendimento = atendimentoResumoFromApi(solicitacao));
-        _notificar('Proposta enviada ao cliente.');
+        _notificar('Proposta enviada para a outra parte.');
       }
     } on ApiException catch (error) {
       if (mounted) _notificar(error.message);
     } finally {
-      motivo.dispose();
       if (mounted) setState(() => _enviando = false);
     }
   }
@@ -698,6 +694,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             historico: solicitacao.reagendamentos,
             cliente: _clienteParticipante,
             profissional: _profissionalParticipante,
+            atorId: intValue(_ator['id']),
             ocupada: _enviando,
             onPropor: _proporReagendamento,
             onResponder: _responderReagendamento,
@@ -811,6 +808,7 @@ class _ReagendamentoCard extends StatelessWidget {
     required this.historico,
     required this.cliente,
     required this.profissional,
+    required this.atorId,
     required this.ocupada,
     required this.onPropor,
     required this.onResponder,
@@ -820,6 +818,7 @@ class _ReagendamentoCard extends StatelessWidget {
   final List<Map<String, dynamic>> historico;
   final bool cliente;
   final bool profissional;
+  final int atorId;
   final bool ocupada;
   final VoidCallback onPropor;
   final ValueChanged<bool> onResponder;
@@ -827,6 +826,12 @@ class _ReagendamentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pendente = proposta?['status'] == 'pendente';
+    final propostoPorId = int.tryParse('${proposta?['propostoPorId'] ?? ''}');
+    final minhaProposta =
+        pendente &&
+        (propostoPorId == null ? profissional : propostoPorId == atorId);
+    final podeResponder = pendente && !minhaProposta;
+    final participante = cliente || profissional;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -858,14 +863,23 @@ class _ReagendamentoCard extends StatelessWidget {
                 'Situação: ${_statusReagendamento(proposta!['status'])}',
                 style: const TextStyle(color: AppColors.textoSuave),
               ),
+              if (pendente) ...[
+                const SizedBox(height: 4),
+                Text(
+                  minhaProposta
+                      ? 'Proposta enviada por você. Aguardando resposta.'
+                      : 'Proposta recebida. Confirme, recuse ou sugira outra data.',
+                  style: const TextStyle(color: AppColors.textoSuave),
+                ),
+              ],
             ] else ...[
               const SizedBox(height: 8),
               const Text(
-                'Caso o profissional não possa comparecer, pode sugerir outra data para confirmação do cliente.',
+                'Cliente e profissional podem sugerir uma nova data. A alteração só acontece após a confirmação da outra parte.',
                 style: TextStyle(color: AppColors.textoSuave),
               ),
             ],
-            if (cliente && pendente) ...[
+            if (podeResponder) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -885,13 +899,17 @@ class _ReagendamentoCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (profissional) ...[
+            if (participante) ...[
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: ocupada ? null : onPropor,
                 icon: const Icon(Icons.edit_calendar_outlined),
                 label: Text(
-                  pendente ? 'Substituir proposta' : 'Propor nova data',
+                  pendente
+                      ? minhaProposta
+                            ? 'Alterar minha proposta'
+                            : 'Sugerir outra data'
+                      : 'Propor nova data',
                 ),
               ),
             ],
@@ -926,7 +944,7 @@ String _hora(TimeOfDay value) =>
     '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
 
 String _statusReagendamento(Object? value) => switch (value) {
-  'pendente' => 'aguardando cliente',
+  'pendente' => 'aguardando resposta',
   'aceito' => 'confirmado',
   'recusado' => 'recusado',
   'cancelado' => 'substituído',
@@ -1038,10 +1056,7 @@ class _EventoAtendimento extends StatelessWidget {
               ),
               if (nome != null || quando.isNotEmpty)
                 Text(
-                  [
-                    ?nome,
-                    if (quando.isNotEmpty) quando,
-                  ].join(' · '),
+                  [?nome, if (quando.isNotEmpty) quando].join(' · '),
                   style: const TextStyle(color: AppColors.textoSuave),
                 ),
               if (motivo != null && motivo.isNotEmpty) ...[
@@ -1066,6 +1081,9 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'conclusao_contestada' => 'Cliente contestou a conclusão',
   'nao_comparecimento_informado' => 'Não comparecimento informado',
   'nao_comparecimento_contestado' => 'Não comparecimento contestado',
+  'reagendamento_proposto' => 'Nova data sugerida',
+  'reagendamento_aceito' => 'Reagendamento confirmado',
+  'reagendamento_recusado' => 'Reagendamento recusado',
   'estado_importado' => 'Situação anterior registrada',
   _ => 'Atendimento atualizado',
 };

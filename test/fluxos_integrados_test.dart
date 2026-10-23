@@ -44,6 +44,7 @@ const _perfil = <String, dynamic>{
 Map<String, dynamic> _pedido({
   String status = 'aguardando_resposta',
   bool avaliado = false,
+  Map<String, dynamic>? reagendamento,
 }) => {
   'id': 45,
   'servicoId': 32,
@@ -58,6 +59,7 @@ Map<String, dynamic> _pedido({
   'dataServico': '2027-10-15',
   'horarioServico': '10:00',
   'precoInicial': 125.5,
+  'reagendamento': ?reagendamento,
 };
 
 http.Response _json(Object data, [int status = 200]) => http.Response(
@@ -240,6 +242,75 @@ void main() {
       expect(find.text('Confirmar conclusão'), findsOneWidget);
       expect(find.text('Contestar conclusão'), findsOneWidget);
       expect(find.text('Marcar como realizado'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'cliente envia contraproposta e não pode confirmar a própria sugestão',
+    (tester) async {
+      var contrapropostaEnviada = false;
+      await _sessao('cliente', (request) async {
+        if (request.method == 'POST' &&
+            request.url.path.endsWith('/solicitacoes/45/reagendamento')) {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['motivo'], contains('outro horário'));
+          contrapropostaEnviada = true;
+          return _json({
+            'solicitacao': _pedido(
+              status: 'aceita_agendada',
+              reagendamento: {
+                'id': 2,
+                'propostoPorId': 10,
+                'dataServico': body['dataServico'],
+                'horarioServico': body['horarioServico'],
+                'motivo': body['motivo'],
+                'status': 'pendente',
+              },
+            ),
+          });
+        }
+        return _json({
+          'solicitacao': _pedido(
+            status: 'aceita_agendada',
+            reagendamento: {
+              'id': 1,
+              'propostoPorId': 20,
+              'dataServico': '2027-10-16',
+              'horarioServico': '11:00',
+              'motivo': 'O profissional precisa alterar o horário.',
+              'status': 'pendente',
+            },
+          ),
+        });
+      });
+      await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
+      final contrapropor = find.widgetWithText(
+        OutlinedButton,
+        'Sugerir outra data',
+      );
+      await tester.scrollUntilVisible(
+        contrapropor,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(contrapropor);
+      await tester.pumpAndSettle();
+      expect(find.text('Confirmar'), findsOneWidget);
+      expect(find.text('Recusar'), findsOneWidget);
+      await tester.tap(contrapropor);
+      await tester.pumpAndSettle();
+      expect(find.text('Sugerir nova data'), findsOneWidget);
+      await tester.enterText(
+        find.byType(TextField),
+        'Preciso de outro horário para acompanhar o serviço.',
+      );
+      await tester.tap(find.text('Enviar proposta'));
+      await tester.pumpAndSettle();
+      expect(contrapropostaEnviada, isTrue);
+      expect(find.text('Confirmar'), findsNothing);
+      expect(find.text('Alterar minha proposta'), findsOneWidget);
+      expect(find.textContaining('Aguardando resposta'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

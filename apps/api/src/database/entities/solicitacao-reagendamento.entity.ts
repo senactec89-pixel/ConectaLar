@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { SolicitacaoEntity } from './solicitacao.entity.js';
+import { UsuarioEntity } from './usuario.entity.js';
 
 export enum ReagendamentoStatus {
   Pendente = 'pendente',
@@ -29,6 +30,13 @@ export class SolicitacaoReagendamentoEntity {
   @ManyToOne(() => SolicitacaoEntity, { nullable: false })
   @JoinColumn({ name: 'solicitacao_id' })
   solicitacao!: SolicitacaoEntity;
+
+  @Column({ name: 'proposto_por_id', type: 'int', unsigned: true, nullable: true })
+  propostoPorId!: number | null;
+
+  @ManyToOne(() => UsuarioEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'proposto_por_id' })
+  propostoPor!: UsuarioEntity | null;
 
   @Column({ name: 'data_proposta', type: 'date' })
   dataProposta!: string;
