@@ -162,11 +162,15 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
 
 AtendimentoResumo atendimentoResumoFromApi(Map<String, dynamic> json) {
   final profissional = json['profissional'];
+  final cliente = json['cliente'];
   final categoria = json['categoria'];
   return AtendimentoResumo(
     profissional: profissional is Map<String, dynamic>
         ? stringValue(profissional['nome'])
         : 'Profissional',
+    cliente: cliente is Map<String, dynamic>
+        ? nullableString(cliente['nome'])
+        : null,
     categoria:
         nullableString(json['nomeServico']) ??
         (categoria is Map<String, dynamic>

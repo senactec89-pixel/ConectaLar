@@ -119,6 +119,10 @@ class _ChatPageState extends State<ChatPage> {
               );
             }
             final pagina = snapshot.requireData;
+            final services = AppServices.instance;
+            final papelAtual = services.emDemonstracao
+                ? store.usuarioAtual.tipo.valorBanco
+                : '${services.auth.usuarioAtual?['tipo'] ?? ''}';
             final conversas = pagina.items
                 .where(
                   (servico) =>
@@ -166,6 +170,7 @@ class _ChatPageState extends State<ChatPage> {
                   for (final conversa in conversas) ...[
                     _ConversaCard(
                       conversa: conversa,
+                      papelAtual: papelAtual,
                       onTap: () => _abrirConversa(conversa.solicitacao.id),
                     ),
                     const SizedBox(height: 12),
@@ -200,9 +205,14 @@ class _ChatPageState extends State<ChatPage> {
 }
 
 class _ConversaCard extends StatelessWidget {
-  const _ConversaCard({required this.conversa, required this.onTap});
+  const _ConversaCard({
+    required this.conversa,
+    required this.papelAtual,
+    required this.onTap,
+  });
 
   final AtendimentoResumo conversa;
+  final String papelAtual;
   final VoidCallback onTap;
 
   @override
@@ -217,7 +227,7 @@ class _ConversaCard extends StatelessWidget {
           child: Icon(Icons.chat_bubble_outline),
         ),
         title: Text(
-          conversa.profissional,
+          conversa.nomeDaOutraParte(papelAtual),
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text(

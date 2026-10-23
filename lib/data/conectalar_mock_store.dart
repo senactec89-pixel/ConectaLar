@@ -12,17 +12,25 @@ class AtendimentoResumo {
     required this.profissional,
     required this.categoria,
     required this.solicitacao,
+    this.cliente,
     this.avaliado = false,
   });
 
   final String profissional;
+  final String? cliente;
   final String categoria;
   final Solicitacao solicitacao;
   final bool avaliado;
 
+  String nomeDaOutraParte(String papelAtual) =>
+      {'profissional', 'empresa'}.contains(papelAtual)
+      ? cliente ?? 'Cliente'
+      : profissional;
+
   AtendimentoResumo copyWith({Solicitacao? solicitacao, bool? avaliado}) {
     return AtendimentoResumo(
       profissional: profissional,
+      cliente: cliente,
       categoria: categoria,
       solicitacao: solicitacao ?? this.solicitacao,
       avaliado: avaliado ?? this.avaliado,
@@ -80,6 +88,7 @@ class ConectaLarMockStore extends ChangeNotifier {
   late final List<AtendimentoResumo> _servicos = [
     AtendimentoResumo(
       profissional: 'Carlos Silva',
+      cliente: 'Mariana Alves',
       categoria: 'Elétrica',
       solicitacao: Solicitacao(
         id: 1001,
@@ -97,6 +106,7 @@ class ConectaLarMockStore extends ChangeNotifier {
     ),
     AtendimentoResumo(
       profissional: 'Ana Souza',
+      cliente: 'Mariana Alves',
       categoria: 'Limpeza',
       solicitacao: Solicitacao(
         id: 1002,
@@ -114,6 +124,7 @@ class ConectaLarMockStore extends ChangeNotifier {
     ),
     AtendimentoResumo(
       profissional: 'Carlos Silva',
+      cliente: 'Mariana Alves',
       categoria: 'Manutenção',
       avaliado: true,
       solicitacao: Solicitacao(
@@ -132,6 +143,7 @@ class ConectaLarMockStore extends ChangeNotifier {
     ),
     AtendimentoResumo(
       profissional: 'Ana Souza',
+      cliente: 'Mariana Alves',
       categoria: 'Organização',
       solicitacao: Solicitacao(
         id: 1004,
@@ -243,6 +255,7 @@ class ConectaLarMockStore extends ChangeNotifier {
       0,
       AtendimentoResumo(
         profissional: profissional.nome,
+        cliente: _usuarioAtual.nome,
         categoria: servico,
         solicitacao: Solicitacao(
           id: id,

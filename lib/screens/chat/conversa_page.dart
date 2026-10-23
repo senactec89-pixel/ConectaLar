@@ -349,6 +349,7 @@ class _ConversaPageState extends State<ConversaPage> {
                   const LinearProgressIndicator(),
                 _ContextoServico(
                   atendimento: data.atendimento,
+                  papelAtual: data.papelAtual,
                   onDetalhes: _enviando || _atualizando ? null : _abrirDetalhes,
                 ),
                 Expanded(
@@ -492,9 +493,14 @@ class _ConversaData {
 }
 
 class _ContextoServico extends StatelessWidget {
-  const _ContextoServico({required this.atendimento, required this.onDetalhes});
+  const _ContextoServico({
+    required this.atendimento,
+    required this.papelAtual,
+    required this.onDetalhes,
+  });
 
   final AtendimentoResumo atendimento;
+  final String papelAtual;
   final VoidCallback? onDetalhes;
 
   @override
@@ -515,7 +521,7 @@ class _ContextoServico extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  atendimento.profissional,
+                  atendimento.nomeDaOutraParte(papelAtual),
                   style: const TextStyle(
                     color: AppColors.texto,
                     fontWeight: FontWeight.w900,
