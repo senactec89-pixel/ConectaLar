@@ -840,21 +840,50 @@ class _SolicitarServicoBar extends StatelessWidget {
           color: Colors.white,
           border: Border(top: BorderSide(color: AppColors.borda)),
         ),
-        child: FilledButton.icon(
-          key: const ValueKey('perfil-solicitar-servico'),
-          onPressed: !profissional.podeReceberSolicitacoes
-              ? null
-              : () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.solicitarServico,
-                  arguments: profissional,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!profissional.podeReceberSolicitacoes) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 18,
+                    color: AppColors.textoSuave,
+                  ),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(
+                    child: Text(
+                      'Este profissional ainda não pode receber solicitações. '
+                      'Consulte o perfil novamente mais tarde.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.sm),
+            ],
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const ValueKey('perfil-solicitar-servico'),
+                onPressed: !profissional.podeReceberSolicitacoes
+                    ? null
+                    : () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.solicitarServico,
+                        arguments: profissional,
+                      ),
+                icon: const Icon(Icons.calendar_month_rounded),
+                label: Text(
+                  profissional.podeReceberSolicitacoes
+                      ? 'Solicitar atendimento'
+                      : 'Atendimento indisponível',
                 ),
-          icon: const Icon(Icons.calendar_month_rounded),
-          label: Text(
-            profissional.podeReceberSolicitacoes
-                ? 'Solicitar atendimento'
-                : 'Habilitação pendente',
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
