@@ -166,10 +166,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
       appBar: AppBarCustom(
         automaticallyImplyLeading: false,
         title: switch (_tab) {
-          0 => 'ConectaLar Profissional',
-          1 => 'Solicitações recebidas',
-          2 => 'ConectaLar Profissional',
-          _ => 'Área profissional',
+          0 => 'Área profissional',
+          1 => 'Pedidos',
+          2 => 'Agenda',
+          _ => 'Serviços',
         },
         actions: [
           IconButton(
@@ -409,34 +409,57 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     'Veja os dias com atendimentos e confira seus horários antes de aceitar novos pedidos.',
                   ),
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment(
-                              value: false,
-                              icon: Icon(Icons.calendar_month_outlined),
-                              label: Text('Calendário'),
-                            ),
-                            ButtonSegment(
-                              value: true,
-                              icon: Icon(Icons.view_agenda_outlined),
-                              label: Text('Lista'),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final textoAmpliado =
+                          MediaQuery.textScalerOf(context).scale(16) >= 24;
+                      final empilhar =
+                          textoAmpliado || constraints.maxWidth < 300;
+                      final seletor = SegmentedButton<bool>(
+                        segments: [
+                          ButtonSegment(
+                            value: false,
+                            icon: const Icon(Icons.calendar_month_outlined),
+                            label: Text(empilhar ? 'Mês' : 'Calendário'),
+                          ),
+                          const ButtonSegment(
+                            value: true,
+                            icon: Icon(Icons.view_agenda_outlined),
+                            label: Text('Lista'),
+                          ),
+                        ],
+                        selected: {_agendaEmLista},
+                        onSelectionChanged: (value) =>
+                            setState(() => _agendaEmLista = value.first),
+                      );
+                      if (empilhar) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            seletor,
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: _irParaHoje,
+                                icon: const Icon(Icons.today_outlined),
+                                label: const Text('Ir para hoje'),
+                              ),
                             ),
                           ],
-                          selected: {_agendaEmLista},
-                          onSelectionChanged: (value) =>
-                              setState(() => _agendaEmLista = value.first),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpace.sm),
-                      IconButton.filledTonal(
-                        tooltip: 'Ir para hoje',
-                        onPressed: _irParaHoje,
-                        icon: const Icon(Icons.today_outlined),
-                      ),
-                    ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: seletor),
+                          const SizedBox(width: AppSpace.sm),
+                          IconButton.filledTonal(
+                            tooltip: 'Ir para hoje',
+                            onPressed: _irParaHoje,
+                            icon: const Icon(Icons.today_outlined),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: AppSpace.md),
                   if (!_agendaEmLista)
