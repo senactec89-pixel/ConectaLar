@@ -176,6 +176,9 @@ class _RodapeProfissional extends StatelessWidget {
     final estiloPreco = Theme.of(
       context,
     ).textTheme.titleSmall!.copyWith(color: AppColors.verde);
+    final partesPreco = textoPreco.startsWith('A partir de ')
+        ? ['A partir de', textoPreco.substring('A partir de '.length)]
+        : [textoPreco];
     final preco = DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.verdePastel,
@@ -189,7 +192,26 @@ class _RodapeProfissional extends StatelessWidget {
           horizontal: AppSpace.md,
           vertical: AppSpace.sm,
         ),
-        child: Text(textoPreco, style: estiloPreco),
+        child: partesPreco.length == 1
+            ? Text(textoPreco, style: estiloPreco)
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    partesPreco.first,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.verdeEscuro,
+                    ),
+                  ),
+                  Text(
+                    partesPreco.last.replaceFirst(' ', '\u00A0'),
+                    maxLines: 1,
+                    softWrap: false,
+                    style: estiloPreco,
+                  ),
+                ],
+              ),
       ),
     );
     final acoes = Wrap(
@@ -226,9 +248,6 @@ class _RodapeProfissional extends StatelessWidget {
       builder: (context, constraints) {
         // O preço pode ocupar duas linhas, mas o valor monetário deve caber
         // inteiro. Inclui o padding na decisão de empilhar preço e ações.
-        final partesPreco = textoPreco.startsWith('A partir de ')
-            ? ['A partir de', textoPreco.substring('A partir de '.length)]
-            : [textoPreco];
         final larguraPreco =
             partesPreco
                 .map(
