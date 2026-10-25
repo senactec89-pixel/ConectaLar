@@ -293,9 +293,77 @@ class _EnderecoFormState extends State<_EnderecoForm> {
   late final _cidade = TextEditingController(text: widget.endereco?.cidade);
   late final _uf = TextEditingController(text: widget.endereco?.uf ?? 'MG');
   late bool _principal = widget.endereco?.principal ?? true;
+  late final List<TextEditingController> _campos = [
+    _apelido,
+    _cep,
+    _logradouro,
+    _numero,
+    _complemento,
+    _bairro,
+    _cidade,
+    _uf,
+  ];
+  late final List<String> _valoresIniciais;
+  late final bool _principalInicial;
   bool _salvando = false;
   bool _consultandoCep = false;
+  bool _confirmandoSaida = false;
+  bool _fechamentoLiberado = false;
   String? _ultimoCepConsultado;
+
+  @override
+  void initState() {
+    super.initState();
+    _valoresIniciais = _campos.map((campo) => campo.text).toList();
+    _principalInicial = _principal;
+  }
+
+  bool get _alterado =>
+      _principal != _principalInicial ||
+      List.generate(
+        _campos.length,
+        (index) => _campos[index].text != _valoresIniciais[index],
+      ).contains(true);
+
+  Future<void> _solicitarSaida() async {
+    if (_confirmandoSaida || _fechamentoLiberado) return;
+    if (_salvando) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aguarde o endereço ser salvo.')),
+      );
+      return;
+    }
+    if (!_alterado) {
+      Navigator.pop(context);
+      return;
+    }
+    _confirmandoSaida = true;
+    final descartar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Descartar alterações?'),
+        content: const Text('Os dados deste endereço ainda não foram salvos.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Continuar editando'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.erro),
+            child: const Text('Descartar'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    _confirmandoSaida = false;
+    if (descartar != true) return;
+    setState(() => _fechamentoLiberado = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.pop(context);
+    });
+  }
 
   Future<void> _consultarCep([String? valor]) async {
     final cep = (valor ?? _cep.text).replaceAll(RegExp(r'\D'), '');
@@ -366,7 +434,10 @@ class _EnderecoFormState extends State<_EnderecoForm> {
         await AppServices.instance.clientes.atualizarEndereco(id, body);
       }
       if (!mounted) return;
-      Navigator.pop(context, true);
+      setState(() => _fechamentoLiberado = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pop(context, true);
+      });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -379,116 +450,139 @@ class _EnderecoFormState extends State<_EnderecoForm> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 16,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-        ),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Text(
-                widget.endereco == null ? 'Novo endereço' : 'Editar endereço',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _apelido,
-                decoration: const InputDecoration(labelText: 'Apelido'),
-                validator: validarCampoObrigatorio,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _cep,
-                decoration: InputDecoration(
-                  labelText: 'CEP',
-                  hintText: '00000-000',
-                  suffixIcon: _consultandoCep
-                      ? const Padding(
-                          padding: EdgeInsets.all(14),
-                          child: SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : IconButton(
-                          tooltip: 'Buscar CEP',
-                          onPressed: _consultarCep,
-                          icon: const Icon(Icons.search_rounded),
-                        ),
+    return AnimatedBuilder(
+      animation: Listenable.merge(_campos),
+      builder: (context, child) => PopScope(
+        canPop: !_salvando && (!_alterado || _fechamentoLiberado),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _solicitarSaida();
+        },
+        child: child!,
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 16,
+            bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+          ),
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.endereco == null
+                            ? 'Novo endereço'
+                            : 'Editar endereço',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Fechar formulário',
+                      onPressed: _solicitarSaida,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.number,
-                textInputAction: TextInputAction.search,
-                onChanged: (value) {
-                  if (value.replaceAll(RegExp(r'\D'), '').length == 8) {
-                    _consultarCep(value);
-                  }
-                },
-                onFieldSubmitted: _consultarCep,
-                validator: validarCepOpcional,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _logradouro,
-                decoration: const InputDecoration(labelText: 'Logradouro'),
-                validator: validarCampoObrigatorio,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _numero,
-                      decoration: const InputDecoration(labelText: 'Número'),
-                      validator: validarCampoObrigatorio,
-                    ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _apelido,
+                  decoration: const InputDecoration(labelText: 'Apelido'),
+                  validator: validarCampoObrigatorio,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _cep,
+                  decoration: InputDecoration(
+                    labelText: 'CEP',
+                    hintText: '00000-000',
+                    suffixIcon: _consultandoCep
+                        ? const Padding(
+                            padding: EdgeInsets.all(14),
+                            child: SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            tooltip: 'Buscar CEP',
+                            onPressed: _consultarCep,
+                            icon: const Icon(Icons.search_rounded),
+                          ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _uf,
-                      decoration: const InputDecoration(labelText: 'UF'),
-                      textCapitalization: TextCapitalization.characters,
-                      validator: validarUf,
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.search,
+                  onChanged: (value) {
+                    if (value.replaceAll(RegExp(r'\D'), '').length == 8) {
+                      _consultarCep(value);
+                    }
+                  },
+                  onFieldSubmitted: _consultarCep,
+                  validator: validarCepOpcional,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _logradouro,
+                  decoration: const InputDecoration(labelText: 'Logradouro'),
+                  validator: validarCampoObrigatorio,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _numero,
+                        decoration: const InputDecoration(labelText: 'Número'),
+                        validator: validarCampoObrigatorio,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _complemento,
-                decoration: const InputDecoration(labelText: 'Complemento'),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _bairro,
-                decoration: const InputDecoration(labelText: 'Bairro'),
-                validator: validarCampoObrigatorio,
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _cidade,
-                decoration: const InputDecoration(labelText: 'Cidade'),
-                validator: validarCampoObrigatorio,
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _principal,
-                onChanged: (value) => setState(() => _principal = value),
-                title: const Text('Endereço principal'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _salvando ? null : _salvar,
-                icon: const Icon(Icons.save_outlined),
-                label: Text(_salvando ? 'Salvando...' : 'Salvar endereço'),
-              ),
-            ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _uf,
+                        decoration: const InputDecoration(labelText: 'UF'),
+                        textCapitalization: TextCapitalization.characters,
+                        validator: validarUf,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _complemento,
+                  decoration: const InputDecoration(labelText: 'Complemento'),
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _bairro,
+                  decoration: const InputDecoration(labelText: 'Bairro'),
+                  validator: validarCampoObrigatorio,
+                ),
+                const SizedBox(height: 10),
+                TextFormField(
+                  controller: _cidade,
+                  decoration: const InputDecoration(labelText: 'Cidade'),
+                  validator: validarCampoObrigatorio,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _principal,
+                  onChanged: (value) => setState(() => _principal = value),
+                  title: const Text('Endereço principal'),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _salvando ? null : _salvar,
+                  icon: const Icon(Icons.save_outlined),
+                  label: Text(_salvando ? 'Salvando...' : 'Salvar endereço'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
