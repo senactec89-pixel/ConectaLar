@@ -41,7 +41,7 @@ class FrontendPreviewClient extends http.BaseClient {
 
   List<Map<String, dynamic>> get categorias => [
     for (final c in HomeMockData.content.categories)
-      {'id': c.id, 'nome': c.nome, 'ativo': true},
+      {'id': c.id, 'nome': c.nome, 'icone': c.icone, 'ativo': true},
   ];
 
   List<Map<String, dynamic>> get profissionais => [
