@@ -529,13 +529,12 @@ class _HomeHero extends StatelessWidget {
         const heroHeight = 318.0;
         const searchBottom = 16.0;
         const imageGap = 8.0;
-        final imageTop = textoAmpliado
-            ? (constraints.maxWidth < 380 ? 165.0 : 128.0)
-            : heroHeight -
-                  searchBottom -
-                  _SearchButton.height -
-                  imageGap -
-                  imageSize;
+        final imageTop =
+            heroHeight -
+            searchBottom -
+            _SearchButton.height -
+            imageGap -
+            imageSize;
         const fundo = Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -547,43 +546,43 @@ class _HomeHero extends StatelessWidget {
             ),
           ),
         );
-        final imagem = Positioned(
-          top: imageTop,
-          right: 20,
-          child: SizedBox.square(
-            dimension: imageSize,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.verdeClaro,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.branco, width: 2),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(3),
-                child: ClipOval(
-                  child: Transform.scale(
-                    scale: 1.24,
-                    alignment: Alignment.bottomCenter,
-                    child: Image.asset(
-                      'assets/images/home/hero_house_cutout.png',
-                      width: imageSize,
-                      height: imageSize,
-                      fit: BoxFit.cover,
-                      alignment: const Alignment(0.3, 0.65),
-                      semanticLabel: 'Casa com jardim',
-                    ),
+        Widget imagemCircular(double tamanho) => SizedBox.square(
+          dimension: tamanho,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.verdeClaro,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.branco, width: 2),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: ClipOval(
+                child: Transform.scale(
+                  scale: 1.24,
+                  alignment: Alignment.bottomCenter,
+                  child: Image.asset(
+                    'assets/images/home/hero_house_cutout.png',
+                    width: tamanho,
+                    height: tamanho,
+                    fit: BoxFit.cover,
+                    alignment: const Alignment(0.3, 0.65),
+                    semanticLabel: 'Casa com jardim',
                   ),
                 ),
               ),
             ),
           ),
         );
+        final imagem = Positioned(
+          top: imageTop,
+          right: 20,
+          child: imagemCircular(imageSize),
+        );
         if (textoAmpliado) {
           return Stack(
             clipBehavior: Clip.hardEdge,
             children: [
               fundo,
-              imagem,
               SizedBox(
                 width: constraints.maxWidth,
                 child: Padding(
@@ -596,12 +595,14 @@ class _HomeHero extends StatelessWidget {
                         compact: compact,
                         onNotificationsTap: onNotificationsTap,
                       ),
-                      const SizedBox(height: 28),
-                      Padding(
-                        padding: EdgeInsets.only(right: imageSize - 2),
-                        child: _Greeting(compact: compact, fullText: true),
+                      const SizedBox(height: AppSpace.xl),
+                      _Greeting(compact: compact, fullText: true),
+                      const SizedBox(height: AppSpace.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: imagemCircular(96),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: AppSpace.lg),
                       _SearchButton(
                         onTap: onSearchTap,
                         onBairroTap: onBairroTap,

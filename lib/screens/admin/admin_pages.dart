@@ -1143,6 +1143,26 @@ class _FiltrosDocumentais extends StatelessWidget {
       'rejeitado': 'Rejeitados',
       '': 'Todos',
     };
+    if (MediaQuery.textScalerOf(context).scale(1) >= 1.6) {
+      return DropdownButtonFormField<String>(
+        key: ValueKey('admin-documentos-filtro-$status'),
+        initialValue: status,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Filtrar documentos',
+          prefixIcon: Icon(Icons.filter_list_rounded),
+        ),
+        items: [
+          for (final filtro in filtros.entries)
+            DropdownMenuItem(value: filtro.key, child: Text(filtro.value)),
+        ],
+        onChanged: onSelected == null
+            ? null
+            : (value) {
+                if (value != null) onSelected!(value);
+              },
+      );
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final larguraMinima =
