@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/routes.dart';
 import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
+import '../../models/disponibilidade.dart';
 import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
@@ -20,6 +21,7 @@ class PerfilProfissionalPage extends StatefulWidget {
 class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
   Profissional? _argumento;
   Future<_PerfilProfissionalData?>? _future;
+  Future<List<Disponibilidade>>? _disponibilidadeFuture;
   bool _argumentosLidos = false;
   bool _mutandoFavorito = false;
   bool _recarregandoPerfil = false;
@@ -32,7 +34,29 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
     _argumento = arguments is Profissional ? arguments : null;
     _future = _carregarPerfil();
     _future?.ignore();
+    if (_argumento != null) {
+      _disponibilidadeFuture = _carregarDisponibilidade(_argumento!.id);
+      _disponibilidadeFuture?.ignore();
+    }
     _argumentosLidos = true;
+  }
+
+  Future<List<Disponibilidade>> _carregarDisponibilidade(int id) async {
+    final response = await AppServices.instance.profissionais
+        .disponibilidadePublica(id);
+    if (response['disponibilidades'] is! List) {
+      throw const FormatException('Resposta de disponibilidade inválida.');
+    }
+    return listFromApi(response['disponibilidades'], disponibilidadeFromApi);
+  }
+
+  void _recarregarDisponibilidade() {
+    final id = _argumento?.id;
+    if (id == null) return;
+    setState(() {
+      _disponibilidadeFuture = _carregarDisponibilidade(id);
+      _disponibilidadeFuture?.ignore();
+    });
   }
 
   Future<_PerfilProfissionalData?> _carregarPerfil() async {
@@ -85,6 +109,7 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
       _recarregandoPerfil = true;
       _future = future;
     });
+    _recarregarDisponibilidade();
     try {
       await future;
     } catch (_) {
@@ -179,6 +204,8 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
               data: data,
               mutandoFavorito: _mutandoFavorito,
               recarregandoFavoritos: _recarregandoPerfil,
+              disponibilidadeFuture: _disponibilidadeFuture,
+              onRetryDisponibilidade: _recarregarDisponibilidade,
               onRetryFavoritos: () {
                 _recarregar();
               },
@@ -244,6 +271,8 @@ class _PerfilProfissionalContent extends StatefulWidget {
     required this.onFavoritoTap,
     required this.onRetryFavoritos,
     required this.recarregandoFavoritos,
+    required this.disponibilidadeFuture,
+    required this.onRetryDisponibilidade,
   });
 
   final _PerfilProfissionalData data;
@@ -251,6 +280,8 @@ class _PerfilProfissionalContent extends StatefulWidget {
   final VoidCallback? onFavoritoTap;
   final VoidCallback onRetryFavoritos;
   final bool recarregandoFavoritos;
+  final Future<List<Disponibilidade>>? disponibilidadeFuture;
+  final VoidCallback onRetryDisponibilidade;
 
   @override
   State<_PerfilProfissionalContent> createState() =>
@@ -383,6 +414,14 @@ class _PerfilProfissionalContentState
                       'resposta. O serviço só fica agendado após aceite válido.',
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.lg),
+              _SecaoPerfil(
+                title: 'Disponibilidade semanal',
+                child: _DisponibilidadePublica(
+                  future: widget.disponibilidadeFuture,
+                  onRetry: widget.onRetryDisponibilidade,
                 ),
               ),
               const SizedBox(height: AppSpace.xl),
@@ -708,6 +747,105 @@ class _ServicosPerfil extends StatelessWidget {
     );
   }
 }
+
+class _DisponibilidadePublica extends StatelessWidget {
+  const _DisponibilidadePublica({required this.future, required this.onRetry});
+
+  final Future<List<Disponibilidade>>? future;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Disponibilidade>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Row(
+            children: [
+              SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: AppSpace.sm),
+              Expanded(child: Text('Consultando horários informados…')),
+            ],
+          );
+        }
+        if (snapshot.hasError) {
+          return SectionErrorView(
+            message: 'Não foi possível consultar os horários informados.',
+            onRetry: onRetry,
+          );
+        }
+        final horarios =
+            (snapshot.data ?? const <Disponibilidade>[])
+                .where((item) => item.ativo)
+                .toList()
+              ..sort((a, b) {
+                final diaA = (a.diaSemana + 6) % 7;
+                final diaB = (b.diaSemana + 6) % 7;
+                final diferenca = diaA.compareTo(diaB);
+                return diferenca == 0
+                    ? a.horaInicio.compareTo(b.horaInicio)
+                    : diferenca;
+              });
+        if (horarios.isEmpty) {
+          return const Text(
+            'Este profissional ainda não informou horários semanais.',
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: AppSpace.sm,
+              runSpacing: AppSpace.sm,
+              children: [
+                for (final horario in horarios)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: AppColors.verdeClaro,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpace.md,
+                        vertical: AppSpace.sm,
+                      ),
+                      child: Text(
+                        '${_diaDisponibilidade(horario.diaSemana)} · '
+                        '${horario.horaInicio}–${horario.horaFim}',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.md),
+            Text(
+              'Horários informados pelo profissional. Eles podem mudar e não '
+              'garantem vaga nem agendamento.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textoSuave),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+String _diaDisponibilidade(int dia) => switch (dia) {
+  0 => 'Domingo',
+  1 => 'Segunda-feira',
+  2 => 'Terça-feira',
+  3 => 'Quarta-feira',
+  4 => 'Quinta-feira',
+  5 => 'Sexta-feira',
+  6 => 'Sábado',
+  _ => 'Dia informado',
+};
 
 class _FotoPerfil extends StatelessWidget {
   const _FotoPerfil({
