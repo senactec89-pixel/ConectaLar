@@ -153,46 +153,56 @@ class _PerfilPageState extends State<PerfilPage> {
               );
             }
             final usuario = snapshot.requireData;
+            final textoAmpliado =
+                MediaQuery.textScalerOf(context).scale(20) > 30;
+            final foto = _FotoPerfilUsuario(
+              usuario: usuario,
+              alterando: _alterandoFoto,
+              onAlterar: _selecionarFoto,
+              onRemover: usuario.fotoPerfilUrl == null ? null : _removerFoto,
+            );
+            final identificacao = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  usuario.nome,
+                  style: const TextStyle(
+                    color: AppColors.texto,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  _tipoConta(usuario),
+                  style: const TextStyle(
+                    color: AppColors.textoSuave,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            );
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(18),
-                    child: Row(
+                    child: Flex(
+                      direction: textoAmpliado
+                          ? Axis.vertical
+                          : Axis.horizontal,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _FotoPerfilUsuario(
-                          usuario: usuario,
-                          alterando: _alterandoFoto,
-                          onAlterar: _selecionarFoto,
-                          onRemover: usuario.fotoPerfilUrl == null
-                              ? null
-                              : _removerFoto,
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                usuario.nome,
-                                style: const TextStyle(
-                                  color: AppColors.texto,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _tipoConta(usuario),
-                                style: const TextStyle(
-                                  color: AppColors.textoSuave,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        foto,
+                        if (textoAmpliado)
+                          const SizedBox(height: AppSpace.lg)
+                        else
+                          const SizedBox(width: 14),
+                        if (textoAmpliado)
+                          identificacao
+                        else
+                          Expanded(child: identificacao),
                       ],
                     ),
                   ),

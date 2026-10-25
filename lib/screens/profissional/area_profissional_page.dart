@@ -1404,58 +1404,66 @@ class _PerfilProfissionalPrivadoPageState
         final perfilPublico = perfilRaw is Map<String, dynamic>
             ? profissionalFromApi(perfilRaw)
             : null;
+        final textoAmpliado = MediaQuery.textScalerOf(context).scale(20) > 30;
+        final avatar = CircleAvatar(
+          radius: 34,
+          backgroundColor: AppColors.verdeClaro,
+          backgroundImage: '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
+              ? null
+              : NetworkImage('${usuario['fotoPerfilUrl']}'),
+          child: '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
+              ? Text(
+                  _inicialNome(usuario['nome']),
+                  style: const TextStyle(
+                    color: AppColors.verdeEscuro,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                )
+              : null,
+        );
+        final identificacao = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${usuario['nome'] ?? 'Profissional'}',
+              style: const TextStyle(
+                color: AppColors.texto,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              usuario['tipo'] == 'empresa'
+                  ? 'Empresa · dados privados'
+                  : 'Profissional · dados privados',
+              style: const TextStyle(
+                color: AppColors.textoSuave,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        );
         return ListView(
           padding: AppInsets.page,
           children: [
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(18),
-                child: Row(
+                child: Flex(
+                  direction: textoAmpliado ? Axis.vertical : Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 34,
-                      backgroundColor: AppColors.verdeClaro,
-                      backgroundImage:
-                          '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
-                          ? null
-                          : NetworkImage('${usuario['fotoPerfilUrl']}'),
-                      child: '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
-                          ? Text(
-                              _inicialNome(usuario['nome']),
-                              style: const TextStyle(
-                                color: AppColors.verdeEscuro,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${usuario['nome'] ?? 'Profissional'}',
-                            style: const TextStyle(
-                              color: AppColors.texto,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpace.xs),
-                          Text(
-                            usuario['tipo'] == 'empresa'
-                                ? 'Empresa · dados privados'
-                                : 'Profissional · dados privados',
-                            style: const TextStyle(
-                              color: AppColors.textoSuave,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    avatar,
+                    if (textoAmpliado)
+                      const SizedBox(height: AppSpace.lg)
+                    else
+                      const SizedBox(width: 14),
+                    if (textoAmpliado)
+                      identificacao
+                    else
+                      Expanded(child: identificacao),
                   ],
                 ),
               ),

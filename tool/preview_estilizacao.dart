@@ -9,6 +9,7 @@ import 'package:conectarlar_app/screens/busca/busca_page.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/screens/home/home_mock_data.dart';
 import 'package:conectarlar_app/screens/notificacoes/notificacoes_page.dart';
+import 'package:conectarlar_app/screens/perfil/perfil_page.dart';
 import 'package:conectarlar_app/screens/perfil/seguranca_page.dart';
 import 'package:conectarlar_app/screens/profissional/documentos_verificacao_page.dart';
 import 'package:conectarlar_app/screens/profissional/perfil_profissional_page.dart';
@@ -33,7 +34,9 @@ Future<void> main() async {
   final papel =
       tela.startsWith('admin-') || tela == 'categoria' || tela == 'historico'
       ? 'administrador'
-      : tela == 'documentos' || tela == 'agenda'
+      : tela == 'documentos' ||
+            tela == 'agenda' ||
+            tela == 'perfil-profissional-privado'
       ? 'profissional'
       : 'cliente';
   AppServices.instance = AppServices(
@@ -80,6 +83,8 @@ class _TelaPreview extends StatelessWidget {
     'busca' => const BuscaPage(),
     'notificacoes' => const NotificacoesPage(),
     'perfil-publico' => const PerfilProfissionalPage(),
+    'perfil-cliente' => const PerfilPage(),
+    'perfil-profissional-privado' => const PerfilProfissionalPrivadoPage(),
     'agenda' => const AreaProfissionalPage(initialTab: 2),
     'categoria' => const CategoriaFormPage(),
     'historico' => const HistoricoAdminPage(),

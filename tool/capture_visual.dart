@@ -31,6 +31,7 @@ Future<void> main(List<String> args) async {
   }
   final widths = option('widths', '360,390,412').split(',').map(int.parse);
   final scales = option('scales', '1,2').split(',').map(int.parse);
+  final captureScrollPositions = option('positions', 'all') != 'initial';
   final settleMilliseconds = int.parse(option('settle-ms', '0'));
   final scenes = option(
     'scenes',
@@ -126,6 +127,9 @@ Future<void> main(List<String> args) async {
             );
           }
           await screenshot(name, width, scale);
+          if (!captureScrollPositions) {
+            continue;
+          }
           if (scene == 'admin-documentos') {
             await cdp.click('Visualizar');
             await Future<void>.delayed(const Duration(seconds: 6));

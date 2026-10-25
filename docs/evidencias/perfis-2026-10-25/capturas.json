@@ -1,0 +1,216 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "capturas": [
+    {
+      "arquivo": "perfil-cliente-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-cliente-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-cliente-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-cliente-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-cliente-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-cliente-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-conteudo-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-final-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-cliente-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-cliente-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-cliente-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-publico-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-cliente-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-publico-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    }
+  ],
+  "excecoesNavegador": []
+}
