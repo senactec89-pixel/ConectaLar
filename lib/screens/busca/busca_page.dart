@@ -798,7 +798,7 @@ class _FiltrosBusca extends StatelessWidget {
             suffixIcon: posicao == null
                 ? IconButton(
                     key: const ValueKey('busca-usar-gps'),
-                    tooltip: 'Usar minha localizacao',
+                    tooltip: 'Usar minha localização',
                     onPressed: obtendoLocalizacao
                         ? null
                         : onUsarMinhaLocalizacao,
@@ -858,7 +858,7 @@ class _FiltrosBusca extends StatelessWidget {
                       falhaLocalizacao == DeviceLocationFailure.serviceDisabled)
                     IconButton(
                       key: const ValueKey('busca-configuracao-gps'),
-                      tooltip: 'Abrir configuracoes',
+                      tooltip: 'Abrir configurações',
                       onPressed: onAbrirConfiguracoes,
                       icon: const Icon(Icons.settings_outlined),
                     ),
