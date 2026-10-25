@@ -15,6 +15,7 @@ class Profissional {
     this.categoriaIds = const [],
     this.verificado = false,
     this.podeReceberSolicitacoes = false,
+    this.habilitacaoInformada = false,
     this.fotoAsset,
     this.fotoUrl,
     this.notaMedia,
@@ -63,6 +64,7 @@ class Profissional {
   // Este valor é uma projeção da API baseada em documentos aprovados.
   final bool verificado;
   final bool podeReceberSolicitacoes;
+  final bool habilitacaoInformada;
 }
 
 class OfertaProfissional {

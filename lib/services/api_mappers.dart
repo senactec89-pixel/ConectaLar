@@ -69,6 +69,7 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
     categoriaIds: categoriaIds,
     verificado: boolValue(json['verificado']),
     podeReceberSolicitacoes: json['podeReceberSolicitacoes'] == true,
+    habilitacaoInformada: json['podeReceberSolicitacoes'] is bool,
     fotoUrl: apiUrlOrNull(json['fotoPerfilUrl']),
     servicos: servicos,
     ofertas: listFromApi(

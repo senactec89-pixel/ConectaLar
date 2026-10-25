@@ -64,8 +64,11 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       _ofertaInicialId = _ofertaSelecionadaId;
       _bairroController.text = arguments.bairro;
       _bairroInicial = arguments.bairro;
-      _enderecosFuture = _carregarEnderecos();
-      _disponibilidadeFuture = _carregarDisponibilidade(arguments.id);
+      if (!arguments.habilitacaoInformada ||
+          arguments.podeReceberSolicitacoes) {
+        _enderecosFuture = _carregarEnderecos();
+        _disponibilidadeFuture = _carregarDisponibilidade(arguments.id);
+      }
     }
     _argumentosLidos = true;
   }
@@ -328,8 +331,11 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   @override
   Widget build(BuildContext context) {
     final profissional = _profissional;
+    final atendimentoBloqueado =
+        profissional?.habilitacaoInformada == true &&
+        profissional?.podeReceberSolicitacoes == false;
     return PopScope(
-      canPop: _solicitacaoEnviada,
+      canPop: _solicitacaoEnviada || atendimentoBloqueado,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmarSaida();
       },
@@ -338,6 +344,20 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         appBar: const AppBarCustom(title: 'Solicitar serviço'),
         body: profissional == null
             ? const _SolicitacaoIndisponivel()
+            : atendimentoBloqueado
+            ? _AtendimentoNaoLiberado(
+                onVoltar: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    Navigator.pushReplacementNamed(
+                      context,
+                      AppRoutes.perfilProfissional,
+                      arguments: profissional,
+                    );
+                  }
+                },
+              )
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
                 children: [
@@ -1461,6 +1481,61 @@ class _SolicitacaoIndisponivel extends StatelessWidget {
         child: Text(
           'Selecione um profissional antes de solicitar o serviço.',
           textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+class _AtendimentoNaoLiberado extends StatelessWidget {
+  const _AtendimentoNaoLiberado({required this.onVoltar});
+
+  final VoidCallback onVoltar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.shield_outlined,
+                    size: 44,
+                    color: AppColors.verdeEscuro,
+                  ),
+                  const SizedBox(height: 16),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Atendimento ainda não liberado',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Este profissional ainda não pode receber novas '
+                    'solicitações. A liberação depende das verificações de '
+                    'segurança da plataforma.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  OutlinedButton.icon(
+                    onPressed: onVoltar,
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Voltar ao perfil'),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
