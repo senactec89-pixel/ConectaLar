@@ -219,6 +219,7 @@ class _ConversaPageState extends State<ConversaPage> {
         papelAtual: store.usuarioAtual.tipo.valorBanco,
         paginaMensagens: 1,
         temMensagensAnteriores: false,
+        consultadoEm: DateTime.now(),
       );
     }
 
@@ -241,6 +242,7 @@ class _ConversaPageState extends State<ConversaPage> {
       papelAtual: stringValue(services.auth.usuarioAtual?['tipo']),
       paginaMensagens: paginaMensagens.page,
       temMensagensAnteriores: paginaMensagens.hasMore,
+      consultadoEm: DateTime.now(),
     );
   }
 
@@ -350,6 +352,7 @@ class _ConversaPageState extends State<ConversaPage> {
                 _ContextoServico(
                   atendimento: data.atendimento,
                   papelAtual: data.papelAtual,
+                  consultadoEm: data.consultadoEm,
                   onDetalhes: _enviando || _atualizando ? null : _abrirDetalhes,
                 ),
                 Expanded(
@@ -449,6 +452,7 @@ class _ConversaData {
     required this.papelAtual,
     required this.paginaMensagens,
     required this.temMensagensAnteriores,
+    required this.consultadoEm,
   });
 
   final AtendimentoResumo atendimento;
@@ -457,6 +461,7 @@ class _ConversaData {
   final String papelAtual;
   final int paginaMensagens;
   final bool temMensagensAnteriores;
+  final DateTime consultadoEm;
 
   _ConversaData copyWith({
     List<Mensagem>? mensagens,
@@ -471,6 +476,7 @@ class _ConversaData {
       paginaMensagens: paginaMensagens ?? this.paginaMensagens,
       temMensagensAnteriores:
           temMensagensAnteriores ?? this.temMensagensAnteriores,
+      consultadoEm: consultadoEm,
     );
   }
 
@@ -496,11 +502,13 @@ class _ContextoServico extends StatelessWidget {
   const _ContextoServico({
     required this.atendimento,
     required this.papelAtual,
+    required this.consultadoEm,
     required this.onDetalhes,
   });
 
   final AtendimentoResumo atendimento;
   final String papelAtual;
+  final DateTime consultadoEm;
   final VoidCallback? onDetalhes;
 
   @override
@@ -531,6 +539,11 @@ class _ContextoServico extends StatelessWidget {
                 Text(
                   '${atendimento.categoria} • ${atendimento.solicitacao.status.rotulo}',
                   style: const TextStyle(color: AppColors.textoSuave),
+                ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  'Atualizada às ${consultadoEm.hour.toString().padLeft(2, '0')}:${consultadoEm.minute.toString().padLeft(2, '0')}',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
