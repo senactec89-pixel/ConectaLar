@@ -855,9 +855,10 @@ class _SolicitarServicoBar extends StatelessWidget {
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text(
-                      'Este profissional ainda não pode receber solicitações. '
-                      'Consulte o perfil novamente mais tarde.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      'Atendimento indisponível no momento. A liberação de '
+                      'novas solicitações depende das verificações de '
+                      'segurança da plataforma.',
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
                 ],
