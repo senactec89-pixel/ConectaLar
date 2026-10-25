@@ -391,7 +391,7 @@ class _PerfilProfissionalContentState
                   children: [
                     _InfoLinha(
                       icon: Icons.location_on_outlined,
-                      text: 'Atende em ${profissional.bairro}',
+                      text: _regiaoProfissional(profissional),
                     ),
                     const SizedBox(height: AppSpace.md),
                     _InfoLinha(
@@ -479,7 +479,10 @@ class _CabecalhoPerfil extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpace.sm),
-        _InfoLinha(icon: Icons.location_on_outlined, text: profissional.bairro),
+        _InfoLinha(
+          icon: Icons.location_on_outlined,
+          text: _regiaoProfissional(profissional),
+        ),
       ],
     );
     final favoritoButton = onFavoritoTap == null
@@ -547,8 +550,9 @@ class _CabecalhoPerfil extends StatelessWidget {
                       _ResumoChip(
                         icon: Icons.star_rounded,
                         text:
-                            '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} '
-                            '(${profissional.quantidadeAvaliacoes ?? 0})',
+                            '${profissional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} · '
+                            '${profissional.quantidadeAvaliacoes ?? 0} '
+                            '${profissional.quantidadeAvaliacoes == 1 ? 'avaliação' : 'avaliações'}',
                       ),
                     if (profissional.verificado)
                       const _ResumoChip(
@@ -1049,4 +1053,15 @@ class _PerfilIndisponivel extends StatelessWidget {
 String _precoTexto(double? preco) {
   if (preco == null) return 'Preço inicial sob consulta';
   return 'A partir de R\$ ${preco.toStringAsFixed(2).replaceAll('.', ',')}';
+}
+
+String _regiaoProfissional(Profissional profissional) {
+  final bairro = profissional.bairro.trim();
+  final cidade = profissional.cidade?.trim() ?? '';
+  final uf = profissional.uf?.trim() ?? '';
+  final cidadeUf = [cidade, uf].where((parte) => parte.isNotEmpty).join('/');
+  final partes = [bairro, cidadeUf].where((parte) => parte.isNotEmpty);
+  return partes.isEmpty
+      ? 'Região de atendimento não informada'
+      : 'Atende em ${partes.join(' · ')}';
 }
