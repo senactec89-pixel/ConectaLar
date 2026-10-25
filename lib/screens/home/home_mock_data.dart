@@ -5,14 +5,14 @@ import '../../models/profissional.dart';
 abstract final class HomeMockData {
   static const content = HomeContent(
     categories: [
-      Categoria(id: 1, nome: 'Elétrica'),
-      Categoria(id: 2, nome: 'Hidráulica'),
-      Categoria(id: 3, nome: 'Pintura'),
-      Categoria(id: 4, nome: 'Limpeza'),
-      Categoria(id: 5, nome: 'Manutenção'),
-      Categoria(id: 6, nome: 'Ar-condicionado'),
-      Categoria(id: 7, nome: 'Reformas'),
-      Categoria(id: 8, nome: 'Outros'),
+      Categoria(id: 1, nome: 'Elétrica', icone: 'electrical_services'),
+      Categoria(id: 2, nome: 'Hidráulica', icone: 'plumbing'),
+      Categoria(id: 3, nome: 'Pintura', icone: 'format_paint'),
+      Categoria(id: 4, nome: 'Limpeza', icone: 'cleaning_services'),
+      Categoria(id: 5, nome: 'Manutenção', icone: 'build'),
+      Categoria(id: 6, nome: 'Ar-condicionado', icone: 'ac_unit'),
+      Categoria(id: 7, nome: 'Reformas', icone: 'construction'),
+      Categoria(id: 8, nome: 'Outros', icone: 'category'),
     ],
     featuredProfessionals: [
       Profissional(

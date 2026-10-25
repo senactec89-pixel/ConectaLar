@@ -13,6 +13,7 @@ import '../../models/busca_estado.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/service_registry.dart';
+import '../../utils/categoria_icons.dart';
 import '../../utils/constants.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/conectalar_brand.dart';
@@ -134,6 +135,9 @@ class _HomeContentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final categoriasEmDestaque = content.categories
+        .take(8)
+        .toList(growable: false);
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
@@ -196,7 +200,7 @@ class _HomeContentView extends StatelessWidget {
                                 shrinkWrap: true,
                                 primary: false,
                                 physics: const NeverScrollableScrollPhysics(),
-                                itemCount: content.categories.length,
+                                itemCount: categoriasEmDestaque.length,
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: colunas,
@@ -211,14 +215,14 @@ class _HomeContentView extends StatelessWidget {
                                           : 124,
                                     ),
                                 itemBuilder: (context, index) {
-                                  final category = content.categories[index];
+                                  final category = categoriasEmDestaque[index];
                                   final style = _categoryStyle(
                                     category.nome,
                                     index,
                                   );
                                   return _CategoryTile(
                                     category: category,
-                                    icon: style.icon,
+                                    icon: categoriaIconData(category.icone),
                                     background: style.background,
                                     color: style.foreground,
                                     compact: colunas == 3,
@@ -305,76 +309,39 @@ class _HomeContentView extends StatelessWidget {
   _CategoryStyle _categoryStyle(String name, int index) {
     final normalized = name.toLowerCase();
     if (normalized.contains('elét') || normalized.contains('elet')) {
-      return const _CategoryStyle(
-        Icons.bolt_rounded,
-        Color(0xFFEAF6E2),
-        Color(0xFF69BC36),
-      );
+      return const _CategoryStyle(Color(0xFFEAF6E2), Color(0xFF69BC36));
     }
     if (normalized.contains('hidrá') ||
         normalized.contains('hidra') ||
         normalized.contains('encan')) {
-      return const _CategoryStyle(
-        Icons.water_drop_rounded,
-        Color(0xFFE5F2FC),
-        Color(0xFF1687C9),
-      );
+      return const _CategoryStyle(Color(0xFFE5F2FC), Color(0xFF1687C9));
     }
     if (normalized.contains('pint')) {
-      return const _CategoryStyle(
-        Icons.format_paint_rounded,
-        Color(0xFFFFF0E4),
-        Color(0xFFF28A18),
-      );
+      return const _CategoryStyle(Color(0xFFFFF0E4), Color(0xFFF28A18));
     }
     if (normalized.contains('limp')) {
-      return const _CategoryStyle(
-        Icons.cleaning_services_rounded,
-        Color(0xFFE3F5EF),
-        Color(0xFF13856A),
-      );
+      return const _CategoryStyle(Color(0xFFE3F5EF), Color(0xFF13856A));
     }
     if (normalized.contains('manut') || normalized.contains('mont')) {
-      return const _CategoryStyle(
-        Icons.handyman_rounded,
-        Color(0xFFF1EAFE),
-        Color(0xFF8051C5),
-      );
+      return const _CategoryStyle(Color(0xFFF1EAFE), Color(0xFF8051C5));
     }
     if (normalized.contains('ar-cond')) {
-      return const _CategoryStyle(
-        Icons.ac_unit_rounded,
-        Color(0xFFFCE8F0),
-        Color(0xFFDA5485),
-      );
+      return const _CategoryStyle(Color(0xFFFCE8F0), Color(0xFFDA5485));
     }
     if (normalized.contains('reform')) {
-      return const _CategoryStyle(
-        Icons.wallpaper_rounded,
-        Color(0xFFFFF4D8),
-        Color(0xFFE4A000),
-      );
+      return const _CategoryStyle(Color(0xFFFFF4D8), Color(0xFFE4A000));
     }
     const styles = [
-      _CategoryStyle(
-        Icons.home_repair_service_rounded,
-        Color(0xFFE8F2FC),
-        Color(0xFF297CB5),
-      ),
-      _CategoryStyle(
-        Icons.grid_view_rounded,
-        Color(0xFFEAF6E2),
-        Color(0xFF69BC36),
-      ),
+      _CategoryStyle(Color(0xFFE8F2FC), Color(0xFF297CB5)),
+      _CategoryStyle(Color(0xFFEAF6E2), Color(0xFF69BC36)),
     ];
     return styles[index % styles.length];
   }
 }
 
 class _CategoryStyle {
-  const _CategoryStyle(this.icon, this.background, this.foreground);
+  const _CategoryStyle(this.background, this.foreground);
 
-  final IconData icon;
   final Color background;
   final Color foreground;
 }
