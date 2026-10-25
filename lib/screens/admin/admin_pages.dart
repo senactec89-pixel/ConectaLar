@@ -280,7 +280,7 @@ class _AdminPageState extends State<AdminPage> {
         return AsyncErrorView(
           message: 'Não foi possível carregar o resumo administrativo.',
           icon: Icons.dashboard_outlined,
-          onRetry: () => setState(() {}),
+          onRetry: _atualizarModulo,
         );
       }
       final data = snapshot.data ?? const <String, dynamic>{};
