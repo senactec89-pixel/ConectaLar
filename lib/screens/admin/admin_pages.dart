@@ -14,6 +14,7 @@ import '../../widgets/async_state_view.dart';
 
 enum AdminModulo {
   painel,
+  moderacao,
   usuarios,
   documentos,
   denuncias,
@@ -78,6 +79,7 @@ class _AdminPageState extends State<AdminPage> {
         result = await service.auditoria();
         key = 'eventos';
       case AdminModulo.painel:
+      case AdminModulo.moderacao:
         return const [];
     }
     final values = result[key];
@@ -94,6 +96,7 @@ class _AdminPageState extends State<AdminPage> {
   });
 
   Future<void> _atualizarModulo() async {
+    if (_modulo == AdminModulo.moderacao) return;
     if (_modulo == AdminModulo.painel) {
       final carregamento = AppServices.instance.admin.painel();
       setState(() => _painelFuture = carregamento);
@@ -166,6 +169,7 @@ class _AdminPageState extends State<AdminPage> {
     }
     final titulo = switch (_modulo) {
       AdminModulo.painel => 'Central administrativa',
+      AdminModulo.moderacao => 'Moderação',
       AdminModulo.usuarios => 'Usuários',
       AdminModulo.documentos => 'Documentos',
       AdminModulo.denuncias => 'Denúncias',
@@ -173,21 +177,37 @@ class _AdminPageState extends State<AdminPage> {
       AdminModulo.categorias => 'Categorias',
       AdminModulo.auditoria => 'Registro de auditoria',
     };
+    final voltarPara = switch (_modulo) {
+      AdminModulo.documentos ||
+      AdminModulo.denuncias ||
+      AdminModulo.avaliacoes => AdminModulo.moderacao,
+      _ => AdminModulo.painel,
+    };
     return Scaffold(
       appBar: AppBarCustom(
         title: titulo,
+        leading: _modulo == AdminModulo.painel
+            ? null
+            : IconButton(
+                tooltip: voltarPara == AdminModulo.moderacao
+                    ? 'Voltar à Moderação'
+                    : 'Voltar à Central',
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => _abrir(voltarPara),
+              ),
         actions: [
-          IconButton(
-            tooltip: _modulo == AdminModulo.painel
-                ? 'Atualizar painel'
-                : 'Atualizar lista',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _mutando
-                ? null
-                : () {
-                    _atualizarModulo();
-                  },
-          ),
+          if (_modulo != AdminModulo.moderacao)
+            IconButton(
+              tooltip: _modulo == AdminModulo.painel
+                  ? 'Atualizar painel'
+                  : 'Atualizar lista',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: _mutando
+                  ? null
+                  : () {
+                      _atualizarModulo();
+                    },
+            ),
           if (_modulo == AdminModulo.usuarios)
             IconButton(
               tooltip: 'Criar administrador',
@@ -199,11 +219,6 @@ class _AdminPageState extends State<AdminPage> {
             icon: const Icon(Icons.account_circle_outlined),
             onPressed: () => Navigator.pushNamed(context, AppRoutes.perfil),
           ),
-          if (_modulo != AdminModulo.painel)
-            IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => _abrir(AdminModulo.painel),
-            ),
         ],
       ),
       backgroundColor: AppColors.fundo,
@@ -224,7 +239,13 @@ class _AdminPageState extends State<AdminPage> {
                       }),
               ),
             ),
-          Expanded(child: _modulo == AdminModulo.painel ? _painel() : _lista()),
+          Expanded(
+            child: switch (_modulo) {
+              AdminModulo.painel => _painel(),
+              AdminModulo.moderacao => _moderacao(),
+              _ => _lista(),
+            },
+          ),
         ],
       ),
       bottomNavigationBar: AdaptiveNavigationBar(
@@ -237,7 +258,7 @@ class _AdminPageState extends State<AdminPage> {
         },
         onDestinationSelected: (i) => _abrir(switch (i) {
           1 => AdminModulo.usuarios,
-          2 => AdminModulo.denuncias,
+          2 => AdminModulo.moderacao,
           3 => AdminModulo.categorias,
           4 => AdminModulo.auditoria,
           _ => AdminModulo.painel,
@@ -429,6 +450,37 @@ class _AdminPageState extends State<AdminPage> {
         ],
       );
     },
+  );
+
+  Widget _moderacao() => ListView(
+    padding: const EdgeInsets.all(AppSpace.lg),
+    children: [
+      Text(
+        'Itens para análise',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+      const SizedBox(height: AppSpace.xs),
+      const Text('Escolha a área que deseja revisar.'),
+      const SizedBox(height: AppSpace.lg),
+      _AdminAtalho(
+        icon: Icons.verified_user_outlined,
+        title: 'Documentos',
+        subtitle: 'Visualizar envios e registrar uma decisão',
+        onTap: () => _abrir(AdminModulo.documentos),
+      ),
+      _AdminAtalho(
+        icon: Icons.flag_outlined,
+        title: 'Denúncias',
+        subtitle: 'Ler relatos e acompanhar a análise',
+        onTap: () => _abrir(AdminModulo.denuncias),
+      ),
+      _AdminAtalho(
+        icon: Icons.star_outline_rounded,
+        title: 'Avaliações',
+        subtitle: 'Revisar avaliações sinalizadas',
+        onTap: () => _abrir(AdminModulo.avaliacoes),
+      ),
+    ],
   );
 
   Map<String, dynamic> _map(Object? value) =>
@@ -754,6 +806,7 @@ class _AdminPageState extends State<AdminPage> {
           ),
         );
       case AdminModulo.painel:
+      case AdminModulo.moderacao:
         return const SizedBox.shrink();
     }
   }
@@ -1657,6 +1710,7 @@ String _descricaoModulo(AdminModulo modulo) => switch (modulo) {
   AdminModulo.categorias => 'Organize as categorias disponíveis no catálogo.',
   AdminModulo.auditoria => 'Consulte as ações administrativas recentes.',
   AdminModulo.painel => 'Indicadores e ferramentas administrativas.',
+  AdminModulo.moderacao => 'Escolha a área que deseja revisar.',
 };
 
 String _tituloVazio(AdminModulo modulo) => switch (modulo) {
@@ -1667,6 +1721,7 @@ String _tituloVazio(AdminModulo modulo) => switch (modulo) {
   AdminModulo.categorias => 'Nenhuma categoria cadastrada',
   AdminModulo.auditoria => 'Nenhuma ação registrada',
   AdminModulo.painel => 'Sem informações para exibir',
+  AdminModulo.moderacao => 'Sem áreas para exibir',
 };
 
 String _mensagemVazia(AdminModulo modulo) => switch (modulo) {
@@ -1678,6 +1733,7 @@ String _mensagemVazia(AdminModulo modulo) => switch (modulo) {
   AdminModulo.categorias => 'Use “Nova categoria” para cadastrar uma.',
   AdminModulo.auditoria => 'As ações administrativas aparecerão aqui.',
   AdminModulo.painel => 'Tente carregar o painel novamente.',
+  AdminModulo.moderacao => 'Volte à Central para tentar novamente.',
 };
 
 String _textoIndexavel(Map<String, dynamic> item) {
@@ -1705,6 +1761,7 @@ IconData _iconeModulo(AdminModulo modulo) => switch (modulo) {
   AdminModulo.categorias => Icons.category_outlined,
   AdminModulo.auditoria => Icons.history_rounded,
   AdminModulo.painel => Icons.dashboard_outlined,
+  AdminModulo.moderacao => Icons.gavel_outlined,
 };
 
 class _Indicador extends StatelessWidget {
