@@ -18,6 +18,7 @@ Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependen
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
 | `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
+| `EMAIL_OUTBOX_ENCRYPTION_KEY` | development-only fallback is permitted | Required in production, 32+ characters and distinct from the auth and MFA keys |
 | `GOOGLE_WEB_CLIENT_ID` | none | OAuth Web client ID accepted as the audience for Google ID tokens |
 | `GOOGLE_OAUTH_CLIENT_IDS` | falls back to `GOOGLE_WEB_CLIENT_ID` | Optional comma-separated audience allow-list for multiple trusted OAuth clients |
 | `CORS_ALLOWED_ORIGINS` | none | Comma-separated exact Web origins allowed in production; non-browser Android requests have no Origin header |
@@ -54,7 +55,7 @@ For local troubleshooting, use `npm run diagnostico:local` after starting the AP
 
 Request bodies and headers are not logged. The global exception filter returns a generic response and emits only a structured event, HTTP status, and broad exception type; it omits exception messages, stacks, URLs, and request data. Add request logging only with an explicit redaction and retention policy.
 
-The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. Verification uploads validate file type and can scan bytes through ClamAV before writing to private storage. Document storage supports local disk for development and Cloudflare R2 through its S3-compatible API for production. Documents are still served back only through the authenticated administrative API route, not by public object URLs. It currently has no payment or push notification module. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
+The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. Verification uploads validate file type and can scan bytes through ClamAV before writing to private storage. Document storage supports local disk for development and Cloudflare R2 through its S3-compatible API for production. Documents are still served back only through the authenticated administrative API route, not by public object URLs. Critical internal notifications can also be delivered by SMTP e-mail. Push via Firebase Cloud Messaging is not active yet; see `docs/notificacoes-email-fcm.md` for the remaining setup. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
 
 ## Database foundation
 
@@ -83,16 +84,24 @@ Authentication routes:
 - `POST /auth/login`
 - `POST /auth/google`
 - `POST /auth/login/mfa`
+- `POST /auth/admin-convites/aceitar` to consume a one-use administrator invitation and receive only an MFA enrollment challenge
+- `POST /auth/admin-mfa/setup` and `POST /auth/admin-mfa/confirmar` to enroll TOTP before the first administrator session
 - `POST /auth/senha/recuperacao`
 - `POST /auth/senha/recuperacao/confirmar`
 - `GET /auth/email/verificacao` with `Authorization: Bearer <token>`
 - `POST /auth/email/verificacao/enviar` with `Authorization: Bearer <token>`
 - `POST /auth/email/verificacao/confirmar` with `Authorization: Bearer <token>`
+
+Public registration must send `aceitouTermos: true` and the current
+`versaoTermos` returned by `GET /termos/atuais`. User creation, terms acceptance,
+the hashed verification code, and the encrypted e-mail outbox item are committed
+atomically. Protected authenticated routes reject accounts that have not accepted
+the current terms version.
 - `PATCH /auth/senha` with `Authorization: Bearer <token>`
 - `GET /auth/mfa/admin` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/mfa/admin/setup` with `Authorization: Bearer <token>` for `administrador`
 - `POST /auth/mfa/admin/confirmar` with `Authorization: Bearer <token>` for `administrador`
-- `POST /auth/mfa/admin/desativar` with `Authorization: Bearer <token>` for `administrador`
+- `POST /auth/mfa/admin/desativar` is retired and returns `409 MFA_ADMIN_NAO_PODE_SER_DESATIVADO`
 - `POST /auth/logout` with `Authorization: Bearer <token>`
 
 Passwords are stored as `scrypt` hashes. Responses never include `senha_hash`. Password reset sends a 6-digit recovery code by e-mail, stores only a SHA-256 hash scoped to the user, expires codes after 30 minutes, invalidates prior unused reset codes, and marks codes as used after password change. Recovery requests return a generic success response so the API does not reveal whether an e-mail exists. In production, password recovery fails closed if no SMTP delivery is available. Access tokens include a token version and are invalidated when the password changes. Local development can expose `devToken` only when `EXPOSE_PASSWORD_RESET_TOKEN=true`; do not enable that flag in production.
@@ -101,7 +110,11 @@ Google authentication accepts only a Google ID token and verifies its signature,
 
 New public registrations start with `emailVerificado=false`. The API stores only a hash of the six-digit e-mail verification code, expires it after 15 minutes, invalidates previous unused codes when a new one is requested, and marks all open codes as used when the e-mail is confirmed. Existing users are marked as verified by the migration so current demo and test accounts keep working. In production, configure SMTP before enabling public registration. Local development can expose the verification `devCode` only when `EXPOSE_EMAIL_VERIFICATION_CODE=true`; do not enable that flag in production.
 
-Administrator MFA uses TOTP. Setup returns the standard `otpauth://` URL for an authenticator app, stores the secret encrypted in `usuarios.mfa_secret_encrypted`, and requires a six-digit code before issuing an admin access token after password login. Enabling or disabling MFA invalidates previous admin sessions through `token_version`.
+Administrator MFA is mandatory at the API boundary. Admin login returns a five-minute MFA challenge when enrolled, or a ten-minute setup-only challenge when an existing admin has not enrolled; neither challenge is an access token. The secret is encrypted in `usuarios.mfa_secret_encrypted`, five consecutive incorrect codes trigger a database-persisted 15-minute lock, and MFA cannot be disabled through self-service. See [`docs/roteiro-mfa-admin.md`](../../docs/roteiro-mfa-admin.md).
+
+Additional administrator accounts are created through one-use e-mail invitations. The API stores only the SHA-256 hash of the 256-bit invitation token in `admin_convites`; the encrypted outbox payload is removed after delivery. The recipient chooses their password, accepts the current terms, proves access to the invited mailbox by using the emailed token, and must enroll TOTP before receiving an access token. Invites expire after 24 hours. The one-time deployment bootstrap (`BOOTSTRAP_INITIAL_ADMIN_ON_BUILD`) is the exception used to establish the first administrator; its password must be supplied through a protected deployment secret and the bootstrap switch should be turned off immediately after creation. The first account is still forced through MFA enrollment at login.
+
+New schema for this flow is applied by migration `1760132000000-AdminMfaInvites`, after `1760131000000-EmailOutbox`. Back up the production database and apply migrations in a controlled deployment before enabling the new API. Do not manually set `mfa_ativo` to bypass enrollment.
 
 Administrative user routes:
 
@@ -113,6 +126,8 @@ Administrative user routes:
 
 Administrative user responses never include password hashes. Public registration still cannot create administrator accounts; administrator creation is restricted to authenticated administrators and stores the password with the same `scrypt` hashing. Status changes are soft activation/deactivation only, are audited in `admin_auditoria`, cannot deactivate the current administrator's own account, and cannot deactivate the last active administrator. Invite flow, detailed permissions, and account recovery remain pending under P02/P15.
 
+Administrative lists use `pagina=1` and `limite=20` by default (maximum 100) and return a `paginacao` object with `pagina`, `limite`, `total`, `totalPaginas`, and `temMais`. Filters and searches are applied by the API/database before pagination, not only to the currently visible page. Supported filters include account type/status and term for users; status, document type and term for documents; status and term for reports and reviews; active status and term for categories; action and term for audit events; and eligibility state and term for professional habilitations. These list routes remain administrator-protected, and professional habilitations continue to require enrolled MFA.
+
 Client routes:
 
 - `GET /clientes/me` with `Authorization: Bearer <token>` for `cliente`
@@ -121,16 +136,17 @@ Client routes:
 - `POST /clientes/me/enderecos` with `Authorization: Bearer <token>` for `cliente`
 - `PATCH /clientes/me/enderecos/:id` with `Authorization: Bearer <token>` for `cliente`
 - `DELETE /clientes/me/enderecos/:id` with `Authorization: Bearer <token>` for `cliente`
-- `GET /clientes/me/favoritos` with `Authorization: Bearer <token>` for `cliente`
+- `GET /clientes/me/favoritos?pagina=1&limite=20` with `Authorization: Bearer <token>` for `cliente`
+- `GET /clientes/me/favoritos/:profissionalId` with `Authorization: Bearer <token>` for `cliente`
 - `POST /clientes/me/favoritos/:profissionalId` with `Authorization: Bearer <token>` for `cliente`
 - `DELETE /clientes/me/favoritos/:profissionalId` with `Authorization: Bearer <token>` for `cliente`
 
-Client profiles and addresses are private to the authenticated client. Favorite responses include only the same public professional data exposed by the professional search.
+Client profiles and addresses are private to the authenticated client. Favorite responses include only the same public professional data exposed by the professional search. Search and favorites return `paginacao` metadata and accept page sizes up to 50; the app loads more results on demand.
 
 Professional routes:
 
-- `GET /profissionais`
-- `GET /profissionais?termo=eletricista&bairro=jardim&categoriaId=1`
+- `GET /profissionais?pagina=1&limite=20`
+- `GET /profissionais?termo=eletricista&bairro=jardim&categoriaId=1&pagina=1&limite=20`
 - `GET /profissionais/:id`
 - `GET /profissionais/:id/disponibilidade`
 - `GET /profissionais/me` with `Authorization: Bearer <token>` for `profissional` or `empresa`
@@ -181,7 +197,7 @@ Administrative dashboard and audit routes:
 - `GET /admin/painel` with `Authorization: Bearer <token>` for `administrador`
 - `GET /admin/painel/auditoria` with `Authorization: Bearer <token>` for `administrador`
 
-Administrative actions that create or change administrator accounts, activate/deactivate users, create/update categories, analyze documents, moderate reports, or moderate reviews are recorded in `admin_auditoria`. Audit responses include actor summary, action, target type/id, a short non-sensitive detail, and timestamp.
+Administrative actions that create or change administrator accounts, activate/deactivate users, create/update categories, analyze documents, moderate reports, or moderate reviews are recorded in `admin_auditoria` in the same database transaction as the business change. Events include actor, action, target, timestamp, and structured before/after details; moderation decisions record the selected reason without copying uploaded files, credentials, or full user reports. Audit detail is stored as JSON text in a `TEXT` column. Before deploying this version, back up the database and apply migration `AdminAuditoriaDetalhes1760133000000` with `npm run db:migration:run`. Its rollback refuses to shrink the field if doing so would truncate existing audit events.
 
 History routes:
 
@@ -230,7 +246,15 @@ Notification routes:
 
 Internal notifications are created for real backend events such as new requests, request acceptance/refusal/cancellation/conclusion, received messages, and received reviews. Notification registration is auxiliary and must not alter the service state if it fails.
 
+Critical request lifecycle, completion/incident, rescheduling, quote, document-review, and report-status notifications are additionally sent by SMTP when the recipient account is active and its e-mail is verified. Chat messages and reviews remain in-app only. SMTP failures are logged without recipient or message content and do not undo the business operation. E-mail delivery is attempted inline and is not backed by a durable retry queue; production monitoring/retry behavior remains a follow-up.
+
 The personal request, message, report, and notification lists accept `pagina` and `limite`. Limits from 1 to 50 are accepted. Responses include `paginacao` with the current page, limit, total records, total pages, and whether another page exists.
+
+### Disposable real-MySQL integration test
+
+`npm run test:integration:mysql` compiles the API and runs an opt-in end-to-end test against a fresh random MySQL database. It exercises account creation and e-mail verification, duplicate e-mail/phone rejection, client profile and address persistence, professional profile and availability persistence, and the fail-closed booking rule while professional safety habilitation is pending. The test drops only the database it created. It refuses non-loopback hosts and does not use `DB_NAME` as a target.
+
+Run only against a local MySQL instance using a test account with permission to create and drop databases. Set `CONECTALAR_MYSQL_TEST=1`, `CONECTALAR_TEST_DB_HOST=127.0.0.1`, `CONECTALAR_TEST_DB_PORT`, `CONECTALAR_TEST_DB_USER`, and `CONECTALAR_TEST_DB_PASSWORD` in the shell first. Never point this test at production or a forwarded production database. The MySQL server must be running; the suite is skipped unless explicitly enabled.
 
 Document verification routes:
 

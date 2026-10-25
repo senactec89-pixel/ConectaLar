@@ -56,6 +56,10 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /enderecoAtendimento/);
   assert.match(openapi, /\/profissionais\/me\/avaliacoes:/);
   assert.match(openapi, /\/profissionais\/\{id\}\/avaliacoes:/);
+  assert.match(openapi, /\/clientes\/me\/favoritos:/);
+  assert.match(openapi, /\/clientes\/me\/favoritos\/\{profissionalId\}:/);
+  assert.match(openapi, /name: limite, in: query/);
+  assert.match(openapi, /Paginacao/);
   assert.match(openapi, /name: pagina, in: query/);
   assert.match(openapi, /name: comComentario, in: query/);
   assert.match(openapi, /totalPaginas/);
@@ -166,11 +170,16 @@ test('authentication keeps e-mail verification codes hashed and expiring', async
   const entity = await source(
     'dist/database/entities/usuario-email-verificacao.entity.js',
   );
+  const outbox = await source('dist/auth/email-outbox.service.js');
+  const mail = await source('dist/auth/mail.service.js');
   const guard = await source('dist/auth/auth.guard.js');
 
   assert.match(auth, /hashEmailVerificationCode/);
   assert.match(auth, /emailVerificationTtlMinutes = 15/);
-  assert.match(auth, /sendEmailVerificationCode/);
+  assert.match(auth, /agendarCodigoVerificacaoEmail/);
+  assert.match(outbox, /payloadCriptografado/);
+  assert.match(outbox, /aes-256-gcm/);
+  assert.match(mail, /sendEmailVerificationCode/);
   assert.match(entity, /codigoHash/);
   assert.match(entity, /expiraEm/);
   assert.match(entity, /usadoEm/);

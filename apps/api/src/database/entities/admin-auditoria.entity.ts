@@ -33,7 +33,7 @@ export class AdminAuditoriaEntity {
   @Column({ name: 'alvo_id', type: 'int', unsigned: true })
   alvoId!: number;
 
-  @Column({ type: 'varchar', length: 600, nullable: true })
+  @Column({ type: 'text', nullable: true })
   detalhe!: string | null;
 
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })

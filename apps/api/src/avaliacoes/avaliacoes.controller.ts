@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -53,8 +54,8 @@ export class AvaliacoesController {
   @Get('avaliacoes/moderacao')
   @UseGuards(RolesGuard)
   @Roles(UsuarioTipo.Administrador)
-  listarModeracao() {
-    return this.avaliacoes.listarModeracao();
+  listarModeracao(@Query() query: Record<string, unknown>) {
+    return this.avaliacoes.listarModeracao(query);
   }
 
   @Patch('avaliacoes/:id/moderacao')

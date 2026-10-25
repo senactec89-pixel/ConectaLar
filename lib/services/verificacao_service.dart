@@ -16,6 +16,22 @@ class VerificacaoService {
   Future<Map<String, dynamic>> consultarIdentidade() =>
       _api.get('profissionais/me/habilitacao/identidade');
 
+  Future<Map<String, dynamic>> iniciarPosseTelefone() => _api.post(
+    'profissionais/me/habilitacao/telefone',
+    body: {'consentimento': true},
+  );
+
+  Future<Map<String, dynamic>> consultarPosseTelefone() =>
+      _api.get('profissionais/me/habilitacao/telefone');
+
+  Future<Map<String, dynamic>> confirmarPosseTelefone({
+    required String codigo,
+    required String tentativaId,
+  }) => _api.post(
+    'profissionais/me/habilitacao/telefone/confirmacao',
+    body: {'codigo': codigo, 'tentativaId': tentativaId},
+  );
+
   Future<Map<String, dynamic>> enviarDocumento({
     required String tipoDocumento,
     String? referenciaArquivo,

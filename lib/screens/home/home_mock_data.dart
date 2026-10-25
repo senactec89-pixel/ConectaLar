@@ -48,5 +48,6 @@ abstract final class HomeMockData {
         servicos: ['Limpeza', 'Organização'],
       ),
     ],
+    nearbySearchAvailable: true,
   );
 }

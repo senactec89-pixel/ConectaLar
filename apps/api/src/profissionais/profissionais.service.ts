@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, EntityManager, In, Repository } from 'typeorm';
+import { Between, Brackets, EntityManager, In, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
@@ -43,14 +43,6 @@ interface UpsertPerfilInput {
   readonly servicos: readonly ProfissionalServicoInput[];
 }
 
-interface ProfissionaisFiltros {
-  readonly termo: string | null;
-  readonly bairro: string | null;
-  readonly categoriaId: number | null;
-  readonly cidade: string | null;
-  readonly uf: string | null;
-}
-
 @Injectable()
 export class ProfissionaisService {
   constructor(
@@ -83,6 +75,7 @@ export class ProfissionaisService {
     query: Record<string, unknown>,
     exigirRaio = false,
   ) {
+    const paginacao = parseProfissionaisPaginacao(query);
     const termo = optionalText(query.termo, 80);
     const bairro = optionalText(query.bairro, 80);
     const categoriaId = optionalId(query.categoriaId);
@@ -110,46 +103,109 @@ export class ProfissionaisService {
         { ativo: true },
       )
       .leftJoinAndSelect('servico.categoria', 'categoria')
+      .leftJoin('perfil.servicos', 'servicoFiltro', 'servicoFiltro.ativo = :ativo', {
+        ativo: true,
+      })
+      .leftJoin('servicoFiltro.categoria', 'categoriaFiltro')
       .where('perfil.ativo = :ativo', { ativo: true })
       .andWhere('usuario.ativo = :ativo', { ativo: true })
       .andWhere('usuario.tipo IN (:...tipos)', {
         tipos: [UsuarioTipo.Profissional, UsuarioTipo.Empresa],
       })
-      .orderBy('perfil.verificado', 'DESC')
-      .addOrderBy('usuario.nome', 'ASC');
+      .distinct(true);
 
-    const perfis = await builder.getMany();
-    const filtrados = perfis
-      .map((perfil) => ({
-        perfil,
-        distanciaKm:
-          latitude === null || longitude === null
-            ? null
-            : distanciaDoPerfil(perfil, latitude, longitude),
-      }))
-      .filter(({ perfil, distanciaKm }) =>
-        correspondeFiltros(
-          perfil,
-          { termo, bairro, categoriaId, cidade, uf },
-          distanciaKm,
-          raioKm,
+    if (termo !== null) {
+      const padrao = `%${termo}%`;
+      builder.andWhere(
+        new Brackets((filtros) =>
+          filtros
+            .where('usuario.nome LIKE :termo', { termo: padrao })
+            .orWhere('perfil.descricao LIKE :termo')
+            .orWhere('perfil.bairro LIKE :termo')
+            .orWhere('servicoFiltro.nome LIKE :termo')
+            .orWhere('categoriaFiltro.nome LIKE :termo'),
         ),
-      )
-      .sort((a, b) => {
-        if (a.distanciaKm === null) return b.distanciaKm === null ? 0 : 1;
-        if (b.distanciaKm === null) return -1;
-        return a.distanciaKm - b.distanciaKm;
+      );
+    }
+    if (categoriaId !== null) {
+      builder.andWhere('servicoFiltro.categoriaId = :categoriaId', {
+        categoriaId,
       });
+    }
+    if (latitude === null && (bairro !== null || cidade !== null || uf !== null)) {
+      builder.andWhere(
+        new Brackets((localizacao) => {
+          if (bairro !== null) {
+            localizacao.where('perfil.bairro LIKE :bairro', { bairro: `%${bairro}%` });
+          }
+          if (cidade !== null) {
+            const condicao = uf === null
+              ? 'perfil.cidade LIKE :cidade'
+              : '(perfil.cidade LIKE :cidade AND perfil.uf = :uf)';
+            const parametros = { cidade: `%${cidade}%`, uf };
+            if (bairro !== null) localizacao.orWhere(condicao, parametros);
+            else localizacao.where(condicao, parametros);
+          } else if (uf !== null) {
+            if (bairro !== null) localizacao.orWhere('perfil.uf = :uf', { uf });
+            else localizacao.where('perfil.uf = :uf', { uf });
+          }
+        }),
+      );
+    }
+
+    if (latitude !== null && longitude !== null) {
+      const distancia = distanciaSql();
+      const coordenadas = { latitude, longitude };
+      builder
+        .addSelect(distancia, 'distancia_km')
+        .addSelect(`COALESCE(${distancia}, 1000000000)`, 'distancia_ordenacao')
+        .setParameters(coordenadas);
+      if (raioKm !== null) {
+        builder
+          .andWhere('perfil.latitude IS NOT NULL AND perfil.longitude IS NOT NULL')
+          .andWhere(`${distancia} <= LEAST(:raioKm, perfil.raioAtendimentoKm)`, {
+            ...coordenadas,
+            raioKm,
+          });
+      }
+      builder
+        .orderBy('distancia_ordenacao', 'ASC')
+        .addOrderBy('perfil.verificado', 'DESC')
+        .addOrderBy('usuario.nome', 'ASC')
+        .addOrderBy('perfil.id', 'ASC');
+    } else {
+      builder
+        .orderBy('perfil.verificado', 'DESC')
+        .addOrderBy('usuario.nome', 'ASC')
+        .addOrderBy('perfil.id', 'ASC');
+    }
+
+    builder
+      .skip((paginacao.pagina - 1) * paginacao.limite)
+      .take(paginacao.limite);
+    const [perfis, total] = await builder.getManyAndCount();
     const resumos = await this.resumosAvaliacoes(
-      filtrados.map(({ perfil }) => perfil.usuarioId),
+      perfis.map((perfil) => perfil.usuarioId),
     );
     return {
-      profissionais: filtrados.map(({ perfil, distanciaKm }) => ({
-        ...perfilPublico(perfil),
-        ...resumos.get(perfil.usuarioId),
-        distanciaKm:
-          distanciaKm === null ? null : Math.round(distanciaKm * 10) / 10,
-      })),
+      profissionais: perfis.map((perfil) => {
+        const distanciaKm = latitude === null || longitude === null
+          ? null
+          : distanciaDoPerfil(perfil, latitude, longitude);
+        return {
+          ...perfilPublico(perfil),
+          ...resumos.get(perfil.usuarioId),
+          distanciaKm:
+            distanciaKm === null ? null : Math.round(distanciaKm * 10) / 10,
+        };
+      }),
+      paginacao: {
+        pagina: paginacao.pagina,
+        limite: paginacao.limite,
+        total,
+        totalPaginas: Math.max(1, Math.ceil(total / paginacao.limite)),
+        temMais: paginacao.pagina * paginacao.limite < total,
+      },
     };
   }
 
@@ -710,6 +766,7 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     .filter((servico) => servico.ativo)
     .map(servicoResponse);
 
+  const disponivelParaAtendimento = podeAtender(perfil);
   return {
     id: perfil.id,
     usuarioId: perfil.usuarioId,
@@ -725,7 +782,13 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
     longitudeAproximada: coordenadaAproximada(perfil.longitude),
     precoInicial: numberOrNull(perfil.precoInicial),
     verificado: perfil.verificado,
-    podeReceberSolicitacoes: podeAtender(perfil),
+    podeReceberSolicitacoes: disponivelParaAtendimento,
+    atendimentoStatus: disponivelParaAtendimento
+      ? 'disponivel'
+      : 'em_verificacao',
+    atendimentoMensagem: disponivelParaAtendimento
+      ? 'Disponivel para receber solicitacoes.'
+      : 'Perfil em verificacao e ainda indisponivel para novas solicitacoes.',
     servicos,
   };
 }
@@ -747,73 +810,6 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
     intervaloMinutos: servico.intervaloMinutos,
     ativo: servico.ativo,
   };
-}
-
-function correspondeFiltros(
-  perfil: ProfissionalPerfilEntity,
-  filtros: ProfissionaisFiltros,
-  distanciaKm: number | null,
-  raioKm: number | null,
-): boolean {
-  const bairro = normalizar(filtros.bairro);
-  const cidade = normalizar(filtros.cidade);
-  if (distanciaKm === null && (bairro !== null || cidade !== null || filtros.uf !== null)) {
-    const correspondeBairro =
-      bairro !== null && normalizar(perfil.bairro)?.includes(bairro) === true;
-    const correspondeCidade =
-      cidade !== null &&
-      normalizar(perfil.cidade)?.includes(cidade) === true &&
-      (filtros.uf === null || perfil.uf?.toUpperCase() === filtros.uf);
-    const correspondeUf =
-      cidade === null &&
-      filtros.uf !== null &&
-      perfil.uf?.toUpperCase() === filtros.uf;
-    if (!correspondeBairro && !correspondeCidade && !correspondeUf) {
-      return false;
-    }
-  }
-  if (raioKm !== null) {
-    if (distanciaKm === null) return false;
-    if (
-      distanciaKm > raioKm ||
-      distanciaKm > perfil.raioAtendimentoKm
-    ) {
-      return false;
-    }
-  }
-
-  if (
-    filtros.categoriaId !== null &&
-    !(perfil.servicos ?? []).some(
-      (servico) => servico.categoriaId === filtros.categoriaId,
-    )
-  ) {
-    return false;
-  }
-
-  const termo = normalizar(filtros.termo);
-  if (termo === null) {
-    return true;
-  }
-
-  const campos = [
-    perfil.usuario.nome,
-    perfil.descricao,
-    perfil.bairro,
-    ...(perfil.servicos ?? []).map((servico) => servico.nome),
-    ...(perfil.servicos ?? []).map((servico) => servico.categoria?.nome ?? ''),
-  ];
-
-  return campos.some((campo) => normalizar(campo)?.includes(termo));
-}
-
-function normalizar(value: string | null): string | null {
-  if (value === null) return null;
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLowerCase();
 }
 
 function parseUpsertPerfil(body: unknown): UpsertPerfilInput {
@@ -867,6 +863,29 @@ function requiredRadius(value: unknown): number {
 function optionalRadius(value: unknown): number | null {
   if (value === undefined || value === null || value === '') return null;
   return requiredRadius(value);
+}
+
+function parseProfissionaisPaginacao(query: Record<string, unknown>) {
+  const pagina = parsePositiveInteger(query.pagina ?? '1', 10_000);
+  const limite = parsePositiveInteger(query.limite ?? '20', 50);
+  if (pagina === null || limite === null) {
+    throw badRequest('PAGINACAO_INVALIDA');
+  }
+  return { pagina, limite };
+}
+
+function parsePositiveInteger(value: unknown, max: number): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) return null;
+  return parsed;
+}
+
+function distanciaSql(): string {
+  return '(6371 * 2 * ASIN(SQRT(LEAST(1, '
+    + 'POWER(SIN(RADIANS(perfil.latitude - :latitude) / 2), 2) + '
+    + 'COS(RADIANS(:latitude)) * COS(RADIANS(perfil.latitude)) * '
+    + 'POWER(SIN(RADIANS(perfil.longitude - :longitude) / 2), 2)'
+    + '))))';
 }
 
 function optionalCoordinate(

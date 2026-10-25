@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
@@ -14,6 +14,9 @@ import { DenunciaStatus } from '../domain/denuncia-status.js';
 import { DocumentoVerificacaoStatus } from '../domain/documento-verificacao-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
+import { optionalEnumFilter, optionalSearchTerm } from '../common/admin-list-query.js';
+import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
+import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 
 @Injectable()
 export class AdminPainelService {
@@ -124,14 +127,34 @@ export class AdminPainelService {
     };
   }
 
-  async listarAuditoria() {
-    const eventos = await this.auditoria.find({
-      relations: { ator: true },
-      order: { criadoEm: 'DESC' },
-      take: 100,
-    });
+  async listarAuditoria(query: Record<string, unknown>) {
+    const acao = optionalEnumFilter(query, 'acao', Object.values(AdminAuditoriaAcao));
+    const alvoTipo = optionalEnumFilter(query, 'alvoTipo', [
+      'usuario', 'categoria', 'documento', 'denuncia', 'avaliacao', 'profissional',
+    ] as const);
+    const termo = optionalSearchTerm(query);
+    const atorId = optionalPositiveId(query.atorId);
+    const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
+    const builder = this.auditoria
+      .createQueryBuilder('evento')
+      .leftJoinAndSelect('evento.ator', 'ator')
+      .orderBy('evento.criadoEm', 'DESC')
+      .addOrderBy('evento.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
+    if (acao !== null) builder.andWhere('evento.acao = :acao', { acao });
+    if (alvoTipo !== null) builder.andWhere('evento.alvoTipo = :alvoTipo', { alvoTipo });
+    if (atorId !== null) builder.andWhere('evento.atorId = :atorId', { atorId });
+    if (termo !== null) {
+      builder.andWhere(
+        '(ator.nome LIKE :termo OR ator.email LIKE :termo OR evento.acao LIKE :termo OR evento.alvoTipo LIKE :termo)',
+        { termo: `%${termo}%` },
+      );
+    }
+    const [eventos, total] = await builder.getManyAndCount();
 
     return {
+      paginacao: paginationMetadata(pagination, total),
       eventos: eventos.map((evento) => ({
         id: evento.id,
         ator: {
@@ -147,4 +170,12 @@ export class AdminPainelService {
       })),
     };
   }
+}
+
+function optionalPositiveId(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^[1-9]\d{0,9}$/.test(value)) {
+    throw new BadRequestException({ code: 'FILTRO_INVALIDO', message: 'Filtro invalido.' });
+  }
+  return Number(value);
 }

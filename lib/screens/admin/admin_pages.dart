@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -23,6 +24,17 @@ enum AdminModulo {
   auditoria,
 }
 
+class _AdminListaDados {
+  const _AdminListaDados({required this.itens, required this.paginacao});
+
+  final List<Map<String, dynamic>> itens;
+  final Map<String, dynamic> paginacao;
+
+  int get pagina => int.tryParse('${paginacao['pagina']}') ?? 1;
+  int get totalPaginas => int.tryParse('${paginacao['totalPaginas']}') ?? 1;
+  int get total => int.tryParse('${paginacao['total']}') ?? itens.length;
+}
+
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key, this.modulo = AdminModulo.painel});
   final AdminModulo modulo;
@@ -32,15 +44,21 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage> {
   late AdminModulo _modulo = widget.modulo;
-  late Future<List<Map<String, dynamic>>> _future = _carregar(_modulo);
+  late Future<_AdminListaDados> _future = _carregar(_modulo);
   late Future<Map<String, dynamic>> _painelFuture = AppServices.instance.admin
       .painel();
   String _tipo = '';
   String _termo = '';
   String _buscaLocal = '';
+  String _statusUsuario = '';
+  String _statusDenuncia = '';
+  String _statusAvaliacao = 'pendente';
+  String _tipoDocumento = '';
+  String _acaoAuditoria = '';
   final _buscaLocalController = TextEditingController();
   String _statusCategoria = '';
   String _statusDocumento = 'pendente';
+  int _pagina = 1;
   final Set<int> _documentosCarregados = {};
   bool _mutando = false;
 
@@ -50,49 +68,99 @@ class _AdminPageState extends State<AdminPage> {
     super.dispose();
   }
 
-  Future<List<Map<String, dynamic>>> _carregar(AdminModulo modulo) async {
+  Future<_AdminListaDados> _carregar(AdminModulo modulo) async {
     final service = AppServices.instance.admin;
     final Map<String, dynamic> result;
     final String key;
     switch (modulo) {
       case AdminModulo.usuarios:
         result = await service.usuarios(
+          pagina: _pagina,
           tipo: _tipo.isEmpty ? null : _tipo,
           termo: _termo.isEmpty ? null : _termo,
+          ativo: _statusUsuario,
         );
         key = 'usuarios';
       case AdminModulo.documentos:
         result = await service.documentos(
           status: _statusDocumento.isEmpty ? null : _statusDocumento,
+          tipoDocumento: _tipoDocumento,
+          termo: _termo,
+          pagina: _pagina,
         );
         key = 'documentos';
       case AdminModulo.denuncias:
-        result = await service.denuncias();
+        result = await service.denuncias(
+          status: _statusDenuncia,
+          termo: _termo,
+          pagina: _pagina,
+        );
         key = 'denuncias';
       case AdminModulo.avaliacoes:
-        result = await service.avaliacoes();
+        result = await service.avaliacoes(
+          status: _statusAvaliacao,
+          termo: _termo,
+          pagina: _pagina,
+        );
         key = 'avaliacoes';
       case AdminModulo.categorias:
-        result = await service.categorias();
+        result = await service.categorias(
+          ativo: _statusCategoria == 'ativa'
+              ? 'true'
+              : _statusCategoria == 'inativa'
+              ? 'false'
+              : null,
+          termo: _termo,
+          pagina: _pagina,
+        );
         key = 'categorias';
       case AdminModulo.auditoria:
-        result = await service.auditoria();
+        result = await service.auditoria(
+          pagina: _pagina,
+          termo: _termo,
+          acao: _acaoAuditoria,
+        );
         key = 'eventos';
       case AdminModulo.painel:
       case AdminModulo.moderacao:
-        return const [];
+        return const _AdminListaDados(itens: [], paginacao: {});
     }
     final values = result[key];
-    return values is List
-        ? values.whereType<Map<String, dynamic>>().toList()
-        : const [];
+    final pagination = result['paginacao'];
+    return _AdminListaDados(
+      itens: values is List
+          ? values.whereType<Map<String, dynamic>>().toList()
+          : const [],
+      paginacao: pagination is Map<String, dynamic> ? pagination : const {},
+    );
   }
 
   void _abrir(AdminModulo modulo) => setState(() {
     _modulo = modulo;
+    _pagina = 1;
+    _termo = '';
     _buscaLocal = '';
+    _tipo = '';
+    _statusUsuario = '';
+    _statusCategoria = '';
+    _statusDocumento = 'pendente';
+    _tipoDocumento = '';
+    _statusDenuncia = '';
+    _statusAvaliacao = 'pendente';
+    _acaoAuditoria = '';
     _buscaLocalController.clear();
     _future = _carregar(modulo);
+  });
+
+  void _aplicarFiltros() => setState(() {
+    _termo = _buscaLocalController.text.trim();
+    _pagina = 1;
+    _future = _carregar(_modulo);
+  });
+
+  void _irParaPagina(int pagina) => setState(() {
+    _pagina = pagina;
+    _future = _carregar(_modulo);
   });
 
   Future<void> _atualizarModulo() async {
@@ -234,6 +302,7 @@ class _AdminPageState extends State<AdminPage> {
                     ? null
                     : (status) => setState(() {
                         _statusDocumento = status;
+                        _pagina = 1;
                         _future = _carregar(_modulo);
                         _future.ignore();
                       }),
@@ -498,14 +567,14 @@ class _AdminPageState extends State<AdminPage> {
       AppRoutes.adminCriarAdministrador,
     );
     if (!mounted || criado != true) return;
-    _avisar('Administrador criado.');
+    _avisar('Convite administrativo registrado. Confira a entrega do e-mail.');
     setState(() {
       _future = _carregar(_modulo);
       _future.ignore();
     });
   }
 
-  Widget _lista() => FutureBuilder<List<Map<String, dynamic>>>(
+  Widget _lista() => FutureBuilder<_AdminListaDados>(
     future: _future,
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
@@ -524,29 +593,30 @@ class _AdminPageState extends State<AdminPage> {
           }),
         );
       }
-      final items = snapshot.data ?? const <Map<String, dynamic>>[];
-      final permiteBuscaLocal =
-          _modulo == AdminModulo.avaliacoes ||
-          _modulo == AdminModulo.categorias;
-      final filtrados =
-          _modulo != AdminModulo.categorias || _statusCategoria.isEmpty
-          ? items
-          : items
-                .where(
-                  (item) =>
-                      (item['ativo'] == true) == (_statusCategoria == 'ativa'),
-                )
-                .toList(growable: false);
-      final itensVisiveis = !permiteBuscaLocal || _buscaLocal.trim().isEmpty
-          ? filtrados
-          : filtrados
-                .where(
-                  (item) => _textoIndexavel(
-                    item,
-                  ).contains(_buscaLocal.trim().toLowerCase()),
-                )
-                .toList(growable: false);
-      return Column(
+      final dados =
+          snapshot.data ?? const _AdminListaDados(itens: [], paginacao: {});
+      final items = dados.itens;
+      final permiteBuscaLocal = _modulo != AdminModulo.painel;
+      Widget filtroDropdown(
+        String label,
+        String value,
+        List<DropdownMenuItem<String>> options,
+        ValueChanged<String?> onChanged,
+      ) => DropdownButtonFormField<String>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: options,
+        onChanged: _mutando
+            ? null
+            : (value) => setState(() {
+                onChanged(value);
+                _pagina = 1;
+                _future = _carregar(_modulo);
+              }),
+      );
+      return ListView(
+        padding: const EdgeInsets.only(bottom: 12),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -560,12 +630,13 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
           ),
-          if (permiteBuscaLocal)
+          if (permiteBuscaLocal && _modulo != AdminModulo.usuarios)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _buscaLocalController,
                 onChanged: (value) => setState(() => _buscaLocal = value),
+                onSubmitted: (_) => _aplicarFiltros(),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search_rounded),
                   labelText: _modulo == AdminModulo.categorias
@@ -577,7 +648,12 @@ class _AdminPageState extends State<AdminPage> {
                           tooltip: 'Limpar busca',
                           onPressed: () {
                             _buscaLocalController.clear();
-                            setState(() => _buscaLocal = '');
+                            setState(() {
+                              _buscaLocal = '';
+                              _termo = '';
+                              _pagina = 1;
+                              _future = _carregar(_modulo);
+                            });
                           },
                           icon: const Icon(Icons.close_rounded),
                         ),
@@ -590,15 +666,14 @@ class _AdminPageState extends State<AdminPage> {
               child: Column(
                 children: [
                   TextField(
+                    controller: _buscaLocalController,
+                    textInputAction: TextInputAction.search,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
                       labelText: 'Buscar nome ou e-mail',
                     ),
-                    onChanged: (value) => _termo = value,
-                    onSubmitted: (_) => setState(() {
-                      _future = _carregar(_modulo);
-                      _future.ignore();
-                    }),
+                    onChanged: (value) => setState(() => _buscaLocal = value),
+                    onSubmitted: (_) => _aplicarFiltros(),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
@@ -628,6 +703,7 @@ class _AdminPageState extends State<AdminPage> {
                     ],
                     onChanged: (value) => setState(() {
                       _tipo = value ?? '';
+                      _pagina = 1;
                       _future = _carregar(_modulo);
                     }),
                   ),
@@ -653,8 +729,11 @@ class _AdminPageState extends State<AdminPage> {
                               key: ValueKey('admin-categorias-${filtro.key}'),
                               label: Text(filtro.value),
                               selected: _statusCategoria == filtro.key,
-                              onSelected: (_) =>
-                                  setState(() => _statusCategoria = filtro.key),
+                              onSelected: (_) => setState(() {
+                                _statusCategoria = filtro.key;
+                                _pagina = 1;
+                                _future = _carregar(_modulo);
+                              }),
                             ),
                             const SizedBox(width: 8),
                           ],
@@ -672,32 +751,155 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
             ),
-          Expanded(
-            child: itensVisiveis.isEmpty
-                ? EmptyStateView(
-                    title: items.isEmpty
-                        ? _modulo == AdminModulo.documentos
-                              ? 'Nenhum documento neste filtro'
-                              : _tituloVazio(_modulo)
-                        : _modulo == AdminModulo.categorias && filtrados.isEmpty
-                        ? 'Nenhuma categoria neste filtro'
-                        : 'Nenhum resultado encontrado',
-                    message: items.isEmpty
-                        ? _modulo == AdminModulo.documentos
-                              ? 'Escolha outro status ou aguarde novos envios.'
-                              : _mensagemVazia(_modulo)
-                        : _modulo == AdminModulo.categorias && filtrados.isEmpty
-                        ? 'Escolha outro status para ver as categorias cadastradas.'
-                        : 'Tente outro termo de busca.',
-                    icon: items.isEmpty
-                        ? _iconeModulo(_modulo)
-                        : Icons.search_off_rounded,
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 20),
-                    itemCount: itensVisiveis.length,
-                    itemBuilder: (context, i) => _item(itensVisiveis[i]),
+          if (_modulo == AdminModulo.usuarios)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: filtroDropdown('Situacao da conta', _statusUsuario, const [
+                DropdownMenuItem(value: '', child: Text('Todas')),
+                DropdownMenuItem(value: 'true', child: Text('Ativas')),
+                DropdownMenuItem(value: 'false', child: Text('Desativadas')),
+              ], (value) => _statusUsuario = value ?? ''),
+            ),
+          if (_modulo == AdminModulo.documentos)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: filtroDropdown('Tipo de documento', _tipoDocumento, const [
+                DropdownMenuItem(value: '', child: Text('Todos os documentos')),
+                DropdownMenuItem(
+                  value: 'documento_identidade',
+                  child: Text('Identidade'),
+                ),
+                DropdownMenuItem(
+                  value: 'comprovante_endereco',
+                  child: Text('Comprovante de endereco'),
+                ),
+                DropdownMenuItem(
+                  value: 'certificado_opcional',
+                  child: Text('Certificado profissional'),
+                ),
+                DropdownMenuItem(
+                  value: 'certificado_curso',
+                  child: Text('Certificado de curso'),
+                ),
+              ], (value) => _tipoDocumento = value ?? ''),
+            ),
+          if (_modulo == AdminModulo.denuncias)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: filtroDropdown(
+                'Situacao da denuncia',
+                _statusDenuncia,
+                const [
+                  DropdownMenuItem(value: '', child: Text('Todas')),
+                  DropdownMenuItem(value: 'pendente', child: Text('Pendente')),
+                  DropdownMenuItem(
+                    value: 'em_analise',
+                    child: Text('Em analise'),
                   ),
+                  DropdownMenuItem(
+                    value: 'resolvida',
+                    child: Text('Resolvida'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'rejeitada',
+                    child: Text('Rejeitada'),
+                  ),
+                ],
+                (value) => _statusDenuncia = value ?? '',
+              ),
+            ),
+          if (_modulo == AdminModulo.avaliacoes)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: filtroDropdown(
+                'Situacao da avaliacao',
+                _statusAvaliacao,
+                const [
+                  DropdownMenuItem(value: 'todas', child: Text('Todas')),
+                  DropdownMenuItem(value: 'pendente', child: Text('Pendentes')),
+                  DropdownMenuItem(value: 'aprovada', child: Text('Aprovadas')),
+                  DropdownMenuItem(
+                    value: 'rejeitada',
+                    child: Text('Rejeitadas'),
+                  ),
+                ],
+                (value) => _statusAvaliacao = value ?? '',
+              ),
+            ),
+          if (_modulo == AdminModulo.auditoria)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child:
+                  filtroDropdown('Acao administrativa', _acaoAuditoria, const [
+                    DropdownMenuItem(value: '', child: Text('Todas as acoes')),
+                    DropdownMenuItem(
+                      value: 'usuario_ativado',
+                      child: Text('Ativacao de conta'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'usuario_desativado',
+                      child: Text('Desativacao de conta'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'categoria_criada',
+                      child: Text('Categoria criada'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'categoria_atualizada',
+                      child: Text('Categoria atualizada'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'documento_analisado',
+                      child: Text('Documento analisado'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'denuncia_moderada',
+                      child: Text('Denuncia moderada'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'avaliacao_moderada',
+                      child: Text('Avaliacao moderada'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'administrador_criado',
+                      child: Text('Convite de administrador'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'habilitacao_analisada',
+                      child: Text('Habilitacao analisada'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'habilitacao_revisao_solicitada',
+                      child: Text('Revisao solicitada'),
+                    ),
+                  ], (value) => _acaoAuditoria = value ?? ''),
+            ),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                height: 180,
+                child: EmptyStateView(
+                  title: _modulo == AdminModulo.documentos
+                      ? 'Nenhum documento neste filtro'
+                      : _tituloVazio(_modulo),
+                  message: _mensagemVazia(_modulo),
+                  icon: _iconeModulo(_modulo),
+                ),
+              ),
+            )
+          else
+            ...items.map(_item),
+          _PaginacaoAdmin(
+            pagina: dados.pagina,
+            totalPaginas: dados.totalPaginas,
+            total: dados.total,
+            onAnterior: dados.pagina > 1
+                ? () => _irParaPagina(dados.pagina - 1)
+                : null,
+            onProxima: dados.pagina < dados.totalPaginas
+                ? () => _irParaPagina(dados.pagina + 1)
+                : null,
           ),
         ],
       );
@@ -787,7 +989,7 @@ class _AdminPageState extends State<AdminPage> {
         );
       case AdminModulo.auditoria:
         final ator = _map(item['ator']);
-        final detalhe = '${item['detalhe'] ?? ''}'.trim();
+        final detalhe = _formatarDetalheAuditoria(item['detalhe']);
         final alvo = _rotuloAlvoAuditoria(item['alvoTipo']?.toString());
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
@@ -1205,6 +1407,48 @@ class _FiltrosDocumentais extends StatelessWidget {
       },
     );
   }
+}
+
+class _PaginacaoAdmin extends StatelessWidget {
+  const _PaginacaoAdmin({
+    required this.pagina,
+    required this.totalPaginas,
+    required this.total,
+    required this.onAnterior,
+    required this.onProxima,
+  });
+
+  final int pagina;
+  final int totalPaginas;
+  final int total;
+  final VoidCallback? onAnterior;
+  final VoidCallback? onProxima;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+    child: Row(
+      children: [
+        IconButton(
+          tooltip: 'Pagina anterior',
+          onPressed: onAnterior,
+          icon: const Icon(Icons.chevron_left_rounded),
+        ),
+        Expanded(
+          child: Text(
+            'Pagina $pagina de $totalPaginas  -  $total registros',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        IconButton(
+          tooltip: 'Proxima pagina',
+          onPressed: onProxima,
+          icon: const Icon(Icons.chevron_right_rounded),
+        ),
+      ],
+    ),
+  );
 }
 
 class _DocumentoModeracaoCard extends StatelessWidget {
@@ -1670,6 +1914,20 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
   _ => 'Ação administrativa',
 };
 
+String _formatarDetalheAuditoria(Object? value) {
+  final texto = '$value'.trim();
+  if (texto.isEmpty || value is! String) return texto;
+  try {
+    final decoded = jsonDecode(texto);
+    if (decoded is Map<String, dynamic>) {
+      return const JsonEncoder.withIndent('  ').convert(decoded);
+    }
+  } on FormatException {
+    return texto;
+  }
+  return texto;
+}
+
 String _rotuloAlvoAuditoria(String? alvo) => switch (alvo) {
   'usuario' => 'Usuário',
   'documento_verificacao' => 'Documento',
@@ -1761,23 +2019,6 @@ String _mensagemVazia(AdminModulo modulo) => switch (modulo) {
   AdminModulo.painel => 'Tente carregar o painel novamente.',
   AdminModulo.moderacao => 'Volte à Central para tentar novamente.',
 };
-
-String _textoIndexavel(Map<String, dynamic> item) {
-  final avaliador = item['avaliador'] is Map
-      ? (item['avaliador'] as Map)['nome']
-      : null;
-  final avaliado = item['avaliado'] is Map
-      ? (item['avaliado'] as Map)['nome']
-      : null;
-  return [
-    item['nome'],
-    item['categoria'],
-    item['status'],
-    item['comentario'],
-    avaliador,
-    avaliado,
-  ].whereType<Object>().join(' ').toLowerCase();
-}
 
 IconData _iconeModulo(AdminModulo modulo) => switch (modulo) {
   AdminModulo.usuarios => Icons.people_outline_rounded,

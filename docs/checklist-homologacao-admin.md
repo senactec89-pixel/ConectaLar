@@ -4,7 +4,15 @@ Use uma conta administrativa de teste e banco descartável. Execute decisões ap
 
 ## Acesso e painel
 
-- [ ] Entrar com conta admin e confirmar que uma conta sem papel admin recebe acesso restrito.
+- [ ] Convidar um administrador de teste e confirmar que nenhum token de convite aparece na resposta da API.
+- [ ] Aceitar o convite uma vez; repetir o mesmo token e confirmar rejeicao.
+- [ ] Confirmar que senha forte, aceite da versao atual dos termos e MFA sao obrigatorios antes do painel.
+- [ ] Testar convite expirado, alterado e enviado ao e-mail errado sem revelar se outra conta existe.
+- [ ] Confirmar que uma conta administrativa sem MFA recebe `403 MFA_ADMIN_OBRIGATORIO` em rotas protegidas.
+- [ ] Confirmar que cinco codigos TOTP errados bloqueiam tentativas por 15 minutos, inclusive depois de reiniciar a API.
+- [ ] Entrar com administrador habilitado e confirmar que senha + TOTP sao exigidos.
+- [ ] Confirmar que o usuario nao pode desativar MFA por interface ou API.
+- [ ] Confirmar que uma conta sem papel admin recebe acesso restrito.
 - [ ] Conferir indicadores e acessos do painel em aparelho.
 - [ ] Sair e confirmar que páginas autenticadas retornam ao login.
 

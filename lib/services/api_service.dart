@@ -7,10 +7,11 @@ import 'package:http/http.dart' as http;
 import '../utils/constants.dart';
 
 class ApiException implements Exception {
-  const ApiException(this.message, {this.statusCode});
+  const ApiException(this.message, {this.statusCode, this.code});
 
   final String message;
   final int? statusCode;
+  final String? code;
 
   @override
   String toString() => message;
@@ -35,6 +36,7 @@ class ApiService {
   String? _accessToken;
   int _sessionRevision = 0;
   Future<void> Function()? onSessionExpired;
+  Future<void> Function()? onTermsRequired;
 
   bool get autenticado => _accessToken != null;
 
@@ -201,6 +203,13 @@ class ApiService {
       await onSessionExpired?.call();
     }
 
+    if (response.statusCode == 403 &&
+        decoded['code'] == 'TERMOS_NAO_ACEITOS' &&
+        requestToken != null &&
+        requestRevision == _sessionRevision) {
+      await onTermsRequired?.call();
+    }
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw ApiException(
         _mensagemResposta(
@@ -209,6 +218,7 @@ class ApiService {
           endpoint: path,
         ),
         statusCode: response.statusCode,
+        code: decoded['code'] is String ? decoded['code'] as String : null,
       );
     }
 

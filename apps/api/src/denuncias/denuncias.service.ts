@@ -11,7 +11,8 @@ import {
   paginationMetadata,
   parsePaginationQuery,
 } from '../common/pagination.js';
-import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
+import { registrarAuditoriaAdmin } from '../common/admin-auditoria.js';
+import { optionalSearchTerm } from '../common/admin-list-query.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
@@ -37,8 +38,6 @@ interface ModerarDenunciaInput {
 @Injectable()
 export class DenunciasService {
   constructor(
-    @InjectRepository(AdminAuditoriaEntity)
-    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(DenunciaEntity)
     private readonly denuncias: Repository<DenunciaEntity>,
     @InjectRepository(SolicitacaoEntity)
@@ -114,50 +113,71 @@ export class DenunciasService {
 
   async listarModeracao(query: Record<string, unknown>) {
     const status = optionalStatus(query.status);
-    const denuncias = await this.denuncias.find({
-      where: status === null ? {} : { status },
-      relations: {
-        solicitacao: true,
-        denunciante: true,
-        denunciado: true,
-        analisadoPor: true,
-      },
-      order: { criadoEm: 'DESC' },
-      take: 100,
-    });
-
-    return { denuncias: denuncias.map(denunciaAdminResponse) };
+    const termo = optionalSearchTerm(query);
+    const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
+    const builder = this.denuncias
+      .createQueryBuilder('denuncia')
+      .leftJoinAndSelect('denuncia.solicitacao', 'solicitacao')
+      .leftJoinAndSelect('denuncia.denunciante', 'denunciante')
+      .leftJoinAndSelect('denuncia.denunciado', 'denunciado')
+      .leftJoinAndSelect('denuncia.analisadoPor', 'analisadoPor')
+      .orderBy('denuncia.criadoEm', 'DESC')
+      .addOrderBy('denuncia.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
+    if (status !== null) builder.andWhere('denuncia.status = :status', { status });
+    if (termo !== null) {
+      builder.andWhere(
+        '(denuncia.motivo LIKE :termo OR denuncia.descricao LIKE :termo OR denunciante.nome LIKE :termo OR denunciante.email LIKE :termo OR denunciado.nome LIKE :termo OR denunciado.email LIKE :termo)',
+        { termo: `%${termo}%` },
+      );
+    }
+    const [denuncias, total] = await builder.getManyAndCount();
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      denuncias: denuncias.map(denunciaAdminResponse),
+    };
   }
 
   async moderar(user: AuthenticatedUser, id: number, body: unknown) {
     const input = parseModerarDenuncia(body);
-    const denuncia = await this.denuncias.findOne({
-      where: { id },
-      relations: {
-        solicitacao: true,
-        denunciante: true,
-        denunciado: true,
-        analisadoPor: true,
-      },
-    });
-    if (denuncia === null) {
-      throw new NotFoundException({
-        code: 'DENUNCIA_NAO_ENCONTRADA',
-        message: 'Denuncia nao encontrada.',
+    const saved = await this.denuncias.manager.transaction(async (manager) => {
+      const denuncias = manager.getRepository(DenunciaEntity);
+      const denuncia = await denuncias.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
       });
-    }
+      if (denuncia === null) {
+        throw new NotFoundException({
+          code: 'DENUNCIA_NAO_ENCONTRADA',
+          message: 'Denuncia nao encontrada.',
+        });
+      }
 
-    denuncia.status = input.status;
-    denuncia.decisao = input.decisao;
-    denuncia.analisadoPorId = user.id;
-    denuncia.analisadoEm = new Date();
+      const statusAnterior = denuncia.status;
+      denuncia.status = input.status;
+      denuncia.decisao = input.decisao;
+      denuncia.analisadoPorId = user.id;
+      denuncia.analisadoEm = new Date();
 
-    const saved = await this.denuncias.save(denuncia);
-    await this.registrarAuditoria(
-      user.id,
-      saved.id,
-      `Status: ${saved.status}`,
-    );
+      const atualizado = await denuncias.save(denuncia);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.DenunciaModerada,
+        alvoTipo: 'denuncia',
+        alvoId: atualizado.id,
+        detalhe: {
+          solicitacaoId: atualizado.solicitacaoId,
+          denuncianteId: atualizado.denuncianteId,
+          denunciadoId: atualizado.denunciadoId,
+          motivoDenuncia: atualizado.motivo,
+          status: { antes: statusAnterior, depois: atualizado.status },
+          decisao: atualizado.decisao,
+        },
+      });
+      return atualizado;
+    });
+
     try {
       await this.notificacoes.criar({
         usuarioId: saved.denuncianteId,
@@ -173,26 +193,22 @@ export class DenunciasService {
     } catch {
       // A notificacao nao pode desfazer a decisao administrativa.
     }
-    saved.solicitacao = denuncia.solicitacao;
-    saved.denunciante = denuncia.denunciante;
-    saved.denunciado = denuncia.denunciado;
-    return { denuncia: denunciaAdminResponse(saved) };
-  }
-
-  private async registrarAuditoria(
-    atorId: number,
-    alvoId: number,
-    detalhe: string,
-  ) {
-    await this.auditoria.save(
-      this.auditoria.create({
-        atorId,
-        acao: AdminAuditoriaAcao.DenunciaModerada,
-        alvoTipo: 'denuncia',
-        alvoId,
-        detalhe,
-      }),
-    );
+    const resultado = await this.denuncias.findOne({
+      where: { id: saved.id },
+      relations: {
+        solicitacao: true,
+        denunciante: true,
+        denunciado: true,
+        analisadoPor: true,
+      },
+    });
+    if (resultado === null) {
+      throw new NotFoundException({
+        code: 'DENUNCIA_NAO_ENCONTRADA',
+        message: 'Denuncia nao encontrada.',
+      });
+    }
+    return { denuncia: denunciaAdminResponse(resultado) };
   }
 }
 

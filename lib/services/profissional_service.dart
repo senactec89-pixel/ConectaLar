@@ -5,8 +5,11 @@ class ProfissionalService {
 
   final ApiService _api;
 
-  Future<Map<String, dynamic>> listar() {
-    return _api.get('profissionais');
+  Future<Map<String, dynamic>> listar({int pagina = 1, int limite = 20}) {
+    return _api.get(
+      'profissionais',
+      queryParameters: {'pagina': '$pagina', 'limite': '$limite'},
+    );
   }
 
   Future<Map<String, dynamic>> buscar({
@@ -18,6 +21,8 @@ class ProfissionalService {
     double? latitude,
     double? longitude,
     int? raioKm,
+    int pagina = 1,
+    int limite = 20,
   }) {
     final filtros = <String, String>{
       if (termo != null && termo.isNotEmpty) 'termo': termo,
@@ -29,6 +34,8 @@ class ProfissionalService {
       if (raioKm != null) 'raioKm': '$raioKm',
       if (categoriaId != null && categoriaId.isNotEmpty)
         'categoriaId': categoriaId,
+      'pagina': '$pagina',
+      'limite': '$limite',
     };
     return _api.get('profissionais', queryParameters: filtros);
   }
@@ -39,6 +46,8 @@ class ProfissionalService {
     required int raioKm,
     String? termo,
     String? categoriaId,
+    int pagina = 1,
+    int limite = 20,
   }) {
     return _api.post(
       'profissionais/busca',
@@ -49,6 +58,8 @@ class ProfissionalService {
         if (termo != null && termo.isNotEmpty) 'termo': termo,
         if (categoriaId != null && categoriaId.isNotEmpty)
           'categoriaId': categoriaId,
+        'pagina': pagina,
+        'limite': limite,
       },
     );
   }

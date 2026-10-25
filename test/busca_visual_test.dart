@@ -11,6 +11,54 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('busca carrega a proxima pagina da lista inicial da API', (
+    tester,
+  ) async {
+    final consultas = <Uri>[];
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/categorias') {
+          return jsonResponse({'categorias': []});
+        }
+        if (request.url.path == '/profissionais') {
+          consultas.add(request.url);
+          final pagina = request.url.queryParameters['pagina'];
+          return jsonResponse({
+            'profissionais': [
+              {
+                'id': pagina == '2' ? 2 : 1,
+                'nome': pagina == '2' ? 'Profissional Dois' : 'Profissional Um',
+                'servicos': [],
+              },
+            ],
+            'paginacao': {
+              'pagina': int.parse(pagina ?? '1'),
+              'limite': 20,
+              'total': 21,
+              'totalPaginas': 2,
+              'temMais': pagina != '2',
+            },
+          });
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.busca);
+
+    expect(find.text('21 profissionais encontrados'), findsOneWidget);
+    expect(find.text('Profissional Um'), findsOneWidget);
+    final carregarMais = find.text('Carregar mais');
+    await tester.ensureVisible(carregarMais);
+    await tester.tap(carregarMais);
+    await tester.pumpAndSettle();
+
+    expect(consultas.map((uri) => uri.queryParameters['pagina']), ['1', '2']);
+    expect(find.text('Profissional Dois'), findsOneWidget);
+    expect(find.text('Carregar mais'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('categoria sugere serviços reais sem criar categoria na API', (
     tester,
   ) async {

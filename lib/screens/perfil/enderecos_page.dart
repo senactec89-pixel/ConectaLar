@@ -50,27 +50,29 @@ class _EnderecosPageState extends State<EnderecosPage> {
 
   Future<void> _remover(ClienteEndereco endereco) async {
     if (_removendoId != null) return;
-    final confirmado = await showDialog<bool>(
+    final confirmou = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        key: const ValueKey('confirmar-remover-endereco'),
         title: const Text('Remover endereço?'),
         content: Text(
-          'O endereço “${endereco.apelido}” será removido da sua lista.',
+          '"${endereco.apelido}" deixará de aparecer na sua lista e não poderá ser selecionado em novas solicitações.',
         ),
         actions: [
           TextButton(
+            key: const ValueKey('cancelar-remover-endereco'),
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancelar'),
           ),
-          TextButton(
+          FilledButton(
+            key: const ValueKey('confirmar-remover-endereco-acao'),
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.erro),
-            child: const Text('Remover'),
+            child: const Text('Remover endereço'),
           ),
         ],
       ),
     );
-    if (confirmado != true || !mounted) return;
+    if (confirmou != true || !mounted) return;
     setState(() => _removendoId = endereco.id);
     try {
       await AppServices.instance.clientes.removerEndereco(endereco.id);

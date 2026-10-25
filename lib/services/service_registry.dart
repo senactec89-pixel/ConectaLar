@@ -52,6 +52,7 @@ class AppServices {
       usuarioBusca = usuario;
     });
     this.api.onSessionExpired = auth.encerrarSessaoExpirada;
+    this.api.onTermsRequired = auth.marcarTermosPendentes;
     admin = AdminService(this.api);
     avaliacoes = AvaliacaoService(this.api);
     categorias = CategoriaService(this.api);
@@ -99,6 +100,9 @@ class AppServices {
   }
 
   Future<HomeContent> carregarHome() async {
+    var regionalAddressUnavailable = false;
+    var nearbySearchAvailable = false;
+
     Future<Map<String, dynamic>?> consultarSecao(
       Future<Map<String, dynamic>> Function() consulta,
       String chave,
@@ -115,37 +119,46 @@ class AppServices {
       if (auth.usuarioAtual?['tipo'] != 'cliente') {
         return await profissionais.listar();
       }
-      try {
-        final response = await clientes.listarEnderecos();
-        final enderecos = response['enderecos'];
-        if (enderecos is! List || enderecos.isEmpty) {
-          return await profissionais.listar();
-        }
-        final maps = enderecos.whereType<Map<String, dynamic>>().toList();
-        final principal = maps.firstWhere(
-          (endereco) => endereco['principal'] == true,
-          orElse: () => maps.first,
-        );
-        final latitude = doubleValueOrNull(principal['latitude']);
-        final longitude = doubleValueOrNull(principal['longitude']);
-        if (latitude != null && longitude != null) {
-          return await profissionais.buscarPorDistancia(
-            latitude: latitude,
-            longitude: longitude,
-            raioKm: 50,
-          );
-        }
-        final regional = await profissionais.buscar(
-          bairro: principal['bairro']?.toString(),
-          cidade: principal['cidade']?.toString(),
-          uf: principal['uf']?.toString(),
-        );
-        final encontrados = regional['profissionais'];
-        if (encontrados is List && encontrados.isNotEmpty) return regional;
-        return await profissionais.listar();
-      } catch (_) {
-        return await profissionais.listar();
+      final response = await clientes.listarEnderecos();
+      final enderecos = response['enderecos'];
+      final maps = enderecos is List
+          ? enderecos.whereType<Map<String, dynamic>>().toList()
+          : <Map<String, dynamic>>[];
+      if (maps.isEmpty) {
+        regionalAddressUnavailable = true;
+        return const {'profissionais': <dynamic>[]};
       }
+
+      final principal = maps.firstWhere(
+        (endereco) => endereco['principal'] == true,
+        orElse: () => maps.first,
+      );
+      final latitude = doubleValueOrNull(principal['latitude']);
+      final longitude = doubleValueOrNull(principal['longitude']);
+      if (latitude != null && longitude != null) {
+        nearbySearchAvailable = true;
+        return await profissionais.buscarPorDistancia(
+          latitude: latitude,
+          longitude: longitude,
+          raioKm: 50,
+        );
+      }
+
+      String? localidade(Object? value) {
+        final text = value?.toString().trim();
+        return text == null || text.isEmpty ? null : text;
+      }
+
+      final bairro = localidade(principal['bairro']);
+      final cidade = localidade(principal['cidade']);
+      final uf = localidade(principal['uf']);
+      if (bairro == null && cidade == null && uf == null) {
+        regionalAddressUnavailable = true;
+        return const {'profissionais': <dynamic>[]};
+      }
+
+      nearbySearchAvailable = true;
+      return await profissionais.buscar(bairro: bairro, cidade: cidade, uf: uf);
     }
 
     final responses = await Future.wait<Map<String, dynamic>?>([
@@ -159,6 +172,10 @@ class AppServices {
     return HomeContent(
       categories: content.categories,
       featuredProfessionals: content.featuredProfessionals,
+      featuredProfessionalsTotal: content.featuredProfessionalsTotal,
+      featuredProfessionalsHasMore: content.featuredProfessionalsHasMore,
+      regionalAddressUnavailable: regionalAddressUnavailable,
+      nearbySearchAvailable: nearbySearchAvailable,
       categoriesLoadFailed: responses[0] == null,
       professionalsLoadFailed: responses[1] == null,
     );

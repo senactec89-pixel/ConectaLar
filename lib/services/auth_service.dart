@@ -28,6 +28,9 @@ class AuthService extends ChangeNotifier {
   bool get autenticado => _api.autenticado;
   bool get sessaoExpirada => _sessaoExpirada;
   bool get emailVerificado => _usuarioAtual?['emailVerificado'] != false;
+  // Sessoes legadas nao tinham este campo; a API continua sendo a autoridade
+  // e responde TERMOS_NAO_ACEITOS quando a versao vigente estiver pendente.
+  bool get termosAceitos => _usuarioAtual?['termosAceitos'] != false;
 
   Future<void> encerrarSessaoExpirada() async {
     if (!autenticado) return;
@@ -83,6 +86,12 @@ class AuthService extends ChangeNotifier {
         throw MfaRequiredException(token);
       }
     }
+    if (response['mfaSetupRequired'] == true) {
+      final token = response['mfaSetupToken'];
+      if (token is String && token.isNotEmpty) {
+        throw MfaSetupRequiredException(token);
+      }
+    }
     await _registrarSessao(response);
     return response;
   }
@@ -92,6 +101,7 @@ class AuthService extends ChangeNotifier {
     String? tipo,
     String? senha,
     bool aceitouTermos = false,
+    String? versaoTermos,
   }) async {
     final response = await _api.post(
       'auth/google',
@@ -100,6 +110,7 @@ class AuthService extends ChangeNotifier {
         'tipo': ?tipo,
         'senha': ?senha,
         if (tipo != null) 'aceitouTermos': aceitouTermos,
+        if (tipo != null) 'versaoTermos': versaoTermos,
       },
     );
     if (response['cadastroNecessario'] == true) return response;
@@ -107,6 +118,12 @@ class AuthService extends ChangeNotifier {
       final token = response['mfaToken'];
       if (token is String && token.isNotEmpty) {
         throw MfaRequiredException(token);
+      }
+    }
+    if (response['mfaSetupRequired'] == true) {
+      final token = response['mfaSetupToken'];
+      if (token is String && token.isNotEmpty) {
+        throw MfaSetupRequiredException(token);
       }
     }
     await _registrarSessao(response);
@@ -124,6 +141,39 @@ class AuthService extends ChangeNotifier {
     await _registrarSessao(response);
     return response;
   }
+
+  Future<Map<String, dynamic>> iniciarConfiguracaoMfaAdmin({
+    required String setupToken,
+  }) => _api.post(
+    'auth/admin-mfa/setup',
+    body: {'setupToken': setupToken},
+  );
+
+  Future<Map<String, dynamic>> confirmarConfiguracaoMfaAdmin({
+    required String setupToken,
+    required String codigo,
+  }) async {
+    final response = await _api.post(
+      'auth/admin-mfa/confirmar',
+      body: {'setupToken': setupToken, 'codigo': codigo},
+    );
+    await _registrarSessao(response);
+    return response;
+  }
+
+  Future<Map<String, dynamic>> aceitarConviteAdmin({
+    required String token,
+    required String senha,
+    required String versaoTermos,
+  }) => _api.post(
+    'auth/admin-convites/aceitar',
+    body: {
+      'token': token,
+      'senha': senha,
+      'aceitouTermos': true,
+      'versaoTermos': versaoTermos,
+    },
+  );
 
   Future<Map<String, dynamic>> statusMfaAdmin() {
     return _api.get('auth/mfa/admin');
@@ -155,6 +205,8 @@ class AuthService extends ChangeNotifier {
     required String email,
     required String senha,
     required String tipo,
+    required String versaoTermos,
+    required bool aceitouTermos,
     String? telefone,
   }) async {
     final response = await _api.post(
@@ -164,11 +216,33 @@ class AuthService extends ChangeNotifier {
         'email': email,
         'senha': senha,
         'tipo': tipo,
+        'versaoTermos': versaoTermos,
+        'aceitouTermos': aceitouTermos,
         if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
       },
     );
     await _registrarSessao(response);
     return response;
+  }
+
+  Future<void> marcarTermosPendentes() async {
+    if (_usuarioAtual == null || _usuarioAtual?['termosAceitos'] == false) {
+      return;
+    }
+    _usuarioAtual = {..._usuarioAtual!, 'termosAceitos': false};
+    await _persistirSessaoAtual();
+    notifyListeners();
+  }
+
+  Future<void> registrarTermosAceitos(String versao) async {
+    if (_usuarioAtual == null) return;
+    _usuarioAtual = {
+      ..._usuarioAtual!,
+      'termosAceitos': true,
+      'versaoTermos': versao,
+    };
+    await _persistirSessaoAtual();
+    notifyListeners();
   }
 
   Future<Map<String, dynamic>> solicitarRecuperacaoSenha({
@@ -347,4 +421,10 @@ class MfaRequiredException implements Exception {
   const MfaRequiredException(this.mfaToken);
 
   final String mfaToken;
+}
+
+class MfaSetupRequiredException implements Exception {
+  const MfaSetupRequiredException(this.setupToken);
+
+  final String setupToken;
 }

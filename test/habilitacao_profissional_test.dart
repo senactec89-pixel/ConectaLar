@@ -20,6 +20,19 @@ Map<String, dynamic> habilitacao({bool revisao = false}) => {
   ],
 };
 
+Future<void> revelar(WidgetTester tester, Finder alvo) async {
+  for (
+    var tentativa = 0;
+    tentativa < 8 && alvo.evaluate().isEmpty;
+    tentativa++
+  ) {
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+  }
+  if (alvo.evaluate().isNotEmpty) await tester.ensureVisible(alvo);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
@@ -62,6 +75,221 @@ void main() {
       find.byKey(const ValueKey('continuar-sem-documentos')),
       findsNothing,
     );
+  });
+
+  testWidgets('confirmacao telefonica fica indisponivel enquanto desativada', (
+    tester,
+  ) async {
+    final chamadas = <String>[];
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        chamadas.add(request.url.path);
+        if (request.url.path == '/profissionais/me/documentos') {
+          return jsonResponse({'documentos': [], 'habilitacao': habilitacao()});
+        }
+        if (request.url.path == '/profissionais/me/habilitacao/telefone') {
+          return jsonResponse({
+            'telefone': {
+              'estado': 'nao_iniciada',
+              'disponivel': false,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': null,
+              'expiraEm': null,
+              'resolvidaEm': null,
+            },
+          });
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.documentosProfissional);
+    final aviso = find.textContaining('WhatsApp ainda');
+    await revelar(tester, aviso);
+    expect(aviso, findsOneWidget);
+    final iniciar = find.byKey(const ValueKey('iniciar-confirmacao-telefone'));
+    expect(iniciar, findsNothing);
+    expect(chamadas, contains('/profissionais/me/habilitacao/telefone'));
+  });
+
+  testWidgets('consentimento, envio e confirmacao telefonica usam a API', (
+    tester,
+  ) async {
+    final corpos = <String, Map<String, dynamic>>{};
+    var estadoTelefone = 'nao_iniciada';
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/profissionais/me/documentos') {
+          return jsonResponse({'documentos': [], 'habilitacao': habilitacao()});
+        }
+        if (request.url.path == '/profissionais/me/habilitacao/telefone' &&
+            request.method == 'GET') {
+          return jsonResponse({
+            'telefone': {
+              'estado': estadoTelefone,
+              'disponivel': true,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': estadoTelefone == 'pendente' ? 2 : null,
+              'expiraEm': null,
+              'resolvidaEm': null,
+            },
+          });
+        }
+        if (request.url.path == '/profissionais/me/habilitacao/telefone' &&
+            request.method == 'POST') {
+          corpos['inicio'] = jsonDecode(request.body) as Map<String, dynamic>;
+          estadoTelefone = 'pendente';
+          return jsonResponse({
+            'telefone': {
+              'estado': estadoTelefone,
+              'disponivel': true,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': 3,
+              'expiraEm': '2026-10-25T23:00:00.000Z',
+              'resolvidaEm': null,
+            },
+          }, 201);
+        }
+        if (request.url.path ==
+            '/profissionais/me/habilitacao/telefone/confirmacao') {
+          corpos['confirmacao'] =
+              jsonDecode(request.body) as Map<String, dynamic>;
+          estadoTelefone = 'confirmada';
+          return jsonResponse({
+            'telefone': {
+              'estado': estadoTelefone,
+              'disponivel': true,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': null,
+              'expiraEm': '2026-10-25T23:00:00.000Z',
+              'resolvidaEm': '2026-10-25T22:50:00.000Z',
+            },
+          });
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.documentosProfissional);
+    final iniciar = find.byKey(const ValueKey('iniciar-confirmacao-telefone'));
+    await revelar(tester, iniciar);
+    await tester.tap(iniciar);
+    await tester.pumpAndSettle();
+    final consentir = find.byKey(
+      const ValueKey('confirmar-consentimento-telefone'),
+    );
+    expect(consentir, findsOneWidget);
+    expect(tester.widget<FilledButton>(consentir).onPressed, isNull);
+    await tester.tap(
+      find.byKey(const ValueKey('consentimento-confirmacao-telefone')),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilledButton>(consentir).onPressed, isNotNull);
+    await tester.tap(consentir);
+    await tester.pumpAndSettle();
+    expect(corpos['inicio'], {'consentimento': true});
+
+    final informar = find.byKey(const ValueKey('informar-codigo-telefone'));
+    await revelar(tester, informar);
+    await tester.tap(informar);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('codigo-confirmacao-telefone')),
+      '123456',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('enviar-codigo-confirmacao-telefone')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(corpos['confirmacao']?['codigo'], '123456');
+    expect(
+      corpos['confirmacao']?['tentativaId'],
+      matches(
+        RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+        ),
+      ),
+    );
+    final confirmado = find.text('Acesso ao telefone confirmado.');
+    await revelar(tester, confirmado);
+    expect(confirmado, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('retoma a mesma tentativa idempotente apos erro de conexao', (
+    tester,
+  ) async {
+    const tentativaExistente = '123e4567-e89b-42d3-a456-426614174000';
+    final tentativasEnviadas = <String>[];
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/profissionais/me/documentos') {
+          return jsonResponse({'documentos': [], 'habilitacao': habilitacao()});
+        }
+        if (request.url.path == '/profissionais/me/habilitacao/telefone' &&
+            request.method == 'GET') {
+          return jsonResponse({
+            'telefone': {
+              'estado': 'pendente',
+              'disponivel': true,
+              'tentativaId': tentativaExistente,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': 2,
+              'expiraEm': '2026-10-25T23:00:00.000Z',
+              'resolvidaEm': null,
+            },
+          });
+        }
+        if (request.url.path ==
+            '/profissionais/me/habilitacao/telefone/confirmacao') {
+          final corpo = jsonDecode(request.body) as Map<String, dynamic>;
+          tentativasEnviadas.add(corpo['tentativaId'] as String);
+          if (tentativasEnviadas.length == 1) {
+            return jsonResponse({
+              'message': 'Falha temporaria de conexao.',
+            }, 503);
+          }
+          return jsonResponse({
+            'telefone': {
+              'estado': 'confirmada',
+              'disponivel': true,
+              'tentativaId': null,
+              'telefoneMascarado': '+55 (***) *****-4321',
+              'tentativasRestantes': null,
+              'expiraEm': '2026-10-25T23:00:00.000Z',
+              'resolvidaEm': '2026-10-25T22:50:00.000Z',
+            },
+          });
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.documentosProfissional);
+    final informar = find.byKey(const ValueKey('informar-codigo-telefone'));
+    await revelar(tester, informar);
+
+    Future<void> enviarCodigo() async {
+      await tester.tap(informar);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('codigo-confirmacao-telefone')),
+        '123456',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('enviar-codigo-confirmacao-telefone')),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await enviarCodigo();
+    await enviarCodigo();
+    expect(tentativasEnviadas, [tentativaExistente, tentativaExistente]);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

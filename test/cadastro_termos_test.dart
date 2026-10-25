@@ -79,88 +79,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'cadastro oferece empresa e conclui aceite sem recriar conta após falha',
-    (tester) async {
-      var cadastros = 0;
-      var consultasTermos = 0;
-      String? tipo;
-      AppServices.instance = AppServices(
-        sessionStorage: MemorySessionStorage(),
-        api: ApiService(
-          client: MockClient((request) async {
-            if (request.url.path == '/auth/cadastro') {
-              cadastros++;
-              tipo = (jsonDecode(request.body) as Map)['tipo'] as String;
-              return _json({
-                'token': {'accessToken': 'token-teste'},
-                'usuario': {'id': 2, 'tipo': tipo},
-              });
-            }
-            if (request.url.path == '/termos/atuais') {
-              if (++consultasTermos == 1) {
-                return _json({'message': 'Falha'}, 503);
-              }
-              return _json({
-                'termos': {'versao': '2026.v1'},
-              });
-            }
-            expect(request.url.path, '/termos/aceites/me');
-            expect(jsonDecode(request.body), {'versao': '2026.v1'});
+  testWidgets('cadastro envia aceite e versao na mesma operacao atomica', (
+    tester,
+  ) async {
+    var cadastros = 0;
+    String? tipo;
+    AppServices.instance = AppServices(
+      sessionStorage: MemorySessionStorage(),
+      api: ApiService(
+        client: MockClient((request) async {
+          if (request.url.path == '/auth/cadastro') {
+            cadastros++;
+            final body = jsonDecode(request.body) as Map;
+            tipo = body['tipo'] as String;
+            expect(body['aceitouTermos'], isTrue);
+            expect(body['versaoTermos'], '2026.v1');
             return _json({
-              'aceite': {'versao': '2026.v1'},
+              'token': {'accessToken': 'token-teste'},
+              'usuario': {'id': 2, 'tipo': tipo, 'termosAceitos': true},
             });
-          }),
-        ),
-      );
-      await _abrir(tester, AppRoutes.cadastro);
-      expect(find.textContaining('Passo 1 de 3'), findsNothing);
-      await tester.tap(find.text('Profissional'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Autônomo'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Empresa').last);
-      await tester.pumpAndSettle();
-      for (final campo in {
-        'cadastro-nome': 'Empresa Teste',
-        'cadastro-email': 'empresa@example.invalid',
-        'cadastro-telefone': '31999990000',
-        'cadastro-senha': 'Senha123!',
-        'cadastro-confirmar-senha': 'Senha123!',
-      }.entries) {
-        await tester.enterText(find.byKey(ValueKey(campo.key)), campo.value);
-      }
-      FocusManager.instance.primaryFocus?.unfocus();
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('cadastro-termos')),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const ValueKey('cadastro-termos')));
-      await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('cadastro-criar-conta')),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('cadastro-confirmar-email')));
-      await tester.pumpAndSettle();
-      expect(tipo, 'empresa');
-      expect(cadastros, 1);
-      expect(find.text('Concluir cadastro'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Concluir cadastro'));
-      await tester.pumpAndSettle();
-      expect(find.text('Próxima etapa profissional'), findsOneWidget);
-      expect(cadastros, 1);
-      expect(tester.takeException(), isNull);
-    },
-  );
+          }
+          if (request.url.path == '/termos/atuais') {
+            return _json({
+              'termos': {'versao': '2026.v1'},
+            });
+          }
+          fail('Rota inesperada: ${request.url.path}');
+        }),
+      ),
+    );
+    await _abrir(tester, AppRoutes.cadastro);
+    expect(find.textContaining('Passo 1 de 3'), findsNothing);
+    await tester.tap(find.text('Profissional'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Autônomo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Empresa').last);
+    await tester.pumpAndSettle();
+    for (final campo in {
+      'cadastro-nome': 'Empresa Teste',
+      'cadastro-email': 'empresa@example.invalid',
+      'cadastro-telefone': '31999990000',
+      'cadastro-senha': 'Senha123!',
+      'cadastro-confirmar-senha': 'Senha123!',
+    }.entries) {
+      await tester.enterText(find.byKey(ValueKey(campo.key)), campo.value);
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('cadastro-termos')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('cadastro-termos')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('cadastro-criar-conta')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cadastro-criar-conta')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cadastro-confirmar-email')));
+    await tester.pumpAndSettle();
+    expect(tipo, 'empresa');
+    expect(cadastros, 1);
+    expect(find.text('Próxima etapa profissional'), findsOneWidget);
+    expect(cadastros, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('cadastro abre os termos antes de criar conta', (tester) async {
     var cadastros = 0;
@@ -203,6 +192,7 @@ void main() {
                 'email': 'cliente@example.invalid',
                 'emailVerificado': false,
                 'tipo': 'cliente',
+                'termosAceitos': true,
               },
               'emailVerificationRequired': true,
             });
@@ -210,11 +200,6 @@ void main() {
           if (request.url.path == '/termos/atuais') {
             return _json({
               'termos': {'versao': '2026.v1'},
-            });
-          }
-          if (request.url.path == '/termos/aceites/me') {
-            return _json({
-              'aceite': {'versao': '2026.v1'},
             });
           }
           expect(request.headers['authorization'], 'Bearer token-teste');

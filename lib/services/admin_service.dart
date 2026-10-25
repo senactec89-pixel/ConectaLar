@@ -5,9 +5,17 @@ class AdminService {
 
   final ApiService _api;
 
-  Future<Map<String, dynamic>> habilitacoes({int pagina = 1}) => _api.get(
+  Future<Map<String, dynamic>> habilitacoes({
+    int pagina = 1,
+    String? termo,
+    String? estado,
+  }) => _api.get(
     'admin/profissionais/habilitacoes',
-    queryParameters: {'pagina': '$pagina'},
+    queryParameters: {
+      'pagina': '$pagina',
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+      if (estado != null && estado.isNotEmpty) 'estado': estado,
+    },
   );
 
   Future<Map<String, dynamic>> analisarHabilitacao(
@@ -21,8 +29,20 @@ class AdminService {
 
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
 
-  Future<Map<String, dynamic>> auditoria() =>
-      _api.get('admin/painel/auditoria');
+  Future<Map<String, dynamic>> auditoria({
+    int pagina = 1,
+    String? termo,
+    String? acao,
+    String? alvoTipo,
+  }) => _api.get(
+    'admin/painel/auditoria',
+    queryParameters: {
+      'pagina': '$pagina',
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+      if (acao != null && acao.isNotEmpty) 'acao': acao,
+      if (alvoTipo != null && alvoTipo.isNotEmpty) 'alvoTipo': alvoTipo,
+    },
+  );
 
   Future<Map<String, dynamic>> historicoAtendimentos({
     String? status,
@@ -36,22 +56,30 @@ class AdminService {
     return _api.get('admin/historico/atendimentos', queryParameters: query);
   }
 
-  Future<Map<String, dynamic>> usuarios({String? tipo, String? termo}) =>
-      _api.get(
-        'admin/usuarios',
-        queryParameters: {
-          if (tipo != null && tipo.isNotEmpty) 'tipo': tipo,
-          if (termo != null && termo.isNotEmpty) 'termo': termo,
-        },
-      );
+  Future<Map<String, dynamic>> usuarios({
+    String? tipo,
+    String? termo,
+    String? ativo,
+    int pagina = 1,
+  }) => _api.get(
+    'admin/usuarios',
+    queryParameters: {
+      'pagina': '$pagina',
+      if (tipo != null && tipo.isNotEmpty) 'tipo': tipo,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+      if (ativo != null && ativo.isNotEmpty) 'ativo': ativo,
+    },
+  );
 
   Future<Map<String, dynamic>> listarUsuarios({
     String? tipo,
     String? termo,
     bool? ativo,
+    int pagina = 1,
   }) => _api.get(
     'admin/usuarios',
     queryParameters: {
+      'pagina': '$pagina',
       if (tipo != null && tipo.isNotEmpty) 'tipo': tipo,
       if (termo != null && termo.isNotEmpty) 'termo': termo,
       if (ativo != null) 'ativo': ativo.toString(),
@@ -64,14 +92,12 @@ class AdminService {
   Future<Map<String, dynamic>> criarAdministrador({
     required String nome,
     required String email,
-    required String senha,
     String? telefone,
   }) => _api.post(
     'admin/usuarios/administradores',
     body: {
       'nome': nome,
       'email': email,
-      'senha': senha,
       if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
     },
   );
@@ -95,10 +121,19 @@ class AdminService {
     required bool ativo,
   }) => atualizarStatus(usuarioId, ativo);
 
-  Future<Map<String, dynamic>> documentos({String? status}) => _api.get(
+  Future<Map<String, dynamic>> documentos({
+    String? status,
+    String? tipoDocumento,
+    String? termo,
+    int pagina = 1,
+  }) => _api.get(
     'documentos-verificacao',
     queryParameters: {
+      'pagina': '$pagina',
       if (status != null && status.isNotEmpty) 'status': status,
+      if (tipoDocumento != null && tipoDocumento.isNotEmpty)
+        'tipoDocumento': tipoDocumento,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
     },
   );
 
@@ -117,7 +152,18 @@ class AdminService {
     },
   );
 
-  Future<Map<String, dynamic>> denuncias() => _api.get('denuncias/moderacao');
+  Future<Map<String, dynamic>> denuncias({
+    String? status,
+    String? termo,
+    int pagina = 1,
+  }) => _api.get(
+    'denuncias/moderacao',
+    queryParameters: {
+      'pagina': '$pagina',
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+    },
+  );
 
   Future<Map<String, dynamic>> moderarDenuncia(
     int id,
@@ -128,12 +174,34 @@ class AdminService {
     body: {'status': status, 'decisao': decisao},
   );
 
-  Future<Map<String, dynamic>> avaliacoes() => _api.get('avaliacoes/moderacao');
+  Future<Map<String, dynamic>> avaliacoes({
+    String? status,
+    String? termo,
+    int pagina = 1,
+  }) => _api.get(
+    'avaliacoes/moderacao',
+    queryParameters: {
+      'pagina': '$pagina',
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+    },
+  );
 
   Future<Map<String, dynamic>> moderarAvaliacao(int id, String status) =>
       _api.patch('avaliacoes/$id/moderacao', body: {'moderacaoStatus': status});
 
-  Future<Map<String, dynamic>> categorias() => _api.get('categorias/admin');
+  Future<Map<String, dynamic>> categorias({
+    String? ativo,
+    String? termo,
+    int pagina = 1,
+  }) => _api.get(
+    'categorias/admin',
+    queryParameters: {
+      'pagina': '$pagina',
+      if (ativo != null && ativo.isNotEmpty) 'ativo': ativo,
+      if (termo != null && termo.isNotEmpty) 'termo': termo,
+    },
+  );
 
   Future<Map<String, dynamic>> salvarCategoria({
     int? id,

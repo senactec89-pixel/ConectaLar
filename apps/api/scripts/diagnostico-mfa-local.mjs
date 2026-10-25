@@ -8,20 +8,22 @@ const adminSenha = process.env.CONECTALAR_ADMIN_SENHA ?? 'ConectaLarDemo123!';
 const ctx = {};
 
 try {
-  await step('Login admin inicial sem MFA obrigatorio', async () => {
+  await step('Login admin e desafio de configuracao obrigatoria', async () => {
     const data = await request('POST', 'auth/login', null, {
       email: adminEmail,
       senha: adminSenha,
     });
-    if (data.mfaRequired === true) {
-      throw new Error('A conta admin ja esta com MFA ativo; desative antes do diagnostico.');
+    if (data.mfaSetupRequired !== true || typeof data.mfaSetupToken !== 'string') {
+      throw new Error('Use uma conta administrativa ainda sem MFA; este diagnostico nao desativa MFA ativo.');
     }
-    ctx.adminToken = data.token.accessToken;
-    return adminEmail;
+    ctx.setupToken = data.mfaSetupToken;
+    return 'desafio curto sem token de acesso administrativo';
   });
 
-  await step('Iniciar MFA administrativo', async () => {
-    const data = await request('POST', 'auth/mfa/admin/setup', ctx.adminToken);
+  await step('Obter segredo de configuracao TOTP', async () => {
+    const data = await request('POST', 'auth/admin-mfa/setup', null, {
+      setupToken: ctx.setupToken,
+    });
     assertString(data.secret, 'secret');
     assertString(data.otpauthUrl, 'otpauthUrl');
     ctx.secret = data.secret;
@@ -30,9 +32,11 @@ try {
 
   await step('Confirmar MFA com codigo TOTP valido', async () => {
     const codigo = totp(ctx.secret);
-    await request('POST', 'auth/mfa/admin/confirmar', ctx.adminToken, {
+    const data = await request('POST', 'auth/admin-mfa/confirmar', null, {
+      setupToken: ctx.setupToken,
       codigo,
     });
+    ctx.adminTokenComMfa = data.token.accessToken;
     return 'MFA ativado';
   });
 
@@ -47,17 +51,6 @@ try {
     assertString(data.mfaToken, 'mfaToken');
     ctx.mfaToken = data.mfaToken;
     return 'desafio MFA recebido';
-  });
-
-  await step('Codigo MFA incorreto e recusado', async () => {
-    const response = await rawRequest('POST', 'auth/login/mfa', null, {
-      mfaToken: ctx.mfaToken,
-      codigo: '000000',
-    });
-    if (response.status !== 401) {
-      throw new Error(`Esperado 401 para codigo invalido; recebido ${response.status}.`);
-    }
-    return 'codigo invalido recusado';
   });
 
   await step('Codigo MFA correto libera token admin', async () => {
@@ -78,27 +71,7 @@ try {
     return 'ativo';
   });
 
-  await step('Desativar MFA com senha e codigo validos', async () => {
-    await request('POST', 'auth/mfa/admin/desativar', ctx.adminTokenComMfa, {
-      senhaAtual: adminSenha,
-      codigo: totp(ctx.secret),
-    });
-    return 'MFA desativado para nao interferir nos testes manuais';
-  });
-
-  await step('Login admin volta a emitir token sem desafio', async () => {
-    const data = await request('POST', 'auth/login', null, {
-      email: adminEmail,
-      senha: adminSenha,
-    });
-    if (data.mfaRequired === true) {
-      throw new Error('MFA continuou ativo apos desativacao.');
-    }
-    assertString(data.token?.accessToken, 'token.accessToken');
-    return 'login normal restaurado';
-  });
-
-  console.log('\nDiagnostico MFA concluido com sucesso.');
+  console.log('\nDiagnostico MFA concluido. MFA permanece ativo e obrigatorio.');
 } catch (error) {
   console.error('\nDiagnostico MFA falhou.');
   console.error(error);

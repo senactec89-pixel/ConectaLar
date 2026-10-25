@@ -13,11 +13,20 @@ class HabilitacoesPage extends StatefulWidget {
 
 class _HabilitacoesPageState extends State<HabilitacoesPage> {
   int _pagina = 1;
+  String _termo = '';
+  String _estado = '';
+  final _buscaController = TextEditingController();
   bool _salvando = false;
   late Future<Map<String, dynamic>> _future = _carregar();
 
-  Future<Map<String, dynamic>> _carregar() =>
-      AppServices.instance.admin.habilitacoes(pagina: _pagina);
+  Future<Map<String, dynamic>> _carregar() => AppServices.instance.admin
+      .habilitacoes(pagina: _pagina, termo: _termo, estado: _estado);
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
+  }
 
   void _recarregar() => setState(() {
     _future = _carregar();
@@ -162,6 +171,11 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                   .whereType<Map<String, dynamic>>()
                   .toList();
               final total = data['total'] as int? ?? 0;
+              final pagination = data['paginacao'] is Map
+                  ? Map<String, dynamic>.from(data['paginacao'] as Map)
+                  : const <String, dynamic>{};
+              final totalPaginas =
+                  int.tryParse('${pagination['totalPaginas']}') ?? 1;
               return RefreshIndicator(
                 onRefresh: () async {
                   _recarregar();
@@ -173,6 +187,47 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                   padding: const EdgeInsets.all(16),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
+                    TextField(
+                      controller: _buscaController,
+                      textInputAction: TextInputAction.search,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search),
+                        labelText: 'Buscar profissional',
+                      ),
+                      onSubmitted: (value) {
+                        _termo = value.trim();
+                        _pagina = 1;
+                        _recarregar();
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: _estado,
+                      decoration: const InputDecoration(
+                        labelText: 'Habilitacao',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: '', child: Text('Todas')),
+                        DropdownMenuItem(
+                          value: 'pendente',
+                          child: Text('Pendente'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'em_analise',
+                          child: Text('Em analise'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'suspenso',
+                          child: Text('Suspenso'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        _estado = value ?? '';
+                        _pagina = 1;
+                        _recarregar();
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'Identidade, telefone e antecedentes aguardam integração e política de análise. Nenhum profissional pode ser liberado nesta etapa.',
                     ),
@@ -209,11 +264,13 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                                   _recarregar();
                                 },
                         ),
-                        Text('Página $_pagina'),
+                        Text(
+                          'Pagina $_pagina de $totalPaginas - $total registros',
+                        ),
                         IconButton(
                           tooltip: 'Próxima página',
                           icon: const Icon(Icons.chevron_right),
-                          onPressed: _pagina * 30 >= total || _salvando
+                          onPressed: _pagina >= totalPaginas || _salvando
                               ? null
                               : () {
                                   _pagina++;

@@ -5,11 +5,11 @@ import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 
 export const termoAtual = {
-  versao: '2026-10-16.v3',
+  versao: '2026-10-24.v5',
   titulo: 'Termos de uso e aviso de privacidade do ConectaLar',
-  publicadoEm: '2026-10-16',
+  publicadoEm: '2026-10-24',
   resumo:
-    'O ConectaLar aproxima clientes e prestadores. O pagamento e os detalhes finais do servico sao combinados fora da plataforma.',
+    'O ConectaLar conecta clientes e prestadores. Confira as regras de preco, pagamento e cancelamento: o app nao processa pagamentos, e o cancelamento segue o status e o horario do atendimento.',
   secoes: [
     {
       titulo: '1. O que o ConectaLar faz',
@@ -17,9 +17,10 @@ export const termoAtual = {
         'Mostramos perfis de profissionais e empresas, permitimos pedidos de atendimento, mensagens ligadas ao pedido, avaliacoes, favoritos, notificacoes e recursos de verificacao e moderacao.',
     },
     {
-      titulo: '2. O que o ConectaLar nao faz',
+      grupo: 'comercial',
+      titulo: '2. Precos, pagamentos e politica comercial',
       texto:
-        'Nao cobramos pagamento dentro do app, nao definimos o preco final, nao garantimos resultado do servico e nao transformamos o selo de verificacao em garantia absoluta de seguranca ou qualidade.',
+        'O preco exibido no perfil e uma referencia inicial, nao necessariamente o valor total. Cliente e prestador devem combinar diretamente, antes do aceite, o escopo, o preco final, materiais, deslocamento, forma e prazo de pagamento. O ConectaLar nao recebe nem processa pagamentos, nao guarda saldo, nao faz repasses ou estornos e nao calcula multas. Nenhuma cobranca ou comissao e processada dentro do app. Nao envie numero de cartao, senha, codigo de autenticacao ou dados bancarios pelo chat.',
     },
     {
       titulo: '3. Dados que usamos',
@@ -42,14 +43,21 @@ export const termoAtual = {
         'Na tela Seguranca, voce pode confirmar sua senha e exportar uma copia dos dados ligados a sua conta. Tambem pode excluir a conta. A exclusao remove acesso, perfil, contatos, enderecos, foto, documentos e textos pessoais enviados pelo titular. Registros minimos de atendimentos, aceites e moderacao podem permanecer anonimizados quando necessarios para seguranca, defesa de direitos, auditoria ou obrigacao legal. Atendimentos em aberto precisam ser cancelados ou concluidos antes da exclusao.',
     },
     {
+      grupo: 'comercial',
       titulo: '7. Responsabilidades dos usuarios',
       texto:
-        'Use informacoes verdadeiras, proteja sua senha, converse com respeito, nao envie conteudo ilegal ou ofensivo e use denuncias apenas para relatar problemas reais ligados ao atendimento.',
+        'Cliente e prestador devem manter dados verdadeiros, confirmar escopo, preco final, materiais, deslocamento, horario e pagamento diretamente entre si, e manter a comunicacao respeitosa. O cliente deve descrever corretamente o servico e o local; o prestador deve manter perfil, ofertas e disponibilidade atualizados e explicar limites do servico. O ConectaLar oferece ferramentas de busca, solicitacao, conversa, registro e moderacao; nao executa o servico nem define o acordo financeiro entre as partes. O selo de verificacao nao e garantia absoluta de seguranca ou qualidade.',
     },
     {
-      titulo: '8. Mudancas nos termos',
+      grupo: 'comercial',
+      titulo: '8. Cancelamento de atendimentos',
       texto:
-        'Quando os termos mudarem de forma relevante, uma nova versao sera publicada. O app podera pedir novo aceite antes de liberar algumas funcionalidades.',
+        'Enquanto a solicitacao aguarda resposta, somente o cliente pode cancelar. Depois do aceite e antes do horario de inicio, cliente ou prestador podem cancelar. O app bloqueia o cancelamento depois que o atendimento comecou; nesse caso, registre a ocorrencia pelos recursos de ajuda e seguranca. Para cancelar, informe um motivo de 10 a 400 caracteres. O cancelamento fica registrado e a outra parte e notificada. Como o pagamento ocorre fora do app, o ConectaLar nao calcula cobrancas, multas ou reembolsos pelo cancelamento; qualquer acerto financeiro deve ser tratado diretamente entre as partes.',
+    },
+    {
+      titulo: '9. Mudancas nos termos',
+      texto:
+        'Quando os termos mudarem de forma relevante, uma nova versao sera publicada. O novo aceite sera obrigatorio antes de liberar funcionalidades autenticadas, sem impedir o acesso aos controles de conta e aos direitos de privacidade.',
     },
   ],
 };

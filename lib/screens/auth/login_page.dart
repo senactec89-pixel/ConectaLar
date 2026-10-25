@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import 'mfa_admin_setup_page.dart';
 import '../../models/usuario.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
@@ -107,12 +108,23 @@ class _LoginPageState extends State<LoginPage> {
           await AppServices.instance.googleIdentity.signOut();
           return;
         }
+        final atuais = await AppServices.instance.termos.atuais();
+        final termos = atuais['termos'];
+        final versaoTermos = termos is Map<String, dynamic>
+            ? termos['versao']?.toString().trim()
+            : null;
+        if (versaoTermos == null || versaoTermos.isEmpty) {
+          throw const ApiException(
+            'Nao foi possivel validar a versao atual dos termos.',
+          );
+        }
         tipoCriado = escolha.tipo;
         response = await AppServices.instance.auth.loginGoogle(
           idToken: idToken,
           tipo: escolha.tipo.valorBanco,
           senha: escolha.senha,
           aceitouTermos: true,
+          versaoTermos: versaoTermos,
         );
       }
       if (!mounted) return;
@@ -129,6 +141,8 @@ class _LoginPageState extends State<LoginPage> {
       );
     } on MfaRequiredException catch (mfa) {
       if (mounted) await _confirmarMfa(mfa.mfaToken);
+    } on MfaSetupRequiredException catch (setup) {
+      if (mounted) await _abrirConfiguracaoMfa(setup.setupToken);
     } on ApiException catch (error) {
       if (mounted) _mostrarErro(error.message);
     } catch (_) {
@@ -154,6 +168,9 @@ class _LoginPageState extends State<LoginPage> {
     } on MfaRequiredException catch (mfa) {
       if (!mounted) return;
       await _confirmarMfa(mfa.mfaToken);
+    } on MfaSetupRequiredException catch (setup) {
+      if (!mounted) return;
+      await _abrirConfiguracaoMfa(setup.setupToken);
     } on ApiException catch (error) {
       if (!mounted) return;
       _mostrarErro(error.message);
@@ -186,6 +203,16 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       _mostrarErro('Não foi possível validar o código. Tente novamente.');
     }
+  }
+
+  Future<void> _abrirConfiguracaoMfa(String setupToken) async {
+    await Navigator.pushAndRemoveUntil<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => MfaAdminSetupPage(setupToken: setupToken),
+      ),
+      (_) => false,
+    );
   }
 
   void _mostrarErro(String mensagem) {
@@ -302,6 +329,16 @@ class _LoginPageState extends State<LoginPage> {
                         onPressed: () =>
                             Navigator.pushNamed(context, AppRoutes.cadastro),
                         child: const Text('Criar conta'),
+                      ),
+                      TextButton.icon(
+                        onPressed: _enviando
+                            ? null
+                            : () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.adminConvite,
+                              ),
+                        icon: const Icon(Icons.mail_lock_outlined),
+                        label: const Text('Aceitar convite administrativo'),
                       ),
                       if (_googlePronto) ...[
                         const SizedBox(height: AppSpace.sm),

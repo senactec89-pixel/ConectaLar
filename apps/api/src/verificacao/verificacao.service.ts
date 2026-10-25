@@ -7,7 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
-import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
+import { registrarAuditoriaAdmin } from '../common/admin-auditoria.js';
+import { optionalSearchTerm } from '../common/admin-list-query.js';
+import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
@@ -41,8 +43,6 @@ interface AnaliseDocumentoInput {
 @Injectable()
 export class VerificacaoService {
   constructor(
-    @InjectRepository(AdminAuditoriaEntity)
-    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(ProfissionalDocumentoVerificacaoEntity)
     private readonly documentos: Repository<ProfissionalDocumentoVerificacaoEntity>,
     @InjectRepository(ProfissionalPerfilEntity)
@@ -115,14 +115,28 @@ export class VerificacaoService {
 
   async listarParaAnalise(query: Record<string, unknown>) {
     const status = optionalStatus(query.status);
-    const documentos = await this.documentos.find({
-      where: status === null ? {} : { status },
-      relations: { profissional: { usuario: true }, enviadoPor: true },
-      order: { criadoEm: 'DESC' },
-      take: 100,
-    });
-
-    return { documentos: documentos.map(documentoAdminResponse) };
+    const tipoDocumento = optionalTipoDocumento(query.tipoDocumento);
+    const termo = optionalSearchTerm(query);
+    const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
+    const builder = this.documentos
+      .createQueryBuilder('documento')
+      .leftJoinAndSelect('documento.profissional', 'profissional')
+      .leftJoinAndSelect('profissional.usuario', 'usuario')
+      .leftJoinAndSelect('documento.enviadoPor', 'enviadoPor')
+      .orderBy('documento.criadoEm', 'DESC')
+      .addOrderBy('documento.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
+    if (status !== null) builder.andWhere('documento.status = :status', { status });
+    if (tipoDocumento !== null) builder.andWhere('documento.tipoDocumento = :tipoDocumento', { tipoDocumento });
+    if (termo !== null) {
+      builder.andWhere('(usuario.nome LIKE :termo OR usuario.email LIKE :termo OR documento.nomeArquivo LIKE :termo)', { termo: `%${termo}%` });
+    }
+    const [documentos, total] = await builder.getManyAndCount();
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      documentos: documentos.map(documentoAdminResponse),
+    };
   }
 
   async arquivoParaAnalise(id: number) {
@@ -147,62 +161,86 @@ export class VerificacaoService {
     body: unknown,
   ) {
     const input = parseAnaliseDocumento(body);
-    const documento = await this.documentos.findOne({
-      where: { id },
-      relations: { profissional: { usuario: true }, enviadoPor: true },
+    const alteracao = await this.documentos.manager.transaction(async (manager) => {
+      const documentos = manager.getRepository(
+        ProfissionalDocumentoVerificacaoEntity,
+      );
+      const documento = await documentos.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (documento === null) {
+        throw new NotFoundException({
+          code: 'DOCUMENTO_NAO_ENCONTRADO',
+          message: 'Documento de verificacao nao encontrado.',
+        });
+      }
+
+      const perfis = manager.getRepository(ProfissionalPerfilEntity);
+      const perfil = await perfis.findOne({
+        where: { id: documento.profissionalId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (perfil === null) {
+        throw new NotFoundException({
+          code: 'PERFIL_PROFISSIONAL_NAO_ENCONTRADO',
+          message: 'Perfil profissional nao encontrado.',
+        });
+      }
+
+      const statusAnterior = documento.status;
+      const seloAnterior = perfil.verificado;
+      documento.status = input.status;
+      documento.motivoRejeicao = input.motivoRejeicao;
+      documento.analisadoPorId = user.id;
+      documento.analisadoEm = new Date();
+      const atualizado = await documentos.save(documento);
+
+      perfil.verificado = (await documentos.count({
+        where: {
+          profissionalId: documento.profissionalId,
+          tipoDocumento: tipoDocumentoIdentidade,
+          status: DocumentoVerificacaoStatus.Aprovado,
+        },
+      })) > 0;
+      await perfis.save(perfil);
+
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.DocumentoAnalisado,
+        alvoTipo: 'documento_verificacao',
+        alvoId: atualizado.id,
+        detalhe: {
+          profissionalId: documento.profissionalId,
+          tipoDocumento: documento.tipoDocumento,
+          status: { antes: statusAnterior, depois: atualizado.status },
+          motivoRejeicao: atualizado.motivoRejeicao,
+          selo: { antes: seloAnterior, depois: perfil.verificado },
+        },
+      });
+      return {
+        documentoId: atualizado.id,
+        profissionalUsuarioId: perfil.usuarioId,
+        seloAtivo: perfil.verificado,
+      };
     });
 
-    if (documento === null) {
+    const saved = await this.documentos.findOne({
+      where: { id: alteracao.documentoId },
+      relations: { profissional: { usuario: true }, enviadoPor: true },
+    });
+    if (saved === null) {
       throw new NotFoundException({
         code: 'DOCUMENTO_NAO_ENCONTRADO',
         message: 'Documento de verificacao nao encontrado.',
       });
     }
-
-    documento.status = input.status;
-    documento.motivoRejeicao = input.motivoRejeicao;
-    documento.analisadoPorId = user.id;
-    documento.analisadoEm = new Date();
-    const saved = await this.documentos.save(documento);
-
-    documento.profissional.verificado =
-      await this.profissionalTemIdentidadeAprovada(documento.profissionalId);
-    // Do not overwrite a concurrent security suspension with this older
-    // profile snapshot loaded for document moderation.
-    await this.perfis.update(documento.profissionalId, {
-      verificado: documento.profissional.verificado,
-    });
-
-    await this.registrarAuditoria(
-      user.id,
-      saved.id,
-      `Resultado: ${saved.status}`,
-    );
     await this.notificarResultadoSeguro(
       saved,
-      documento.profissional.usuarioId,
-      documento.profissional.verificado,
+      alteracao.profissionalUsuarioId,
+      alteracao.seloAtivo,
     );
-
-    saved.profissional = documento.profissional;
-    saved.enviadoPor = documento.enviadoPor;
     return { documento: documentoAdminResponse(saved) };
-  }
-
-  private async registrarAuditoria(
-    atorId: number,
-    alvoId: number,
-    detalhe: string,
-  ) {
-    await this.auditoria.save(
-      this.auditoria.create({
-        atorId,
-        acao: AdminAuditoriaAcao.DocumentoAnalisado,
-        alvoTipo: 'documento_verificacao',
-        alvoId,
-        detalhe,
-      }),
-    );
   }
 
   private async notificarResultadoSeguro(
@@ -235,16 +273,6 @@ export class VerificacaoService {
     }
   }
 
-  private async profissionalTemIdentidadeAprovada(profissionalId: number) {
-    const total = await this.documentos.count({
-      where: {
-        profissionalId,
-        tipoDocumento: tipoDocumentoIdentidade,
-        status: DocumentoVerificacaoStatus.Aprovado,
-      },
-    });
-    return total > 0;
-  }
 }
 
 function parseEnvioDocumento(body: unknown): EnviarDocumentoInput {
@@ -450,6 +478,17 @@ function optionalStatus(value: unknown): DocumentoVerificacaoStatus | null {
   }
 
   throw badRequest('STATUS_INVALIDO');
+}
+
+function optionalTipoDocumento(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (
+    typeof value === 'string' &&
+    ['documento_identidade', 'comprovante_endereco', 'certificado_opcional', 'certificado_curso'].includes(value)
+  ) {
+    return value;
+  }
+  throw new BadRequestException({ code: 'FILTRO_INVALIDO', message: 'Filtro invalido.' });
 }
 
 function objectBody(body: unknown): Record<string, unknown> {

@@ -3,20 +3,26 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes, createHash } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { EmailOutboxService } from '../auth/email-outbox.service.js';
+import { MailService } from '../auth/mail.service.js';
 import { PasswordService } from '../auth/password.service.js';
-import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
+import { AdminConviteEntity } from '../database/entities/admin-convite.entity.js';
+import { EmailOutboxEntity } from '../database/entities/email-outbox.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { registrarAuditoriaAdmin } from '../common/admin-auditoria.js';
+import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 
 interface CriarAdministradorInput {
   readonly nome: string;
   readonly email: string;
-  readonly senha: string;
   readonly telefone: string | null;
   readonly telefoneNormalizado: string | null;
 }
@@ -29,14 +35,15 @@ interface AtualizarStatusInput {
 @Injectable()
 export class AdminUsuariosService {
   constructor(
-    @InjectRepository(AdminAuditoriaEntity)
-    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly passwordService: PasswordService,
+    private readonly mail: MailService,
+    private readonly emailOutbox: EmailOutboxService,
   ) {}
 
   async listar(query: Record<string, unknown>) {
+    const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
     const tipo = optionalTipo(query.tipo);
     const ativo = optionalBooleanQuery(query.ativo);
     const termo = optionalText(query.termo, 120);
@@ -44,7 +51,9 @@ export class AdminUsuariosService {
     const builder = this.usuarios
       .createQueryBuilder('usuario')
       .orderBy('usuario.criadoEm', 'DESC')
-      .take(100);
+      .addOrderBy('usuario.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
 
     if (tipo !== null) {
       builder.andWhere('usuario.tipo = :tipo', { tipo });
@@ -59,8 +68,11 @@ export class AdminUsuariosService {
       );
     }
 
-    const usuarios = await builder.getMany();
-    return { usuarios: usuarios.map(usuarioResponse) };
+    const [usuarios, total] = await builder.getManyAndCount();
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      usuarios: usuarios.map(usuarioResponse),
+    };
   }
 
   async obter(id: number) {
@@ -78,6 +90,12 @@ export class AdminUsuariosService {
   async criarAdministrador(user: AuthenticatedUser, body: unknown) {
     const input = parseCriarAdministrador(body);
     const email = normalizarEmail(input.email);
+    if (process.env.NODE_ENV === 'production' && !this.mail.configured()) {
+      throw new ServiceUnavailableException({
+        code: 'EMAIL_CONVITE_INDISPONIVEL',
+        message: 'Nao foi possivel enviar o convite neste momento.',
+      });
+    }
     const existing = await this.usuarios.findOne({ where: { email } });
     if (existing !== null) {
       throw new ConflictException({
@@ -97,19 +115,58 @@ export class AdminUsuariosService {
       }
     }
 
-    const usuario = this.usuarios.create({
-      nome: input.nome,
-      email,
-      telefone: input.telefone,
-      telefoneNormalizado: input.telefoneNormalizado,
-      tipo: UsuarioTipo.Administrador,
-      senhaHash: await this.passwordService.hash(input.senha),
-      ativo: true,
-    });
-
-    let saved: UsuarioEntity;
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const senhaDescartavel = await this.passwordService.hash(
+      randomBytes(48).toString('base64url'),
+    );
+    let created: { usuario: UsuarioEntity; outboxId: number };
     try {
-      saved = await this.usuarios.save(usuario);
+      created = await this.usuarios.manager.transaction(async (manager) => {
+        const usuarios = manager.getRepository(UsuarioEntity);
+        const usuario = await usuarios.save(usuarios.create({
+          nome: input.nome,
+          email,
+          telefone: input.telefone,
+          telefoneNormalizado: input.telefoneNormalizado,
+          tipo: UsuarioTipo.Administrador,
+          senhaHash: senhaDescartavel,
+          emailVerificado: false,
+          mfaAtivo: false,
+          ativo: true,
+        }));
+        await manager.getRepository(AdminConviteEntity).save(
+          manager.getRepository(AdminConviteEntity).create({
+            usuarioId: usuario.id,
+            convidadoPorId: user.id,
+            tokenHash: createHash('sha256').update(token, 'utf8').digest('hex'),
+            expiraEm: expiresAt,
+            aceitoEm: null,
+            canceladoEm: null,
+          }),
+        );
+        const outbox = await manager.getRepository(EmailOutboxEntity).save(
+          this.emailOutbox.criarRegistro(
+            usuario.id,
+            token,
+            expiresAt,
+            'convite_admin',
+          ),
+        );
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.AdministradorCriado,
+          alvoTipo: 'usuario',
+          alvoId: usuario.id,
+          detalhe: {
+            estado: 'convite_pendente',
+            expiraEm: expiresAt.toISOString(),
+            mfaObrigatorio: true,
+            emailOutboxId: outbox.id,
+          },
+        });
+        return { usuario, outboxId: outbox.id };
+      });
     } catch (error) {
       if (isDuplicateError(error)) {
         throw new ConflictException({
@@ -119,14 +176,15 @@ export class AdminUsuariosService {
       }
       throw error;
     }
-    await this.registrarAuditoria({
-      atorId: user.id,
-      acao: AdminAuditoriaAcao.AdministradorCriado,
-      alvoId: saved.id,
-      detalhe: 'Conta administrativa criada por administrador autenticado.',
-    });
-
-    return { usuario: usuarioResponse(saved) };
+    const emailEnviado = await this.emailOutbox.entregarAgora(created.outboxId);
+    return {
+      usuario: usuarioResponse(created.usuario),
+      convite: {
+        expiraEm: expiresAt.toISOString(),
+        emailEnviado,
+        estado: emailEnviado ? 'enviado' : 'aguardando_envio',
+      },
+    };
   }
 
   async atualizarStatus(
@@ -135,60 +193,68 @@ export class AdminUsuariosService {
     body: unknown,
   ) {
     const input = parseAtualizarStatus(body);
-    const usuario = await this.usuarios.findOne({ where: { id } });
-    if (usuario === null) {
-      throw new NotFoundException({
-        code: 'USUARIO_NAO_ENCONTRADO',
-        message: 'Usuario nao encontrado.',
-      });
-    }
+    const saved = await this.usuarios.manager.transaction(async (manager) => {
+      const usuarios = manager.getRepository(UsuarioEntity);
+      const administradores = await usuarios
+        .createQueryBuilder('usuario')
+        .where('usuario.tipo = :tipo', { tipo: UsuarioTipo.Administrador })
+        .orderBy('usuario.id', 'ASC')
+        .setLock('pessimistic_write')
+        .getMany();
 
-    if (usuario.id === user.id && !input.ativo) {
-      throw badRequest('ADMIN_NAO_PODE_DESATIVAR_PROPRIA_CONTA');
-    }
+      let usuario = administradores.find((item) => item.id === id) ?? null;
+      if (usuario === null) {
+        usuario = await usuarios
+          .createQueryBuilder('usuario')
+          .where('usuario.id = :id', { id })
+          .setLock('pessimistic_write')
+          .getOne();
+      }
+      if (usuario === null) {
+        throw new NotFoundException({
+          code: 'USUARIO_NAO_ENCONTRADO',
+          message: 'Usuario nao encontrado.',
+        });
+      }
 
-    if (
-      usuario.tipo === UsuarioTipo.Administrador &&
-      usuario.ativo &&
-      !input.ativo
-    ) {
-      const adminsAtivos = await this.usuarios.count({
-        where: { tipo: UsuarioTipo.Administrador, ativo: true },
-      });
-      if (adminsAtivos <= 1) {
+      if (usuario.id === user.id && !input.ativo) {
+        throw badRequest('ADMIN_NAO_PODE_DESATIVAR_PROPRIA_CONTA');
+      }
+
+      const ativoAnterior = usuario.ativo;
+      const tokenVersionAnterior = usuario.tokenVersion;
+
+      if (
+        usuario.tipo === UsuarioTipo.Administrador &&
+        usuario.ativo &&
+        !input.ativo &&
+        administradores.filter((item) => item.ativo).length <= 1
+      ) {
         throw badRequest('ULTIMO_ADMIN_ATIVO');
       }
-    }
 
-    usuario.ativo = input.ativo;
-    const saved = await this.usuarios.save(usuario);
-    await this.registrarAuditoria({
-      atorId: user.id,
-      acao: input.ativo
-        ? AdminAuditoriaAcao.UsuarioAtivado
-        : AdminAuditoriaAcao.UsuarioDesativado,
-      alvoId: saved.id,
-      detalhe: input.motivo,
+      if (usuario.ativo !== input.ativo) {
+        usuario.ativo = input.ativo;
+        usuario.tokenVersion += 1;
+      }
+      const atualizado = await usuarios.save(usuario);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: input.ativo
+          ? AdminAuditoriaAcao.UsuarioAtivado
+          : AdminAuditoriaAcao.UsuarioDesativado,
+        alvoTipo: 'usuario',
+        alvoId: atualizado.id,
+        detalhe: {
+          antes: { ativo: ativoAnterior, tokenVersion: tokenVersionAnterior },
+          depois: { ativo: atualizado.ativo, tokenVersion: atualizado.tokenVersion },
+          motivo: input.motivo,
+        },
+      });
+      return atualizado;
     });
 
     return { usuario: usuarioResponse(saved) };
-  }
-
-  private async registrarAuditoria(input: {
-    readonly atorId: number;
-    readonly acao: AdminAuditoriaAcao;
-    readonly alvoId: number;
-    readonly detalhe: string | null;
-  }) {
-    await this.auditoria.save(
-      this.auditoria.create({
-        atorId: input.atorId,
-        acao: input.acao,
-        alvoTipo: 'usuario',
-        alvoId: input.alvoId,
-        detalhe: input.detalhe,
-      }),
-    );
   }
 }
 
@@ -209,7 +275,9 @@ function parseCriarAdministrador(body: unknown): CriarAdministradorInput {
   const value = objectBody(body);
   const nome = textField(value, 'nome', 3, 140);
   const email = textField(value, 'email', 5, 180);
-  const senha = textField(value, 'senha', 8, 128);
+  if ('senha' in value || 'senhaHash' in value || 'emailVerificado' in value || 'mfaAtivo' in value) {
+    throw badRequest('CAMPO_INVALIDO');
+  }
   const telefone = optionalText(value.telefone, 32);
   const telefoneNormalizado = normalizarTelefoneOpcional(telefone);
 
@@ -217,7 +285,7 @@ function parseCriarAdministrador(body: unknown): CriarAdministradorInput {
     throw badRequest('EMAIL_INVALIDO');
   }
 
-  return { nome, email, senha, telefone, telefoneNormalizado };
+  return { nome, email, telefone, telefoneNormalizado };
 }
 
 function parseAtualizarStatus(body: unknown): AtualizarStatusInput {

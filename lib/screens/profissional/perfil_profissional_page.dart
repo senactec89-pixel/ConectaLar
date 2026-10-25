@@ -82,8 +82,10 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
       }
       if (tipo == 'cliente') {
         try {
-          final response = await services.clientes.listarFavoritos();
-          favorito = _favoritosContem(response, profissional.id);
+          final response = await services.clientes.consultarFavorito(
+            profissional.id,
+          );
+          favorito = response['favorito'] == true;
         } catch (_) {
           favoritosIndisponiveis = true;
         }
@@ -248,20 +250,6 @@ class _PerfilProfissionalData {
       favoritosIndisponiveis: favoritosIndisponiveis,
     );
   }
-}
-
-bool _favoritosContem(Map<String, dynamic> response, int profissionalId) {
-  final favoritos = response['favoritos'];
-  if (favoritos is! List) return false;
-  for (final favorito in favoritos) {
-    if (favorito is! Map<String, dynamic>) continue;
-    final profissional = favorito['profissional'];
-    if (profissional is Map<String, dynamic> &&
-        intValue(profissional['id']) == profissionalId) {
-      return true;
-    }
-  }
-  return false;
 }
 
 class _PerfilProfissionalContent extends StatefulWidget {

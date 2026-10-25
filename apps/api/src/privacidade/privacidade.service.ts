@@ -34,6 +34,7 @@ import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orc
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
+import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/profissional-telefone-verificacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
@@ -287,6 +288,9 @@ export class PrivacidadeService {
       await manager.delete(UsuarioEmailVerificacaoEntity, {
         usuarioId: usuario.id,
       });
+      await manager.delete(ProfissionalTelefoneVerificacaoEntity, {
+        usuarioId: usuario.id,
+      });
 
       await manager.update(
         UsuarioEntity,
@@ -351,7 +355,7 @@ export class PrivacidadeService {
 
   private async montarExportacao(usuario: UsuarioEntity) {
     const manager = this.dataSource.manager;
-    const [cliente, enderecos, profissional, notificacoes, favoritos, termos] =
+    const [cliente, enderecos, profissional, notificacoes, favoritos, termos, verificacoesTelefone] =
       await Promise.all([
         manager.findOne(ClientePerfilEntity, {
           where: { usuarioId: usuario.id },
@@ -374,6 +378,10 @@ export class PrivacidadeService {
         manager.find(TermoAceiteEntity, {
           where: { usuarioId: usuario.id },
           order: { aceitoEm: 'DESC' },
+        }),
+        manager.find(ProfissionalTelefoneVerificacaoEntity, {
+          where: { usuarioId: usuario.id },
+          order: { criadoEm: 'DESC' },
         }),
       ]);
 
@@ -513,6 +521,16 @@ export class PrivacidadeService {
       notificacoes: notificacoes.map(semRelacoes),
       favoritos: favoritos.map(semRelacoes),
       aceitesDeTermos: termos.map(semRelacoes),
+      verificacoesTelefone: verificacoesTelefone.map((item) => ({
+        telefoneVinculado: `+55${item.telefoneVinculado}`,
+        estado: item.estado,
+        consentimentoEm: iso(item.consentimentoEm),
+        versaoAviso: item.versaoAviso,
+        tentativasRestantes: item.tentativasRestantes,
+        expiraEm: iso(item.expiraEm),
+        resolvidaEm: iso(item.resolvidaEm),
+        criadoEm: iso(item.criadoEm),
+      })),
       solicitacoesDePrivacidade: historicoPrivacidade.map(semRelacoes),
     };
   }

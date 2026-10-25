@@ -80,6 +80,36 @@ void main() {
     expect(find.text('Confirmar agora'), findsOneWidget);
   });
 
+  testWidgets('area privada exige aceite da versao atual dos termos', (
+    tester,
+  ) async {
+    final sessionStorage = MemorySessionStorage({
+      sessionKey: jsonEncode({
+        'accessToken': 'token-termos-pendentes',
+        'usuario': {
+          'id': 79,
+          'nome': 'Conta com termos pendentes',
+          'email': 'termos-pendentes@example.invalid',
+          'tipo': 'cliente',
+          'emailVerificado': true,
+          'termosAceitos': false,
+        },
+      }),
+    });
+    AppServices.instance = AppServices(
+      modoDemo: false,
+      sessionStorage: sessionStorage,
+      api: ApiService(client: MockClient((request) async => jsonResponse({}))),
+    );
+    await AppServices.instance.inicializar();
+
+    await abrirFrontend(tester, AppRoutes.favoritos);
+
+    expect(find.text('Revise os termos para continuar'), findsOneWidget);
+    expect(find.text('Ler e aceitar'), findsOneWidget);
+    expect(AppServices.instance.auth.termosAceitos, isFalse);
+  });
+
   testWidgets(
     '401 autenticado limpa sessão e leva ao login sem retorno à tela privada',
     (tester) async {

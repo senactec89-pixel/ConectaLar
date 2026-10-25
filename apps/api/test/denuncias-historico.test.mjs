@@ -34,7 +34,6 @@ test('historico consulta apenas denuncias enviadas pelo usuario', async () => {
   let opcoes;
   const item = denuncia();
   const service = new DenunciasService(
-    {},
     {
       async findAndCount(value) { opcoes = value; return [[item], 21]; },
     },
@@ -69,15 +68,29 @@ test('decisao administrativa notifica denunciante sem desfazer moderacao', async
   const item = denuncia();
   const auditorias = [];
   const notificacoes = [];
+  const repository = {
+    async findOne() { return item; },
+    manager: {
+      async transaction(operation) {
+        return operation({
+          getRepository(entity) {
+            if (entity.name === 'AdminAuditoriaEntity') {
+              return {
+                create: (value) => value,
+                async save(value) { auditorias.push(value); return value; },
+              };
+            }
+            return {
+              async findOne() { return item; },
+              async save(value) { return value; },
+            };
+          },
+        });
+      },
+    },
+  };
   const service = new DenunciasService(
-    {
-      create(value) { return value; },
-      async save(value) { auditorias.push(value); return value; },
-    },
-    {
-      async findOne() { return item; },
-      async save(value) { return value; },
-    },
+    repository,
     {},
     {
       async criar(value) { notificacoes.push(value); },
@@ -91,6 +104,14 @@ test('decisao administrativa notifica denunciante sem desfazer moderacao', async
   );
   assert.equal(response.denuncia.status, 'resolvida');
   assert.equal(auditorias.length, 1);
+  assert.deepEqual(JSON.parse(auditorias[0].detalhe), {
+    solicitacaoId: 10,
+    denuncianteId: 30,
+    denunciadoId: 20,
+    motivoDenuncia: 'Conduta inadequada',
+    status: { antes: 'pendente', depois: 'resolvida' },
+    decisao: 'Medidas administrativas registradas.',
+  });
   assert.equal(notificacoes.length, 1);
   assert.equal(notificacoes[0].usuarioId, 30);
   assert.equal(notificacoes[0].recursoId, 10);

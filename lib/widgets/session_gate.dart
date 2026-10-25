@@ -9,12 +9,14 @@ class SessionGate extends StatelessWidget {
     required this.builder,
     this.papeis,
     this.permitirEmailNaoVerificado = false,
+    this.permitirTermosPendentes = false,
     super.key,
   });
 
   final WidgetBuilder builder;
   final Set<String>? papeis;
   final bool permitirEmailNaoVerificado;
+  final bool permitirTermosPendentes;
 
   @override
   Widget build(BuildContext context) {
@@ -64,14 +66,48 @@ class SessionGate extends StatelessWidget {
         ),
       );
     }
+    if (!permitirTermosPendentes && !services.auth.termosAceitos) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Termos atualizados')),
+        body: EmptyStateView(
+          title: 'Revise os termos para continuar',
+          message:
+              'Uma nova versao dos termos esta disponivel. Leia e confirme o aceite antes de usar as funcoes da sua conta.',
+          icon: Icons.policy_outlined,
+          action: FilledButton.icon(
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.aceiteTermos,
+              (_) => false,
+            ),
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Ler e aceitar'),
+          ),
+        ),
+      );
+    }
     if (papeis != null &&
         !papeis!.contains(services.auth.usuarioAtual?['tipo'])) {
+      final rotaDaArea = switch (services.auth.usuarioAtual?['tipo']) {
+        'profissional' || 'empresa' => AppRoutes.areaProfissional,
+        'administrador' => AppRoutes.admin,
+        _ => AppRoutes.home,
+      };
       return Scaffold(
         appBar: AppBar(title: const Text('Acesso restrito')),
-        body: const EmptyStateView(
+        body: EmptyStateView(
           title: 'Área indisponível para esta conta',
           message: 'Esta área não está disponível para o seu tipo de conta.',
           icon: Icons.lock_outline_rounded,
+          action: FilledButton.icon(
+            onPressed: () => Navigator.pushNamedAndRemoveUntil(
+              context,
+              rotaDaArea,
+              (_) => false,
+            ),
+            icon: const Icon(Icons.home_outlined),
+            label: const Text('Ir para minha área'),
+          ),
         ),
       );
     }

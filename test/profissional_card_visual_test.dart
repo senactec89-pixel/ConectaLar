@@ -180,6 +180,28 @@ void main() {
       }
     },
   );
+  testWidgets('card identifica profissional ainda indisponivel para pedidos', (
+    tester,
+  ) async {
+    const profissional = Profissional(
+      id: 36,
+      usuarioId: 136,
+      nome: 'Profissional em verificacao',
+      descricao: 'Servicos residenciais',
+      bairro: 'Centro',
+      podeReceberSolicitacoes: false,
+    );
+
+    await _abrirCard(
+      tester,
+      width: 390,
+      scale: 1,
+      card: const ProfissionalCard(profissional: profissional),
+    );
+
+    expect(find.text('Em verificacao - pedidos indisponiveis'), findsOneWidget);
+    expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
+  });
 }
 
 Future<void> _abrirCard(

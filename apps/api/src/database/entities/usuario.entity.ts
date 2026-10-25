@@ -13,6 +13,7 @@ import { UsuarioTipo } from '../../domain/usuario-tipo.js';
   unique: true,
 })
 @Index('uq_usuarios_google_sub', ['googleSub'], { unique: true })
+@Index('idx_usuarios_tipo_ativo', ['tipo', 'ativo'])
 export class UsuarioEntity {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;
@@ -67,6 +68,12 @@ export class UsuarioEntity {
 
   @Column({ name: 'mfa_ativo', type: 'boolean', default: false })
   mfaAtivo!: boolean;
+
+  @Column({ name: 'mfa_falhas', type: 'smallint', unsigned: true, default: 0 })
+  mfaFalhas!: number;
+
+  @Column({ name: 'mfa_bloqueado_ate', type: 'datetime', nullable: true })
+  mfaBloqueadoAte!: Date | null;
 
   @Column({
     name: 'mfa_secret_encrypted',

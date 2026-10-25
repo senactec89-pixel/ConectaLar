@@ -14,6 +14,7 @@ import { UsuarioEntity } from './usuario.entity.js';
 @Index('uq_favoritos_cliente_profissional', ['clienteId', 'profissionalId'], {
   unique: true,
 })
+@Index('idx_favoritos_cliente_criado_id', ['clienteId', 'criadoEm', 'id'])
 export class FavoritoProfissionalEntity {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;

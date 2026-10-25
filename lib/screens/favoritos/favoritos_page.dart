@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../../data/conectalar_mock_store.dart';
 import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
+import '../../services/api_page.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
@@ -19,7 +20,9 @@ class FavoritosPage extends StatefulWidget {
 }
 
 class _FavoritosPageState extends State<FavoritosPage> {
-  late Future<List<Profissional>> _favoritosFuture;
+  late Future<ApiPage<Profissional>> _favoritosFuture;
+  bool _carregandoMais = false;
+  int _versaoCarregamento = 0;
 
   @override
   void initState() {
@@ -27,33 +30,72 @@ class _FavoritosPageState extends State<FavoritosPage> {
     _favoritosFuture = _carregarFavoritos();
   }
 
-  Future<List<Profissional>> _carregarFavoritos() async {
+  Future<ApiPage<Profissional>> _carregarFavoritos({int pagina = 1}) async {
     final services = AppServices.instance;
     if (services.emDemonstracao) {
-      return ConectaLarMockStore.instance.profissionaisFavoritos;
+      final profissionais = ConectaLarMockStore.instance.profissionaisFavoritos;
+      return ApiPage<Profissional>(
+        items: profissionais,
+        page: 1,
+        limit: profissionais.length,
+        total: profissionais.length,
+        hasMore: false,
+      );
     }
 
-    final response = await services.clientes.listarFavoritos();
-    final favoritos = response['favoritos'];
-    if (favoritos is! List) return const [];
-    return favoritos
-        .whereType<Map<String, dynamic>>()
-        .map((favorito) => favorito['profissional'])
-        .whereType<Map<String, dynamic>>()
-        .map(profissionalFromApi)
-        .toList(growable: false);
+    final response = await services.clientes.listarFavoritos(pagina: pagina);
+    return apiPageFromResponse<Profissional>(
+      response,
+      itemsKey: 'favoritos',
+      mapper: (favorito) => profissionalFromApi(
+        Map<String, dynamic>.from(favorito['profissional'] as Map),
+      ),
+      fallbackPage: pagina,
+    );
   }
 
   Future<void> _recarregarFavoritos() async {
     if (!mounted) return;
+    _versaoCarregamento++;
     final carregamento = _carregarFavoritos();
     setState(() {
       _favoritosFuture = carregamento;
+      _carregandoMais = false;
     });
     try {
       await carregamento;
     } catch (_) {
       // O FutureBuilder apresenta o erro e permite uma nova tentativa.
+    }
+  }
+
+  Future<void> _carregarMais(ApiPage<Profissional> atual) async {
+    if (_carregandoMais || !atual.hasMore) return;
+    final versao = _versaoCarregamento;
+    setState(() => _carregandoMais = true);
+    try {
+      final proxima = await _carregarFavoritos(pagina: atual.page + 1);
+      if (!mounted || versao != _versaoCarregamento) return;
+      setState(() {
+        _favoritosFuture = Future.value(
+          ApiPage<Profissional>(
+            items: [...atual.items, ...proxima.items],
+            page: proxima.page,
+            limit: proxima.limit,
+            total: proxima.total,
+            hasMore: proxima.hasMore,
+          ),
+        );
+        _carregandoMais = false;
+      });
+    } catch (_) {
+      if (!mounted || versao != _versaoCarregamento) return;
+      setState(() => _carregandoMais = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('NÃ£o foi possÃ­vel carregar mais favoritos.'),
+        ),
+      );
     }
   }
 
@@ -64,8 +106,10 @@ class _FavoritosPageState extends State<FavoritosPage> {
     if (AppServices.instance.auth.autenticado) {
       try {
         await AppServices.instance.clientes.removerFavorito(profissionalId);
+        _versaoCarregamento++;
         setState(() {
           _favoritosFuture = _carregarFavoritos();
+          _carregandoMais = false;
           _favoritosFuture.ignore();
         });
       } catch (_) {
@@ -90,7 +134,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
       backgroundColor: AppColors.fundo,
       body: AnimatedBuilder(
         animation: store,
-        builder: (context, _) => FutureBuilder<List<Profissional>>(
+        builder: (context, _) => FutureBuilder<ApiPage<Profissional>>(
           future: _favoritosFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
@@ -103,7 +147,8 @@ class _FavoritosPageState extends State<FavoritosPage> {
                 icon: Icons.favorite_border_rounded,
               );
             }
-            final favoritos = snapshot.data ?? const <Profissional>[];
+            final pagina = snapshot.data!;
+            final favoritos = pagina.items;
             return RefreshIndicator(
               onRefresh: _recarregarFavoritos,
               child: ListView(
@@ -143,7 +188,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
                         ),
                       ),
                       Text(
-                        '${favoritos.length} ${favoritos.length == 1 ? 'salvo' : 'salvos'}',
+                        '${pagina.total} ${pagina.total == 1 ? 'salvo' : 'salvos'}',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
@@ -170,6 +215,26 @@ class _FavoritosPageState extends State<FavoritosPage> {
                       ),
                       const SizedBox(height: AppSpace.md),
                     ],
+                  if (pagina.hasMore)
+                    Center(
+                      child: OutlinedButton.icon(
+                        onPressed: _carregandoMais
+                            ? null
+                            : () => _carregarMais(pagina),
+                        icon: _carregandoMais
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.expand_more_rounded),
+                        label: Text(
+                          _carregandoMais ? 'Carregando...' : 'Carregar mais',
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );

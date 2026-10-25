@@ -42,6 +42,23 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
     try {
       await AppServices.instance.auth.confirmarVerificacaoEmail(codigo: codigo);
       if (!mounted) return;
+      if (AppServices.instance.auth.usuarioAtual?['tipo'] == 'administrador') {
+        await AppServices.instance.auth.logout();
+        if (!mounted) return;
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.login,
+          (_) => false,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'E-mail confirmado. Entre novamente para configurar o autenticador administrativo.',
+            ),
+          ),
+        );
+        return;
+      }
       Navigator.pushNamedAndRemoveUntil(
         context,
         _rotaPosVerificacao(),

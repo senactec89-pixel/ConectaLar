@@ -94,16 +94,18 @@ class _CadastroPageState extends State<CadastroPage> {
     try {
       final services = AppServices.instance;
       if (!_contaCriada) {
+        final versaoTermos = await _versaoTermosAtuais();
         await services.auth.cadastrar(
           nome: _nomeController.text,
           email: _emailController.text.trim(),
           senha: _senhaController.text,
           telefone: _telefoneController.text,
           tipo: _tipo.valorBanco,
+          aceitouTermos: true,
+          versaoTermos: versaoTermos,
         );
         _contaCriada = true;
       }
-      await _aceitarTermosAtuais();
 
       if (!mounted) return;
       if (!services.auth.emailVerificado) {
@@ -142,7 +144,7 @@ class _CadastroPageState extends State<CadastroPage> {
     }
   }
 
-  Future<void> _aceitarTermosAtuais() async {
+  Future<String> _versaoTermosAtuais() async {
     final termos = await AppServices.instance.termos.atuais();
     final payload = termos['termos'];
     if (payload is! Map<String, dynamic>) {
@@ -150,7 +152,7 @@ class _CadastroPageState extends State<CadastroPage> {
     }
     final versao = payload['versao'];
     if (versao is String && versao.isNotEmpty) {
-      await AppServices.instance.termos.aceitar(versao);
+      return versao;
     } else {
       throw StateError('Versão dos termos indisponível.');
     }

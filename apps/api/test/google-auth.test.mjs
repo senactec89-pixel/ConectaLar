@@ -41,7 +41,10 @@ function authService({ users, googleIdentity = identity, acceptedTerms } = {}) {
     {},
     {},
     userRepository,
+    { exists: async () => true },
+    { findOne: async () => null },
     { verify: async () => googleIdentity },
+    {},
     {},
     {},
     { hash: async () => 'scrypt$google-random' },
@@ -54,6 +57,10 @@ function authService({ users, googleIdentity = identity, acceptedTerms } = {}) {
       createMfaChallengeToken: () => ({
         mfaToken: 'mfa-challenge',
         expiresIn: 300,
+      }),
+      createMfaSetupChallengeToken: () => ({
+        mfaSetupToken: 'setup-challenge',
+        expiresIn: 600,
       }),
     },
   );
@@ -105,6 +112,7 @@ test('new Google account records current terms and starts verified', async () =>
     idToken: 'valid-token',
     tipo: 'profissional',
     aceitouTermos: true,
+    versaoTermos: '2026-10-24.v5',
     senha: 'SenhaGoogle123!',
   });
 
@@ -124,8 +132,24 @@ test('new Google account requires a strong ConectaLar recovery password', async 
       idToken: 'valid-token',
       tipo: 'cliente',
       aceitouTermos: true,
+      versaoTermos: '2026-10-24.v5',
     }),
     (error) => error?.getStatus?.() === 400,
+  );
+});
+
+test('new Google account requires the exact current terms version', async () => {
+  await assert.rejects(
+    authService().loginGoogle({
+      idToken: 'valid-token',
+      tipo: 'cliente',
+      aceitouTermos: true,
+      versaoTermos: 'versao-antiga',
+      senha: 'SenhaGoogle123!',
+    }),
+    (error) =>
+      error?.getStatus?.() === 400 &&
+      error?.getResponse?.()?.code === 'VERSAO_TERMO_INVALIDA',
   );
 });
 
@@ -181,4 +205,26 @@ test('administrator linked to Google still receives an MFA challenge', async () 
   assert.equal(result.mfaRequired, true);
   assert.equal(result.mfaToken, 'mfa-challenge');
   assert.equal(result.token, undefined);
+});
+
+test('verified administrator without MFA receives only an enrollment challenge', async () => {
+  const result = await authService({
+    users: {
+      findOne: async () => ({
+        id: 92,
+        nome: 'Admin existente',
+        email: identity.email,
+        tipo: 'administrador',
+        googleSub: identity.subject,
+        emailVerificado: true,
+        mfaAtivo: false,
+        tokenVersion: 0,
+        ativo: true,
+      }),
+    },
+  }).loginGoogle({ idToken: 'valid-token' });
+
+  assert.equal(result.mfaSetupRequired, true);
+  assert.equal(result.mfaSetupToken, 'setup-challenge');
+  assert.equal('token' in result, false);
 });

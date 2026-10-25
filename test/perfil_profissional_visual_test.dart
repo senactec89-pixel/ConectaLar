@@ -272,7 +272,11 @@ void main() {
     var falharFavoritos = true;
     await configurarFrontend(
       responder: (request) async {
-        if (request.url.path == '/clientes/me/favoritos' && falharFavoritos) {
+        if (request.url.path == '/clientes/me/favoritos/1' &&
+            !falharFavoritos) {
+          return jsonResponse({'favorito': true});
+        }
+        if (request.url.path == '/clientes/me/favoritos/1' && falharFavoritos) {
           return jsonResponse({'message': 'Falha temporária'}, 503);
         }
         return null;

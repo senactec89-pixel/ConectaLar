@@ -1,16 +1,19 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
+import { MailService } from '../auth/mail.service.js';
 import {
   paginationMetadata,
   parsePaginationQuery,
 } from '../common/pagination.js';
 import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
+import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 
 export interface CriarNotificacaoInput {
@@ -24,9 +27,14 @@ export interface CriarNotificacaoInput {
 
 @Injectable()
 export class NotificacoesService {
+  private readonly logger = new Logger(NotificacoesService.name);
+
   constructor(
     @InjectRepository(NotificacaoEntity)
     private readonly notificacoes: Repository<NotificacaoEntity>,
+    @InjectRepository(UsuarioEntity)
+    private readonly usuarios: Repository<UsuarioEntity>,
+    private readonly mail: MailService,
   ) {}
 
   async listarMinhas(user: AuthenticatedUser, query: Record<string, unknown>) {
@@ -89,7 +97,7 @@ export class NotificacoesService {
       return null;
     }
 
-    return this.notificacoes.save(
+    const saved = await this.notificacoes.save(
       this.notificacoes.create({
         usuarioId: input.usuarioId,
         tipo: input.tipo,
@@ -100,8 +108,52 @@ export class NotificacoesService {
         lida: false,
       }),
     );
+
+    if (EMAIL_CRITICO_TIPOS.has(saved.tipo)) {
+      await this.enviarEmailCritico(saved);
+    }
+
+    return saved;
+  }
+
+  private async enviarEmailCritico(notificacao: NotificacaoEntity): Promise<void> {
+    try {
+      const usuario = await this.usuarios.findOne({
+        where: { id: notificacao.usuarioId },
+        select: { id: true, email: true, emailVerificado: true, ativo: true },
+      });
+      if (usuario === null || !usuario.ativo || !usuario.emailVerificado) return;
+
+      const enviado = await this.mail.sendCriticalNotificationEmail(
+        usuario.email,
+        notificacao.titulo,
+        notificacao.mensagem,
+      );
+      if (!enviado) return;
+    } catch {
+      // Email e canal auxiliar: nao deve desfazer a operacao de negocio.
+      this.logger.warn('critical_email_failed');
+    }
   }
 }
+
+const EMAIL_CRITICO_TIPOS: ReadonlySet<NotificacaoTipo> = new Set([
+  NotificacaoTipo.SolicitacaoCriada,
+  NotificacaoTipo.SolicitacaoAceita,
+  NotificacaoTipo.SolicitacaoRecusada,
+  NotificacaoTipo.SolicitacaoCancelada,
+  NotificacaoTipo.SolicitacaoConcluida,
+  NotificacaoTipo.ConclusaoPendente,
+  NotificacaoTipo.ConclusaoContestada,
+  NotificacaoTipo.NaoComparecimento,
+  NotificacaoTipo.DocumentoAprovado,
+  NotificacaoTipo.DocumentoRejeitado,
+  NotificacaoTipo.ReagendamentoProposto,
+  NotificacaoTipo.ReagendamentoRespondido,
+  NotificacaoTipo.OrcamentoProposto,
+  NotificacaoTipo.OrcamentoRespondido,
+  NotificacaoTipo.DenunciaAtualizada,
+]);
 
 function notificacaoResponse(notificacao: NotificacaoEntity) {
   return {

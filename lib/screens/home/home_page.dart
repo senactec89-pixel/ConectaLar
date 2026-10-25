@@ -96,6 +96,7 @@ class _HomePageState extends State<HomePage> {
               onNotificationsTap: () => _openRoute(AppRoutes.notificacoes),
               onCategoryTap: (category) =>
                   _openRoute(AppRoutes.busca, arguments: category),
+              onAddAddressTap: () => _openRoute(AppRoutes.enderecos),
               onProfessionalTap: (professional) => _openRoute(
                 AppRoutes.perfilProfissional,
                 arguments: professional,
@@ -121,6 +122,7 @@ class _HomeContentView extends StatelessWidget {
     required this.onBairroTap,
     required this.onNotificationsTap,
     required this.onCategoryTap,
+    required this.onAddAddressTap,
     required this.onProfessionalTap,
   });
 
@@ -131,6 +133,7 @@ class _HomeContentView extends StatelessWidget {
   final VoidCallback onBairroTap;
   final VoidCallback onNotificationsTap;
   final ValueChanged<Categoria> onCategoryTap;
+  final VoidCallback onAddAddressTap;
   final ValueChanged<Profissional> onProfessionalTap;
 
   @override
@@ -249,9 +252,14 @@ class _HomeContentView extends StatelessWidget {
                       retrying: retrying,
                     )
                   else if (content.featuredProfessionals.isEmpty)
-                    const _EmptySectionMessage(
-                      message: 'Nenhum profissional disponível no momento.',
-                    )
+                    content.regionalAddressUnavailable
+                        ? _RegionalAddressEmptyState(
+                            onAddAddressTap: onAddAddressTap,
+                          )
+                        : const _EmptySectionMessage(
+                            message:
+                                'Nenhum profissional encontrado na região do seu endereço.',
+                          )
                   else
                     LayoutBuilder(
                       builder: (context, constraints) {
@@ -288,7 +296,8 @@ class _HomeContentView extends StatelessWidget {
                         );
                       },
                     ),
-                  if (!content.professionalsLoadFailed &&
+                  if (content.nearbySearchAvailable &&
+                      !content.professionalsLoadFailed &&
                       content.featuredProfessionals.isNotEmpty) ...[
                     const SizedBox(height: 28),
                     _NearbyProfessionals(
@@ -1342,6 +1351,36 @@ class _SectionHeading extends StatelessWidget {
         ),
         ?botao,
       ],
+    );
+  }
+}
+
+class _RegionalAddressEmptyState extends StatelessWidget {
+  const _RegionalAddressEmptyState({required this.onAddAddressTap});
+
+  final VoidCallback onAddAddressTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: AppInsets.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Cadastre um endereço para encontrar profissionais da sua região.',
+              style: TextStyle(color: AppColors.texto),
+            ),
+            const SizedBox(height: AppSpace.sm),
+            OutlinedButton.icon(
+              onPressed: onAddAddressTap,
+              icon: const Icon(Icons.location_on_outlined),
+              label: const Text('Adicionar endereço'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

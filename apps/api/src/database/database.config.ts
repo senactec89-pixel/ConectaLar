@@ -6,6 +6,8 @@ import { CategoriaEntity } from './entities/categoria.entity.js';
 import { ClienteEnderecoEntity } from './entities/cliente-endereco.entity.js';
 import { ClientePerfilEntity } from './entities/cliente-perfil.entity.js';
 import { DenunciaEntity } from './entities/denuncia.entity.js';
+import { AdminConviteEntity } from './entities/admin-convite.entity.js';
+import { EmailOutboxEntity } from './entities/email-outbox.entity.js';
 import { FavoritoProfissionalEntity } from './entities/favorito-profissional.entity.js';
 import { MensagemAtendimentoEntity } from './entities/mensagem-atendimento.entity.js';
 import { NotificacaoEntity } from './entities/notificacao.entity.js';
@@ -24,6 +26,7 @@ import { UsuarioEmailVerificacaoEntity } from './entities/usuario-email-verifica
 import { UsuarioSenhaResetEntity } from './entities/usuario-senha-reset.entity.js';
 import { UsuarioEntity } from './entities/usuario.entity.js';
 import { ProfissionalIdentidadeVerificacaoEntity } from './entities/profissional-identidade-verificacao.entity.js';
+import { ProfissionalTelefoneVerificacaoEntity } from './entities/profissional-telefone-verificacao.entity.js';
 
 export {
   isAuthRuntimeConfigured,
@@ -91,11 +94,14 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       NotificacaoEntity,
       ProfissionalDocumentoVerificacaoEntity,
       DenunciaEntity,
+      AdminConviteEntity,
+      EmailOutboxEntity,
       AdminAuditoriaEntity,
       TermoAceiteEntity,
       UsuarioSenhaResetEntity,
       UsuarioEmailVerificacaoEntity,
       ProfissionalIdentidadeVerificacaoEntity,
+      ProfissionalTelefoneVerificacaoEntity,
       PrivacidadeSolicitacaoEntity,
       SolicitacaoReagendamentoEntity,
       SolicitacaoOrcamentoEntity,

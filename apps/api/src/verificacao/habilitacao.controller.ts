@@ -16,6 +16,24 @@ export class HabilitacaoController {
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
   minha(@UsuarioAtual() user: AuthenticatedUser) { return this.service.minha(user); }
 
+  @Post('profissionais/me/habilitacao/telefone')
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  iniciarTelefone(@UsuarioAtual() user: AuthenticatedUser, @Body() body: unknown) {
+    return this.service.iniciarTelefone(user, body);
+  }
+
+  @Get('profissionais/me/habilitacao/telefone')
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  consultarTelefone(@UsuarioAtual() user: AuthenticatedUser) {
+    return this.service.consultarTelefone(user);
+  }
+
+  @Post('profissionais/me/habilitacao/telefone/confirmacao')
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  confirmarTelefone(@UsuarioAtual() user: AuthenticatedUser, @Body() body: unknown) {
+    return this.service.confirmarTelefone(user, body);
+  }
+
   @Post('profissionais/me/habilitacao/identidade')
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
   iniciar(@UsuarioAtual() user: AuthenticatedUser, @Body() body: unknown) { return this.service.iniciarIdentidade(user, body); }

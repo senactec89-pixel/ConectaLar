@@ -2,6 +2,8 @@ import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException,
@@ -10,6 +12,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { AuthenticatedUser } from './authenticated-user.js';
 import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
+import { EmailOutboxEntity } from '../database/entities/email-outbox.entity.js';
+import { AdminConviteEntity } from '../database/entities/admin-convite.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
@@ -21,10 +25,12 @@ import {
   salvarFotoPerfil,
 } from '../usuarios/foto-perfil.storage.js';
 import { MailService } from './mail.service.js';
+import { EmailOutboxService } from './email-outbox.service.js';
 import { GoogleIdentityService } from './google-identity.service.js';
 import { MfaService } from './mfa.service.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
+import { invalidarVerificacoesTelefone } from '../verificacao/telefone-verificacao.util.js';
 
 interface CadastroRequest {
   nome: string;
@@ -33,6 +39,8 @@ interface CadastroRequest {
   tipo: UsuarioTipo;
   telefone?: string | null;
   telefoneNormalizado?: string | null;
+  aceitouTermos: boolean;
+  versaoTermos: string;
 }
 
 interface LoginRequest {
@@ -44,6 +52,7 @@ interface GoogleLoginRequest {
   idToken: string;
   tipo: UsuarioTipo | null;
   aceitouTermos: boolean;
+  versaoTermos: string | null;
   senha: string | null;
 }
 
@@ -75,9 +84,16 @@ interface MfaCodigoRequest {
   codigo: string;
 }
 
-interface MfaDesativarRequest {
-  senhaAtual: string;
-  codigo: string;
+interface MfaSetupRequest {
+  setupToken: string;
+  codigo?: string;
+}
+
+interface AceitarConviteAdminRequest {
+  token: string;
+  senha: string;
+  aceitouTermos: boolean;
+  versaoTermos: string;
 }
 
 const resetTokenTtlMinutes = 30;
@@ -92,8 +108,13 @@ export class AuthService {
     private readonly senhaResets: Repository<UsuarioSenhaResetEntity>,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    @InjectRepository(TermoAceiteEntity)
+    private readonly termoAceites: Repository<TermoAceiteEntity>,
+    @InjectRepository(AdminConviteEntity)
+    private readonly convitesAdmin: Repository<AdminConviteEntity>,
     private readonly googleIdentity: GoogleIdentityService,
     private readonly mailService: MailService,
+    private readonly emailOutbox: EmailOutboxService,
     private readonly mfaService: MfaService,
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
@@ -101,6 +122,12 @@ export class AuthService {
 
   async cadastro(body: unknown) {
     const cadastro = parseCadastro(body);
+    if (!cadastro.aceitouTermos) {
+      throw badRequest('ACEITE_TERMOS_OBRIGATORIO');
+    }
+    if (cadastro.versaoTermos !== termoAtual.versao) {
+      throw badRequest('VERSAO_TERMO_INVALIDA');
+    }
     const email = normalizarEmail(cadastro.email);
     const existing = await this.usuarios.findOne({ where: { email } });
     if (existing !== null) {
@@ -127,25 +154,52 @@ export class AuthService {
       });
     }
 
-    const usuario = this.usuarios.create({
-      nome: cadastro.nome.trim(),
-      email,
-      googleSub: null,
-      telefone: cadastro.telefone?.trim() || null,
-      telefoneNormalizado: cadastro.telefoneNormalizado ?? null,
-      tipo: cadastro.tipo,
-      senhaHash: await this.passwordService.hash(cadastro.senha),
-      emailVerificado: false,
-      ativo: true,
-    });
+    const senhaHash = await this.passwordService.hash(cadastro.senha);
+    const codigo = criarCodigoNumerico();
+    const expiraEm = new Date(Date.now() + emailVerificationTtlMinutes * 60 * 1000);
 
     try {
-      const saved = await this.usuarios.save(usuario);
-      const verificacao = await this.enviarCodigoVerificacaoEmail(saved);
+      const created = await this.usuarios.manager.transaction(async (manager) => {
+        const usuarios = manager.getRepository(UsuarioEntity);
+        const saved = await usuarios.save(
+          usuarios.create({
+            nome: cadastro.nome.trim(),
+            email,
+            googleSub: null,
+            telefone: cadastro.telefone?.trim() || null,
+            telefoneNormalizado: cadastro.telefoneNormalizado ?? null,
+            tipo: cadastro.tipo,
+            senhaHash,
+            emailVerificado: false,
+            ativo: true,
+          }),
+        );
+        await manager.getRepository(TermoAceiteEntity).save(
+          manager.getRepository(TermoAceiteEntity).create({
+            usuarioId: saved.id,
+            versao: termoAtual.versao,
+            canal: 'cadastro',
+            aceitoEm: new Date(),
+          }),
+        );
+        await manager.getRepository(UsuarioEmailVerificacaoEntity).save(
+          manager.getRepository(UsuarioEmailVerificacaoEntity).create({
+            usuarioId: saved.id,
+            codigoHash: hashEmailVerificationCode(saved.id, codigo),
+            expiraEm,
+            usadoEm: null,
+          }),
+        );
+        const outbox = await manager.getRepository(EmailOutboxEntity).save(
+          this.emailOutbox.criarRegistro(saved.id, codigo, expiraEm),
+        );
+        return { saved, outboxId: outbox.id };
+      });
+      const delivered = await this.emailOutbox.entregarAgora(created.outboxId);
       return {
-        ...this.authResponse(saved),
+        ...(await this.authResponse(created.saved)),
         emailVerificationRequired: true,
-        ...verificacao,
+        ...emailVerificationResponse(delivered, codigo),
       };
     } catch (error) {
       if (isDuplicateError(error)) {
@@ -228,6 +282,9 @@ export class AuthService {
     if (!input.aceitouTermos) {
       throw badRequest('ACEITE_TERMOS_OBRIGATORIO');
     }
+    if (input.versaoTermos !== termoAtual.versao) {
+      throw badRequest('VERSAO_TERMO_INVALIDA');
+    }
 
     if (input.senha === null) throw badRequest('SENHA_INVALIDA');
     const senhaHash = await this.passwordService.hash(input.senha);
@@ -283,13 +340,123 @@ export class AuthService {
       usuario.tipo !== UsuarioTipo.Administrador ||
       !usuario.mfaAtivo ||
       usuario.tokenVersion !== payload.tv ||
-      usuario.mfaSecretEncrypted === null ||
-      !this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)
+      usuario.mfaSecretEncrypted === null
     ) {
       throw invalidMfaCode();
     }
 
+    this.exigirMfaDesbloqueado(usuario.mfaBloqueadoAte);
+    if (!this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)) {
+      await this.registrarFalhaMfa(usuario.id);
+      throw invalidMfaCode();
+    }
+    await this.limparFalhasMfa(usuario.id);
+
     return this.authResponse(usuario);
+  }
+
+  async iniciarConfiguracaoMfaAdmin(body: unknown) {
+    const input = parseMfaSetup(body, false);
+    const usuario = await this.usuarioAdminDoSetup(input.setupToken);
+    const secret = this.mfaService.createSecret();
+    usuario.mfaSecretEncrypted = this.mfaService.encryptSecret(secret);
+    await this.usuarios.save(usuario);
+    return {
+      secret,
+      otpauthUrl: this.mfaService.createOtpAuthUrl(secret, usuario.email),
+    };
+  }
+
+  async confirmarConfiguracaoMfaAdmin(body: unknown) {
+    const input = parseMfaSetup(body, true);
+    const usuario = await this.usuarioAdminDoSetup(input.setupToken);
+    this.exigirMfaDesbloqueado(usuario.mfaBloqueadoAte);
+    if (
+      usuario.mfaSecretEncrypted === null ||
+      !this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo!)
+    ) {
+      await this.registrarFalhaMfa(usuario.id);
+      throw invalidMfaCode();
+    }
+
+    const atualizacao = await this.usuarios.update(
+      {
+        id: usuario.id,
+        ativo: true,
+        tipo: UsuarioTipo.Administrador,
+        mfaAtivo: false,
+        tokenVersion: usuario.tokenVersion,
+      },
+      { mfaAtivo: true, tokenVersion: usuario.tokenVersion + 1 },
+    );
+    if (atualizacao.affected !== 1) throw invalidMfaCode();
+    await this.limparFalhasMfa(usuario.id);
+    const ativado = await this.usuarios.findOne({
+      where: { id: usuario.id, ativo: true },
+    });
+    if (ativado === null || !ativado.mfaAtivo) throw invalidMfaCode();
+    return this.authResponse(ativado);
+  }
+
+  async aceitarConviteAdmin(body: unknown) {
+    const input = parseAceitarConviteAdmin(body);
+    if (!input.aceitouTermos) throw badRequest('ACEITE_TERMOS_OBRIGATORIO');
+    if (input.versaoTermos !== termoAtual.versao) {
+      throw badRequest('VERSAO_TERMO_INVALIDA');
+    }
+    const tokenHash = hashAdminInviteToken(input.token);
+    const convitePrevalidado = await this.convitesAdmin.findOne({ where: { tokenHash } });
+    if (
+      convitePrevalidado === null || convitePrevalidado.aceitoEm !== null ||
+      convitePrevalidado.canceladoEm !== null || convitePrevalidado.expiraEm.getTime() <= Date.now()
+    ) {
+      throw invalidAdminInvite();
+    }
+    const senhaHash = await this.passwordService.hash(input.senha);
+    const aceitoEm = new Date();
+    const usuarioId = await this.usuarios.manager.transaction(async (manager) => {
+      const convites = manager.getRepository(AdminConviteEntity);
+      const convite = await convites.findOne({
+        where: { tokenHash },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (
+        convite === null || convite.aceitoEm !== null || convite.canceladoEm !== null ||
+        convite.expiraEm.getTime() <= Date.now()
+      ) {
+        throw invalidAdminInvite();
+      }
+      const usuarios = manager.getRepository(UsuarioEntity);
+      const usuario = await usuarios.findOne({
+        where: { id: convite.usuarioId, tipo: UsuarioTipo.Administrador, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (usuario === null || usuario.emailVerificado) throw invalidAdminInvite();
+
+      usuario.senhaHash = senhaHash;
+      usuario.emailVerificado = true;
+      usuario.tokenVersion += 1;
+      await usuarios.save(usuario);
+      convite.aceitoEm = aceitoEm;
+      await convites.save(convite);
+      await manager.getRepository(TermoAceiteEntity).save(
+        manager.getRepository(TermoAceiteEntity).create({
+          usuarioId: usuario.id,
+          versao: termoAtual.versao,
+          canal: 'convite_administrativo',
+          aceitoEm,
+        }),
+      );
+      return usuario.id;
+    });
+    await this.emailOutbox.cancelarPendentes(usuarioId);
+    const usuario = await this.usuarios.findOne({ where: { id: usuarioId, ativo: true } });
+    if (usuario === null) throw invalidAdminInvite();
+    return {
+      conviteAceito: true,
+      mfaSetupRequired: true,
+      ...this.tokenService.createMfaSetupChallengeToken(usuario),
+    };
   }
 
   async solicitarRecuperacaoSenha(body: unknown) {
@@ -345,7 +512,7 @@ export class AuthService {
     return {
       ok: true,
       emailVerificado: false,
-      ...(await this.enviarCodigoVerificacaoEmail(usuario)),
+      ...(await this.agendarCodigoVerificacaoEmail(usuario)),
     };
   }
 
@@ -381,6 +548,7 @@ export class AuthService {
       { usuarioId: usuario.id, usadoEm: IsNull() },
       { usadoEm: new Date() },
     );
+    await this.emailOutbox.cancelarPendentes(usuario.id);
 
     return { ok: true, emailVerificado: true };
   }
@@ -415,35 +583,12 @@ export class AuthService {
   }
 
   async desativarMfaAdmin(user: AuthenticatedUser, body: unknown) {
-    const input = parseMfaDesativar(body);
-    const usuario = await this.usuarios
-      .createQueryBuilder('usuario')
-      .addSelect('usuario.senhaHash')
-      .addSelect('usuario.mfaSecretEncrypted')
-      .where('usuario.id = :id', { id: user.id })
-      .andWhere('usuario.ativo = :ativo', { ativo: true })
-      .getOne();
-    if (
-      usuario === null ||
-      usuario.tipo !== UsuarioTipo.Administrador ||
-      !(await this.passwordService.verify(input.senhaAtual, usuario.senhaHash))
-    ) {
-      throw new UnauthorizedException({
-        code: 'SENHA_ATUAL_INVALIDA',
-        message: 'Senha atual invalida.',
-      });
-    }
-    if (
-      usuario.mfaSecretEncrypted === null ||
-      !this.verificarCodigoMfa(usuario.mfaSecretEncrypted, input.codigo)
-    ) {
-      throw invalidMfaCode();
-    }
-    usuario.mfaAtivo = false;
-    usuario.mfaSecretEncrypted = null;
-    usuario.tokenVersion += 1;
-    await this.usuarios.save(usuario);
-    return { ok: true };
+    void user;
+    void body;
+    throw new ConflictException({
+      code: 'MFA_ADMIN_NAO_PODE_SER_DESATIVADO',
+      message: 'O autenticador e obrigatorio para contas administrativas.',
+    });
   }
 
   async statusMfaAdmin(user: AuthenticatedUser) {
@@ -555,11 +700,21 @@ export class AuthService {
       }
     }
 
-    usuario.nome = input.nome;
-    usuario.telefone = input.telefone;
-    usuario.telefoneNormalizado = input.telefoneNormalizado;
     try {
-      return this.authResponse(await this.usuarios.save(usuario));
+      const saved = await this.usuarios.manager.transaction(async (manager) => {
+        const atual = await manager.findOne(UsuarioEntity, {
+          where: { id: usuario.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+        });
+        if (!atual) throw new UnauthorizedException();
+        const telefoneMudou = atual.telefoneNormalizado !== input.telefoneNormalizado;
+        atual.nome = input.nome;
+        atual.telefone = input.telefone;
+        atual.telefoneNormalizado = input.telefoneNormalizado;
+        const salvo = await manager.save(UsuarioEntity, atual);
+        if (telefoneMudou) await invalidarVerificacoesTelefone(manager, atual.id);
+        return salvo;
+      });
+      return this.authResponse(saved);
     } catch (error) {
       if (isDuplicateError(error)) {
         throw new ConflictException({
@@ -592,7 +747,10 @@ export class AuthService {
     return { ok: true };
   }
 
-  private authResponse(usuario: UsuarioEntity) {
+  private async authResponse(usuario: UsuarioEntity) {
+    const termosAceitos = await this.termoAceites.exists({
+      where: { usuarioId: usuario.id, versao: termoAtual.versao },
+    });
     return {
       usuario: {
         id: usuario.id,
@@ -603,23 +761,39 @@ export class AuthService {
         tipo: usuario.tipo,
         fotoPerfilUrl: fotoPerfilUrl(usuario),
         googleVinculado: usuario.googleSub !== null,
+        termosAceitos,
+        versaoTermos: termoAtual.versao,
       },
       token: this.tokenService.createAccessToken(usuario),
     };
   }
 
-  private loginResponse(
+  private async loginResponse(
     usuario: UsuarioEntity,
     extras: Record<string, unknown> = {},
   ) {
-    if (usuario.tipo === UsuarioTipo.Administrador && usuario.mfaAtivo) {
+    if (usuario.tipo === UsuarioTipo.Administrador) {
+      if (!usuario.emailVerificado) {
+        return {
+          ...(await this.authResponse(usuario)),
+          ...extras,
+          emailVerificationRequired: true,
+        };
+      }
+      if (usuario.mfaAtivo) {
+        return {
+          ...extras,
+          mfaRequired: true,
+          ...this.tokenService.createMfaChallengeToken(usuario),
+        };
+      }
       return {
         ...extras,
-        mfaRequired: true,
-        ...this.tokenService.createMfaChallengeToken(usuario),
+        mfaSetupRequired: true,
+        ...this.tokenService.createMfaSetupChallengeToken(usuario),
       };
     }
-    return { ...this.authResponse(usuario), ...extras };
+    return { ...(await this.authResponse(usuario)), ...extras };
   }
 
   private async usuarioAtivo(id: number): Promise<UsuarioEntity> {
@@ -635,44 +809,35 @@ export class AuthService {
     return usuario;
   }
 
-  private async enviarCodigoVerificacaoEmail(usuario: UsuarioEntity) {
+  private async agendarCodigoVerificacaoEmail(usuario: UsuarioEntity) {
     const codigo = criarCodigoNumerico();
-    await this.emailVerificacoes.update(
-      { usuarioId: usuario.id, usadoEm: IsNull() },
-      { usadoEm: new Date() },
+    const expiraEm = new Date(
+      Date.now() + emailVerificationTtlMinutes * 60 * 1000,
     );
-    await this.emailVerificacoes.save(
-      this.emailVerificacoes.create({
-        usuarioId: usuario.id,
-        codigoHash: hashEmailVerificationCode(usuario.id, codigo),
-        expiraEm: new Date(
-          Date.now() + emailVerificationTtlMinutes * 60 * 1000,
-        ),
-        usadoEm: null,
-      }),
-    );
-
-    const delivered = await this.enviarEmailComFalhaControlada(() =>
-      this.mailService.sendEmailVerificationCode(usuario.email, codigo),
-    );
-    if (!delivered && process.env.NODE_ENV === 'production') {
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_VERIFICACAO_INDISPONIVEL',
-        message: 'Servico de verificacao de e-mail indisponivel no momento.',
-      });
-    }
-
-    const response: { emailVerificationSent: boolean; devCode?: string } = {
-      emailVerificationSent: delivered,
-    };
-    if (
-      !delivered &&
-      process.env.NODE_ENV !== 'production' &&
-      process.env.EXPOSE_EMAIL_VERIFICATION_CODE === 'true'
-    ) {
-      response.devCode = codigo;
-    }
-    return response;
+    const outboxId = await this.usuarios.manager.transaction(async (manager) => {
+      await manager.getRepository(UsuarioEmailVerificacaoEntity).update(
+        { usuarioId: usuario.id, usadoEm: IsNull() },
+        { usadoEm: new Date() },
+      );
+      await manager.getRepository(EmailOutboxEntity).update(
+        { usuarioId: usuario.id, enviadoEm: IsNull(), canceladoEm: IsNull() },
+        { canceladoEm: new Date(), processandoEm: null },
+      );
+      await manager.getRepository(UsuarioEmailVerificacaoEntity).save(
+        manager.getRepository(UsuarioEmailVerificacaoEntity).create({
+          usuarioId: usuario.id,
+          codigoHash: hashEmailVerificationCode(usuario.id, codigo),
+          expiraEm,
+          usadoEm: null,
+        }),
+      );
+      const outbox = await manager.getRepository(EmailOutboxEntity).save(
+        this.emailOutbox.criarRegistro(usuario.id, codigo, expiraEm),
+      );
+      return outbox.id;
+    });
+    const delivered = await this.emailOutbox.entregarAgora(outboxId);
+    return emailVerificationResponse(delivered, codigo);
   }
 
   private async enviarEmailComFalhaControlada(
@@ -707,6 +872,68 @@ export class AuthService {
     return usuario;
   }
 
+  private async usuarioAdminDoSetup(setupToken: string): Promise<UsuarioEntity> {
+    const payload = this.tokenService.verifyMfaSetupChallengeToken(setupToken);
+    if (payload === null) throw invalidMfaSetup();
+    const usuario = await this.usuarios
+      .createQueryBuilder('usuario')
+      .addSelect('usuario.mfaSecretEncrypted')
+      .where('usuario.id = :id', { id: payload.sub })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .getOne();
+    if (
+      usuario === null || usuario.tipo !== UsuarioTipo.Administrador ||
+      !usuario.emailVerificado || usuario.mfaAtivo || usuario.tokenVersion !== payload.tv
+    ) {
+      throw invalidMfaSetup();
+    }
+    return usuario;
+  }
+
+  private exigirMfaDesbloqueado(bloqueadoAte: Date | null): void {
+    if (bloqueadoAte !== null && bloqueadoAte.getTime() > Date.now()) {
+      throw new HttpException(
+        {
+          code: 'MFA_TEMPORARIAMENTE_BLOQUEADO',
+          message: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
+  private async registrarFalhaMfa(usuarioId: number): Promise<void> {
+    await this.usuarios.query(
+      `UPDATE usuarios
+       SET mfa_falhas = LEAST(mfa_falhas + 1, 5),
+           mfa_bloqueado_ate = CASE
+             WHEN mfa_falhas + 1 >= 5 THEN DATE_ADD(UTC_TIMESTAMP(), INTERVAL 15 MINUTE)
+             ELSE mfa_bloqueado_ate
+           END
+       WHERE id = ? AND tipo = ? AND ativo = 1`,
+      [usuarioId, UsuarioTipo.Administrador],
+    );
+  }
+
+  private async limparFalhasMfa(usuarioId: number): Promise<void> {
+    const reset = await this.usuarios
+      .createQueryBuilder()
+      .update(UsuarioEntity)
+      .set({ mfaFalhas: 0, mfaBloqueadoAte: null })
+      .where('id = :id', { id: usuarioId })
+      .andWhere('(mfa_bloqueado_ate IS NULL OR mfa_bloqueado_ate <= UTC_TIMESTAMP())')
+      .execute();
+    if (reset.affected !== 1) {
+      throw new HttpException(
+        {
+          code: 'MFA_TEMPORARIAMENTE_BLOQUEADO',
+          message: 'Muitas tentativas. Aguarde 15 minutos e tente novamente.',
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+  }
+
   private verificarCodigoMfa(secretEncrypted: string, codigo: string): boolean {
     const secret = this.mfaService.decryptSecret(secretEncrypted);
     return secret !== null && this.mfaService.verifyCode(secret, codigo);
@@ -721,6 +948,8 @@ function parseCadastro(body: unknown): CadastroRequest {
   const tipo = stringField(value, 'tipo');
   const telefone = optionalStringField(value, 'telefone');
   const telefoneNormalizado = normalizarTelefoneOpcional(telefone);
+  const aceitouTermos = value.aceitouTermos === true;
+  const versaoTermos = stringField(value, 'versaoTermos').trim();
 
   if (nome.trim().length < 3 || nome.trim().length > 140) {
     throw badRequest('NOME_INVALIDO');
@@ -743,6 +972,8 @@ function parseCadastro(body: unknown): CadastroRequest {
     tipo: tipo as UsuarioTipo,
     telefone,
     telefoneNormalizado,
+    aceitouTermos,
+    versaoTermos,
   };
 }
 
@@ -767,6 +998,7 @@ function parseGoogleLogin(body: unknown): GoogleLoginRequest {
   const tipo = optionalStringField(value, 'tipo');
   const senha = optionalStringField(value, 'senha');
   const aceitouTermos = value.aceitouTermos === true;
+  const versaoTermos = optionalStringField(value, 'versaoTermos')?.trim() ?? null;
   if (idToken.length > 12_000) throw badRequest('TOKEN_GOOGLE_INVALIDO');
   if (tipo !== null && !usuarioTiposPublicos.has(tipo)) {
     throw badRequest('TIPO_INVALIDO');
@@ -779,6 +1011,7 @@ function parseGoogleLogin(body: unknown): GoogleLoginRequest {
     idToken,
     tipo: tipo as UsuarioTipo | null,
     aceitouTermos,
+    versaoTermos,
     senha,
   };
 }
@@ -836,14 +1069,33 @@ function parseMfaCodigo(body: unknown): MfaCodigoRequest {
   return { codigo };
 }
 
-function parseMfaDesativar(body: unknown): MfaDesativarRequest {
+function parseMfaSetup(body: unknown, requireCode: boolean): MfaSetupRequest {
   const value = objectBody(body);
-  const senhaAtual = stringField(value, 'senhaAtual');
-  const codigo = stringField(value, 'codigo').replace(/\s/g, '');
-  if (!/^\d{6}$/.test(codigo)) {
-    throw invalidMfaCode();
+  const setupToken = stringField(value, 'setupToken');
+  const codigo = value.codigo === undefined ? undefined : stringField(value, 'codigo').replace(/\s/g, '');
+  if (
+    setupToken.length > 1200 ||
+    (requireCode && (codigo === undefined || !/^\d{6}$/.test(codigo))) ||
+    (!requireCode && codigo !== undefined)
+  ) {
+    throw invalidMfaSetup();
   }
-  return { senhaAtual, codigo };
+  return { setupToken, codigo };
+}
+
+function parseAceitarConviteAdmin(body: unknown): AceitarConviteAdminRequest {
+  const value = objectBody(body);
+  const token = stringField(value, 'token').trim();
+  const senha = stringField(value, 'senha');
+  const versaoTermos = stringField(value, 'versaoTermos').trim();
+  validarSenha(senha);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw invalidAdminInvite();
+  return {
+    token,
+    senha,
+    aceitouTermos: value.aceitouTermos === true,
+    versaoTermos,
+  };
 }
 
 function parseAlterarSenha(body: unknown): AlterarSenhaRequest {
@@ -928,6 +1180,7 @@ function validarSenha(senha: string): void {
   if (
     senha.length < 8 ||
     senha.length > 128 ||
+    senha !== senha.trim() ||
     !/[A-Z]/.test(senha) ||
     !/[a-z]/.test(senha) ||
     !/\d/.test(senha) ||
@@ -949,6 +1202,24 @@ function hashEmailVerificationCode(usuarioId: number, codigo: string): string {
     .digest('hex');
 }
 
+export function hashAdminInviteToken(token: string): string {
+  return createHash('sha256').update(token, 'utf8').digest('hex');
+}
+
+function invalidAdminInvite(): UnauthorizedException {
+  return new UnauthorizedException({
+    code: 'CONVITE_ADMIN_INVALIDO',
+    message: 'O convite e invalido, expirou ou ja foi utilizado.',
+  });
+}
+
+function invalidMfaSetup(): UnauthorizedException {
+  return new UnauthorizedException({
+    code: 'MFA_CONFIGURACAO_INVALIDA',
+    message: 'A etapa de configuracao expirou. Entre novamente para continuar.',
+  });
+}
+
 function criarCodigoNumerico(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
 }
@@ -963,6 +1234,20 @@ function recuperacaoSolicitadaResponse(codigo: string | null) {
     response.devToken = codigo;
   }
 
+  return response;
+}
+
+function emailVerificationResponse(delivered: boolean, codigo: string) {
+  const response: { emailVerificationSent: boolean; devCode?: string } = {
+    emailVerificationSent: delivered,
+  };
+  if (
+    !delivered &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.EXPOSE_EMAIL_VERIFICATION_CODE === 'true'
+  ) {
+    response.devCode = codigo;
+  }
   return response;
 }
 

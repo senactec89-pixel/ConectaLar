@@ -27,6 +27,7 @@ test('sem fornecedores nao ha aprovacao, nem por selo legado, estado adulterado 
     assert.notEqual(status.estado, 'aprovado');
   }
   assert.equal(podeAtender(null), false);
+  assert.equal(habilitacaoProfissional(perfil(), 'confirmado', 'confirmado').podeAtender, false);
 });
 
 test('provider desabilitado nao simula identidade ou prova de vida', async () => {
@@ -41,10 +42,27 @@ function habilitacaoFixture(mfaAtivo = true) {
   const audit = [];
   const manager = {
     async findOne() { return p; },
-    create(_type, data) { return data; },
-    async save(type, data) { if (type !== ProfissionalPerfilEntity) audit.push(data); return data; },
+    getRepository(entity) {
+      if (entity.name === 'AdminAuditoriaEntity') {
+        return {
+          create: (data) => data,
+          async save(data) { audit.push(data); return data; },
+        };
+      }
+      return {};
+    },
+    async save(type, data) { if (type === ProfissionalPerfilEntity) return data; return data; },
+  };
+  const builder = {
+    leftJoinAndSelect() { return this; },
+    orderBy() { return this; },
+    skip() { return this; },
+    take() { return this; },
+    andWhere() { return this; },
+    async getManyAndCount() { return [[p], 1]; },
   };
   const repo = { async findOne() { return p; },
+    createQueryBuilder() { return builder; },
     manager: { async transaction(fn) { return fn(manager); } },
     async findAndCount() { return [[p], 1]; },
   };
@@ -69,6 +87,7 @@ test('revisao e idempotente, auditada e nao remove suspensao', async () => {
   await service.solicitarRevisao(profissional, {});
   assert.equal(audit.length, 1);
   assert.equal(audit[0].atorId, 20);
+  assert.equal(JSON.parse(audit[0].detalhe).efeito, 'nao_altera_estado_de_aprovacao_ou_suspensao');
   assert.equal(p.habilitacaoEstado, 'suspenso');
   assert.ok(p.habilitacaoRevisaoEm instanceof Date);
   assert.equal((await service.minha(profissional)).habilitacao.podeAtender, false);
@@ -104,7 +123,17 @@ test('paginacao administrativa valida limites', async () => {
   for (const pagina of ['0', '-1', '100000', '1 OR 1', ['1']]) {
     await assert.rejects(service.listar(admin, { pagina }), codigo('HABILITACAO_DADOS_INVALIDOS'));
   }
-  assert.equal((await service.listar(admin, {})).total, 1);
+  const result = await service.listar(admin, { pagina: '1', limite: '20', termo: 'Teste', estado: 'pendente' });
+  assert.equal(result.pagina, 1);
+  assert.equal(result.total, 1);
+  assert.deepEqual(result.paginacao, {
+    pagina: 1,
+    limite: 20,
+    total: 1,
+    totalPaginas: 1,
+    temMais: false,
+  });
+  assert.equal(result.profissionais[0].nome, 'Teste');
 });
 
 function solicitacoesFixture(status = 'aguardando_resposta') {
@@ -162,7 +191,7 @@ test('agenda nao contorna protecao de endereco de pedidos antigos', async () => 
 });
 
 test('upload nao pode ser usado para coletar antecedentes ou biometria sem politica', async () => {
-  const service = new VerificacaoService({}, {}, {}, {}, {}, {});
+  const service = new VerificacaoService({}, {}, {}, {}, {});
   for (const tipoDocumento of ['antecedentes_criminais', 'selfie', 'biometria']) {
     await assert.rejects(service.enviarMeuDocumento(profissional, { tipoDocumento,
       referenciaArquivo: 'arquivo.pdf' }), codigo('TIPO_DOCUMENTO_NAO_PERMITIDO'));

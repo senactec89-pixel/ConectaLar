@@ -13,6 +13,7 @@ import { HabilitacaoController } from './habilitacao.controller.js';
 import { HabilitacaoService } from './habilitacao.service.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { ProfissionalIdentidadeVerificacaoEntity } from '../database/entities/profissional-identidade-verificacao.entity.js';
+import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/profissional-telefone-verificacao.entity.js';
 import { IdZapSignProvider } from './id-zapsign.provider.js';
 
 @Module({
@@ -25,6 +26,7 @@ import { IdZapSignProvider } from './id-zapsign.provider.js';
       ProfissionalPerfilEntity,
       UsuarioEntity,
       ProfissionalIdentidadeVerificacaoEntity,
+      ProfissionalTelefoneVerificacaoEntity,
     ]),
   ],
   controllers: [VerificacaoController, HabilitacaoController],

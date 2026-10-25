@@ -32,8 +32,18 @@ class ClienteService {
     return _api.delete('clientes/me/enderecos/$id');
   }
 
-  Future<Map<String, dynamic>> listarFavoritos() {
-    return _api.get('clientes/me/favoritos');
+  Future<Map<String, dynamic>> listarFavoritos({
+    int pagina = 1,
+    int limite = 20,
+  }) {
+    return _api.get(
+      'clientes/me/favoritos',
+      queryParameters: {'pagina': '$pagina', 'limite': '$limite'},
+    );
+  }
+
+  Future<Map<String, dynamic>> consultarFavorito(int profissionalId) {
+    return _api.get('clientes/me/favoritos/$profissionalId');
   }
 
   Future<Map<String, dynamic>> adicionarFavorito(int profissionalId) {

@@ -788,6 +788,15 @@ class _FormularioSolicitacao extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _AvisoSolicitacao(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.politicaComercial),
+                  icon: const Icon(Icons.info_outline_rounded),
+                  label: const Text('Ver política comercial e cancelamento'),
+                ),
+              ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,

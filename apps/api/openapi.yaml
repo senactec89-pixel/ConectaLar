@@ -63,6 +63,80 @@ paths:
                 properties:
                   identidade: { $ref: '#/components/schemas/IdentidadeProfissional' }
         '403': { description: Professional or company role required }
+  /profissionais/me/habilitacao/telefone:
+    post:
+      operationId: postIniciarConfirmacaoTelefone
+      summary: Sends a WhatsApp possession code to the professional's current phone
+      description: Requires explicit consent and server-side ID ZapSign configuration. The OTP is never persisted. This check proves access to the phone channel only and never enables service requests.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [consentimento]
+              properties:
+                consentimento: { type: boolean, const: true }
+      responses:
+        '201':
+          description: Verification created or existing active verification returned
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [telefone]
+                properties:
+                  telefone: { $ref: '#/components/schemas/TelefoneProfissionalVerificacao' }
+        '429': { description: Daily initiation limit reached }
+        '503': { description: Provider integration is disabled or unavailable }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
+    get:
+      operationId: getStatusConfirmacaoTelefone
+      summary: Returns the professional's own phone verification status
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Masked phone and status only
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [telefone]
+                properties:
+                  telefone: { $ref: '#/components/schemas/TelefoneProfissionalVerificacao' }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
+  /profissionais/me/habilitacao/telefone/confirmacao:
+    post:
+      operationId: postConfirmarTelefoneWhatsApp
+      summary: Submits the one-time WhatsApp code for server-side verification
+      description: A client-generated UUID tentativaId is used for safe retries. Only numeric codes are accepted; the code is sent directly to the provider and is never written to the database or logs.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [codigo, tentativaId]
+              properties:
+                codigo: { type: string, pattern: '^\d{1,20}$' }
+                tentativaId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Current result; phone confirmation alone does not habilitate professional
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [telefone]
+                properties:
+                  telefone: { $ref: '#/components/schemas/TelefoneProfissionalVerificacao' }
+        '409': { description: No active verification, expired flow, changed phone, or another attempt is running }
+        '503': { description: Provider integration is disabled or unavailable }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
   /profissionais/me/habilitacao/revisao:
     post:
       operationId: postSolicitarRevisaoHabilitacao
@@ -92,9 +166,18 @@ paths:
         - in: query
           name: pagina
           schema: { type: integer, minimum: 1, maximum: 99999, default: 1 }
+        - in: query
+          name: limite
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: estado
+          schema: { type: string, enum: [pendente, em_analise, suspenso] }
+        - in: query
+          name: termo
+          schema: { type: string, maxLength: 120 }
       responses:
         '200':
-          description: Thirty records per page, sorted by profile id
+          description: Filtered eligibility records, sorted by profile id
           content:
             application/json:
               schema:
@@ -102,6 +185,8 @@ paths:
                 properties:
                   pagina: { type: integer }
                   total: { type: integer }
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   profissionais:
                     type: array
                     items:
@@ -254,13 +339,14 @@ paths:
               $ref: '#/components/schemas/AuthLoginRequest'
       responses:
         '201':
-          description: Access token issued, or MFA challenge returned for an admin with MFA enabled
+          description: User session, required MFA challenge, or MFA enrollment-only challenge for an administrator
           content:
             application/json:
               schema:
                 oneOf:
                   - $ref: '#/components/schemas/AuthResponse'
                   - $ref: '#/components/schemas/AuthMfaChallenge'
+                  - $ref: '#/components/schemas/AuthMfaSetupChallenge'
         '401':
           description: Invalid credentials
           content:
@@ -298,6 +384,7 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/AuthResponse'
                   - $ref: '#/components/schemas/AuthMfaChallenge'
+                  - $ref: '#/components/schemas/AuthMfaSetupChallenge'
                   - $ref: '#/components/schemas/AuthGoogleCadastroNecessario'
         '401':
           description: Invalid, expired, or unauthorized Google identity
@@ -338,6 +425,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/admin-mfa/setup:
+    post:
+      operationId: postAuthAdminMfaSetup
+      summary: Returns TOTP enrollment material for a short-lived setup challenge
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMfaSetupRequest'
+      responses:
+        '201':
+          description: TOTP secret and otpauth URL; this challenge cannot access protected routes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMfaSetup'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/admin-mfa/confirmar:
+    post:
+      operationId: postAuthAdminMfaConfirmar
+      summary: Confirms required TOTP enrollment and then issues an administrator session
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthMfaSetupConfirmRequest'
+      responses:
+        '201':
+          description: Access token issued only after a valid TOTP code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '429':
+          description: TOTP is temporarily locked after repeated invalid codes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /auth/admin-convites/aceitar:
+    post:
+      operationId: postAuthAdminConvitesAceitar
+      summary: Accepts a one-use administrator invitation and returns only an MFA setup challenge
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminInviteAcceptRequest'
+      responses:
+        '201':
+          description: Invitation consumed; an enrollment-only MFA challenge is returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMfaSetupChallenge'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /auth/logout:
@@ -698,7 +851,7 @@ paths:
   /auth/mfa/admin/desativar:
     post:
       operationId: postAuthMfaAdminDesativar
-      summary: Disables TOTP for the authenticated administrator after password and code confirmation
+      summary: Retired endpoint; mandatory administrator MFA cannot be disabled
       tags:
         - Auth
       security:
@@ -710,8 +863,9 @@ paths:
             schema:
               $ref: '#/components/schemas/AuthMfaDesativarRequest'
       responses:
-        '201':
-          $ref: '#/components/responses/OkResponse'
+        '409':
+          description: Mandatory administrator MFA cannot be disabled
+          $ref: '#/components/responses/ApiErrorResponse'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /auth/senha:
@@ -811,6 +965,14 @@ paths:
           schema:
             type: string
             pattern: '^[A-Za-z]{2}$'
+        - name: pagina
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 10000, default: 1}
+        - name: limite
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
       responses:
         '200':
           description: Public professional profiles
@@ -821,11 +983,14 @@ paths:
                 additionalProperties: false
                 required:
                   - profissionais
+                  - paginacao
                 properties:
                   profissionais:
                     type: array
                     items:
                       $ref: '#/components/schemas/ProfissionalPublico'
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
         default:
           description: HTTP error with internal details omitted
           content:
@@ -870,6 +1035,16 @@ paths:
                 categoriaId:
                   type: integer
                   minimum: 1
+                pagina:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  default: 1
+                limite:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 20
       responses:
         '200':
           description: Professionals within both the requested radius and their service area
@@ -880,11 +1055,14 @@ paths:
                 additionalProperties: false
                 required:
                   - profissionais
+                  - paginacao
                 properties:
                   profissionais:
                     type: array
                     items:
                       $ref: '#/components/schemas/ProfissionalPublico'
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
         default:
           description: HTTP error with internal details omitted
           content:
@@ -1195,6 +1373,19 @@ paths:
         - Categorias
       security:
         - bearerAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: ativo
+          in: query
+          schema: { type: boolean }
+        - name: termo
+          in: query
+          schema: { type: string, maxLength: 80 }
       responses:
         '200':
           description: All categories
@@ -1204,8 +1395,11 @@ paths:
                 type: object
                 additionalProperties: false
                 required:
+                  - paginacao
                   - categorias
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   categorias:
                     type: array
                     items:
@@ -1586,6 +1780,25 @@ paths:
         - Admin
       security:
         - bearerAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: acao
+          in: query
+          schema: { type: string, maxLength: 60 }
+        - name: alvoTipo
+          in: query
+          schema: { type: string, maxLength: 60 }
+        - name: atorId
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - name: termo
+          in: query
+          schema: { type: string, maxLength: 120 }
       responses:
         '200':
           description: Administrative audit events
@@ -1595,8 +1808,11 @@ paths:
                 type: object
                 additionalProperties: false
                 required:
+                  - paginacao
                   - eventos
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   eventos:
                     type: array
                     items:
@@ -2019,6 +2235,13 @@ paths:
       tags: [Clientes]
       security:
         - bearerAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 10000, default: 1}
+        - name: limite
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 50, default: 20}
       responses:
         '200':
           description: Favorite professionals
@@ -2026,15 +2249,42 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [favoritos]
+                required: [favoritos, paginacao]
                 properties:
                   favoritos:
                     type: array
                     items:
                       $ref: '#/components/schemas/FavoritoProfissional'
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /clientes/me/favoritos/{profissionalId}:
+    get:
+      operationId: getMeuFavorito
+      summary: Checks whether a professional is in the authenticated client's favorites
+      tags: [Clientes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: profissionalId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Favorite state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [favorito]
+                properties:
+                  favorito: {type: boolean}
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
     post:
       operationId: postMeuFavorito
       summary: Adds an active professional to the authenticated client's favorites
@@ -2087,6 +2337,12 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
         - name: tipo
           in: query
           schema:
@@ -2099,7 +2355,7 @@ paths:
           in: query
           schema:
             type: string
-            maxLength: 80
+            maxLength: 120
       responses:
         '200':
           description: Matching user accounts
@@ -2107,8 +2363,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [usuarios]
+                required: [paginacao, usuarios]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   usuarios:
                     type: array
                     items:
@@ -2140,7 +2398,7 @@ paths:
   /admin/usuarios/administradores:
     post:
       operationId: postAdminCriarAdministrador
-      summary: Creates an administrator account from an authenticated administrator account
+      summary: Creates a one-use invitation from an MFA-authenticated administrator account
       tags: [Admin]
       security:
         - bearerAuth: []
@@ -2151,7 +2409,7 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [nome, email, senha]
+              required: [nome, email]
               properties:
                 nome:
                   type: string
@@ -2164,22 +2422,24 @@ paths:
                 telefone:
                   type: [string, 'null']
                   maxLength: 32
-                senha:
-                  type: string
-                  minLength: 8
-                  maxLength: 128
-                  writeOnly: true
       responses:
         '201':
-          description: Administrator account created
+          description: One-use invitation created and queued for e-mail delivery; invitation secret is never returned
           content:
             application/json:
               schema:
                 type: object
-                required: [usuario]
+                required: [usuario, convite]
                 properties:
                   usuario:
                     $ref: '#/components/schemas/UsuarioAdministrativo'
+                  convite:
+                    type: object
+                    required: [expiraEm, emailEnviado, estado]
+                    properties:
+                      expiraEm: {type: string, format: date-time}
+                      emailEnviado: {type: boolean}
+                      estado: {type: string, enum: [enviado, aguardando_envio]}
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /admin/usuarios/{id}/status:
@@ -2279,11 +2539,25 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
         - name: status
           in: query
           schema:
             type: string
             enum: [pendente, aprovado, rejeitado]
+        - name: tipoDocumento
+          in: query
+          schema:
+            type: string
+            enum: [documento_identidade, comprovante_endereco, certificado_opcional, certificado_curso]
+        - name: termo
+          in: query
+          schema: { type: string, maxLength: 120 }
       responses:
         '200':
           description: Verification documents and professional summaries
@@ -2291,8 +2565,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [documentos]
+                required: [paginacao, documentos]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   documentos:
                     type: array
                     items:
@@ -2546,6 +2822,19 @@ paths:
       tags: [Admin]
       security:
         - bearerAuth: []
+      parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: status
+          in: query
+          schema: { type: string, enum: [todas, pendente, aprovada, rejeitada] }
+        - name: termo
+          in: query
+          schema: { type: string, maxLength: 120 }
       responses:
         '200':
           description: Reviews pending moderation
@@ -2553,8 +2842,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [avaliacoes]
+                required: [paginacao, avaliacoes]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   avaliacoes:
                     type: array
                     items:
@@ -2677,11 +2968,20 @@ paths:
       security:
         - bearerAuth: []
       parameters:
+        - name: pagina
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limite
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
         - name: status
           in: query
           schema:
             type: string
             enum: [pendente, em_analise, resolvida, rejeitada]
+        - name: termo
+          in: query
+          schema: { type: string, maxLength: 120 }
       responses:
         '200':
           description: Reports with participant summaries
@@ -2689,8 +2989,10 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [denuncias]
+                required: [paginacao, denuncias]
                 properties:
+                  paginacao:
+                    $ref: '#/components/schemas/Paginacao'
                   denuncias:
                     type: array
                     items:
@@ -3078,7 +3380,19 @@ components:
             type: object
             properties:
               codigo: { type: string, enum: [perfil, email, telefone, identidade, antecedentes, aprovacao] }
-              status: { type: string, enum: [cadastrado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria] }
+              status: { type: string, enum: [cadastrado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
+    TelefoneProfissionalVerificacao:
+      type: object
+      additionalProperties: false
+      required: [estado, disponivel, tentativaId, telefoneMascarado, tentativasRestantes, expiraEm, resolvidaEm]
+      properties:
+        estado: { type: string, enum: [nao_iniciada, iniciando, pendente, confirmada, revisao_necessaria, expirada, falha, invalidada, telefone_ausente] }
+        disponivel: { type: boolean }
+        tentativaId: { type: [string, 'null'], format: uuid, description: Opaque retry identifier returned only to the authenticated owner while confirmation is in progress; never contains the one-time code. }
+        telefoneMascarado: { type: [string, 'null'] }
+        tentativasRestantes: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        expiraEm: { type: [string, 'null'], format: date-time }
+        resolvidaEm: { type: [string, 'null'], format: date-time }
     IdentidadeProfissional:
       type: object
       required: [estado, disponivel, url, expiraEm, resolvidaEm]
@@ -3105,6 +3419,8 @@ components:
         - email
         - senha
         - tipo
+        - aceitouTermos
+        - versaoTermos
       properties:
         nome:
           type: string
@@ -3124,6 +3440,13 @@ components:
           writeOnly: true
         tipo:
           $ref: '#/components/schemas/UsuarioTipoPublico'
+        aceitouTermos:
+          type: boolean
+          const: true
+        versaoTermos:
+          type: string
+          maxLength: 40
+          description: Must match the current version returned by GET /termos/atuais.
     PrivacidadeCredencialRequest:
       type: object
       additionalProperties: false
@@ -3211,6 +3534,9 @@ components:
         aceitouTermos:
           type: boolean
           description: Required and true only when tipo is sent to create a new account.
+        versaoTermos:
+          type: string
+          description: Current terms version required only when tipo is sent to create a new account.
         senha:
           type: string
           minLength: 8
@@ -3315,6 +3641,56 @@ components:
         expiresIn:
           type: integer
           const: 300
+  AuthMfaSetupChallenge:
+    type: object
+    additionalProperties: false
+    required: [mfaSetupRequired, mfaSetupToken, expiresIn]
+    properties:
+      conviteAceito:
+        type: boolean
+      mfaSetupRequired:
+        type: boolean
+        const: true
+      mfaSetupToken:
+        type: string
+      expiresIn:
+        type: integer
+        const: 600
+  AuthMfaSetupRequest:
+    type: object
+    additionalProperties: false
+    required: [setupToken]
+    properties:
+      setupToken:
+        type: string
+  AuthMfaSetupConfirmRequest:
+    type: object
+    additionalProperties: false
+    required: [setupToken, codigo]
+    properties:
+      setupToken:
+        type: string
+      codigo:
+        type: string
+        pattern: '^\d{6}$'
+  AdminInviteAcceptRequest:
+    type: object
+    additionalProperties: false
+    required: [token, senha, aceitouTermos, versaoTermos]
+    properties:
+      token:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{43}$'
+      senha:
+        type: string
+        minLength: 8
+        maxLength: 128
+        writeOnly: true
+      aceitouTermos:
+        type: boolean
+        const: true
+      versaoTermos:
+        type: string
     AuthMfaLoginRequest:
       type: object
       additionalProperties: false
@@ -3380,6 +3756,8 @@ components:
         - tipo
         - fotoPerfilUrl
         - googleVinculado
+        - termosAceitos
+        - versaoTermos
       properties:
         id:
           type: integer
@@ -3404,6 +3782,10 @@ components:
           description: Relative API path for the public profile photo, when present.
         googleVinculado:
           type: boolean
+        termosAceitos:
+          type: boolean
+        versaoTermos:
+          type: string
     UsuarioTipoPublico:
       type: string
       enum:
@@ -3460,6 +3842,16 @@ components:
           maxItems: 12
           items:
             $ref: '#/components/schemas/ServicoProfissionalInput'
+    Paginacao:
+      type: object
+      additionalProperties: false
+      required: [pagina, limite, total, totalPaginas, temMais]
+      properties:
+        pagina: {type: integer, minimum: 1}
+        limite: {type: integer, minimum: 1, maximum: 50}
+        total: {type: integer, minimum: 0}
+        totalPaginas: {type: integer, minimum: 1}
+        temMais: {type: boolean}
     ProfissionalPublico:
       type: object
       additionalProperties: false
@@ -3529,6 +3921,12 @@ components:
           type: boolean
           const: false
           description: False until the external verification and eligibility workflow is implemented and approved.
+        atendimentoStatus:
+          type: string
+          enum: [disponivel, em_verificacao]
+        atendimentoMensagem:
+          type: string
+          description: Public generic status that does not expose private verification details.
         fotoPerfilUrl:
           type:
             - string

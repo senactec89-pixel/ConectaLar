@@ -1,9 +1,11 @@
 # Habilitacao profissional: preparacao de seguranca
 
-Estado em 18/10/2026: preparacao implementada; NAO e verificacao real de identidade,
-prova de vida, telefone ou antecedentes. O usuario confirmou que ainda nao existe
-fornecedor contratado nem politica juridica aprovada. Todas essas etapas permanecem
-pendentes. Nenhuma flag de ambiente ou aprovacao documental libera o atendimento.
+Estado em 25/10/2026: a API e a interface Flutter para posse de telefone por codigo
+WhatsApp estao implementadas e testadas com MySQL isolado e respostas simuladas. O
+recurso permanece desativado: `ID_ZAPSIGN_PHONE_ENABLED=false`; nenhum codigo real foi
+enviado nem credito consumido. O aviso exibido no app ainda precisa de aprovacao juridica
+antes de uma homologacao com fornecedor. Antecedentes seguem pendentes de politica.
+Nenhuma confirmacao de telefone ou aprovacao documental libera atendimentos.
 
 ## Impacto da atualizacao
 
@@ -16,7 +18,9 @@ pendentes. Nenhuma flag de ambiente ou aprovacao documental libera o atendimento
   preservam o acesso permitido anteriormente. Mensagens ja trocadas nao sao apagadas:
   o controle nao remove enderecos anteriormente compartilhados em texto ou capturas.
 - Cadastro, documentos permitidos, edicao de perfil e consulta de historico continuam
-  disponiveis. O catalogo pode mostrar perfis, mas informa `podeReceberSolicitacoes=false`.
+  disponiveis. O catalogo pode mostrar perfis, mas informa `podeReceberSolicitacoes=false`,
+  `atendimentoStatus=em_verificacao` e uma mensagem publica generica. O app apresenta
+  o aviso "Em verificacao - pedidos indisponiveis" sem expor o motivo privado.
 - O aplicativo mostra as pendencias em Documentos e verificacao. O admin tem a tela
   Habilitacoes profissionais com paginacao, MFA obrigatorio e registro de decisoes.
 - Suspender, reabrir e iniciar analise nunca aprovam. Pedir revisao nao remove suspensao.
@@ -31,6 +35,14 @@ de revisao em `profissionais`, indice e CHECK de estados, alem de ampliar as aco
 permitidas na auditoria. Todos os perfis existentes comecam pendentes. Nenhuma conta
 e excluida e nenhum documento e promovido para identidade confirmada.
 
+A migration `1760134000000-ProfissionalTelefoneZapSign` foi aplicada com sucesso em um
+MySQL 8.4.9 descartavel junto com a sequencia completa de migrations. O teste verificou
+a tabela e a invalidacao do registro, e confirmou que rollback nao apaga historico.
+O banco de desenvolvimento e o banco Hostinger nao foram usados. Durante o teste,
+tambem foi corrigida a migration de agenda que tentava recriar `duracao_minutos` ja
+criada pela migration anterior; agora ela preserva essa coluna e adiciona somente o
+intervalo de deslocamento.
+
 1. Revisar o impacto, fazer backup e homologar em banco descartavel.
 2. Parar a API antiga durante a implantacao coordenada.
 3. Carregar as variaveis do ambiente correto e executar `npm run db:migration:run`.
@@ -43,6 +55,12 @@ para nao apagar o historico ou deixar registros fora da constraint antiga. Nao
 reverter para a API antiga como forma de contornar os bloqueios.
 
 ## Integracao de identidade em preparacao
+
+A integracao externa esta preparada, mas nao ativada: nao configurar a chave em
+producao nem iniciar consultas pagas antes da revisao de privacidade, da interface e
+da homologacao controlada. A conta e a chave ID ZapSign existem. A API de WhatsApp foi
+implementada com flag independente, inicialmente desligada. A revisao manual nao deve
+simular resultado de fornecedor nem conceder habilitacao automaticamente.
 
 Existe um adaptador de servidor para ID ZapSign. Ele cria uma verificacao hospedada
 de documento com prova de vida e consulta o resultado pela API do fornecedor. O app
@@ -58,14 +76,40 @@ uma consulta autenticada ao backend. O backend consulta ID ZapSign apenas enquan
 verificacao estiver pendente. A URL retornada e validada para HTTPS e o host oficial
 `id.zapsign.com.br` antes de ser apresentada ao usuario.
 
-A conta ID ZapSign foi criada e a chave foi gerada, mas ela nao foi inserida em
-nenhum ambiente. A migracao `1760124000000-IdentidadeProfissionalZapSign` ainda
-precisa ser aplicada em ambiente descartavel. O adaptador exige
-`ID_ZAPSIGN_ENABLED=true` e `ID_ZAPSIGN_API_KEY`; mantenha a flag desligada e a
-chave fora do VPS ate revisar o aviso de privacidade/consentimento biometrico e os
-termos com assessoria adequada. A comprovacao da identidade por si so nao libera
-atendimentos: a habilitacao continua bloqueada enquanto telefone, antecedentes e
-analise administrativa nao estiverem resolvidos.
+A chave do fornecedor nao foi usada nesta homologacao e nenhuma chamada externa foi
+feita. A migration de telefone foi homologada apenas no banco temporario descrito acima;
+isso nao equivale a homologar o fornecedor. A prova de vida usa `ID_ZAPSIGN_ENABLED`; posse de telefone
+usa separadamente `ID_ZAPSIGN_PHONE_ENABLED`; ambos exigem `ID_ZAPSIGN_API_KEY`. Mantenha
+as flags desligadas e a chave fora do VPS ate aprovar o aviso/consentimento e concluir
+os testes. A API registra telefone vinculado, estado, datas e versao do aviso; nao
+persiste o OTP. A confirmacao so prova acesso ao canal WhatsApp naquele momento, nao
+identidade nem titularidade civil do numero. Tambem nao libera atendimentos: a
+habilitacao continua bloqueada enquanto antecedentes e revisao administrativa nao
+estiverem resolvidos.
+
+O fluxo usa `POST /profissionais/me/habilitacao/telefone` para solicitar o envio,
+`POST /profissionais/me/habilitacao/telefone/confirmacao` para submeter codigo e
+`GET /profissionais/me/habilitacao/telefone` para consultar estado. Exige consentimento
+explicito, nao devolve o telefone completo, usa idempotencia nas tentativas, respeita
+cooldown de 10 minutos e limita a tres iniciacoes por dia por conta. O fornecedor
+permite tres tentativas de codigo e validade de 10 minutos; a API nao fixa o tamanho do
+OTP. Mudanca de telefone invalida as verificacoes anteriores na mesma transacao.
+
+## Revisao manual provisoria
+
+Antes de qualquer piloto com pessoas reais, documentar um procedimento aprovado pela
+equipe e por assessoria adequada. A revisao manual deve usar apenas documentos e dados
+necessarios, acesso restrito no painel, registro de quem revisou e quando, prazo de
+retencao/exclusao, canal de contestacao e alternativa para casos inconclusivos. Nao
+baixar documentos para celulares ou computadores pessoais, nao enviar documentos em
+chats, nao registrar codigos ou dados sensiveis em logs e nao fazer pesquisas de
+antecedentes por conta propria.
+
+A tela de moderacao documental atual e uma revisao de documentos; ela nao confirma
+posse do telefone, nao equivale a verificacao biometrica, nao prova qualificacao
+profissional e nao libera solicitacoes. Ate que exista fluxo manual formal, testado e
+aprovado, manter pedidos e aceites bloqueados. Um piloto deve ser supervisionado e
+nao deve expor clientes a atendimentos residenciais sem as salvaguardas definidas.
 
 Antes de ativar em producao, definir e documentar:
 
@@ -101,10 +145,15 @@ suspensoes concorrentes da habilitacao.
 ## Roteiro de homologacao
 
 Verificacoes locais desta entrega:
-- API: build e typecheck aprovados; 45 testes unitarios/contratuais aprovados.
-- Flutter: `flutter analyze lib test` sem apontamentos; 205 testes aprovados.
-- MySQL local: conexao recusada (ECONNREFUSED). Migration NAO aplicada ao banco
-  de uso diario e teste MySQL isolado ignorado por falta de ambiente habilitado.
+- API: `npm run typecheck` passou e `npm test` passou com 107 testes. O teste MySQL
+  descartavel passou; o fluxo administrativo MySQL separado foi ignorado porque usa
+  variaveis de habilitacao distintas.
+- Flutter: analise dos arquivos alterados sem apontamentos; os tres testes novos de
+  telefone passaram (recurso desligado, consentimento/fluxo e retry idempotente).
+  O teste geral de widgets ainda tem duas falhas em expectativas antigas da Home;
+  o teste de habilitacao existente tambem acusa overflow numa tela admin, fora deste fluxo.
+- MySQL 8.4.9: sequencia completa de migrations e teste de habilitacao passaram num
+  banco aleatorio local; nenhum banco de desenvolvimento, producao ou Hostinger foi alterado.
 - Nao foi gerado APK nem homologada verificacao com fornecedor real.
 
 - Perfil antigo verificado e novo perfil: ambos continuam sem poder atender.
@@ -112,6 +161,9 @@ Verificacoes locais desta entrega:
 - Pedido antigo aceito/concluido: endereco oculto ao profissional, visivel ao titular.
 - Agenda: nao expor endereco por um caminho alternativo.
 - Inicio de identidade: 503 com corpo vazio; 400 com `aprovado`, CPF ou selfie.
+- Telefone: flag desligada => 503 sem chamada; consentimento ausente => 400; codigo
+  invalido nao e enviado; retries usam o mesmo UUID; novo codigo usa UUID novo; limite
+  do fornecedor, expiracao e telefone alterado nao podem marcar como confirmado.
 - Cliente nao pode consultar/alterar habilitacao profissional ou administrativa.
 - Admin sem MFA: 403 na leitura e na decisao; ativar MFA e autenticar novamente.
 - Suspender e solicitar revisao duas vezes: permanece suspenso, apenas um pedido ativo.
@@ -119,17 +171,15 @@ Verificacoes locais desta entrega:
 - Erro ao persistir auditoria: transacao nao pode confirmar alteracao do estado.
 - Telas em 360, 390 e 412 px, texto ampliado, erro, vazio e nova tentativa.
 
-Teste MySQL isolado: com DB_HOST local e credenciais de teste com permissao de
-criar/apagar bancos, compilar a API e executar
-`node --test test/integration/habilitacao-mysql.test.mjs` com
-`CONECTALAR_MYSQL_SECURITY_TEST=1`. O teste cria um banco aleatorio exclusivo,
-aplica todas as migrations e o remove no final; nao usa o banco em DB_NAME.
-Valida concorrencia de pedidos de revisao, constraint da auditoria, rollback
-quando a auditoria falha e protecao do historico na reversao da migration.
-Sem essa flag, o teste e explicitamente ignorado, nao contado como homologacao.
-O roteiro antigo `fluxos.test.mjs` ainda descreve aceites liberados e nao serve
-para homologar esta fase bloqueada; sera necessario atualiza-lo quando a integracao
-real permitir habilitar contas de teste de forma controlada.
+Teste MySQL isolado: `npm run test:integration:mysql` inclui os testes de fluxo e
+habilitacao. Para a migration de habilitacao, requer MySQL de teste em loopback,
+credenciais com permissao de criar/apagar banco e `CONECTALAR_MYSQL_SECURITY_TEST=1`.
+O teste cria um banco aleatorio exclusivo, aplica todas as migrations e remove esse
+banco; nao usa o banco em `DB_NAME`. Valida concorrencia de revisao, auditoria, a tabela
+de telefone sem coluna OTP, invalidacao do numero e protecao contra rollback com dados.
+Sem as flags de cada teste, ele e explicitamente ignorado, nao contado como homologacao.
+O roteiro `fluxos.test.mjs` representa a politica atual: o perfil permanece pesquisavel,
+mas a solicitacao e o aceite sao bloqueados enquanto a habilitacao estiver pendente.
 
 Referencias para a futura politica (nao substituem revisao juridica):
 - LGPD: https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm

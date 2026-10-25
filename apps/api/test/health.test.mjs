@@ -57,10 +57,20 @@ test('production rejects incomplete runtime configuration without exposing value
     DB_HOST: 'private-host',
     DB_USER: 'private-user',
     DB_NAME: 'private-database',
-    AUTH_TOKEN_SECRET: 'private-secret-that-has-at-least-32-characters',
+    AUTH_TOKEN_SECRET: 'private-auth-secret-at-least-thirty-two-characters',
+    MFA_SECRET_ENCRYPTION_KEY: 'private-mfa-secret-at-least-thirty-two-characters',
+    EMAIL_OUTBOX_ENCRYPTION_KEY: 'private-outbox-secret-at-least-thirty-two-chars',
+    SMTP_HOST: 'smtp.example.invalid',
+    SMTP_FROM: 'ConectaLar <mail@example.invalid>',
+    SMTP_USER: 'smtp-user',
+    SMTP_PASSWORD: 'smtp-password',
   };
   assert.equal(loadConfig(complete).nodeEnv, 'production');
-  for (const key of ['DB_HOST', 'DB_USER', 'DB_NAME', 'AUTH_TOKEN_SECRET']) {
+  for (const key of [
+    'DB_HOST', 'DB_USER', 'DB_NAME', 'AUTH_TOKEN_SECRET',
+    'MFA_SECRET_ENCRYPTION_KEY', 'EMAIL_OUTBOX_ENCRYPTION_KEY',
+    'SMTP_HOST', 'SMTP_FROM', 'SMTP_USER', 'SMTP_PASSWORD',
+  ]) {
     for (const missing of [undefined, '', '   ']) {
       assert.throws(
         () => loadConfig({ ...complete, [key]: missing }),

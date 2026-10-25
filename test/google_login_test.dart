@@ -118,6 +118,12 @@ void main() {
       googleIdentity: _FakeGoogleIdentity(),
       api: ApiService(
         client: MockClient((request) async {
+          if (request.method == 'GET' &&
+              request.url.path.endsWith('/termos/atuais')) {
+            return _json({
+              'termos': {'versao': '2026.v1'},
+            });
+          }
           requests.add(jsonDecode(request.body) as Map<String, dynamic>);
           call++;
           if (call == 1) {
@@ -169,6 +175,7 @@ void main() {
         'tipo': 'profissional',
         'senha': 'SenhaGoogle123!',
         'aceitouTermos': true,
+        'versaoTermos': '2026.v1',
       },
     ]);
   });

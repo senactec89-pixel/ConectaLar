@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { VerificacaoService } from '../dist/verificacao/verificacao.service.js';
 
-function criarServico(documentos) {
+function criarServico(documentos, { falharAuditoria = false } = {}) {
   const auditorias = [];
   const notificacoes = [];
   const perfisSalvos = [];
@@ -21,22 +21,70 @@ function criarServico(documentos) {
           documento.status === where.status,
       ).length;
     },
-  };
-  const perfisRepo = {
-    async update(_id, perfil) {
-      perfisSalvos.push({ ...perfil });
-      return perfil;
+    manager: {
+      async transaction(operation) {
+        const estadosDocumentos = documentos.map((documento) => ({
+          documento,
+          status: documento.status,
+          motivoRejeicao: documento.motivoRejeicao,
+          analisadoPorId: documento.analisadoPorId,
+          analisadoEm: documento.analisadoEm,
+        }));
+        const perfis = [...new Set(documentos.map((documento) => documento.profissional))];
+        const estadosPerfis = perfis.map((perfil) => ({ perfil, verificado: perfil.verificado }));
+        const totalAuditorias = auditorias.length;
+        try {
+          return await operation({
+            getRepository(entity) {
+              if (entity.name === 'AdminAuditoriaEntity') {
+                return {
+                  create: (value) => value,
+                  async save(value) {
+                    if (falharAuditoria) throw new Error('audit unavailable');
+                    auditorias.push(value);
+                    return value;
+                  },
+                };
+              }
+              if (entity.name === 'ProfissionalPerfilEntity') {
+                return {
+                  async findOne({ where }) {
+                    return perfis.find((perfil) => perfil.id === where.id) ?? null;
+                  },
+                  async save(perfil) {
+                    perfisSalvos.push({ verificado: perfil.verificado });
+                    return perfil;
+                  },
+                };
+              }
+              return {
+                async findOne({ where }) {
+                  return documentos.find((documento) => documento.id === where.id) ?? null;
+                },
+                async save(documento) { return documento; },
+                async count({ where }) {
+                  return documentos.filter((documento) =>
+                    documento.profissionalId === where.profissionalId &&
+                    documento.tipoDocumento === where.tipoDocumento &&
+                    documento.status === where.status,
+                  ).length;
+                },
+              };
+            },
+          });
+        } catch (error) {
+          for (const entry of estadosDocumentos) {
+            const { documento, ...estado } = entry;
+            Object.assign(documento, estado);
+          }
+          for (const entry of estadosPerfis) entry.perfil.verificado = entry.verificado;
+          auditorias.length = totalAuditorias;
+          throw error;
+        }
+      },
     },
   };
-  const auditoriaRepo = {
-    create(input) {
-      return input;
-    },
-    async save(input) {
-      auditorias.push(input);
-      return input;
-    },
-  };
+  const perfisRepo = {};
   const notificacoesService = {
     async criar(input) {
       notificacoes.push(input);
@@ -66,7 +114,6 @@ function criarServico(documentos) {
 
   return {
     service: new VerificacaoService(
-      auditoriaRepo,
       documentosRepo,
       perfisRepo,
       notificacoesService,
@@ -111,7 +158,7 @@ test('selo profissional depende de identidade aprovada, nao da ultima analise', 
     documento(2, 'documento_identidade'),
     documento(3, 'certificado_curso', 'aprovado'),
   ];
-  const { service, notificacoes, perfisSalvos } = criarServico(documentos);
+  const { service, notificacoes, perfisSalvos, auditorias } = criarServico(documentos);
   const admin = { id: 99, email: 'admin@conectalar.local', tipo: 'administrador' };
 
   await service.analisarDocumento(admin, 1, { status: 'aprovado' });
@@ -122,6 +169,10 @@ test('selo profissional depende de identidade aprovada, nao da ultima analise', 
   await service.analisarDocumento(admin, 2, { status: 'aprovado' });
   assert.equal(perfisSalvos.at(-1).verificado, true);
   assert.match(notificacoes.at(-1).mensagem, /selo de verificacao foi ativado/i);
+  assert.deepEqual(JSON.parse(auditorias.at(-1).detalhe).status, {
+    antes: 'pendente',
+    depois: 'aprovado',
+  });
 
   await service.analisarDocumento(admin, 3, {
     status: 'rejeitado',
@@ -134,4 +185,22 @@ test('selo profissional depende de identidade aprovada, nao da ultima analise', 
     motivoRejeicao: 'Documento ilegivel.',
   });
   assert.equal(perfisSalvos.at(-1).verificado, false);
+});
+
+test('analise documental e auditoria revertem juntas quando a auditoria falha', async () => {
+  const documentoIdentidade = documento(2, 'documento_identidade');
+  const { service } = criarServico([documentoIdentidade], { falharAuditoria: true });
+
+  await assert.rejects(
+    service.analisarDocumento(
+      { id: 99, tipo: 'administrador' },
+      documentoIdentidade.id,
+      { status: 'aprovado' },
+    ),
+    /audit unavailable/,
+  );
+
+  assert.equal(documentoIdentidade.status, 'pendente');
+  assert.equal(documentoIdentidade.analisadoPorId, null);
+  assert.equal(documentoIdentidade.profissional.verificado, false);
 });

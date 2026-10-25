@@ -17,6 +17,42 @@ void main() {
         if (request.url.path == '/categorias' && falharCategorias) {
           return jsonResponse({'message': 'Falha temporária'}, 503);
         }
+        if (request.url.path == '/clientes/me/enderecos') {
+          return jsonResponse({
+            'enderecos': [
+              {'latitude': -19.9167, 'longitude': -43.9345, 'principal': true},
+            ],
+          });
+        }
+        if (request.url.path == '/profissionais/busca') {
+          return jsonResponse({
+            'profissionais': [
+              {
+                'id': 1,
+                'usuarioId': 101,
+                'nome': 'Carlos Silva',
+                'descricao': 'Eletricista residencial',
+                'bairro': 'Centro',
+                'cidade': 'Belo Horizonte',
+                'uf': 'MG',
+                'latitudeAproximada': -19.916,
+                'longitudeAproximada': -43.934,
+                'distanciaKm': 1.2,
+                'precoInicial': 80,
+                'verificado': true,
+                'notaMedia': 4.8,
+                'quantidadeAvaliacoes': 120,
+                'servicos': [
+                  {
+                    'id': 11,
+                    'nome': 'Elétrica',
+                    'categoria': {'id': 1, 'nome': 'Elétrica'},
+                  },
+                ],
+              },
+            ],
+          });
+        }
         return null;
       },
     );

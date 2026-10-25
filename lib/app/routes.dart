@@ -4,6 +4,7 @@ import '../widgets/session_gate.dart';
 
 import '../screens/auth/cadastro_page.dart';
 import '../screens/auth/login_page.dart';
+import '../screens/auth/admin_invite_page.dart';
 import '../screens/auth/termos_page.dart';
 import '../screens/auth/verificacao_email_page.dart';
 import '../screens/admin/admin_pages.dart';
@@ -36,8 +37,11 @@ import '../screens/servicos/solicitar_servico_page.dart';
 abstract final class AppRoutes {
   static const home = '/';
   static const login = '/login';
+  static const adminConvite = '/admin/convite/aceitar';
   static const cadastro = '/cadastro';
   static const termos = '/termos';
+  static const aceiteTermos = '/termos/aceite';
+  static const politicaComercial = '/politica-comercial';
   static const busca = '/busca';
   static const resultados = '/busca/resultados';
   static const perfilProfissional = '/profissionais/perfil';
@@ -77,11 +81,42 @@ abstract final class AppRoutes {
   static const adminCategorias = '/admin/categorias';
   static const adminAuditoria = '/admin/auditoria';
 
+  static const _papeisCliente = {'cliente'};
+  static const _papeisProfissional = {'profissional', 'empresa'};
+  static const _papeisParticipantesAtendimento = {
+    'cliente',
+    'profissional',
+    'empresa',
+  };
+
+  static const _papeisPorRota = <String, Set<String>>{
+    favoritos: _papeisCliente,
+    meusServicos: _papeisCliente,
+    solicitarServico: _papeisCliente,
+    enderecos: _papeisCliente,
+    detalhesServico: _papeisParticipantesAtendimento,
+    denunciarServico: _papeisParticipantesAtendimento,
+    chat: _papeisParticipantesAtendimento,
+    conversa: _papeisParticipantesAtendimento,
+    minhasDenuncias: _papeisParticipantesAtendimento,
+    areaProfissional: _papeisProfissional,
+    cadastroProfissional: _papeisProfissional,
+    detalhesSolicitacaoProfissional: _papeisProfissional,
+    servicosProfissional: _papeisProfissional,
+    perfilProfissionalPrivado: _papeisProfissional,
+    disponibilidadeProfissional: _papeisProfissional,
+    documentosProfissional: _papeisProfissional,
+    avaliacoesRecebidas: _papeisProfissional,
+  };
+
   static final Map<String, WidgetBuilder> _builders = {
     home: (_) => const HomePage(),
     login: (_) => const LoginPage(),
+    adminConvite: (_) => const AdminInvitePage(),
     cadastro: (_) => const CadastroPage(),
     termos: (_) => const TermosPage(),
+    aceiteTermos: (_) => const TermosPage(exigirAceite: true),
+    politicaComercial: (_) => const TermosPage(apenasPoliticaComercial: true),
     busca: (_) => const BuscaPage(),
     resultados: (_) => const BuscaPage(),
     perfilProfissional: (_) => const PerfilProfissionalPage(),
@@ -132,8 +167,11 @@ abstract final class AppRoutes {
         const publicas = {
           home,
           login,
+          adminConvite,
           cadastro,
           termos,
+          aceiteTermos,
+          politicaComercial,
           busca,
           resultados,
           perfilProfissional,
@@ -145,19 +183,16 @@ abstract final class AppRoutes {
             route == privacidade) {
           return MapEntry(
             route,
-            (context) =>
-                SessionGate(builder: builder, permitirEmailNaoVerificado: true),
+            (context) => SessionGate(
+              builder: builder,
+              permitirEmailNaoVerificado: true,
+              permitirTermosPendentes: true,
+            ),
           );
         }
         final Set<String>? papeis = route.startsWith('/admin')
-            ? {'administrador'}
-            : route.startsWith('/profissionais/')
-            ? {'profissional', 'empresa'}
-            : route == editarDados
-            ? {'cliente', 'profissional', 'empresa', 'administrador'}
-            : {favoritos, solicitarServico, enderecos}.contains(route)
-            ? {'cliente'}
-            : null;
+            ? const {'administrador'}
+            : _papeisPorRota[route];
         return MapEntry(
           route,
           (context) => SessionGate(builder: builder, papeis: papeis),

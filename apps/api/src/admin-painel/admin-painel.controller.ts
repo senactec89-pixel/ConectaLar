@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -17,7 +17,7 @@ export class AdminPainelController {
   }
 
   @Get('auditoria')
-  listarAuditoria() {
-    return this.painel.listarAuditoria();
+  listarAuditoria(@Query() query: Record<string, unknown>) {
+    return this.painel.listarAuditoria(query);
   }
 }

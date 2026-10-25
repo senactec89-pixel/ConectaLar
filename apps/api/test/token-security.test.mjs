@@ -36,3 +36,19 @@ test('token service creates short lived MFA challenge tokens', () => {
   const tampered = `${token.mfaToken.slice(0, -3)}abc`;
   assert.equal(service.verifyMfaChallengeToken(tampered), null);
 });
+
+test('admin MFA setup challenge has a separate purpose and short expiry', () => {
+  process.env.AUTH_TOKEN_SECRET = 'local-test-secret-change-before-production-123456';
+  const service = new TokenService();
+  const token = service.createMfaSetupChallengeToken({
+    id: 11,
+    tipo: 'administrador',
+    tokenVersion: 3,
+  });
+  const payload = service.verifyMfaSetupChallengeToken(token.mfaSetupToken);
+  assert.equal(payload?.sub, 11);
+  assert.equal(payload?.tv, 3);
+  assert.equal(payload?.purpose, 'admin_mfa_setup');
+  assert.equal(token.expiresIn, 600);
+  assert.equal(service.verifyMfaChallengeToken(token.mfaSetupToken), null);
+});

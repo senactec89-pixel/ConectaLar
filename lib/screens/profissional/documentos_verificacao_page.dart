@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/routes.dart';
@@ -29,7 +31,12 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
   bool _solicitandoRevisao = false;
   bool _iniciandoIdentidade = false;
   bool _consultandoIdentidade = false;
+  bool _iniciandoTelefone = false;
+  bool _confirmandoTelefone = false;
+  bool _consultandoTelefone = false;
   Map<String, dynamic> _identidade = const {};
+  Map<String, dynamic> _telefone = const {};
+  String? _tentativaTelefoneId;
 
   @override
   void initState() {
@@ -54,6 +61,17 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
         _identidade = {..._identidade, 'falhaConsulta': true};
       }
     }
+    try {
+      final respostaTelefone = await AppServices.instance.verificacao
+          .consultarPosseTelefone();
+      final rawTelefone = respostaTelefone['telefone'];
+      _telefone = rawTelefone is Map
+          ? Map<String, dynamic>.from(rawTelefone)
+          : const {};
+      _tentativaTelefoneId = _telefone['tentativaId']?.toString();
+    } catch (_) {
+      _telefone = {..._telefone, 'falhaConsulta': true};
+    }
     final rawHabilitacao = dados['habilitacao'];
     if (rawHabilitacao is Map) {
       final habilitacao = Map<String, dynamic>.from(rawHabilitacao);
@@ -66,6 +84,13 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
       if (indice >= 0 && etapas[indice] is Map) {
         (etapas[indice] as Map<String, dynamic>)['status'] =
             _statusEtapaIdentidade(_identidade['estado']);
+      }
+      final indiceTelefone = etapas.indexWhere(
+        (item) => item is Map && item['codigo'] == 'telefone',
+      );
+      if (indiceTelefone >= 0 && etapas[indiceTelefone] is Map) {
+        (etapas[indiceTelefone] as Map<String, dynamic>)['status'] =
+            _statusEtapaTelefone(_telefone['estado']);
       }
       habilitacao['etapas'] = etapas;
       dados['habilitacao'] = habilitacao;
@@ -121,6 +146,82 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
     } finally {
       if (mounted) setState(() => _consultandoIdentidade = false);
     }
+  }
+
+  Future<void> _iniciarTelefone() async {
+    if (_iniciandoTelefone) return;
+    final aceitou = await showDialog<bool>(
+      context: context,
+      builder: (_) => const _ConsentimentoTelefoneDialog(),
+    );
+    if (aceitou != true || !mounted) return;
+    setState(() => _iniciandoTelefone = true);
+    try {
+      final resposta = await AppServices.instance.verificacao
+          .iniciarPosseTelefone();
+      final raw = resposta['telefone'];
+      _telefone = raw is Map ? Map<String, dynamic>.from(raw) : const {};
+      _tentativaTelefoneId = null;
+      if (mounted) _recarregar(consultarIdentidade: false);
+    } catch (error) {
+      if (mounted) _mostrarErroTelefone(error);
+    } finally {
+      if (mounted) setState(() => _iniciandoTelefone = false);
+    }
+  }
+
+  Future<void> _confirmarTelefone() async {
+    if (_confirmandoTelefone) return;
+    final codigo = await showDialog<String>(
+      context: context,
+      builder: (_) => _CodigoTelefoneDialog(
+        tentativasRestantes: _telefone['tentativasRestantes'] as int?,
+      ),
+    );
+    if (codigo == null || !mounted) return;
+    setState(() => _confirmandoTelefone = true);
+    _tentativaTelefoneId ??= _uuidV4();
+    try {
+      final resposta = await AppServices.instance.verificacao
+          .confirmarPosseTelefone(
+            codigo: codigo,
+            tentativaId: _tentativaTelefoneId!,
+          );
+      final raw = resposta['telefone'];
+      _telefone = raw is Map ? Map<String, dynamic>.from(raw) : const {};
+      _tentativaTelefoneId = null;
+      if (mounted) _recarregar(consultarIdentidade: false);
+    } catch (error) {
+      if (mounted) _mostrarErroTelefone(error);
+    } finally {
+      if (mounted) setState(() => _confirmandoTelefone = false);
+    }
+  }
+
+  Future<void> _consultarTelefone() async {
+    if (_consultandoTelefone) return;
+    setState(() => _consultandoTelefone = true);
+    try {
+      final resposta = await AppServices.instance.verificacao
+          .consultarPosseTelefone();
+      final raw = resposta['telefone'];
+      _telefone = raw is Map ? Map<String, dynamic>.from(raw) : const {};
+      _tentativaTelefoneId = _telefone['tentativaId']?.toString();
+      if (mounted) _recarregar(consultarIdentidade: false);
+    } catch (error) {
+      if (mounted) _mostrarErroTelefone(error);
+    } finally {
+      if (mounted) setState(() => _consultandoTelefone = false);
+    }
+  }
+
+  void _mostrarErroTelefone(Object error) {
+    final mensagem = error is ApiException
+        ? error.message
+        : 'Não foi possível consultar a confirmação do telefone.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   void _mostrarErroIdentidade(Object error) {
@@ -268,6 +369,16 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                   consultando: _consultandoIdentidade,
                   onIniciar: _iniciarIdentidade,
                   onConsultar: _consultarIdentidade,
+                ),
+                const SizedBox(height: 12),
+                _CartaoTelefone(
+                  dados: _telefone,
+                  iniciando: _iniciandoTelefone,
+                  confirmando: _confirmandoTelefone,
+                  consultando: _consultandoTelefone,
+                  onIniciar: _iniciarTelefone,
+                  onConfirmar: _confirmarTelefone,
+                  onConsultar: _consultarTelefone,
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
@@ -497,6 +608,281 @@ class _CartaoIdentidade extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CartaoTelefone extends StatelessWidget {
+  const _CartaoTelefone({
+    required this.dados,
+    required this.iniciando,
+    required this.confirmando,
+    required this.consultando,
+    required this.onIniciar,
+    required this.onConfirmar,
+    required this.onConsultar,
+  });
+
+  final Map<String, dynamic> dados;
+  final bool iniciando;
+  final bool confirmando;
+  final bool consultando;
+  final VoidCallback onIniciar;
+  final VoidCallback onConfirmar;
+  final VoidCallback onConsultar;
+
+  @override
+  Widget build(BuildContext context) {
+    final estado = dados['estado']?.toString() ?? 'nao_iniciada';
+    final disponivel = dados['disponivel'] == true;
+    final falhaConsulta = dados['falhaConsulta'] == true;
+    final pendente = estado == 'pendente';
+    final confirmado = estado == 'confirmada';
+    final podeIniciar = disponivel && !pendente && !confirmado;
+    final telefone = dados['telefoneMascarado']?.toString();
+    final tentativas = dados['tentativasRestantes'] is num
+        ? (dados['tentativasRestantes'] as num).toInt()
+        : null;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Confirmação de telefone',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(_rotuloTelefone(estado, disponivel, falhaConsulta)),
+            if (telefone != null) ...[
+              const SizedBox(height: 6),
+              Text('Número cadastrado: $telefone'),
+            ],
+            if (pendente && tentativas != null) ...[
+              const SizedBox(height: 6),
+              Text('Tentativas restantes: $tentativas'),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (podeIniciar)
+                  FilledButton.icon(
+                    key: const ValueKey('iniciar-confirmacao-telefone'),
+                    onPressed: iniciando ? null : onIniciar,
+                    icon: iniciando
+                        ? const ButtonProgressIndicator()
+                        : const Icon(Icons.sms_outlined),
+                    label: Text(
+                      iniciando
+                          ? 'Enviando...'
+                          : estado == 'nao_iniciada' ||
+                                estado == 'telefone_ausente'
+                          ? 'Confirmar por WhatsApp'
+                          : 'Tentar novamente',
+                    ),
+                  ),
+                if (pendente && disponivel)
+                  FilledButton.icon(
+                    key: const ValueKey('informar-codigo-telefone'),
+                    onPressed: confirmando ? null : onConfirmar,
+                    icon: confirmando
+                        ? const ButtonProgressIndicator()
+                        : const Icon(Icons.lock_open_outlined),
+                    label: Text(
+                      confirmando ? 'Confirmando...' : 'Informar código',
+                    ),
+                  ),
+                if (falhaConsulta || disponivel && pendente)
+                  OutlinedButton.icon(
+                    key: const ValueKey('atualizar-confirmacao-telefone'),
+                    onPressed: consultando ? null : onConsultar,
+                    icon: consultando
+                        ? const ButtonProgressIndicator()
+                        : const Icon(Icons.refresh),
+                    label: Text(
+                      consultando ? 'Consultando...' : 'Atualizar status',
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ConsentimentoTelefoneDialog extends StatefulWidget {
+  const _ConsentimentoTelefoneDialog();
+
+  @override
+  State<_ConsentimentoTelefoneDialog> createState() =>
+      _ConsentimentoTelefoneDialogState();
+}
+
+class _ConsentimentoTelefoneDialogState
+    extends State<_ConsentimentoTelefoneDialog> {
+  bool _aceito = false;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Confirmar acesso ao telefone'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'O ID ZapSign enviará um código pelo WhatsApp ao número cadastrado. '
+            'O ConectaLar receberá somente o resultado da confirmação e não '
+            'armazena o código. Esta etapa confirma acesso ao número; não '
+            'confirma sua identidade nem habilita automaticamente o perfil '
+            'para receber solicitações.',
+          ),
+          CheckboxListTile(
+            key: const ValueKey('consentimento-confirmacao-telefone'),
+            contentPadding: EdgeInsets.zero,
+            value: _aceito,
+            onChanged: (value) => setState(() => _aceito = value == true),
+            title: const Text(
+              'Li o aviso e autorizo o envio do código para o telefone cadastrado.',
+            ),
+            controlAffinity: ListTileControlAffinity.leading,
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, false),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(
+        key: const ValueKey('confirmar-consentimento-telefone'),
+        onPressed: _aceito ? () => Navigator.pop(context, true) : null,
+        child: const Text('Continuar'),
+      ),
+    ],
+  );
+}
+
+class _CodigoTelefoneDialog extends StatefulWidget {
+  const _CodigoTelefoneDialog({required this.tentativasRestantes});
+
+  final int? tentativasRestantes;
+
+  @override
+  State<_CodigoTelefoneDialog> createState() => _CodigoTelefoneDialogState();
+}
+
+class _CodigoTelefoneDialogState extends State<_CodigoTelefoneDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Código do WhatsApp'),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            key: const ValueKey('codigo-confirmacao-telefone'),
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(20),
+            ],
+            decoration: const InputDecoration(
+              labelText: 'Código recebido',
+              hintText: 'Digite o código numérico',
+            ),
+          ),
+          if (widget.tentativasRestantes != null) ...[
+            const SizedBox(height: 8),
+            Text('Tentativas restantes: ${widget.tentativasRestantes}'),
+          ],
+          const SizedBox(height: 8),
+          const Text(
+            'Se ocorrer um erro de conexão, tente novamente com o mesmo código.',
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(
+        key: const ValueKey('enviar-codigo-confirmacao-telefone'),
+        onPressed: () {
+          final codigo = _controller.text;
+          if (codigo.isNotEmpty) Navigator.pop(context, codigo);
+        },
+        child: const Text('Confirmar'),
+      ),
+    ],
+  );
+}
+
+String _statusEtapaTelefone(Object? estado) => switch (estado) {
+  'confirmada' || 'confirmado' => 'confirmado',
+  'pendente' || 'iniciando' || 'em_analise' => 'em_analise',
+  'revisao_necessaria' || 'falha' => 'revisao_necessaria',
+  'expirada' => 'expirada',
+  'invalidada' => 'invalidada',
+  'telefone_ausente' => 'telefone_ausente',
+  _ => 'aguardando_integracao',
+};
+
+String _rotuloTelefone(String estado, bool disponivel, bool falhaConsulta) {
+  if (falhaConsulta) {
+    return 'Não foi possível consultar o estado agora. Tente atualizar.';
+  }
+  if (!disponivel && estado == 'nao_iniciada') {
+    return 'A confirmação por WhatsApp ainda não está ativada no servidor.';
+  }
+  if (!disponivel && (estado == 'pendente' || estado == 'iniciando')) {
+    return 'Confirmação pendente. O envio está temporariamente desativado.';
+  }
+  return switch (estado) {
+    'telefone_ausente' =>
+      'Cadastre um telefone válido nos seus dados antes de iniciar.',
+    'iniciando' ||
+    'pendente' => 'Aguardando a confirmação do código enviado ao WhatsApp.',
+    'confirmada' => 'Acesso ao telefone confirmado.',
+    'expirada' => 'O código expirou. Você pode iniciar uma nova confirmação.',
+    'invalidada' =>
+      'O telefone foi alterado. Inicie uma nova confirmação para o número atual.',
+    'revisao_necessaria' || 'falha' =>
+      'Não foi possível confirmar automaticamente. Tente novamente mais tarde.',
+    _ =>
+      disponivel
+          ? 'Confirme que você tem acesso ao telefone cadastrado.'
+          : 'A confirmação por WhatsApp ainda não está disponível.',
+  };
+}
+
+String _uuidV4() {
+  final bytes = List<int>.generate(16, (_) => Random.secure().nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+      '${hex.substring(20)}';
 }
 
 class _ConsentimentoIdentidadeDialog extends StatefulWidget {

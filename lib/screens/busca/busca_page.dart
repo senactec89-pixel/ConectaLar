@@ -11,6 +11,7 @@ import '../../models/busca_estado.dart';
 import '../../models/home_content.dart';
 import '../../models/profissional.dart';
 import '../../services/api_mappers.dart';
+import '../../services/api_page.dart';
 import '../../services/device_location_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/constants.dart';
@@ -46,6 +47,9 @@ class _BuscaPageState extends State<BuscaPage> {
   int _versaoBusca = 0;
   bool _buscaServidorAplicada = false;
   bool _buscando = false;
+  bool _carregandoMais = false;
+  int _paginaBusca = 1;
+  int _totalBusca = 0;
   String? _erroBusca;
   DevicePosition? _posicao;
   DeviceLocationFailure? _falhaLocalizacao;
@@ -59,6 +63,7 @@ class _BuscaPageState extends State<BuscaPage> {
   final List<Profissional> _comparacao = [];
 
   static const int _limiteComparacao = 2;
+  static const int _limitePaginaBusca = 20;
 
   @override
   void initState() {
@@ -195,6 +200,9 @@ class _BuscaPageState extends State<BuscaPage> {
     final versao = ++_versaoBusca;
     setState(() {
       _buscando = true;
+      _carregandoMais = false;
+      _paginaBusca = 1;
+      _totalBusca = 0;
       _erroBusca = null;
     });
 
@@ -207,7 +215,11 @@ class _BuscaPageState extends State<BuscaPage> {
     });
   }
 
-  Future<void> _buscarProfissionais(int versao) async {
+  Future<void> _buscarProfissionais(
+    int versao, {
+    int pagina = 1,
+    bool anexar = false,
+  }) async {
     try {
       final posicao = _posicao;
       final resposta = posicao == null
@@ -216,6 +228,8 @@ class _BuscaPageState extends State<BuscaPage> {
               categoriaId: _categoriaSelecionada?.id.toString(),
               bairro: _bairroController.text.trim(),
               cidade: _cidadeController.text.trim(),
+              pagina: pagina,
+              limite: _limitePaginaBusca,
             )
           : await AppServices.instance.profissionais.buscarPorDistancia(
               latitude: _coordenadaBusca(posicao.latitude),
@@ -223,25 +237,57 @@ class _BuscaPageState extends State<BuscaPage> {
               raioKm: _raioKm,
               termo: _termoController.text.trim(),
               categoriaId: _categoriaSelecionada?.id.toString(),
+              pagina: pagina,
+              limite: _limitePaginaBusca,
             );
-      final lista = resposta['profissionais'];
-      if (lista is! List) throw const FormatException();
-      final profissionais = listFromApi(lista, profissionalFromApi);
+      final paginaResposta = apiPageFromResponse<Profissional>(
+        resposta,
+        itemsKey: 'profissionais',
+        mapper: profissionalFromApi,
+        fallbackPage: pagina,
+      );
 
       if (!mounted || versao != _versaoBusca) return;
       setState(() {
-        _profissionais = profissionais;
+        _profissionais = anexar
+            ? [..._profissionais, ...paginaResposta.items]
+            : paginaResposta.items;
+        _paginaBusca = paginaResposta.page;
+        _totalBusca = paginaResposta.total;
         _buscaServidorAplicada = true;
         _buscando = false;
+        _carregandoMais = false;
         _erroBusca = null;
       });
     } catch (_) {
       if (!mounted || versao != _versaoBusca) return;
+      if (anexar) {
+        setState(() {
+          _buscando = false;
+          _carregandoMais = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nao foi possivel carregar mais resultados.'),
+          ),
+        );
+        return;
+      }
       setState(() {
         _buscando = false;
         _erroBusca = 'Não foi possível atualizar a busca.';
       });
     }
+  }
+
+  void _carregarMaisProfissionais() {
+    if (_buscando || _paginaBusca * _limitePaginaBusca >= _totalBusca) return;
+    final versao = _versaoBusca;
+    setState(() {
+      _buscando = true;
+      _carregandoMais = true;
+    });
+    _buscarProfissionais(versao, pagina: _paginaBusca + 1, anexar: true);
   }
 
   Categoria? _categoriaPorId(int id) {
@@ -442,6 +488,7 @@ class _BuscaPageState extends State<BuscaPage> {
             _categorias = snapshot.data!.categories;
             if (!_buscaServidorAplicada) {
               _profissionais = snapshot.data!.featuredProfessionals;
+              _totalBusca = snapshot.data!.featuredProfessionalsTotal;
             }
           }
           final resultados = _resultados;
@@ -556,7 +603,10 @@ class _BuscaPageState extends State<BuscaPage> {
                       const SizedBox(height: AppSpace.md),
                     ],
                     _CabecalhoResultados(
-                      total: resultados.length,
+                      total: _buscaServidorAplicada
+                          ? _totalBusca
+                          : (snapshot.data?.featuredProfessionalsTotal ??
+                                resultados.length),
                       mapaDisponivel: _mapaDisponivel,
                       mostrarMapa: _mostrarMapa,
                       onModoAlterado: (mapa) =>
@@ -615,6 +665,33 @@ class _BuscaPageState extends State<BuscaPage> {
                           ),
                         ),
                       ),
+                    if ((_buscaServidorAplicada &&
+                            _paginaBusca * _limitePaginaBusca < _totalBusca) ||
+                        (!_buscaServidorAplicada &&
+                            !AppServices.instance.emDemonstracao &&
+                            (snapshot.data?.featuredProfessionalsHasMore ??
+                                false))) ...[
+                      const SizedBox(height: AppSpace.sm),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: _buscando
+                              ? null
+                              : _carregarMaisProfissionais,
+                          icon: _carregandoMais
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.expand_more_rounded),
+                          label: Text(
+                            _carregandoMais ? 'Carregando...' : 'Carregar mais',
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ],
               );

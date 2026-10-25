@@ -8,7 +8,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
-import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
+import { registrarAuditoriaAdmin } from '../common/admin-auditoria.js';
+import { optionalEnumFilter, optionalSearchTerm } from '../common/admin-list-query.js';
+import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
@@ -21,8 +23,6 @@ import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 @Injectable()
 export class AvaliacoesService {
   constructor(
-    @InjectRepository(AdminAuditoriaEntity)
-    private readonly auditoria: Repository<AdminAuditoriaEntity>,
     @InjectRepository(AvaliacaoEntity)
     private readonly avaliacoes: Repository<AvaliacaoEntity>,
     @InjectRepository(SolicitacaoEntity)
@@ -68,55 +68,84 @@ export class AvaliacoesService {
     return this.criarAvaliacao(solicitacao, user.id, solicitacao.clienteId, body);
   }
 
-  async listarModeracao() {
-    const avaliacoes = await this.avaliacoes.find({
-      where: { moderacaoStatus: AvaliacaoModeracaoStatus.Pendente },
-      relations: { avaliador: true, avaliado: true, solicitacao: true },
-      order: { criadoEm: 'ASC' },
-    });
-
-    return { avaliacoes: avaliacoes.map(avaliacaoResponse) };
+  async listarModeracao(query: Record<string, unknown>) {
+    const status = query.status === 'todas'
+      ? null
+      : query.status === undefined || query.status === ''
+      ? AvaliacaoModeracaoStatus.Pendente
+      : optionalEnumFilter(query, 'status', Object.values(AvaliacaoModeracaoStatus));
+    const termo = optionalSearchTerm(query);
+    const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
+    const builder = this.avaliacoes
+      .createQueryBuilder('avaliacao')
+      .leftJoinAndSelect('avaliacao.avaliador', 'avaliador')
+      .leftJoinAndSelect('avaliacao.avaliado', 'avaliado')
+      .leftJoinAndSelect('avaliacao.solicitacao', 'solicitacao')
+      .orderBy('avaliacao.criadoEm', 'DESC')
+      .addOrderBy('avaliacao.id', 'DESC')
+      .skip(pagination.skip)
+      .take(pagination.limite);
+    if (status !== null) {
+      builder.andWhere('avaliacao.moderacaoStatus = :status', { status });
+    }
+    if (termo !== null) {
+      builder.andWhere(
+        '(avaliacao.comentario LIKE :termo OR avaliador.nome LIKE :termo OR avaliado.nome LIKE :termo)',
+        { termo: `%${termo}%` },
+      );
+    }
+    const [avaliacoes, total] = await builder.getManyAndCount();
+    return {
+      paginacao: paginationMetadata(pagination, total),
+      avaliacoes: avaliacoes.map(avaliacaoResponse),
+    };
   }
 
   async moderar(user: AuthenticatedUser, id: number, body: unknown) {
     const status = parseModeracaoStatus(body);
-    const avaliacao = await this.avaliacoes.findOne({
+    await this.avaliacoes.manager.transaction(async (manager) => {
+      const avaliacoes = manager.getRepository(AvaliacaoEntity);
+      const avaliacao = await avaliacoes.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (avaliacao === null) {
+        throw new NotFoundException({
+          code: 'AVALIACAO_NAO_ENCONTRADA',
+          message: 'Avaliacao nao encontrada.',
+        });
+      }
+
+      const statusAnterior = avaliacao.moderacaoStatus;
+      avaliacao.moderacaoStatus = status;
+      await avaliacoes.save(avaliacao);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.AvaliacaoModerada,
+        alvoTipo: 'avaliacao',
+        alvoId: avaliacao.id,
+        detalhe: {
+          solicitacaoId: avaliacao.solicitacaoId,
+          avaliadorId: avaliacao.avaliadorId,
+          avaliadoId: avaliacao.avaliadoId,
+          nota: avaliacao.nota,
+          comentarioPresente: avaliacao.comentario !== null,
+          status: { antes: statusAnterior, depois: avaliacao.moderacaoStatus },
+        },
+      });
+    });
+
+    const saved = await this.avaliacoes.findOne({
       where: { id },
       relations: { avaliador: true, avaliado: true },
     });
-    if (avaliacao === null) {
+    if (saved === null) {
       throw new NotFoundException({
         code: 'AVALIACAO_NAO_ENCONTRADA',
         message: 'Avaliacao nao encontrada.',
       });
     }
-
-    avaliacao.moderacaoStatus = status;
-    const saved = await this.avaliacoes.save(avaliacao);
-    await this.registrarAuditoria(
-      user.id,
-      saved.id,
-      `Moderacao: ${saved.moderacaoStatus}`,
-    );
-    saved.avaliador = avaliacao.avaliador;
-    saved.avaliado = avaliacao.avaliado;
     return { avaliacao: avaliacaoResponse(saved) };
-  }
-
-  private async registrarAuditoria(
-    atorId: number,
-    alvoId: number,
-    detalhe: string,
-  ) {
-    await this.auditoria.save(
-      this.auditoria.create({
-        atorId,
-        acao: AdminAuditoriaAcao.AvaliacaoModerada,
-        alvoTipo: 'avaliacao',
-        alvoId,
-        detalhe,
-      }),
-    );
   }
 
   private async criarAvaliacao(

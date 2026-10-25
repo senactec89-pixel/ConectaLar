@@ -14,6 +14,11 @@ import { ProfissionalPerfilEntity } from './profissional-perfil.entity.js';
 @Entity({ name: 'profissional_servicos' })
 @Index('idx_profissional_servicos_profissional', ['profissionalId'])
 @Index('idx_profissional_servicos_categoria', ['categoriaId'])
+@Index('idx_prof_servicos_categoria_ativo_profissional', [
+  'categoriaId',
+  'ativo',
+  'profissionalId',
+])
 export class ProfissionalServicoEntity {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;

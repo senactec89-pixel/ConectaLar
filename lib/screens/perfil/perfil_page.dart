@@ -257,6 +257,20 @@ class _PerfilPageState extends State<PerfilPage> {
                   ),
                 const SizedBox(height: AppSpace.lg),
                 Text(
+                  'Contratação e pagamentos',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: AppSpace.sm),
+                ProfileMenuTile(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Política comercial e cancelamento',
+                  subtitle:
+                      'Preços, pagamentos externos e regras para cancelar',
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.politicaComercial),
+                ),
+                const SizedBox(height: AppSpace.lg),
+                Text(
                   'Acesso e privacidade',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),

@@ -40,6 +40,21 @@ export class AuthController {
     return this.authService.confirmarLoginMfa(body);
   }
 
+  @Post('admin-mfa/setup')
+  iniciarConfiguracaoMfaAdmin(@Body() body: unknown) {
+    return this.authService.iniciarConfiguracaoMfaAdmin(body);
+  }
+
+  @Post('admin-mfa/confirmar')
+  confirmarConfiguracaoMfaAdmin(@Body() body: unknown) {
+    return this.authService.confirmarConfiguracaoMfaAdmin(body);
+  }
+
+  @Post('admin-convites/aceitar')
+  aceitarConviteAdmin(@Body() body: unknown) {
+    return this.authService.aceitarConviteAdmin(body);
+  }
+
   @Post('senha/recuperacao')
   solicitarRecuperacaoSenha(@Body() body: unknown) {
     return this.authService.solicitarRecuperacaoSenha(body);

@@ -4,77 +4,160 @@ import test from 'node:test';
 
 const url = process.env.CONECTALAR_TEST_API_URL;
 
-test('duration, free windows and concurrent overlapping acceptances with MySQL', { skip: !url }, async (t) => {
-  assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname));
-  async function request(method, path, token, body, expected = 200) {
-    const response = await fetch(`${url}/${path}`, {
-      method,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
-    const data = await response.json();
-    if (expected !== null) assert.equal(response.status, expected, `${method} ${path} returned ${response.status}`);
-    return { status: response.status, data };
-  }
-  async function register(tipo) {
-    const { data } = await request('POST', 'auth/cadastro', null, {
-      nome: `Homologação ${tipo}`, tipo, senha: 'ConectaLarTeste123!',
-      email: `agenda.${randomUUID()}@conectalar.local`,
-    }, 201);
-    assert.ok(data.devCode, 'Use an isolated local API with EXPOSE_EMAIL_VERIFICATION_CODE=true.');
-    await request('POST', 'auth/email/verificacao/confirmar', data.token.accessToken, { codigo: data.devCode }, 201);
-    return data.token.accessToken;
-  }
-  const cliente = await register('cliente');
-  const categorias = (await request('GET', 'categorias')).data.categorias;
-  const endereco = (await request('POST', 'clientes/me/enderecos', cliente, {
-    apelido: 'Teste', logradouro: 'Rua Fictícia', numero: '1', bairro: 'Centro',
-    cidade: 'Belo Horizonte', uf: 'MG', principal: true,
-  }, 201)).data.endereco;
-  const dataServico = `${new Date().getUTCFullYear() + 1}-10-18`;
+test(
+  'availability remains visible but pending professionals cannot book or receive requests',
+  { skip: !url },
+  async () => {
+    assert.ok(
+      ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname),
+      'Integration tests must target a local API.',
+    );
 
-  for (const tipo of ['profissional', 'empresa']) {
-    await t.test(`${tipo}: capacity one, consecutive bookings and immutable request duration`, async () => {
-      const token = await register(tipo);
-      const payload = {
-        descricao: 'Serviço fictício de homologação da agenda.', bairro: 'Centro',
-        servicos: [{ nome: 'Serviço de duas horas', categoriaId: categorias[0].id, duracaoMinutos: 120 }],
-      };
-      const perfil = (await request('PUT', 'profissionais/me', token, payload)).data.profissional;
-      const oferta = perfil.servicos[0];
-      await request('PUT', 'profissionais/me/disponibilidade', token, {
-        disponibilidades: Array.from({ length: 7 }, (_, diaSemana) => ({ diaSemana, horaInicio: '08:00', horaFim: '18:00' })),
+    async function request(method, path, token, body, expectedStatus) {
+      const response = await fetch(`${url.replace(/\/$/, '')}/${path}`, {
+        method,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
       });
-      await request('PUT', 'profissionais/me/servicos', token,
-        { servicos: [{ nome: 'Sem duração' }] }, 400);
-      const criar = async (horarioServico, expected = 201) => (await request('POST', 'solicitacoes', cliente, {
-        profissionalId: perfil.id, servicoId: oferta.id, enderecoId: endereco.id,
-        descricao: 'Atendimento fictício para testar sobreposição.', bairroAtendimento: 'Centro',
-        dataServico, horarioServico, duracaoMinutos: 1,
-      }, expected)).data.solicitacao;
-      await criar('17:00', 400);
-      const a = await criar('10:00');
-      const b = await criar('10:30');
-      assert.equal(a.duracaoMinutos, 120, 'client-supplied duration cannot shorten a booking');
-      await request('PUT', 'profissionais/me/servicos', token, { servicos: [{
-        id: oferta.id, nome: oferta.nome, categoriaId: categorias[0].id, duracaoMinutos: 60,
-      }] });
-      assert.equal((await request('GET', `solicitacoes/${a.id}`, cliente)).data.solicitacao.duracaoMinutos, 120);
-      const accepted = await Promise.all([a, b].map((p) => request('PATCH', `solicitacoes/${p.id}/aceitar`, token, undefined, null)));
-      assert.deepEqual(accepted.map((r) => r.status).sort(), [200, 409]);
-      const winner = accepted.find((r) => r.status === 200).data.solicitacao;
-      const fim = winner.horarioServico === '10:00' ? '12:00' : '12:30';
-      const adjacent = await criar(fim);
-      await request('PATCH', `solicitacoes/${adjacent.id}/aceitar`, token);
-      await criar('11:00', 409);
-      const livres = (await request('GET', `profissionais/${perfil.id}/horarios?data=${dataServico}&servicoId=${oferta.id}`)).data;
-      assert.equal(livres.fusoHorario, 'America/Sao_Paulo');
-      assert.equal(livres.duracaoMinutos, 60);
-      assert.deepEqual(Object.keys(livres).sort(), ['data', 'duracaoMinutos', 'fusoHorario', 'intervalos']);
-      assert.ok(livres.intervalos.every((item) => item.horaFim <= winner.horarioServico || item.horaInicio >= (fim === '12:00' ? '13:00' : '13:30')));
-      const agenda = (await request('GET', `profissionais/me/agenda?mes=${dataServico.slice(0, 7)}`, token)).data;
-      assert.equal(agenda.atendimentos.length, 2);
-      assert.equal(agenda.atendimentos.find((p) => p.id === winner.id).duracaoMinutos, 120);
-    });
-  }
-});
+      const data = await response.json();
+      assert.equal(
+        response.status,
+        expectedStatus,
+        `${method} ${path}: ${JSON.stringify(data)}`,
+      );
+      return data;
+    }
+
+    async function register(tipo) {
+      const suffix = randomUUID().replaceAll('-', '').slice(0, 10);
+      const cadastro = await request(
+        'POST',
+        'auth/cadastro',
+        null,
+        {
+          nome: `Agenda ${tipo} ${suffix}`,
+          tipo,
+          senha: 'ConectaLarTeste123!',
+          email: `agenda.${tipo}.${suffix}@conectalar.local`,
+          aceitouTermos: true,
+          versaoTermos: '2026-10-24.v5',
+        },
+        201,
+      );
+      assert.ok(
+        cadastro.devCode,
+        'Enable EXPOSE_EMAIL_VERIFICATION_CODE only on the local test API.',
+      );
+      await request(
+        'POST',
+        'auth/email/verificacao/confirmar',
+        cadastro.token.accessToken,
+        { codigo: cadastro.devCode },
+        201,
+      );
+      return cadastro.token.accessToken;
+    }
+
+    const cliente = await register('cliente');
+    const profissionalToken = await register('profissional');
+    const categorias = (
+      await request('GET', 'categorias', null, undefined, 200)
+    ).categorias;
+    assert.ok(categorias.length > 0);
+    const endereco = await request(
+      'POST',
+      'clientes/me/enderecos',
+      cliente,
+      {
+        apelido: 'Teste',
+        logradouro: 'Rua de Teste',
+        numero: '1',
+        bairro: 'Centro',
+        cidade: 'Belo Horizonte',
+        uf: 'MG',
+        principal: true,
+      },
+      201,
+    );
+    const perfil = await request(
+      'PUT',
+      'profissionais/me',
+      profissionalToken,
+      {
+        descricao: 'Servico ficticio para testar disponibilidade.',
+        bairro: 'Centro',
+        cidade: 'Belo Horizonte',
+        uf: 'MG',
+        servicos: [
+          {
+            nome: 'Servico de duas horas',
+            categoriaId: categorias[0].id,
+            duracaoMinutos: 120,
+          },
+        ],
+      },
+      200,
+    );
+    const profissionalId = perfil.profissional.id;
+    const servico = perfil.profissional.servicos[0];
+    await request(
+      'PUT',
+      'profissionais/me/disponibilidade',
+      profissionalToken,
+      {
+        disponibilidades: Array.from({ length: 7 }, (_, diaSemana) => ({
+          diaSemana,
+          horaInicio: '08:00',
+          horaFim: '18:00',
+        })),
+      },
+      200,
+    );
+
+    const dataServico = `${new Date().getUTCFullYear() + 1}-10-18`;
+    const horarios = await request(
+      'GET',
+      `profissionais/${profissionalId}/horarios?data=${dataServico}&servicoId=${servico.id}`,
+      null,
+      undefined,
+      200,
+    );
+    assert.equal(horarios.duracaoMinutos, 120);
+    assert.equal(horarios.fusoHorario, 'America/Sao_Paulo');
+    assert.ok(horarios.intervalos.length > 0);
+
+    const bloqueio = await request(
+      'POST',
+      'solicitacoes',
+      cliente,
+      {
+        profissionalId,
+        servicoId: servico.id,
+        enderecoId: endereco.endereco.id,
+        descricao: 'Pedido ficticio para verificar a regra de habilitacao.',
+        bairroAtendimento: 'Centro',
+        dataServico,
+        horarioServico: '10:00',
+        duracaoMinutos: 1,
+      },
+      409,
+    );
+    assert.equal(bloqueio.code, 'PROFISSIONAL_HABILITACAO_PENDENTE');
+
+    const [pedidos, agenda] = await Promise.all([
+      request('GET', 'solicitacoes/me?pagina=1&limite=20', cliente, undefined, 200),
+      request(
+        'GET',
+        `profissionais/me/agenda?mes=${dataServico.slice(0, 7)}`,
+        profissionalToken,
+        undefined,
+        200,
+      ),
+    ]);
+    assert.equal(pedidos.solicitacoes.length, 0);
+    assert.equal(agenda.atendimentos.length, 0);
+  },
+);

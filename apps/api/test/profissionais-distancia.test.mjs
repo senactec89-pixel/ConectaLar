@@ -2,15 +2,30 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ProfissionaisService } from '../dist/profissionais/profissionais.service.js';
 
-function queryBuilder(result) {
+function queryBuilder(result, calls = []) {
   return {
     leftJoinAndSelect() {
+      return this;
+    },
+    leftJoin() {
       return this;
     },
     where() {
       return this;
     },
-    andWhere() {
+    andWhere(...args) {
+      calls.push(args);
+      return this;
+    },
+    distinct() {
+      return this;
+    },
+    skip(value) {
+      calls.push(['skip', value]);
+      return this;
+    },
+    take(value) {
+      calls.push(['take', value]);
       return this;
     },
     orderBy() {
@@ -25,11 +40,14 @@ function queryBuilder(result) {
     addSelect() {
       return this;
     },
+    setParameters() {
+      return this;
+    },
     groupBy() {
       return this;
     },
-    async getMany() {
-      return result;
+    async getManyAndCount() {
+      return [result, result.length];
     },
     async getRawMany() {
       return [];
@@ -62,9 +80,9 @@ function profile(id, longitude, raioAtendimentoKm) {
   };
 }
 
-function service(profiles = []) {
+function service(profiles = [], calls = []) {
   const avaliacoes = { createQueryBuilder: () => queryBuilder([]) };
-  const perfis = { createQueryBuilder: () => queryBuilder(profiles) };
+  const perfis = { createQueryBuilder: () => queryBuilder(profiles, calls) };
   return new ProfissionaisService(
     avaliacoes,
     {},
@@ -93,11 +111,12 @@ test('busca por distancia exige o par de coordenadas e um raio valido', async ()
 });
 
 test('busca respeita raio do cliente e area atendida pelo profissional', async () => {
-  const result = await service([
-    profile(1, 0.05, 5),
-    profile(2, 0.04, 10),
-    profile(3, null, 50),
-  ]).buscar({ latitude: 0, longitude: 0, raioKm: 10 });
+  const calls = [];
+  const result = await service([profile(2, 0.04, 10)], calls).buscar({
+    latitude: 0,
+    longitude: 0,
+    raioKm: 10,
+  });
 
   assert.deepEqual(
     result.profissionais.map((item) => item.id),
@@ -106,4 +125,24 @@ test('busca respeita raio do cliente e area atendida pelo profissional', async (
   assert.equal(result.profissionais[0].distanciaKm, 4.4);
   assert.equal(result.profissionais[0].latitudeAproximada, 0);
   assert.equal(result.profissionais[0].longitudeAproximada, 0.04);
+  assert.equal(result.paginacao.total, 1);
+  assert.ok(
+    calls.some(
+      ([clausula, parametros]) =>
+        typeof clausula === 'string' &&
+        clausula.includes('LEAST(:raioKm, perfil.raioAtendimentoKm)') &&
+        parametros.raioKm === 10,
+    ),
+  );
+});
+
+test('busca valida os limites da paginacao', async () => {
+  await assert.rejects(
+    service().listar({ pagina: '0' }),
+    (error) => error?.getResponse?.().code === 'PAGINACAO_INVALIDA',
+  );
+  await assert.rejects(
+    service().listar({ limite: '51' }),
+    (error) => error?.getResponse?.().code === 'PAGINACAO_INVALIDA',
+  );
 });

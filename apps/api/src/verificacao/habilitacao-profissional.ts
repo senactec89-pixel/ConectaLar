@@ -42,6 +42,7 @@ function identidadeIndisponivel() {
 export function habilitacaoProfissional(
   perfil: ProfissionalPerfilEntity | null,
   identidadeStatus?: string | null,
+  telefoneStatus?: string | null,
 ) {
   const estado = perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
@@ -53,7 +54,7 @@ export function habilitacaoProfissional(
     etapas: [
       { codigo: 'perfil', status: perfil ? 'cadastrado' : 'pendente' },
       { codigo: 'email', status: perfil?.usuario?.emailVerificado === true ? 'confirmado' : 'pendente' },
-      { codigo: 'telefone', status: 'aguardando_integracao' },
+      { codigo: 'telefone', status: telefoneStatus ?? 'aguardando_integracao' },
       { codigo: 'identidade', status: identidadeStatus ?? 'aguardando_integracao' },
       { codigo: 'antecedentes', status: 'aguardando_politica' },
       { codigo: 'aprovacao', status: estado },

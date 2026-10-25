@@ -21,6 +21,14 @@ interface MfaChallengePayload {
   readonly exp: number;
 }
 
+interface MfaSetupChallengePayload {
+  readonly sub: number;
+  readonly tv: number;
+  readonly purpose: 'admin_mfa_setup';
+  readonly iat: number;
+  readonly exp: number;
+}
+
 @Injectable()
 export class TokenService {
   createAccessToken(usuario: UsuarioEntity): {
@@ -121,6 +129,32 @@ export class TokenService {
 
     return payload;
   }
+
+  createMfaSetupChallengeToken(usuario: UsuarioEntity): {
+    mfaSetupToken: string;
+    expiresIn: number;
+  } {
+    const expiresIn = 10 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    const payload: MfaSetupChallengePayload = {
+      sub: usuario.id,
+      tv: usuario.tokenVersion ?? 0,
+      purpose: 'admin_mfa_setup',
+      iat: now,
+      exp: now + expiresIn,
+    };
+    const header = encode({ alg: 'HS256', typ: 'JWT' });
+    const body = encode(payload);
+    const signature = sign(`${header}.${body}`, tokenSecret());
+    return { mfaSetupToken: `${header}.${body}.${signature}`, expiresIn };
+  }
+
+  verifyMfaSetupChallengeToken(token: string): MfaSetupChallengePayload | null {
+    const payload = verifySignedPayload(token);
+    if (!isMfaSetupChallengePayload(payload)) return null;
+    if (payload.exp <= Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  }
 }
 
 function encode(value: unknown): string {
@@ -195,6 +229,19 @@ function isMfaChallengePayload(value: unknown): value is MfaChallengePayload {
     Number.isSafeInteger(value.sub) &&
     Number.isSafeInteger(value.tv) &&
     value.purpose === 'admin_mfa' &&
+    Number.isSafeInteger(value.iat) &&
+    Number.isSafeInteger(value.exp)
+  );
+}
+
+function isMfaSetupChallengePayload(
+  value: unknown,
+): value is MfaSetupChallengePayload {
+  return (
+    isRecord(value) &&
+    Number.isSafeInteger(value.sub) &&
+    Number.isSafeInteger(value.tv) &&
+    value.purpose === 'admin_mfa_setup' &&
     Number.isSafeInteger(value.iat) &&
     Number.isSafeInteger(value.exp)
   );

@@ -18,6 +18,7 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final AuthService _auth = AppServices.instance.auth;
   bool _loginAgendado = false;
+  bool _termosAgendados = false;
 
   @override
   void initState() {
@@ -26,22 +27,38 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
   }
 
   void _sessaoAlterada() {
-    if (!_auth.sessaoExpirada || _loginAgendado) return;
-    _loginAgendado = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loginAgendado = false;
-      if (!mounted || !_auth.sessaoExpirada) return;
-      _navigator.currentState?.pushNamedAndRemoveUntil(
-        AppRoutes.login,
-        (_) => false,
-      );
-      _messenger.currentState?.clearSnackBars();
-      _messenger.currentState?.showSnackBar(
-        const SnackBar(
-          content: Text('Sua sessão expirou. Entre novamente para continuar.'),
-        ),
-      );
-    });
+    if (_auth.sessaoExpirada && !_loginAgendado) {
+      _loginAgendado = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loginAgendado = false;
+        if (!mounted || !_auth.sessaoExpirada) return;
+        _navigator.currentState?.pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (_) => false,
+        );
+        _messenger.currentState?.clearSnackBars();
+        _messenger.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Sua sessão expirou. Entre novamente para continuar.',
+            ),
+          ),
+        );
+      });
+    } else if (_auth.autenticado &&
+        _auth.emailVerificado &&
+        !_auth.termosAceitos &&
+        !_termosAgendados) {
+      _termosAgendados = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _termosAgendados = false;
+        if (!mounted || !_auth.autenticado || _auth.termosAceitos) return;
+        _navigator.currentState?.pushNamedAndRemoveUntil(
+          AppRoutes.aceiteTermos,
+          (_) => false,
+        );
+      });
+    }
     WidgetsBinding.instance.ensureVisualUpdate();
   }
 
@@ -74,6 +91,9 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
     final auth = AppServices.instance.auth;
     if (auth.autenticado && !auth.emailVerificado) {
       return AppRoutes.verificacaoEmail;
+    }
+    if (auth.autenticado && !auth.termosAceitos) {
+      return AppRoutes.aceiteTermos;
     }
     return switch (auth.usuarioAtual?['tipo']) {
       'profissional' || 'empresa' => AppRoutes.areaProfissional,

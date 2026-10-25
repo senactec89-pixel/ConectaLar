@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Put,
   UseGuards,
 } from '@nestjs/common';
@@ -63,8 +64,23 @@ export class ClientesController {
   }
 
   @Get('me/favoritos')
-  listarFavoritos(@UsuarioAtual() user: AuthenticatedUser) {
-    return this.clientes.listarFavoritos(user);
+  listarFavoritos(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Query() query: Record<string, unknown>,
+  ) {
+    return this.clientes.listarFavoritosPagina(
+      user,
+      query.pagina,
+      query.limite,
+    );
+  }
+
+  @Get('me/favoritos/:profissionalId')
+  consultarFavorito(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('profissionalId') profissionalId: string,
+  ) {
+    return this.clientes.consultarFavorito(user, parseId(profissionalId));
   }
 
   @Post('me/favoritos/:profissionalId')

@@ -57,6 +57,51 @@ export class MailService {
     await sendSmtp(config, email, message);
     return true;
   }
+
+  async sendAdminInvitation(email: string, nome: string, token: string): Promise<boolean> {
+    const config = smtpConfig();
+    if (config === null) return false;
+    const safeName = nome.replace(/[\r\n]+/g, ' ').trim().slice(0, 140);
+    const message = buildMessage({
+      from: config.from,
+      to: email,
+      subject: 'Convite administrativo do ConectaLar',
+      text:
+        `Ola, ${safeName}.\n\n` +
+        'Voce recebeu um convite para criar uma conta administrativa do ConectaLar. ' +
+        'Confirme com a pessoa que enviou o convite antes de continuar.\n\n' +
+        `Token de uso unico: ${token}\n\n` +
+        'O token expira em 24 horas. No aplicativo, abra Entrar > Aceitar convite administrativo, ' +
+        'cole o token, escolha sua senha e configure o aplicativo autenticador. ' +
+        'Nunca encaminhe este token. Se nao esperava este convite, ignore esta mensagem.',
+    });
+    await sendSmtp(config, email, message);
+    return true;
+  }
+
+  async sendCriticalNotificationEmail(
+    email: string,
+    title: string,
+    notification: string,
+  ): Promise<boolean> {
+    const config = smtpConfig();
+    if (config === null) return false;
+
+    const safeTitle = title.replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+    const safeNotification = notification.trim().slice(0, 500);
+    const message = buildMessage({
+      from: config.from,
+      to: email,
+      subject: 'Aviso importante do ConectaLar',
+      text:
+        `${safeTitle}\n\n${safeNotification}\n\n` +
+        'Entre no aplicativo ConectaLar para consultar os detalhes.\n' +
+        'Este aviso foi enviado automaticamente; nao responda a este e-mail.',
+    });
+
+    await sendSmtp(config, email, message);
+    return true;
+  }
 }
 
 function smtpConfig(): SmtpConfig | null {

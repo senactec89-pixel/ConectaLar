@@ -16,6 +16,7 @@ import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
+import { invalidarVerificacoesTelefone } from '../verificacao/telefone-verificacao.util.js';
 
 @Injectable()
 export class ClientesService {
@@ -64,11 +65,21 @@ export class ClientesService {
         });
       }
     }
-    usuario.nome = input.nome;
-    usuario.telefone = input.telefone;
-    usuario.telefoneNormalizado = input.telefoneNormalizado;
+    let usuarioAtualizado: UsuarioEntity;
     try {
-      await this.usuarios.save(usuario);
+      usuarioAtualizado = await this.usuarios.manager.transaction(async (manager) => {
+        const atual = await manager.findOne(UsuarioEntity, {
+          where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+        });
+        if (!atual) throw new ForbiddenException();
+        const telefoneMudou = atual.telefoneNormalizado !== input.telefoneNormalizado;
+        atual.nome = input.nome;
+        atual.telefone = input.telefone;
+        atual.telefoneNormalizado = input.telefoneNormalizado;
+        const salvo = await manager.save(UsuarioEntity, atual);
+        if (telefoneMudou) await invalidarVerificacoesTelefone(manager, user.id);
+        return salvo;
+      });
     } catch (error) {
       if (isDuplicateError(error)) {
         throw new ConflictException({
@@ -81,15 +92,15 @@ export class ClientesService {
 
     let perfil = await this.perfis.findOne({ where: { usuarioId: user.id } });
     perfil ??= this.perfis.create({ usuarioId: user.id });
-    perfil.usuario = usuario;
+    perfil.usuario = usuarioAtualizado;
     perfil.bairroPrincipal = input.bairroPrincipal;
     perfil.cidade = input.cidade;
     perfil.uf = input.uf;
     perfil.observacoes = input.observacoes;
 
     const saved = await this.perfis.save(perfil);
-    saved.usuario = usuario;
-    return { cliente: clienteResponse(usuario, saved) };
+    saved.usuario = usuarioAtualizado;
+    return { cliente: clienteResponse(usuarioAtualizado, saved) };
   }
 
   async listarEnderecos(user: AuthenticatedUser) {
@@ -155,26 +166,63 @@ export class ClientesService {
   }
 
   async listarFavoritos(user: AuthenticatedUser) {
+    return this.listarFavoritosPagina(user, '1', '20');
+  }
+
+  async listarFavoritosPagina(
+    user: AuthenticatedUser,
+    paginaValue: unknown,
+    limiteValue: unknown,
+  ) {
     await this.assertClienteAtivo(user);
-    const favoritos = await this.favoritos.find({
-      where: { clienteId: user.id },
-      relations: {
-        profissional: { usuario: true, servicos: { categoria: true } },
-      },
-      order: { criadoEm: 'DESC' },
-    });
+    const { pagina, limite } = parsePaginacao(paginaValue, limiteValue);
+    const consulta = this.favoritos
+      .createQueryBuilder('favorito')
+      .innerJoinAndSelect('favorito.profissional', 'profissional')
+      .innerJoinAndSelect('profissional.usuario', 'usuario')
+      .leftJoinAndSelect('profissional.servicos', 'servico', 'servico.ativo = :ativo', {
+        ativo: true,
+      })
+      .leftJoinAndSelect('servico.categoria', 'categoria')
+      .where('favorito.clienteId = :clienteId', { clienteId: user.id })
+      .andWhere('profissional.ativo = :ativo', { ativo: true })
+      .andWhere('usuario.ativo = :ativo', { ativo: true })
+      .andWhere('usuario.tipo IN (:...tipos)', {
+        tipos: [UsuarioTipo.Profissional, UsuarioTipo.Empresa],
+      })
+      .orderBy('favorito.criadoEm', 'DESC')
+      .addOrderBy('favorito.id', 'DESC')
+      .skip((pagina - 1) * limite)
+      .take(limite);
+    const [favoritos, total] = await consulta.getManyAndCount();
 
     return {
-      favoritos: favoritos
-        .filter(
-          (favorito) =>
-            favorito.profissional.ativo &&
-            favorito.profissional.usuario.ativo &&
-            [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(
-              favorito.profissional.usuario.tipo,
-            ),
-        )
-        .map(favoritoResponse),
+      favoritos: favoritos.map(favoritoResponse),
+      paginacao: {
+        pagina,
+        limite,
+        total,
+        totalPaginas: Math.max(1, Math.ceil(total / limite)),
+        temMais: pagina * limite < total,
+      },
+    };
+  }
+
+  async consultarFavorito(user: AuthenticatedUser, profissionalId: number) {
+    await this.assertClienteAtivo(user);
+    const favorito = await this.favoritos.findOne({
+      where: { clienteId: user.id, profissionalId },
+      relations: { profissional: { usuario: true } },
+    });
+    const perfil = favorito?.profissional;
+    return {
+      favorito: Boolean(
+        perfil?.ativo &&
+          perfil.usuario.ativo &&
+          [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(
+            perfil.usuario.tipo,
+          ),
+      ),
     };
   }
 
@@ -474,6 +522,19 @@ function booleanField(value: unknown): boolean {
 
 function numberOrNull(value: string | null): number | null {
   return value === null ? null : Number(value);
+}
+
+function parsePaginacao(paginaValue: unknown, limiteValue: unknown) {
+  const pagina = parsePositiveInteger(paginaValue ?? '1', 10_000);
+  const limite = parsePositiveInteger(limiteValue ?? '20', 50);
+  if (pagina === null || limite === null) throw badRequest('PAGINACAO_INVALIDA');
+  return { pagina, limite };
+}
+
+function parsePositiveInteger(value: unknown, max: number): number | null {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) return null;
+  return parsed;
 }
 
 function isDuplicateError(error: unknown): boolean {

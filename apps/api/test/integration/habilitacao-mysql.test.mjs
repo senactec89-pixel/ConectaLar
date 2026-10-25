@@ -8,6 +8,8 @@ import { UsuarioEntity } from '../../dist/database/entities/usuario.entity.js';
 import { ProfissionalPerfilEntity } from '../../dist/database/entities/profissional-perfil.entity.js';
 import { AdminAuditoriaEntity } from '../../dist/database/entities/admin-auditoria.entity.js';
 import { HabilitacaoService } from '../../dist/verificacao/habilitacao.service.js';
+import { ProfissionalTelefoneVerificacaoEntity } from '../../dist/database/entities/profissional-telefone-verificacao.entity.js';
+import { invalidarVerificacoesTelefone } from '../../dist/verificacao/telefone-verificacao.util.js';
 
 // Opt-in: creates a fresh random database on LOCAL MySQL, never uses DB_NAME.
 // The supplied DB_USER needs CREATE/DROP privileges for this disposable test.
@@ -33,6 +35,7 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     const usuarios = ds.getRepository(UsuarioEntity);
     const perfis = ds.getRepository(ProfissionalPerfilEntity);
     const auditorias = ds.getRepository(AdminAuditoriaEntity);
+    const verificacoesTelefone = ds.getRepository(ProfissionalTelefoneVerificacaoEntity);
     const titular = await usuarios.save(usuarios.create({ nome: 'Titular teste', email: 'titular@example.invalid',
       tipo: 'profissional', emailVerificado: true, ativo: true, senhaHash: 'not-a-login-hash' }));
     const administrador = await usuarios.save(usuarios.create({ nome: 'Admin teste', email: 'admin@example.invalid',
@@ -48,6 +51,28 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'suspenso');
     assert.equal(await auditorias.count({ where: { acao: 'habilitacao_analisada' } }), 1);
 
+    const telefone = await verificacoesTelefone.save(verificacoesTelefone.create({
+      usuarioId: titular.id,
+      telefoneVinculado: '11999998888',
+      referencia: 'val_2W7HJ9RC4XKQ0ZB58NDT3PMFY6',
+      referenciaExterna: 'phone-external-test',
+      chaveIdempotencia: null,
+      tentativaId: null,
+      chaveIdempotenciaTentativa: null,
+      tentativaEmAndamento: false,
+      consentimentoEm: new Date(),
+      versaoAviso: 'conectalar-telefone-whatsapp-v1',
+      estado: 'confirmada',
+      tentativasRestantes: 0,
+      expiraEm: new Date(Date.now() + 10 * 60_000),
+      resolvidaEm: new Date(),
+    }));
+    assert.equal(Object.hasOwn(telefone, 'codigo'), false);
+    const colunasTelefone = await ds.query('SHOW COLUMNS FROM profissional_telefone_verificacoes');
+    assert.equal(colunasTelefone.some((coluna) => coluna.Field === 'codigo'), false);
+    await invalidarVerificacoesTelefone(ds.manager, titular.id);
+    assert.equal((await verificacoesTelefone.findOneByOrFail({ id: telefone.id })).estado, 'invalidada');
+
     const failingRepository = { manager: { transaction: (fn) => ds.manager.transaction((manager) => {
       const wrapper = Object.create(manager);
       wrapper.save = async (type, data) => {
@@ -62,7 +87,7 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     }), /test-audit-failure/);
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'suspenso');
     assert.equal((await service.minha(profissional)).habilitacao.podeAtender, false);
-    await assert.rejects(ds.undoLastMigration(), /preserve the professional eligibility audit history/);
+    await assert.rejects(ds.undoLastMigration(), /preserve phone verification records/);
   } finally {
     if (ds?.isInitialized) await ds.destroy();
     if (created) await connection.query(`DROP DATABASE \`${database}\``);

@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
@@ -27,8 +28,8 @@ export class CategoriasController {
   @Get('admin')
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(UsuarioTipo.Administrador)
-  listarAdmin() {
-    return this.categorias.listarAdmin();
+  listarAdmin(@Query() query: Record<string, unknown>) {
+    return this.categorias.listarAdmin(query);
   }
 
   @Post()

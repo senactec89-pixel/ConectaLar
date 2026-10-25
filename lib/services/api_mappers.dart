@@ -21,7 +21,21 @@ HomeContent homeContentFromApi({
       profissionaisResponse['profissionais'],
       profissionalFromApi,
     ),
+    featuredProfessionalsTotal:
+        _nonNegativeInt(
+          (profissionaisResponse['paginacao'] as Map?)?['total'],
+        ) ??
+        (profissionaisResponse['profissionais'] is List
+            ? (profissionaisResponse['profissionais'] as List).length
+            : 0),
+    featuredProfessionalsHasMore:
+        ((profissionaisResponse['paginacao'] as Map?)?['temMais'] == true),
   );
+}
+
+int? _nonNegativeInt(Object? value) {
+  final parsed = value is int ? value : int.tryParse('$value');
+  return parsed != null && parsed >= 0 ? parsed : null;
 }
 
 Categoria categoriaFromApi(Map<String, dynamic> json) {

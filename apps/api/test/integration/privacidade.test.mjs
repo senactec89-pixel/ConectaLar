@@ -43,6 +43,8 @@ test(
         email,
         senha,
         tipo: 'cliente',
+        aceitouTermos: true,
+        versaoTermos: '2026-10-24.v5',
       },
       201,
     );

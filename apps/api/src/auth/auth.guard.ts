@@ -8,6 +8,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
+import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
+import { termoAtual } from '../termos/termos.service.js';
+import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { RequestWithUser } from './authenticated-user.js';
 import { TokenService } from './token.service.js';
 
@@ -17,6 +20,8 @@ export class AuthGuard implements CanActivate {
     private readonly tokenService: TokenService,
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
+    @InjectRepository(TermoAceiteEntity)
+    private readonly termoAceites: Repository<TermoAceiteEntity>,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,6 +47,17 @@ export class AuthGuard implements CanActivate {
       throw unauthorized();
     }
 
+    if (
+      usuario.tipo === UsuarioTipo.Administrador &&
+      !usuario.mfaAtivo &&
+      !permiteAdminSemMfa(request)
+    ) {
+      throw new ForbiddenException({
+        code: 'MFA_ADMIN_OBRIGATORIO',
+        message: 'Configure o autenticador para acessar recursos administrativos.',
+      });
+    }
+
     if (!usuario.emailVerificado && !permiteEmailNaoVerificado(request)) {
       throw new ForbiddenException({
         code: 'EMAIL_NAO_VERIFICADO',
@@ -49,9 +65,40 @@ export class AuthGuard implements CanActivate {
       });
     }
 
+    if (
+      usuario.emailVerificado &&
+      !permiteSemAceiteAtual(request) &&
+      !(await this.termoAceites.exists({
+        where: { usuarioId: usuario.id, versao: termoAtual.versao },
+      }))
+    ) {
+      throw new ForbiddenException({
+        code: 'TERMOS_NAO_ACEITOS',
+        message: 'Leia e aceite a versao atual dos termos para continuar.',
+        versao: termoAtual.versao,
+      });
+    }
+
     request.user = { id: usuario.id, tipo: usuario.tipo };
     return true;
   }
+}
+
+function permiteAdminSemMfa(request: RequestWithUser): boolean {
+  const path = normalizarPath(request.originalUrl ?? request.url ?? request.path ?? '');
+  if (request.method === 'POST' && path === '/auth/logout') return true;
+  if (request.method === 'GET' && path === '/auth/email/verificacao') return true;
+  if (request.method === 'POST' && path === '/auth/email/verificacao/enviar') return true;
+  if (request.method === 'POST' && path === '/auth/email/verificacao/confirmar') return true;
+  return false;
+}
+
+function permiteSemAceiteAtual(request: RequestWithUser): boolean {
+  const path = normalizarPath(request.originalUrl ?? request.url ?? request.path ?? '');
+  if (path.startsWith('/auth/')) return true;
+  if (path === '/termos/aceites/me') return true;
+  if (path.startsWith('/privacidade/me/')) return true;
+  return false;
 }
 
 function permiteEmailNaoVerificado(request: RequestWithUser): boolean {

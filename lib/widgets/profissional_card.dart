@@ -50,6 +50,10 @@ class ProfissionalCard extends StatelessWidget {
                         if (!textoAmpliado) ...[
                           const SizedBox(height: AppSpace.xs),
                           _AvaliacaoProfissional(profissional: profissional),
+                          if (!profissional.podeReceberSolicitacoes) ...[
+                            const SizedBox(height: AppSpace.xs),
+                            const _AtendimentoIndisponivel(),
+                          ],
                           const SizedBox(height: AppSpace.sm),
                           _InformacoesProfissional(
                             profissional: profissional,
@@ -64,6 +68,10 @@ class ProfissionalCard extends StatelessWidget {
               if (textoAmpliado) ...[
                 SizedBox(height: espacamento),
                 _AvaliacaoProfissional(profissional: profissional),
+                if (!profissional.podeReceberSolicitacoes) ...[
+                  const SizedBox(height: AppSpace.xs),
+                  const _AtendimentoIndisponivel(),
+                ],
                 const SizedBox(height: AppSpace.sm),
                 _InformacoesProfissional(
                   profissional: profissional,
@@ -116,6 +124,37 @@ class ProfissionalCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _AtendimentoIndisponivel extends StatelessWidget {
+  const _AtendimentoIndisponivel();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: 'Perfil em verificacao. Ainda nao recebe solicitacoes.',
+    child: ExcludeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.shield_outlined,
+            size: 16,
+            color: AppColors.textoSuave,
+          ),
+          const SizedBox(width: AppSpace.xs),
+          Flexible(
+            child: Text(
+              'Em verificacao - pedidos indisponiveis',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textoSuave,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _InformacoesProfissional extends StatelessWidget {

@@ -15,6 +15,9 @@ import type { EstadoHabilitacao } from '../../verificacao/habilitacao-profission
 
 @Entity({ name: 'profissionais' })
 @Index('uq_profissionais_usuario', ['usuarioId'], { unique: true })
+@Index('idx_profissionais_ativo_bairro', ['ativo', 'bairro'])
+@Index('idx_profissionais_ativo_regiao', ['ativo', 'uf', 'cidade'])
+@Index('idx_profissionais_ativo_verificado', ['ativo', 'verificado'])
 export class ProfissionalPerfilEntity {
   @PrimaryGeneratedColumn({ type: 'int', unsigned: true })
   id!: number;

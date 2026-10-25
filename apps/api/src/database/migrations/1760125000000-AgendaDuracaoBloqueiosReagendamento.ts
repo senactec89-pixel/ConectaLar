@@ -6,12 +6,15 @@ export class AgendaDuracaoBloqueiosReagendamento1760125000000
   name = 'AgendaDuracaoBloqueiosReagendamento1760125000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE profissional_servicos
-      ADD duracao_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 60 AFTER preco_inicial,
-      ADD intervalo_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 30 AFTER duracao_minutos`);
-    await queryRunner.query(`ALTER TABLE solicitacoes
-      ADD duracao_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 60 AFTER horario_servico,
-      ADD intervalo_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 30 AFTER duracao_minutos`);
+    for (const tabela of ['profissional_servicos', 'solicitacoes']) {
+      if (!(await queryRunner.hasColumn(tabela, 'duracao_minutos'))) {
+        throw new Error(`Migration prerequisite missing: ${tabela}.duracao_minutos.`);
+      }
+      if (!(await queryRunner.hasColumn(tabela, 'intervalo_minutos'))) {
+        await queryRunner.query(`ALTER TABLE ${tabela}
+          ADD intervalo_minutos SMALLINT UNSIGNED NOT NULL DEFAULT 30`);
+      }
+    }
     await queryRunner.query(`CREATE TABLE profissional_bloqueios (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       profissional_id INT UNSIGNED NOT NULL,
@@ -46,7 +49,11 @@ export class AgendaDuracaoBloqueiosReagendamento1760125000000
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('DROP TABLE solicitacao_reagendamentos');
     await queryRunner.query('DROP TABLE profissional_bloqueios');
-    await queryRunner.query('ALTER TABLE solicitacoes DROP COLUMN intervalo_minutos, DROP COLUMN duracao_minutos');
-    await queryRunner.query('ALTER TABLE profissional_servicos DROP COLUMN intervalo_minutos, DROP COLUMN duracao_minutos');
+    if (await queryRunner.hasColumn('solicitacoes', 'intervalo_minutos')) {
+      await queryRunner.query('ALTER TABLE solicitacoes DROP COLUMN intervalo_minutos');
+    }
+    if (await queryRunner.hasColumn('profissional_servicos', 'intervalo_minutos')) {
+      await queryRunner.query('ALTER TABLE profissional_servicos DROP COLUMN intervalo_minutos');
+    }
   }
 }
