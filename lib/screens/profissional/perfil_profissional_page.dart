@@ -336,6 +336,10 @@ class _PerfilProfissionalContentState
                 favoritoCarregando: widget.mutandoFavorito,
                 onFavoritoTap: widget.onFavoritoTap,
               ),
+              if (!profissional.podeReceberSolicitacoes) ...[
+                const SizedBox(height: AppSpace.sm),
+                const _AvisoAtendimentoIndisponivel(),
+              ],
               if (data.favoritosIndisponiveis) ...[
                 const SizedBox(height: AppSpace.sm),
                 SectionErrorView(
@@ -987,7 +991,7 @@ class _SolicitarServicoBar extends StatelessWidget {
           children: [
             if (!profissional.podeReceberSolicitacoes) ...[
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.info_outline_rounded,
@@ -997,9 +1001,7 @@ class _SolicitarServicoBar extends StatelessWidget {
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text(
-                      'Atendimento indisponível no momento. A liberação de '
-                      'novas solicitações depende das verificações de '
-                      'segurança da plataforma.',
+                      'Novas solicitações indisponíveis',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ),
@@ -1024,6 +1026,47 @@ class _SolicitarServicoBar extends StatelessWidget {
                       ? 'Solicitar atendimento'
                       : 'Atendimento indisponível',
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvisoAtendimentoIndisponivel extends StatelessWidget {
+  const _AvisoAtendimentoIndisponivel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.verdePastel,
+      child: Padding(
+        padding: AppInsets.card,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.verdeEscuro,
+            ),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Atendimento indisponível',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: AppSpace.xs),
+                  Text(
+                    'A liberação de novas solicitações depende das '
+                    'verificações de segurança da plataforma.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
             ),
           ],
