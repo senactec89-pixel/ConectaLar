@@ -34,7 +34,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   void initState() {
     super.initState();
     _future = _carregar();
-    _perfilFuture = AppServices.instance.profissionais.meuPerfil();
+    _perfilFuture = _tab == 0
+        ? AppServices.instance.profissionais.meuPerfil()
+        : Future.value(const <String, dynamic>{});
+    _perfilFuture.ignore();
   }
 
   void _atualizarPerfil() => setState(() {
