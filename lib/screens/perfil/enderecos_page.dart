@@ -18,6 +18,7 @@ class EnderecosPage extends StatefulWidget {
 
 class _EnderecosPageState extends State<EnderecosPage> {
   late Future<List<ClienteEndereco>> _enderecosFuture;
+  int? _removendoId;
 
   @override
   void initState() {
@@ -48,11 +49,38 @@ class _EnderecosPageState extends State<EnderecosPage> {
   }
 
   Future<void> _remover(ClienteEndereco endereco) async {
+    if (_removendoId != null) return;
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remover endereço?'),
+        content: Text(
+          'O endereço “${endereco.apelido}” será removido da sua lista.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.erro),
+            child: const Text('Remover'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+    setState(() => _removendoId = endereco.id);
     try {
       await AppServices.instance.clientes.removerEndereco(endereco.id);
+      if (!mounted) return;
       _recarregar();
+      _snack('Endereço removido.');
     } catch (_) {
       _snack('Não foi possível remover este endereço.');
+    } finally {
+      if (mounted) setState(() => _removendoId = null);
     }
   }
 
@@ -104,7 +132,10 @@ class _EnderecosPageState extends State<EnderecosPage> {
                   _EnderecoCard(
                     endereco: endereco,
                     onEditar: () => _abrirFormulario(endereco),
-                    onRemover: () => _remover(endereco),
+                    onRemover: _removendoId == null
+                        ? () => _remover(endereco)
+                        : null,
+                    removendo: _removendoId == endereco.id,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -147,11 +178,13 @@ class _EnderecoCard extends StatelessWidget {
     required this.endereco,
     required this.onEditar,
     required this.onRemover,
+    required this.removendo,
   });
 
   final ClienteEndereco endereco;
   final VoidCallback onEditar;
-  final VoidCallback onRemover;
+  final VoidCallback? onRemover;
+  final bool removendo;
 
   @override
   Widget build(BuildContext context) {
@@ -219,8 +252,13 @@ class _EnderecoCard extends StatelessWidget {
                     foregroundColor: AppColors.erro,
                     minimumSize: const Size(48, 48),
                   ),
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  label: const Text('Remover'),
+                  icon: removendo
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline, size: 20),
+                  label: Text(removendo ? 'Removendo...' : 'Remover'),
                 ),
               ],
             ),
