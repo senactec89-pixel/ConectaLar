@@ -693,7 +693,7 @@ class _BrandHeader extends StatelessWidget {
               ConectaLarWordmark(fontSize: textoAmpliado ? 15 : 21),
               const SizedBox(height: 4),
               Text(
-                'Profissionais perto de você',
+                'Serviços para cuidar do seu lar',
                 maxLines: textoAmpliado ? null : 1,
                 overflow: textoAmpliado
                     ? TextOverflow.clip
@@ -848,9 +848,9 @@ class _SearchButton extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 textoAmpliado
-                                    ? 'Busca'
+                                    ? 'Buscar'
                                     : compact
-                                    ? 'Buscar serviço'
+                                    ? 'Buscar serviços'
                                     : 'Buscar serviço ou profissional',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -861,6 +861,14 @@ class _SearchButton extends StatelessWidget {
                                 ),
                               ),
                             ),
+                            if (!textoAmpliado) ...[
+                              const SizedBox(width: AppSpace.xs),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: AppColors.verdeEscuro,
+                                size: 18,
+                              ),
+                            ],
                           ],
                         ),
                       ),
