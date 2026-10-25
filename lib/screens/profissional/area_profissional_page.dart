@@ -23,6 +23,7 @@ class AreaProfissionalPage extends StatefulWidget {
 class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   late int _tab = widget.initialTab;
   late Future<Map<String, dynamic>> _future;
+  late Future<Map<String, dynamic>> _perfilFuture;
   String _filtro = 'Todas';
   DateTime _mesAgenda = DateTime(DateTime.now().year, DateTime.now().month);
   DateTime? _diaSelecionado;
@@ -33,6 +34,17 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   void initState() {
     super.initState();
     _future = _carregar();
+    _perfilFuture = AppServices.instance.profissionais.meuPerfil();
+  }
+
+  void _atualizarPerfil() => setState(() {
+    _perfilFuture = AppServices.instance.profissionais.meuPerfil();
+    _perfilFuture.ignore();
+  });
+
+  Future<void> _abrirDocumentos() async {
+    await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
+    if (mounted) _atualizarPerfil();
   }
 
   Future<Map<String, dynamic>> _carregar() async {
@@ -58,6 +70,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
       return;
     }
     setState(() {
+      if (tab == 0 && _tab != 0) {
+        _perfilFuture = AppServices.instance.profissionais.meuPerfil();
+        _perfilFuture.ignore();
+      }
       _tab = tab;
       _future = _carregar();
     });
@@ -86,6 +102,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
     final carregamento = _carregar();
     setState(() {
       _future = carregamento;
+      if (_tab == 0) {
+        _perfilFuture = AppServices.instance.profissionais.meuPerfil();
+        _perfilFuture.ignore();
+      }
     });
     try {
       await carregamento;
@@ -343,8 +363,25 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     ),
                   const SizedBox(height: AppSpace.md),
                   FutureBuilder<Map<String, dynamic>>(
-                    future: AppServices.instance.profissionais.meuPerfil(),
+                    future: _perfilFuture,
                     builder: (context, profile) {
+                      if (profile.connectionState != ConnectionState.done) {
+                        return const _BadgeCard(
+                          icon: Icons.hourglass_empty_rounded,
+                          title: 'Consultando verificação',
+                          text:
+                              'Aguarde enquanto consultamos a situação documental.',
+                        );
+                      }
+                      if (profile.hasError) {
+                        return _BadgeCard(
+                          icon: Icons.refresh_rounded,
+                          title: 'Verificação indisponível',
+                          text:
+                              'Não foi possível consultar a situação documental. Toque para tentar novamente.',
+                          onTap: _atualizarPerfil,
+                        );
+                      }
                       final p = profile.data?['profissional'];
                       final verificado =
                           p is Map<String, dynamic> && p['verificado'] == true;
@@ -358,10 +395,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                         text: verificado
                             ? 'Documento aprovado. A habilitação de segurança continua pendente e os atendimentos estão bloqueados.'
                             : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.documentosProfissional,
-                        ),
+                        onTap: _abrirDocumentos,
                       );
                     },
                   ),
