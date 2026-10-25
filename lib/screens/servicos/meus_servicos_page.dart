@@ -191,6 +191,8 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                       _ListaVazia(
                         filtro: _filtro,
                         haMaisPedidos: pagina.hasMore,
+                        carregandoMais: _carregandoMais,
+                        onCarregarMais: _carregarMaisServicos,
                         onBuscar: () =>
                             Navigator.pushNamed(context, AppRoutes.busca),
                         onVerTodos: () =>
@@ -204,8 +206,14 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                    if (pagina.hasMore) ...[
+                    if (pagina.hasMore && servicos.isNotEmpty) ...[
                       const SizedBox(height: 4),
+                      Text(
+                        'O filtro considera os pedidos carregados. Carregue mais para conferir os anteriores.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: AppSpace.sm),
                       Center(
                         child: OutlinedButton.icon(
                           key: const ValueKey('servicos-carregar-mais'),
@@ -502,23 +510,39 @@ class _ListaVazia extends StatelessWidget {
   const _ListaVazia({
     required this.filtro,
     required this.haMaisPedidos,
+    required this.carregandoMais,
+    required this.onCarregarMais,
     required this.onBuscar,
     required this.onVerTodos,
   });
 
   final _FiltroServicos filtro;
   final bool haMaisPedidos;
+  final bool carregandoMais;
+  final VoidCallback onCarregarMais;
   final VoidCallback onBuscar;
   final VoidCallback onVerTodos;
 
   @override
   Widget build(BuildContext context) {
     if (haMaisPedidos) {
-      return const EmptyStateView(
+      return EmptyStateView(
         title: 'Ainda há pedidos para conferir',
         message:
             'Nenhum pedido deste filtro apareceu entre os já carregados. Carregue mais pedidos para continuar procurando.',
         icon: Icons.manage_search_outlined,
+        action: OutlinedButton.icon(
+          onPressed: carregandoMais ? null : onCarregarMais,
+          icon: carregandoMais
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.expand_more_rounded),
+          label: Text(
+            carregandoMais ? 'Carregando pedidos' : 'Carregar mais pedidos',
+          ),
+        ),
       );
     }
     final (titulo, mensagem) = switch (filtro) {

@@ -192,6 +192,24 @@ class _ChatPageState extends State<ChatPage> {
                         ? 'Não há conversas ativas entre os pedidos carregados. Carregue mais para continuar procurando.'
                         : 'As conversas ficam disponíveis enquanto a solicitação estiver ativa.',
                     icon: Icons.chat_bubble_outline_rounded,
+                    action: pagina.hasMore
+                        ? OutlinedButton.icon(
+                            onPressed: _carregandoMais ? null : _carregarMais,
+                            icon: _carregandoMais
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.expand_more_rounded),
+                            label: Text(
+                              _carregandoMais
+                                  ? 'Carregando conversas'
+                                  : 'Procurar em mais pedidos',
+                            ),
+                          )
+                        : null,
                   )
                 else
                   for (final conversa in conversas) ...[
@@ -202,8 +220,14 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                     const SizedBox(height: 12),
                   ],
-                if (pagina.hasMore) ...[
+                if (pagina.hasMore && conversas.isNotEmpty) ...[
                   const SizedBox(height: 4),
+                  Text(
+                    'Há mais pedidos para conferir. Carregue mais para encontrar outras conversas ativas.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
                   Center(
                     child: OutlinedButton.icon(
                       key: const ValueKey('chat-carregar-mais'),
