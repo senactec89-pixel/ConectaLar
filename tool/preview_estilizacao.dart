@@ -89,6 +89,7 @@ class _TelaPreview extends StatelessWidget {
     'categoria' => const CategoriaFormPage(),
     'historico' => const HistoricoAdminPage(),
     'admin-documentos' => const AdminPage(modulo: AdminModulo.documentos),
+    'admin-painel' => const AdminPage(),
     'admin-denuncias' => const AdminPage(modulo: AdminModulo.denuncias),
     'admin-avaliacoes' => const AdminPage(modulo: AdminModulo.avaliacoes),
     'admin-categorias' => const AdminPage(modulo: AdminModulo.categorias),

@@ -168,7 +168,7 @@ class _AdminPageState extends State<AdminPage> {
       );
     }
     final titulo = switch (_modulo) {
-      AdminModulo.painel => 'Central administrativa',
+      AdminModulo.painel => 'Administração',
       AdminModulo.moderacao => 'Moderação',
       AdminModulo.usuarios => 'Usuários',
       AdminModulo.documentos => 'Documentos',
@@ -311,85 +311,37 @@ class _AdminPageState extends State<AdminPage> {
       final catalogo = _map(data['catalogo']);
       final atendimentos = _map(data['atendimentos']);
       return ListView(
-        padding: const EdgeInsets.all(18),
+        padding: AppInsets.page,
         children: [
           Text('Visão geral', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 5),
-          const Text('Acompanhe os indicadores e acesse as áreas de gestão.'),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final escala = MediaQuery.textScalerOf(context).scale(1);
-              final colunas = constraints.maxWidth < 300 || escala > 1.3
-                  ? 1
-                  : 2;
-              final indicadores = [
-                _Indicador(
-                  label: 'Usuários ativos',
-                  value: '${usuarios['ativos'] ?? '—'}',
-                  icon: Icons.people_outline,
-                ),
-                _Indicador(
-                  label: 'Profissionais ativos',
-                  value: '${usuarios['profissionais'] ?? '—'}',
-                  icon: Icons.work_outline,
-                ),
-                _Indicador(
-                  label: 'Perfis profissionais',
-                  value: '${profissionais['perfisAtivos'] ?? '—'}',
-                  icon: Icons.badge_outlined,
-                ),
-                _Indicador(
-                  label: 'Documentos em análise',
-                  value: '${moderacao['documentosPendentes'] ?? '—'}',
-                  icon: Icons.verified_user_outlined,
-                ),
-                _Indicador(
-                  label: 'Denúncias abertas',
-                  value: '${moderacao['denunciasAbertas'] ?? '—'}',
-                  icon: Icons.report_outlined,
-                ),
-                _Indicador(
-                  label: 'Avaliações em moderação',
-                  value: '${moderacao['avaliacoesPendentes'] ?? '—'}',
-                  icon: Icons.star_outline,
-                ),
-                _Indicador(
-                  label: 'Categorias ativas',
-                  value: '${catalogo['categoriasAtivas'] ?? '—'}',
-                  icon: Icons.category_outlined,
-                ),
-                _Indicador(
-                  label: 'Solicitações aguardando',
-                  value: '${atendimentos['aguardandoResposta'] ?? '—'}',
-                  icon: Icons.inbox_outlined,
-                ),
-                _Indicador(
-                  label: 'Atendimentos agendados',
-                  value: '${atendimentos['aceitaAgendada'] ?? '—'}',
-                  icon: Icons.event_available_outlined,
-                ),
-                _Indicador(
-                  label: 'Atendimentos em revisão',
-                  value: '${atendimentos['emRevisao'] ?? '—'}',
-                  icon: Icons.rule_folder_outlined,
-                ),
-              ];
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  for (final indicador in indicadores)
-                    SizedBox(
-                      width:
-                          (constraints.maxWidth - (colunas - 1) * 10) / colunas,
-                      child: indicador,
-                    ),
-                ],
-              );
-            },
+          const SizedBox(height: AppSpace.xs),
+          const Text('Revise pendências e abra as áreas de gestão.'),
+          const SizedBox(height: AppSpace.lg),
+          Text(
+            'Pendências de moderação',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpace.sm),
+          _GradeIndicadores(
+            indicadores: [
+              _Indicador(
+                label: 'Documentos em análise',
+                value: '${moderacao['documentosPendentes'] ?? '—'}',
+                icon: Icons.verified_user_outlined,
+              ),
+              _Indicador(
+                label: 'Denúncias abertas',
+                value: '${moderacao['denunciasAbertas'] ?? '—'}',
+                icon: Icons.report_outlined,
+              ),
+              _Indicador(
+                label: 'Avaliações em moderação',
+                value: '${moderacao['avaliacoesPendentes'] ?? '—'}',
+                icon: Icons.star_outline,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.lg),
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -397,37 +349,37 @@ class _AdminPageState extends State<AdminPage> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
-          const SizedBox(height: 8),
-          _AdminAtalho(
-            icon: Icons.people_outline,
-            title: 'Gerenciar usuários',
-            subtitle: 'Consultar perfis e status',
-            onTap: () => _abrir(AdminModulo.usuarios),
-          ),
+          const SizedBox(height: AppSpace.sm),
           _AdminAtalho(
             icon: Icons.verified_user_outlined,
-            title: 'Analisar documentos',
+            title: 'Documentos',
             subtitle: 'Aprovar ou rejeitar com motivo',
             onTap: () => _abrir(AdminModulo.documentos),
           ),
           _AdminAtalho(
             icon: Icons.fact_check_outlined,
-            title: 'Habilitações profissionais',
+            title: 'Habilitações',
             subtitle: 'Pendências e solicitações de revisão',
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.adminHabilitacoes),
           ),
           _AdminAtalho(
             icon: Icons.report_outlined,
-            title: 'Revisar denúncias',
+            title: 'Denúncias',
             subtitle: 'Registrar decisão sem punição automática',
             onTap: () => _abrir(AdminModulo.denuncias),
           ),
           _AdminAtalho(
             icon: Icons.star_outline,
-            title: 'Moderar avaliações',
+            title: 'Avaliações',
             subtitle: 'Preservar o histórico da análise',
             onTap: () => _abrir(AdminModulo.avaliacoes),
+          ),
+          _AdminAtalho(
+            icon: Icons.people_outline,
+            title: 'Usuários',
+            subtitle: 'Consultar perfis e status',
+            onTap: () => _abrir(AdminModulo.usuarios),
           ),
           _AdminAtalho(
             icon: Icons.category_outlined,
@@ -437,15 +389,69 @@ class _AdminPageState extends State<AdminPage> {
           ),
           _AdminAtalho(
             icon: Icons.history,
-            title: 'Histórico de atendimentos',
+            title: 'Histórico',
             subtitle: 'Consultar solicitações e filtrar por situação',
             onTap: () => Navigator.pushNamed(context, AppRoutes.adminHistorico),
           ),
           _AdminAtalho(
             icon: Icons.manage_search_outlined,
-            title: 'Registro de auditoria',
+            title: 'Auditoria',
             subtitle: 'Consultar as ações administrativas recentes',
             onTap: () => _abrir(AdminModulo.auditoria),
+          ),
+          const SizedBox(height: AppSpace.sm),
+          Card(
+            child: ExpansionTile(
+              title: const Text('Outros indicadores'),
+              subtitle: const Text('Contas, catálogo e atendimentos'),
+              childrenPadding: const EdgeInsets.fromLTRB(
+                AppSpace.sm,
+                0,
+                AppSpace.sm,
+                AppSpace.md,
+              ),
+              children: [
+                _GradeIndicadores(
+                  indicadores: [
+                    _Indicador(
+                      label: 'Usuários ativos',
+                      value: '${usuarios['ativos'] ?? '—'}',
+                      icon: Icons.people_outline,
+                    ),
+                    _Indicador(
+                      label: 'Profissionais ativos',
+                      value: '${usuarios['profissionais'] ?? '—'}',
+                      icon: Icons.work_outline,
+                    ),
+                    _Indicador(
+                      label: 'Perfis profissionais',
+                      value: '${profissionais['perfisAtivos'] ?? '—'}',
+                      icon: Icons.badge_outlined,
+                    ),
+                    _Indicador(
+                      label: 'Categorias ativas',
+                      value: '${catalogo['categoriasAtivas'] ?? '—'}',
+                      icon: Icons.category_outlined,
+                    ),
+                    _Indicador(
+                      label: 'Solicitações aguardando',
+                      value: '${atendimentos['aguardandoResposta'] ?? '—'}',
+                      icon: Icons.inbox_outlined,
+                    ),
+                    _Indicador(
+                      label: 'Atendimentos agendados',
+                      value: '${atendimentos['aceitaAgendada'] ?? '—'}',
+                      icon: Icons.event_available_outlined,
+                    ),
+                    _Indicador(
+                      label: 'Atendimentos em revisão',
+                      value: '${atendimentos['emRevisao'] ?? '—'}',
+                      icon: Icons.rule_folder_outlined,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       );
@@ -1825,6 +1831,31 @@ class _Indicador extends StatelessWidget {
   );
 }
 
+class _GradeIndicadores extends StatelessWidget {
+  const _GradeIndicadores({required this.indicadores});
+
+  final List<_Indicador> indicadores;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final escala = MediaQuery.textScalerOf(context).scale(1);
+      final colunas = constraints.maxWidth < 300 || escala > 1.3 ? 1 : 2;
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          for (final indicador in indicadores)
+            SizedBox(
+              width: (constraints.maxWidth - (colunas - 1) * 10) / colunas,
+              child: indicador,
+            ),
+        ],
+      );
+    },
+  );
+}
+
 class _AdminAtalho extends StatelessWidget {
   const _AdminAtalho({
     required this.icon,
@@ -1842,7 +1873,7 @@ class _AdminAtalho extends StatelessWidget {
       onTap: onTap,
       leading: Icon(icon, color: AppColors.verde),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
+      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       trailing: const Icon(Icons.chevron_right),
     ),
   );
