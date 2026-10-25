@@ -104,7 +104,14 @@ abstract final class AppRoutes {
     notificacoes: (_) => const NotificacoesPage(),
     disponibilidadeProfissional: (_) => const DisponibilidadePage(),
     documentosProfissional: (_) => const DocumentosVerificacaoPage(),
-    areaProfissional: (_) => const AreaProfissionalPage(),
+    areaProfissional: (context) {
+      final initialTab = ModalRoute.of(context)?.settings.arguments;
+      return AreaProfissionalPage(
+        initialTab: initialTab is int && initialTab >= 0 && initialTab <= 2
+            ? initialTab
+            : 0,
+      );
+    },
     detalhesSolicitacaoProfissional: (_) => const DetalhesServicoPage(),
     servicosProfissional: (_) => const ServicosProfissionalPage(),
     perfilProfissionalPrivado: (_) => const PerfilProfissionalPrivadoPage(),

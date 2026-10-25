@@ -9,8 +9,8 @@ import '../../services/api_service.dart';
 import '../../utils/situacao_documental.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
-import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/professional_navigation_bar.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
   const AreaProfissionalPage({super.key, this.initialTab = 0});
@@ -64,12 +64,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
   }
 
   void _abrirTab(int tab) {
-    if (tab == 3) {
-      Navigator.pushNamed(context, AppRoutes.servicosProfissional);
-      return;
-    }
-    if (tab == 4) {
-      Navigator.pushNamed(context, AppRoutes.perfilProfissionalPrivado);
+    if (tab >= 3) {
+      ProfessionalNavigationBar.openDestination(context, tab);
       return;
     }
     setState(() {
@@ -598,32 +594,9 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           );
         },
       ),
-      bottomNavigationBar: AdaptiveNavigationBar(
+      bottomNavigationBar: ProfessionalNavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: _abrirTab,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            label: 'Início',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.inbox_outlined),
-            label: 'Pedidos',
-            tooltip: 'Solicitações recebidas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            label: 'Agenda',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.home_repair_service_outlined),
-            label: 'Serviços',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            label: 'Perfil',
-          ),
-        ],
       ),
     );
   }
@@ -1200,37 +1173,47 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: const AppBarCustom(title: 'Meus serviços'),
+    appBar: const AppBarCustom(
+      title: 'Meus serviços',
+      automaticallyImplyLeading: false,
+    ),
     backgroundColor: AppColors.fundo,
-    bottomNavigationBar: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _salvando ? null : () => _editar(),
-                icon: const Icon(Icons.add),
-                label: const Text('Adicionar serviço'),
+    bottomNavigationBar: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _salvando ? null : () => _editar(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Adicionar serviço'),
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: _salvando
-                    ? null
-                    : () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.disponibilidadeProfissional,
-                      ),
-                icon: const Icon(Icons.arrow_forward_rounded),
-                label: const Text('Continuar'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: _salvando
+                      ? null
+                      : () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.disponibilidadeProfissional,
+                        ),
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  label: const Text('Continuar'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        ProfessionalNavigationBar(
+          selectedIndex: 3,
+          onDestinationSelected: (index) =>
+              ProfessionalNavigationBar.openDestination(context, index),
+        ),
+      ],
     ),
     body: Column(
       children: [
@@ -1372,8 +1355,16 @@ class _PerfilProfissionalPrivadoPageState
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: const AppBarCustom(title: 'Meu perfil profissional'),
+    appBar: const AppBarCustom(
+      title: 'Meu perfil profissional',
+      automaticallyImplyLeading: false,
+    ),
     backgroundColor: AppColors.fundo,
+    bottomNavigationBar: ProfessionalNavigationBar(
+      selectedIndex: 4,
+      onDestinationSelected: (index) =>
+          ProfessionalNavigationBar.openDestination(context, index),
+    ),
     body: FutureBuilder<Map<String, dynamic>>(
       future: _future,
       builder: (context, s) {
@@ -1501,7 +1492,7 @@ class _PerfilProfissionalPrivadoPageState
               icon: Icons.home_repair_service_outlined,
               label: 'Serviços oferecidos',
               onTap: () =>
-                  Navigator.pushNamed(context, AppRoutes.servicosProfissional),
+                  ProfessionalNavigationBar.openDestination(context, 3),
             ),
             const SizedBox(height: AppSpace.md),
             const _PerfilSecaoTitulo(
