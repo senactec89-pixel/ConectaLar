@@ -11,6 +11,7 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/professional_navigation_bar.dart';
+import '../../widgets/profile_menu_tile.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
   const AreaProfissionalPage({super.key, this.initialTab = 0});
@@ -1393,7 +1394,7 @@ class _PerfilProfissionalPrivadoPageState
             ? profissionalFromApi(perfilRaw)
             : null;
         return ListView(
-          padding: const EdgeInsets.all(18),
+          padding: AppInsets.page,
           children: [
             Card(
               child: Padding(
@@ -1401,7 +1402,7 @@ class _PerfilProfissionalPrivadoPageState
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 30,
+                      radius: 34,
                       backgroundColor: AppColors.verdeClaro,
                       backgroundImage:
                           '${usuario['fotoPerfilUrl'] ?? ''}'.trim().isEmpty
@@ -1425,11 +1426,21 @@ class _PerfilProfissionalPrivadoPageState
                         children: [
                           Text(
                             '${usuario['nome'] ?? 'Profissional'}',
-                            style: Theme.of(context).textTheme.titleLarge,
+                            style: const TextStyle(
+                              color: AppColors.texto,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
+                          const SizedBox(height: AppSpace.xs),
                           Text(
-                            '${usuario['tipo'] == 'empresa' ? 'Empresa' : 'Autônomo'} ⬢ dados privados',
-                            style: const TextStyle(color: AppColors.textoSuave),
+                            usuario['tipo'] == 'empresa'
+                                ? 'Empresa · dados privados'
+                                : 'Profissional · dados privados',
+                            style: const TextStyle(
+                              color: AppColors.textoSuave,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ],
                       ),
@@ -1473,9 +1484,10 @@ class _PerfilProfissionalPrivadoPageState
               titulo: 'Dados pessoais',
               descricao: 'Informações privadas da sua conta.',
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.person_outline_rounded,
-              label: 'Nome, telefone e foto',
+              title: 'Nome, telefone e foto',
+              subtitle: 'Dados e imagem da sua conta',
               onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
             ),
             const SizedBox(height: AppSpace.md),
@@ -1483,14 +1495,16 @@ class _PerfilProfissionalPrivadoPageState
               titulo: 'Apresentação pública',
               descricao: 'O que os clientes veem no catálogo.',
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.badge_outlined,
-              label: 'Região atendida',
+              title: 'Região atendida',
+              subtitle: 'Localização e apresentação no catálogo',
               onTap: _editarDadosProfissionais,
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.home_repair_service_outlined,
-              label: 'Serviços oferecidos',
+              title: 'Serviços oferecidos',
+              subtitle: 'Ofertas visíveis para clientes',
               onTap: () =>
                   ProfessionalNavigationBar.openDestination(context, 3),
             ),
@@ -1499,28 +1513,32 @@ class _PerfilProfissionalPrivadoPageState
               titulo: 'Configurações do trabalho',
               descricao: 'Agenda, segurança e histórico profissional.',
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.schedule_outlined,
-              label: 'Disponibilidade e bloqueios',
+              title: 'Disponibilidade e bloqueios',
+              subtitle: 'Dias e horários de atendimento',
               onTap: () => Navigator.pushNamed(
                 context,
                 AppRoutes.disponibilidadeProfissional,
               ),
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.folder_outlined,
-              label: 'Documentos e verificação',
+              title: 'Documentos e verificação',
+              subtitle: 'Acompanhe a análise dos documentos',
               onTap: _abrirDocumentos,
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.star_outline_rounded,
-              label: 'Avaliações recebidas',
+              title: 'Avaliações recebidas',
+              subtitle: 'Opiniões dos clientes atendidos',
               onTap: () =>
                   Navigator.pushNamed(context, AppRoutes.avaliacoesRecebidas),
             ),
-            _MenuRow(
+            ProfileMenuTile(
               icon: Icons.settings_outlined,
-              label: 'Segurança e configurações da conta',
+              title: 'Segurança e configurações da conta',
+              subtitle: 'Acesso, privacidade e saída da conta',
               onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
             ),
           ],
@@ -1815,27 +1833,6 @@ class _StatusPill extends StatelessWidget {
         fontWeight: FontWeight.w700,
         color: AppColors.verdeEscuro,
       ),
-    ),
-  );
-}
-
-class _MenuRow extends StatelessWidget {
-  const _MenuRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 8),
-    child: ListTile(
-      onTap: onTap,
-      leading: Icon(icon, color: AppColors.verde),
-      title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-      trailing: const Icon(Icons.chevron_right),
     ),
   );
 }

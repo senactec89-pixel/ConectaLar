@@ -12,6 +12,7 @@ import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/profile_menu_tile.dart';
 
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
@@ -204,7 +205,7 @@ class _PerfilPageState extends State<PerfilPage> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpace.sm),
-                _PerfilOpcao(
+                ProfileMenuTile(
                   icon: Icons.badge_outlined,
                   title: 'Meus dados',
                   subtitle: 'Nome, telefone e e-mail da conta',
@@ -222,14 +223,14 @@ class _PerfilPageState extends State<PerfilPage> {
                   },
                 ),
                 if (usuario.tipo.valorBanco == 'cliente')
-                  _PerfilOpcao(
+                  ProfileMenuTile(
                     icon: Icons.location_on_outlined,
                     title: 'Endereço de atendimento',
                     subtitle: 'Oculto até aceite válido do profissional',
                     onTap: () =>
                         Navigator.pushNamed(context, AppRoutes.enderecos),
                   ),
-                _PerfilOpcao(
+                ProfileMenuTile(
                   icon: Icons.notifications_outlined,
                   title: 'Notificações',
                   subtitle: 'Eventos reais do atendimento',
@@ -237,7 +238,7 @@ class _PerfilPageState extends State<PerfilPage> {
                       Navigator.pushNamed(context, AppRoutes.notificacoes),
                 ),
                 if (usuario.tipo.valorBanco != 'administrador')
-                  _PerfilOpcao(
+                  ProfileMenuTile(
                     icon: Icons.flag_outlined,
                     title: 'Minhas denúncias',
                     subtitle: 'Acompanhar relatos e decisões da análise',
@@ -250,21 +251,21 @@ class _PerfilPageState extends State<PerfilPage> {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpace.sm),
-                _PerfilOpcao(
+                ProfileMenuTile(
                   icon: Icons.lock_outline,
                   title: 'Segurança',
                   subtitle: 'Senha, recuperação e autenticação',
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.seguranca),
                 ),
-                _PerfilOpcao(
+                ProfileMenuTile(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacidade',
                   subtitle: 'Controle dos seus dados pessoais',
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.privacidade),
                 ),
-                _PerfilOpcao(
+                ProfileMenuTile(
                   icon: Icons.logout_rounded,
                   title: _saindo ? 'Saindo…' : 'Sair da conta',
                   subtitle: 'Encerrar sessão da conta',
@@ -427,33 +428,6 @@ class _DadosProtegidos extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _PerfilOpcao extends StatelessWidget {
-  const _PerfilOpcao({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(icon, color: AppColors.verdeEscuro),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
