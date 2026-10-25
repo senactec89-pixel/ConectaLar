@@ -1343,6 +1343,8 @@ class _PerfilProfissionalPrivadoPageState
           response['documentos'],
           documentoVerificacaoFromApi,
         ),
+        if (response['habilitacao'] is Map)
+          'habilitacao': Map<String, dynamic>.from(response['habilitacao']),
       };
     } catch (_) {
       return {...perfil, 'documentosIndisponiveis': true};
@@ -1351,6 +1353,11 @@ class _PerfilProfissionalPrivadoPageState
 
   Future<void> _abrirDocumentos() async {
     await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
+    if (mounted) setState(() => _future = _carregar());
+  }
+
+  Future<void> _abrirConta() async {
+    await Navigator.pushNamed(context, AppRoutes.perfil);
     if (mounted) setState(() => _future = _carregar());
   }
 
@@ -1387,6 +1394,10 @@ class _PerfilProfissionalPrivadoPageState
         final documentos = s.data?['documentos'];
         final situacao = documentos is List<DocumentoVerificacao>
             ? situacaoDocumentoIdentidade(documentos)
+            : null;
+        final habilitacao = s.data?['habilitacao'];
+        final podeAtender = habilitacao is Map<String, dynamic>
+            ? habilitacao['podeAtender'] as bool?
             : null;
         final usuario = AppServices.instance.auth.usuarioAtual ?? {};
         final perfilRaw = s.data?['profissional'];
@@ -1449,6 +1460,12 @@ class _PerfilProfissionalPrivadoPageState
                 ),
               ),
             ),
+            const SizedBox(height: AppSpace.md),
+            FilledButton.tonalIcon(
+              onPressed: _editarDadosProfissionais,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Editar perfil profissional'),
+            ),
             if (perfilPublico != null) ...[
               const SizedBox(height: AppSpace.sm),
               OutlinedButton.icon(
@@ -1463,20 +1480,25 @@ class _PerfilProfissionalPrivadoPageState
             ],
             const SizedBox(height: 12),
             _BadgeCard(
-              icon: switch (situacao?.estado) {
-                SituacaoDocumentalEstado.aprovado => Icons.verified,
-                SituacaoDocumentalEstado.rejeitado => Icons.error_outline,
-                SituacaoDocumentalEstado.emAnalise => Icons.hourglass_top,
-                _ => Icons.upload_file_outlined,
-              },
-              title: situacao?.titulo ?? 'Situação documental indisponível',
-              text: situacao == null
-                  ? 'Abra seus documentos para atualizar a situação.'
-                  : [
-                      situacao.orientacao,
-                      if (situacao.motivo?.trim().isNotEmpty == true)
-                        'Motivo: ${situacao.motivo}',
-                    ].join('\n'),
+              icon: podeAtender == true
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.verified_user_outlined,
+              title: podeAtender == true
+                  ? 'Atendimentos liberados'
+                  : podeAtender == false
+                  ? 'Atendimentos ainda bloqueados'
+                  : 'Situação de atendimento indisponível',
+              text: [
+                if (podeAtender == true)
+                  'Sua habilitação permite receber novas solicitações.'
+                else if (podeAtender == false)
+                  'Consulte as etapas da habilitação de segurança. A aprovação de um documento, isoladamente, não libera atendimentos.'
+                else
+                  'Não foi possível consultar sua habilitação agora.',
+                if (situacao != null) situacao.titulo,
+                if (situacao?.motivo?.trim().isNotEmpty == true)
+                  'Motivo: ${situacao!.motivo}',
+              ].join('\n'),
               onTap: _abrirDocumentos,
             ),
             const SizedBox(height: AppSpace.lg),
@@ -1486,20 +1508,14 @@ class _PerfilProfissionalPrivadoPageState
             ),
             ProfileMenuTile(
               icon: Icons.person_outline_rounded,
-              title: 'Nome, telefone e foto',
-              subtitle: 'Dados e imagem da sua conta',
-              onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
+              title: 'Dados pessoais e conta',
+              subtitle: 'Nome, foto, notificações e sair da conta',
+              onTap: _abrirConta,
             ),
             const SizedBox(height: AppSpace.md),
             const _PerfilSecaoTitulo(
               titulo: 'Apresentação pública',
-              descricao: 'O que os clientes veem no catálogo.',
-            ),
-            ProfileMenuTile(
-              icon: Icons.badge_outlined,
-              title: 'Região atendida',
-              subtitle: 'Localização e apresentação no catálogo',
-              onTap: _editarDadosProfissionais,
+              descricao: 'Edite acima o que os clientes veem no catálogo.',
             ),
             ProfileMenuTile(
               icon: Icons.home_repair_service_outlined,
@@ -1511,7 +1527,7 @@ class _PerfilProfissionalPrivadoPageState
             const SizedBox(height: AppSpace.md),
             const _PerfilSecaoTitulo(
               titulo: 'Configurações do trabalho',
-              descricao: 'Agenda, segurança e histórico profissional.',
+              descricao: 'Organize horários e acompanhe avaliações.',
             ),
             ProfileMenuTile(
               icon: Icons.schedule_outlined,
@@ -1523,23 +1539,28 @@ class _PerfilProfissionalPrivadoPageState
               ),
             ),
             ProfileMenuTile(
-              icon: Icons.folder_outlined,
-              title: 'Documentos e verificação',
-              subtitle: 'Acompanhe a análise dos documentos',
-              onTap: _abrirDocumentos,
-            ),
-            ProfileMenuTile(
               icon: Icons.star_outline_rounded,
               title: 'Avaliações recebidas',
               subtitle: 'Opiniões dos clientes atendidos',
               onTap: () =>
                   Navigator.pushNamed(context, AppRoutes.avaliacoesRecebidas),
             ),
+            const SizedBox(height: AppSpace.md),
+            const _PerfilSecaoTitulo(
+              titulo: 'Acesso e privacidade',
+              descricao: 'Proteja seus dados e sua conta.',
+            ),
             ProfileMenuTile(
-              icon: Icons.settings_outlined,
-              title: 'Segurança e configurações da conta',
-              subtitle: 'Acesso, privacidade e saída da conta',
-              onTap: () => Navigator.pushNamed(context, AppRoutes.perfil),
+              icon: Icons.lock_outline,
+              title: 'Segurança',
+              subtitle: 'Senha e recuperação da conta',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.seguranca),
+            ),
+            ProfileMenuTile(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacidade',
+              subtitle: 'Controle dos seus dados pessoais',
+              onTap: () => Navigator.pushNamed(context, AppRoutes.privacidade),
             ),
           ],
         );
