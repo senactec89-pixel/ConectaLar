@@ -10,7 +10,6 @@ import '../screens/admin/admin_pages.dart';
 import '../screens/admin/criar_administrador_page.dart';
 import '../screens/admin/historico_admin_page.dart';
 import '../screens/busca/busca_page.dart';
-import '../screens/busca/resultado_page.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/chat/conversa_page.dart';
 import '../screens/favoritos/favoritos_page.dart';
@@ -84,7 +83,7 @@ abstract final class AppRoutes {
     cadastro: (_) => const CadastroPage(),
     termos: (_) => const TermosPage(),
     busca: (_) => const BuscaPage(),
-    resultados: (_) => const ResultadoPage(),
+    resultados: (_) => const BuscaPage(),
     perfilProfissional: (_) => const PerfilProfissionalPage(),
     cadastroProfissional: (_) => const CadastroProfissionalPage(),
     meusServicos: (_) => const MeusServicosPage(),
