@@ -317,6 +317,9 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
 
   Widget _scaffold(BuildContext context) {
     final store = ConectaLarMockStore.instance;
+    final argumentos = ModalRoute.of(context)?.settings.arguments;
+    final somenteEdicao =
+        _editando && argumentos is Map && argumentos['somenteEdicao'] == true;
     return Scaffold(
       appBar: AppBarCustom(
         title: _editando
@@ -333,38 +336,42 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
               builder: (context, _) => ListView(
                 padding: AppInsets.page,
                 children: [
-                  const Text(
-                    'Profissional/Empresa',
-                    style: TextStyle(
+                  Text(
+                    somenteEdicao ? 'Sua apresentação' : 'Profissional/Empresa',
+                    style: const TextStyle(
                       color: AppColors.texto,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: AppSpace.sm),
-                  const Text(
-                    'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
-                    style: TextStyle(color: AppColors.textoSuave),
+                  Text(
+                    somenteEdicao
+                        ? 'Atualize sua descrição, região de atendimento e preço inicial.'
+                        : 'Complete os dados de atuação. Depois, configure suas ofertas e envie documentos para análise.',
+                    style: const TextStyle(color: AppColors.textoSuave),
                   ),
-                  const SizedBox(height: AppSpace.lg),
-                  _EtapasCadastro(
-                    dadosConcluidos: _perfilAtual != null,
-                    servicosConcluidos: _ofertasAtuais.any(
-                      (item) => item['ativo'] != false,
+                  if (!somenteEdicao) ...[
+                    const SizedBox(height: AppSpace.lg),
+                    _EtapasCadastro(
+                      dadosConcluidos: _perfilAtual != null,
+                      servicosConcluidos: _ofertasAtuais.any(
+                        (item) => item['ativo'] != false,
+                      ),
+                      disponibilidadeConcluida: _disponibilidades.any(
+                        (item) => item['ativo'] != false,
+                      ),
+                      documentosConcluidos:
+                          _situacaoDocumental?.estado ==
+                          SituacaoDocumentalEstado.aprovado,
+                      onServicos: () =>
+                          _abrirEtapa(AppRoutes.servicosProfissional),
+                      onDisponibilidade: () =>
+                          _abrirEtapa(AppRoutes.disponibilidadeProfissional),
+                      onDocumentos: () =>
+                          _abrirEtapa(AppRoutes.documentosProfissional),
                     ),
-                    disponibilidadeConcluida: _disponibilidades.any(
-                      (item) => item['ativo'] != false,
-                    ),
-                    documentosConcluidos:
-                        _situacaoDocumental?.estado ==
-                        SituacaoDocumentalEstado.aprovado,
-                    onServicos: () =>
-                        _abrirEtapa(AppRoutes.servicosProfissional),
-                    onDisponibilidade: () =>
-                        _abrirEtapa(AppRoutes.disponibilidadeProfissional),
-                    onDocumentos: () =>
-                        _abrirEtapa(AppRoutes.documentosProfissional),
-                  ),
+                  ],
                   const SizedBox(height: AppSpace.lg),
                   _FormularioProfissional(
                     formKey: _formKey,
@@ -383,24 +390,27 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                     onConsultarCep: _consultarCep,
                     onContinuar: () => _continuar(),
                   ),
-                  const SizedBox(height: AppSpace.lg),
-                  _ChecklistCadastro(
-                    perfilCriado: _perfilAtual != null,
-                    possuiServico: _ofertasAtuais.any(
-                      (item) => item['ativo'] != false,
+                  if (!somenteEdicao) ...[
+                    const SizedBox(height: AppSpace.lg),
+                    _ChecklistCadastro(
+                      perfilCriado: _perfilAtual != null,
+                      possuiServico: _ofertasAtuais.any(
+                        (item) => item['ativo'] != false,
+                      ),
+                      possuiDisponibilidade: _disponibilidades.any(
+                        (item) => item['ativo'] != false,
+                      ),
+                      emailConfirmado:
+                          AppServices.instance.auth.emailVerificado,
+                      situacaoDocumental: _situacaoDocumental,
+                      habilitado: _habilitacao['podeAtender'] == true,
+                      onVerPerfil: _perfilAtual == null
+                          ? null
+                          : _abrirPerfilPublico,
                     ),
-                    possuiDisponibilidade: _disponibilidades.any(
-                      (item) => item['ativo'] != false,
-                    ),
-                    emailConfirmado: AppServices.instance.auth.emailVerificado,
-                    situacaoDocumental: _situacaoDocumental,
-                    habilitado: _habilitacao['podeAtender'] == true,
-                    onVerPerfil: _perfilAtual == null
-                        ? null
-                        : _abrirPerfilPublico,
-                  ),
-                  const SizedBox(height: AppSpace.lg),
-                  const _PedidosNoPerfilRemovidos(),
+                    const SizedBox(height: AppSpace.lg),
+                    const _PedidosNoPerfilRemovidos(),
+                  ],
                 ],
               ),
             ),

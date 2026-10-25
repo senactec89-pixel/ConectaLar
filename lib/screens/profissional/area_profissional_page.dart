@@ -1571,6 +1571,7 @@ class _PerfilProfissionalPrivadoPageState
     final atualizado = await Navigator.pushNamed(
       context,
       AppRoutes.cadastroProfissional,
+      arguments: const {'somenteEdicao': true},
     );
     if (atualizado == true && mounted) {
       setState(() {
