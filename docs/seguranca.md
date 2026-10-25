@@ -8,7 +8,7 @@ novos pedidos/aceites e acesso do profissional a enderecos completos. A revisao
 administrativa exige MFA e nao permite aprovacao manual das verificacoes externas.
 Consultar [limites, testes e implantacao](habilitacao-profissional.md).
 
-Atualizado em 16/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
+Atualizado em 25/10/2026 para o codigo disponivel em `main`. Este documento registra controles tecnicos observados no repositorio; nao e certificacao de seguranca ou conformidade legal.
 
 ## Controles existentes
 
@@ -21,7 +21,8 @@ Atualizado em 16/10/2026 para o codigo disponivel em `main`. Este documento regi
 - O filtro HTTP evita retornar stack traces e mensagens internas.
 - CORS usa lista permitida; ha cabecalhos basicos de seguranca.
 - Logs HTTP nao registram corpo, token ou cabecalhos de autorizacao.
-- Rate limit existe em memoria para uma instancia.
+- Rate limit global e limites mais estritos por rota de autenticacao existem em memoria para uma instancia. O contador usa o IP resolvido pelo Express e nao confia diretamente no cabecalho `X-Forwarded-For`.
+- `TRUST_PROXY_HOPS` controla quantos proxies reversos sao confiaveis; o padrao e `0`. So configure outro valor depois de confirmar a cadeia de proxy do ambiente, pois confiar saltos demais permite falsificar IPs.
 - Endereco completo e protegido na API antes das condicoes autorizadas.
 - Upload de documentos limita tamanho, aceita PDF/JPEG/PNG, confere assinatura/magic bytes e rejeita nome incompativel com o MIME informado.
 - Upload de documentos pode executar varredura ClamAV antes de gravar o arquivo. Em `MALWARE_SCAN_MODE=required`, deteccao de ameaca ou falha do scanner bloqueia o upload.
@@ -42,7 +43,8 @@ Atualizado em 16/10/2026 para o codigo disponivel em `main`. Este documento regi
 - O suporte a Cloudflare R2 precisa de bucket, credenciais, politicas de acesso e backup/retencao configurados no ambiente real.
 - Ainda falta aprovacao juridica dos prazos de retencao e descarte por categoria de dado. O autoatendimento tecnico de exportacao e exclusao ja esta implementado.
 - O rate limit em memoria nao coordena multiplas instancias.
-- A identificacao por cabecalho de proxy depende de configuracao confiavel na borda.
+- Os limites por IP nao substituem tentativas persistentes por conta/codigo nem protecao distribuida. Para multiplas instancias, configurar limitacao na borda ou um armazenamento compartilhado antes de abrir o acesso publico.
+- A identificacao por proxy depende de `TRUST_PROXY_HOPS` corresponder exatamente a cadeia validada na hospedagem.
 - Ainda falta definir a politica de expiracao e de sessoes simultaneas em diferentes dispositivos.
 - O launcher local versionado contem valores de desenvolvimento para iniciar a API. Nao reutilize esses valores em ambiente compartilhado ou producao.
 - HTTPS, origens de producao, backup/restauracao, monitoramento e resposta a incidentes ainda precisam ser configurados e comprovados.

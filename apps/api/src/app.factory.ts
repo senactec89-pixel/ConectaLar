@@ -6,11 +6,12 @@ import { SafeExceptionFilter } from './common/filters/safe-exception.filter.js';
 import { loadConfig } from './config/environment.js';
 
 export async function createApp() {
-  loadConfig();
+  const config = loadConfig();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: false,
     bodyParser: false,
   });
+  app.set('trust proxy', config.trustProxyHops);
   app.use(securityHeadersMiddleware);
   app.use(rateLimitMiddleware());
   app.enableCors({
@@ -26,10 +27,27 @@ export async function createApp() {
 
 type Next = () => void;
 
+const authRatePolicies: Readonly<Record<string, { key: string; limit: number; windowMs: number }>> = {
+  '/auth/cadastro': { key: 'cadastro', limit: 6, windowMs: 60_000 },
+  '/auth/login': { key: 'login', limit: 8, windowMs: 60_000 },
+  '/auth/google': { key: 'google', limit: 8, windowMs: 60_000 },
+  '/auth/login/mfa': { key: 'mfa-login', limit: 6, windowMs: 60_000 },
+  '/auth/admin-mfa/setup': { key: 'admin-mfa-setup', limit: 6, windowMs: 60_000 },
+  '/auth/admin-mfa/confirmar': { key: 'admin-mfa-confirm', limit: 6, windowMs: 60_000 },
+  '/auth/admin-convites/aceitar': { key: 'admin-invite', limit: 6, windowMs: 60_000 },
+  '/auth/senha/recuperacao': { key: 'password-reset-request', limit: 3, windowMs: 60_000 },
+  '/auth/senha/recuperacao/confirmar': { key: 'password-reset-confirm', limit: 6, windowMs: 60_000 },
+  '/auth/email/verificacao/enviar': { key: 'email-verification-request', limit: 3, windowMs: 60_000 },
+  '/auth/email/verificacao/confirmar': { key: 'email-verification-confirm', limit: 6, windowMs: 60_000 },
+  '/auth/mfa/admin/setup': { key: 'admin-mfa-enroll', limit: 6, windowMs: 60_000 },
+  '/auth/mfa/admin/confirmar': { key: 'admin-mfa-enroll-confirm', limit: 6, windowMs: 60_000 },
+};
+
 interface HttpRequestLike {
   readonly ip?: string;
   readonly socket?: { readonly remoteAddress?: string };
-  readonly headers?: Record<string, string | string[] | undefined>;
+  readonly method?: string;
+  readonly path?: string;
 }
 
 interface HttpResponseLike {
@@ -70,17 +88,34 @@ function rateLimitMiddleware() {
 
     bucket.count += 1;
     buckets.set(key, bucket);
-    response.setHeader('RateLimit-Limit', String(maxRequests));
-    response.setHeader('RateLimit-Remaining', String(Math.max(0, maxRequests - bucket.count)));
-    response.setHeader('RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)));
 
-    if (bucket.count > maxRequests) {
-      response.status(429).end(
-        JSON.stringify({
-          code: 'MUITAS_REQUISICOES',
-          message: 'Muitas requisicoes. Tente novamente em instantes.',
-        }),
-      );
+    const authPolicy = authenticationRatePolicy(request);
+    const authBucket = authPolicy === null
+      ? null
+      : incrementBucket(
+          buckets,
+          `auth:${authPolicy.key}:${key}`,
+          authPolicy.limit,
+          authPolicy.windowMs,
+          now,
+        );
+    const authLimitExceeded = authPolicy !== null && authBucket !== null &&
+      authBucket.count > authPolicy.limit;
+    const limited = bucket.count > maxRequests || authLimitExceeded;
+    const activeBucket = authBucket ?? bucket;
+    const activeLimit = authPolicy?.limit ?? maxRequests;
+    const retryBucket = authLimitExceeded ? authBucket : bucket;
+
+    response.setHeader('RateLimit-Limit', String(activeLimit));
+    response.setHeader('RateLimit-Remaining', String(Math.max(0, activeLimit - activeBucket.count)));
+    response.setHeader('RateLimit-Reset', String(Math.ceil(activeBucket.resetAt / 1000)));
+
+    if (limited) {
+      response.setHeader('Retry-After', String(Math.max(1, Math.ceil((retryBucket.resetAt - now) / 1000))));
+      response.status(429).end(JSON.stringify({
+        code: 'MUITAS_REQUISICOES',
+        message: 'Muitas requisicoes. Tente novamente em instantes.',
+      }));
       return;
     }
 
@@ -95,12 +130,33 @@ function rateLimitMiddleware() {
 }
 
 function clientKey(request: HttpRequestLike): string {
-  const forwarded = request.headers?.['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.trim().length > 0) {
-    return forwarded.split(',')[0]?.trim() ?? 'unknown';
-  }
-
   return request.ip ?? request.socket?.remoteAddress ?? 'unknown';
+}
+
+function incrementBucket(
+  buckets: Map<string, { count: number; resetAt: number }>,
+  key: string,
+  limit: number,
+  windowMs: number,
+  now: number,
+) {
+  const current = buckets.get(key);
+  const bucket = current === undefined || current.resetAt <= now
+    ? { count: 0, resetAt: now + windowMs }
+    : current;
+  bucket.count += 1;
+  buckets.set(key, bucket);
+  return bucket;
+}
+
+function authenticationRatePolicy(request: HttpRequestLike): {
+  key: string;
+  limit: number;
+  windowMs: number;
+} | null {
+  if (request.method !== 'POST') return null;
+  const path = (request.path ?? '').replace(/\/+$/u, '') || '/';
+  return authRatePolicies[path] ?? null;
 }
 
 function positiveInt(value: string | undefined, fallback: number): number {

@@ -7,7 +7,8 @@ Este documento registra a base operacional atual do backend ConectaLar. Ele nao 
 - Erros HTTP usam resposta generica e nao retornam stack trace, SQL, headers, corpo da requisicao ou token.
 - CORS em producao depende de `CORS_ALLOWED_ORIGINS`; em desenvolvimento, origens locais sao permitidas.
 - Cabecalhos de seguranca basicos sao aplicados em todas as respostas: `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy`.
-- Rate limit local por cliente usa `RATE_LIMIT_WINDOW_MS` e `RATE_LIMIT_MAX`.
+- Rate limit global e limites mais estritos para rotas de autenticacao usam `RATE_LIMIT_WINDOW_MS` e `RATE_LIMIT_MAX`, com contadores em memoria por processo.
+- `TRUST_PROXY_HOPS` define quantos proxies o Express pode confiar para resolver o IP. O padrao e `0`; nao aumente sem confirmar a cadeia real da hospedagem.
 - Tokens sao invalidados quando a senha muda ou quando o usuario faz logout.
 - Acoes administrativas sensiveis sao registradas em `admin_auditoria`.
 - Endereco completo do cliente fica protegido por regra de autorizacao no backend.
@@ -34,4 +35,4 @@ Os logs atuais sao estruturados e minimizam dados pessoais. Em producao, conecta
 
 ## Limites pendentes
 
-O rate limit em memoria protege o ambiente local e uma instancia simples, mas nao substitui limite distribuido quando houver mais de uma instancia. Upload binario local nao substitui storage gerenciado, antivirus, politica de retencao documental e fluxo de download seguro. MFA administrativo, pipeline de deploy e teste de carga completo seguem como pendencias de producao.
+O rate limit em memoria protege uma instancia, mas nao substitui limite distribuido quando houver mais de uma instancia nem limites persistentes por conta/codigo. Antes do lancamento publico, configurar protecao na borda ou armazenamento compartilhado e homologar o IP real recebido pela API. Upload binario local nao substitui storage gerenciado, antivirus, politica de retencao documental e fluxo de download seguro. Pipeline de deploy e teste de carga completo seguem como pendencias de producao.

@@ -7,6 +7,7 @@ export interface AppConfig {
   readonly nodeEnv: RuntimeEnvironment;
   readonly host: string;
   readonly port: number;
+  readonly trustProxyHops: number;
 }
 
 export type Environment = Readonly<Record<string, string | undefined>>;
@@ -17,6 +18,7 @@ export class ConfigurationError extends Error {
       | 'INVALID_NODE_ENV'
       | 'INVALID_HOST'
       | 'INVALID_PORT'
+      | 'INVALID_TRUST_PROXY_HOPS'
       | 'INCOMPLETE_PRODUCTION_RUNTIME',
   ) {
     super(`Invalid application configuration (${code}).`);
@@ -51,11 +53,23 @@ export function loadConfig(environment: Environment = process.env): AppConfig {
     throw new ConfigurationError('INVALID_PORT');
   }
 
+  const trustProxyHops = parseTrustProxyHops(environment.TRUST_PROXY_HOPS);
+
   if (nodeEnv === 'production' && !isAuthRuntimeConfigured(environment)) {
     throw new ConfigurationError('INCOMPLETE_PRODUCTION_RUNTIME');
   }
 
-  return { nodeEnv: nodeEnv as RuntimeEnvironment, host, port };
+  return { nodeEnv: nodeEnv as RuntimeEnvironment, host, port, trustProxyHops };
+}
+
+function parseTrustProxyHops(value: string | undefined): number {
+  if (value === undefined || value.trim() === '') return 0;
+  if (!/^\d{1,2}$/.test(value.trim())) {
+    throw new ConfigurationError('INVALID_TRUST_PROXY_HOPS');
+  }
+  const hops = Number(value);
+  if (hops > 10) throw new ConfigurationError('INVALID_TRUST_PROXY_HOPS');
+  return hops;
 }
 
 function isValidHost(host: string): boolean {

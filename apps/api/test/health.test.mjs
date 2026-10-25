@@ -41,6 +41,53 @@ test('configuration rejects out-of-range ports without exposing their value', ()
   );
 });
 
+test('configuration rejects invalid trusted proxy hop counts', () => {
+  for (const value of ['-1', '1.5', '11', '1,2']) {
+    assert.throws(
+      () => loadConfig({ NODE_ENV: 'test', TRUST_PROXY_HOPS: value }),
+      (error) => error instanceof ConfigurationError &&
+        error.code === 'INVALID_TRUST_PROXY_HOPS',
+    );
+  }
+  assert.equal(loadConfig({ NODE_ENV: 'test' }).trustProxyHops, 0);
+});
+
+test('auth routes have stricter limits and cannot be bypassed with a forged X-Forwarded-For', async () => {
+  const previous = {
+    RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+    TRUST_PROXY_HOPS: process.env.TRUST_PROXY_HOPS,
+  };
+  process.env.RATE_LIMIT_MAX = '120';
+  process.env.TRUST_PROXY_HOPS = '0';
+  const limitedApp = await createApp();
+  try {
+    await limitedApp.listen(0, '127.0.0.1');
+    const address = limitedApp.getHttpServer().address();
+    assert.ok(address && typeof address === 'object');
+    let lastResponse;
+    for (let attempt = 0; attempt < 9; attempt++) {
+      const slash = attempt % 2 === 0 ? '' : '/';
+      lastResponse = await fetch(`http://127.0.0.1:${address.port}/auth/login${slash}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-forwarded-for': `198.51.100.${attempt + 1}`,
+        },
+        body: '{}',
+      });
+    }
+    assert.equal(lastResponse.status, 429);
+    assert.equal(lastResponse.headers.get('ratelimit-limit'), '8');
+    assert.ok(Number(lastResponse.headers.get('retry-after')) > 0);
+  } finally {
+    await limitedApp.close();
+    if (previous.RATE_LIMIT_MAX === undefined) delete process.env.RATE_LIMIT_MAX;
+    else process.env.RATE_LIMIT_MAX = previous.RATE_LIMIT_MAX;
+    if (previous.TRUST_PROXY_HOPS === undefined) delete process.env.TRUST_PROXY_HOPS;
+    else process.env.TRUST_PROXY_HOPS = previous.TRUST_PROXY_HOPS;
+  }
+});
+
 test('liveness remains available while readiness rejects a missing runtime', async () => {
   const live = await fetch(`${baseUrl}/health/live`);
   assert.equal(live.status, 200);
