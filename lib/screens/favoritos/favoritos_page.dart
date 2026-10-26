@@ -11,6 +11,7 @@ import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
+import '../../widgets/page_intro.dart';
 
 class FavoritosPage extends StatefulWidget {
   const FavoritosPage({super.key});
@@ -155,16 +156,10 @@ class _FavoritosPageState extends State<FavoritosPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: AppInsets.page,
                 children: [
-                  Text(
-                    'Profissionais salvos',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  Text(
-                    'Consulte os perfis que você adicionou aos favoritos.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textoSuave,
-                    ),
+                  const PageIntro(
+                    title: 'Profissionais salvos',
+                    subtitle:
+                        'Consulte os perfis que você adicionou aos favoritos.',
                   ),
                   const SizedBox(height: AppSpace.lg),
                   Wrap(

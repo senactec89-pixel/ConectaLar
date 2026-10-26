@@ -9,6 +9,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/page_intro.dart';
 
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
@@ -179,18 +180,10 @@ class _ChatPageState extends State<ChatPage> {
                   const LinearProgressIndicator(),
                   const SizedBox(height: 12),
                 ],
-                const Text(
-                  'Chat e negociação',
-                  style: TextStyle(
-                    color: AppColors.texto,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Conversas ficam vinculadas a uma solicitação e não confirmam agendamento por si só.',
-                  style: TextStyle(color: AppColors.textoSuave, height: 1.35),
+                const PageIntro(
+                  title: 'Chat e negociação',
+                  subtitle:
+                      'Conversas ficam vinculadas a uma solicitação e não confirmam agendamento por si só.',
                 ),
                 const SizedBox(height: 16),
                 if (conversas.isEmpty)

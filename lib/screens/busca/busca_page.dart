@@ -19,6 +19,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/bottom_navigation.dart';
 import '../../widgets/profissional_card.dart';
+import '../../widgets/page_intro.dart';
 import '../profissional/comparar_profissionais_page.dart';
 import '../home/home_mock_data.dart';
 
@@ -537,19 +538,9 @@ class _BuscaPageState extends State<BuscaPage> {
                   AppSpace.xxl,
                 ),
                 children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      'Buscar profissionais',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.xs),
-                  Text(
-                    'Encontre o serviço ideal para seu lar.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textoSuave,
-                    ),
+                  const PageIntro(
+                    title: 'Buscar profissionais',
+                    subtitle: 'Encontre o serviço ideal para seu lar.',
                   ),
                   const SizedBox(height: AppSpace.lg),
                   Card(

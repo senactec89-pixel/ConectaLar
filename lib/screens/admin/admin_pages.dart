@@ -13,6 +13,7 @@ import '../../widgets/app_bar_custom.dart';
 import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/page_intro.dart';
 
 enum AdminModulo {
   painel,
@@ -383,9 +384,10 @@ class _AdminPageState extends State<AdminPage> {
       return ListView(
         padding: AppInsets.page,
         children: [
-          Text('Visão geral', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: AppSpace.xs),
-          const Text('Revise pendências e abra as áreas de gestão.'),
+          const PageIntro(
+            title: 'Visão geral',
+            subtitle: 'Revise pendências e abra as áreas de gestão.',
+          ),
           const SizedBox(height: AppSpace.lg),
           Text(
             'Pendências de moderação',

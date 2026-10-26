@@ -13,6 +13,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/professional_navigation_bar.dart';
 import '../../widgets/profile_menu_tile.dart';
 import '../../widgets/status_badge.dart';
+import '../../widgets/page_intro.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
   const AreaProfissionalPage({super.key, this.initialTab = 0});
@@ -291,13 +292,10 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
               children: [
                 if (_tab == 0) ...[
-                  Text(
-                    'Olá, $nome',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    'Organize seus atendimentos e responda aos clientes.',
+                  PageIntro(
+                    title: 'Olá, $nome',
+                    subtitle:
+                        'Organize seus atendimentos e responda aos clientes.',
                   ),
                   const SizedBox(height: 14),
                   Row(
