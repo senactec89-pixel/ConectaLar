@@ -576,13 +576,14 @@ class _BuscaPageState extends State<BuscaPage> {
                   if (snapshot.connectionState == ConnectionState.waiting &&
                       !snapshot.hasData)
                     const AsyncLoadingView(label: 'Carregando profissionais.')
-                  else if (_erroBusca != null)
+                  else if (_erroBusca != null && resultados.isEmpty)
                     SectionErrorView(
                       message: _erroBusca!,
                       onRetry: () => _agendarBuscaRemota(imediata: true),
                       retrying: _buscando,
                     )
-                  else if ((snapshot.data?.professionalsLoadFailed ?? false) &&
+                  else if (_erroBusca == null &&
+                      (snapshot.data?.professionalsLoadFailed ?? false) &&
                       !_buscaServidorAplicada)
                     SectionErrorView(
                       message: 'Não foi possível carregar os profissionais.',
@@ -591,6 +592,15 @@ class _BuscaPageState extends State<BuscaPage> {
                           snapshot.connectionState == ConnectionState.waiting,
                     )
                   else ...[
+                    if (_erroBusca != null) ...[
+                      SectionErrorView(
+                        message:
+                            'Não foi possível atualizar a busca. Os resultados abaixo são da pesquisa anterior e podem não corresponder aos filtros atuais.',
+                        onRetry: () => _agendarBuscaRemota(imediata: true),
+                        retrying: _buscando,
+                      ),
+                      const SizedBox(height: AppSpace.lg),
+                    ],
                     if (_buscando) ...[
                       const LinearProgressIndicator(),
                       const SizedBox(height: AppSpace.sm),
@@ -665,12 +675,14 @@ class _BuscaPageState extends State<BuscaPage> {
                           ),
                         ),
                       ),
-                    if ((_buscaServidorAplicada &&
-                            _paginaBusca * _limitePaginaBusca < _totalBusca) ||
-                        (!_buscaServidorAplicada &&
-                            !AppServices.instance.emDemonstracao &&
-                            (snapshot.data?.featuredProfessionalsHasMore ??
-                                false))) ...[
+                    if (_erroBusca == null &&
+                        ((_buscaServidorAplicada &&
+                                _paginaBusca * _limitePaginaBusca <
+                                    _totalBusca) ||
+                            (!_buscaServidorAplicada &&
+                                !AppServices.instance.emDemonstracao &&
+                                (snapshot.data?.featuredProfessionalsHasMore ??
+                                    false)))) ...[
                       const SizedBox(height: AppSpace.sm),
                       Center(
                         child: OutlinedButton.icon(
