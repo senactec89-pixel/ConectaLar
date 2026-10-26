@@ -4,14 +4,36 @@ export class AdminMfaInvites1760132000000 implements MigrationInterface {
   name = 'AdminMfaInvites1760132000000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE usuarios
-      ADD COLUMN mfa_falhas SMALLINT UNSIGNED NOT NULL DEFAULT 0,
-      ADD COLUMN mfa_bloqueado_ate DATETIME NULL`);
+    if (!(await queryRunner.hasColumn('usuarios', 'mfa_falhas'))) {
+      await queryRunner.query(
+        'ALTER TABLE usuarios ADD COLUMN mfa_falhas SMALLINT UNSIGNED NOT NULL DEFAULT 0',
+      );
+    }
+    if (!(await queryRunner.hasColumn('usuarios', 'mfa_bloqueado_ate'))) {
+      await queryRunner.query(
+        'ALTER TABLE usuarios ADD COLUMN mfa_bloqueado_ate DATETIME NULL',
+      );
+    }
+
+    const existingConstraint = (await queryRunner.query(
+      `SELECT CONSTRAINT_NAME
+       FROM information_schema.TABLE_CONSTRAINTS
+       WHERE CONSTRAINT_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'email_outbox'
+         AND CONSTRAINT_NAME = 'chk_email_outbox_tipo'
+         AND CONSTRAINT_TYPE = 'CHECK'`,
+    )) as Array<{ CONSTRAINT_NAME: string }>;
+    if (existingConstraint.length > 0) {
+      await queryRunner.query(
+        'ALTER TABLE email_outbox DROP CONSTRAINT chk_email_outbox_tipo',
+      );
+    }
     await queryRunner.query(`ALTER TABLE email_outbox
-      DROP CHECK chk_email_outbox_tipo,
       ADD CONSTRAINT chk_email_outbox_tipo
         CHECK (tipo IN ('verificacao_email', 'convite_admin'))`);
-    await queryRunner.query(`CREATE TABLE admin_convites (
+
+    if (!(await queryRunner.hasTable('admin_convites'))) {
+      await queryRunner.query(`CREATE TABLE admin_convites (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       usuario_id INT UNSIGNED NOT NULL,
       convidado_por_id INT UNSIGNED NOT NULL,
@@ -27,7 +49,8 @@ export class AdminMfaInvites1760132000000 implements MigrationInterface {
         REFERENCES usuarios(id) ON DELETE RESTRICT,
       CONSTRAINT fk_admin_convites_convidado_por FOREIGN KEY (convidado_por_id)
         REFERENCES usuarios(id) ON DELETE RESTRICT
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    }
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
@@ -48,11 +71,15 @@ export class AdminMfaInvites1760132000000 implements MigrationInterface {
       throw new Error('Rollback blocked: administrator invitation records must be preserved.');
     }
     await queryRunner.query('DROP TABLE admin_convites');
+    await queryRunner.query(
+      'ALTER TABLE email_outbox DROP CONSTRAINT chk_email_outbox_tipo',
+    );
     await queryRunner.query(`ALTER TABLE email_outbox
-      DROP CHECK chk_email_outbox_tipo,
       ADD CONSTRAINT chk_email_outbox_tipo CHECK (tipo IN ('verificacao_email'))`);
-    await queryRunner.query(`ALTER TABLE usuarios
-      DROP COLUMN mfa_bloqueado_ate,
-      DROP COLUMN mfa_falhas`);
+    for (const column of ['mfa_bloqueado_ate', 'mfa_falhas']) {
+      if (await queryRunner.hasColumn('usuarios', column)) {
+        await queryRunner.query(`ALTER TABLE usuarios DROP COLUMN ${column}`);
+      }
+    }
   }
 }
