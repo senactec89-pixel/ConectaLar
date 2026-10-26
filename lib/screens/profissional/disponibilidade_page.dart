@@ -53,73 +53,127 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
     final motivo = TextEditingController();
     var inicio = DateTime.now();
     var fim = inicio;
+    var enviando = false;
+    String? erroMotivo;
+    String? erroEnvio;
     final salvo = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          scrollable: true,
-          title: const Text('Bloquear período'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 730)),
-                    initialDateRange: DateTimeRange(start: inicio, end: fim),
-                  );
-                  if (range != null) {
-                    setDialogState(() {
-                      inicio = range.start;
-                      fim = range.end;
-                    });
-                  }
-                },
-                icon: const Icon(Icons.date_range_outlined),
-                label: Text('${_dataBr(inicio)} a ${_dataBr(fim)}'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: motivo,
-                maxLength: 160,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo',
-                  hintText: 'Férias, compromisso ou imprevisto',
+        builder: (context, setDialogState) => PopScope(
+          canPop: !enviando,
+          child: AlertDialog(
+            scrollable: true,
+            title: const Text('Bloquear período'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: enviando
+                      ? null
+                      : () async {
+                          final range = await showDateRangePicker(
+                            context: context,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 730),
+                            ),
+                            initialDateRange: DateTimeRange(
+                              start: inicio,
+                              end: fim,
+                            ),
+                          );
+                          if (range != null && dialogContext.mounted) {
+                            setDialogState(() {
+                              inicio = range.start;
+                              fim = range.end;
+                            });
+                          }
+                        },
+                  icon: const Icon(Icons.date_range_outlined),
+                  label: Text('${_dataBr(inicio)} a ${_dataBr(fim)}'),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: motivo,
+                  enabled: !enviando,
+                  maxLength: 160,
+                  onChanged: (_) {
+                    if (erroMotivo != null || erroEnvio != null) {
+                      setDialogState(() {
+                        erroMotivo = null;
+                        erroEnvio = null;
+                      });
+                    }
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Motivo',
+                    hintText: 'Férias, compromisso ou imprevisto',
+                    errorText: erroMotivo,
+                  ),
+                ),
+                if (erroEnvio != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    erroEnvio!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: enviando
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: enviando
+                    ? null
+                    : () async {
+                        if (motivo.text.trim().length < 3) {
+                          setDialogState(
+                            () => erroMotivo = 'Informe ao menos 3 caracteres.',
+                          );
+                          return;
+                        }
+                        setDialogState(() {
+                          enviando = true;
+                          erroEnvio = null;
+                        });
+                        try {
+                          await AppServices.instance.profissionais
+                              .criarBloqueio(
+                                dataInicio: _dataApi(inicio),
+                                dataFim: _dataApi(fim),
+                                motivo: motivo.text.trim(),
+                              );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext, true);
+                          }
+                        } catch (_) {
+                          if (dialogContext.mounted) {
+                            setDialogState(() {
+                              enviando = false;
+                              erroEnvio =
+                                  'Não foi possível bloquear o período. Tente novamente.';
+                            });
+                          }
+                        }
+                      },
+                child: enviando
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Bloquear'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (motivo.text.trim().length < 3) return;
-                try {
-                  await AppServices.instance.profissionais.criarBloqueio(
-                    dataInicio: _dataApi(inicio),
-                    dataFim: _dataApi(fim),
-                    motivo: motivo.text.trim(),
-                  );
-                  if (dialogContext.mounted) Navigator.pop(dialogContext, true);
-                } catch (_) {
-                  if (dialogContext.mounted) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Não foi possível bloquear o período.'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Bloquear'),
-            ),
-          ],
         ),
       ),
     );
