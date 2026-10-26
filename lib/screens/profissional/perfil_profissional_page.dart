@@ -989,13 +989,34 @@ class _SolicitarServicoBar extends StatelessWidget {
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text(
-                      'Novas solicitações indisponíveis',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      'Não recebe novos pedidos agora',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Por que o atendimento está indisponível?',
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        scrollable: true,
+                        title: const Text('Atendimento indisponível'),
+                        content: const Text(
+                          'A liberação de novas solicitações depende das verificações de segurança da plataforma. Um documento aprovado sozinho não libera atendimentos.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Entendi'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    icon: const Icon(Icons.help_outline_rounded),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpace.sm),
             ],
             SizedBox(
               width: double.infinity,
