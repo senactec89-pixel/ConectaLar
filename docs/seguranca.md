@@ -15,8 +15,9 @@ Atualizado em 25/10/2026 para o codigo disponivel em `main`. Este documento regi
 - Senhas sao armazenadas com hash `scrypt`.
 - A API autentica com token, aplica papeis nas rotas e invalida tokens apos logout ou troca de senha.
 - A senha nova exige maiuscula, minuscula, numero, caractere especial e limites de tamanho.
-- Confirmacao de e-mail usa codigo com hash e expiracao.
-- Recuperacao de senha usa codigo numerico curto, com hash, expiracao e envio SMTP configuravel.
+- Confirmacao de e-mail e recuperacao de senha usam HMAC-SHA-256 com segredo privado da API e expiracao; hashes legados ainda validos sao aceitos ate expirarem. Cada codigo aceita no maximo cinco tentativas e e invalidado ao atingir o limite.
+- O MySQL guarda quotas por conta: no maximo tres emissoes numa janela fixa de uma hora iniciada no primeiro envio e intervalo minimo de um minuto para reenvio. A recuperacao de senha continua respondendo de forma generica quando a conta nao existe ou a quota impede o envio.
+- Emissao, consumo, contador de tentativas e alteracao de senha/confirmacao de e-mail usam transacoes e bloqueio da linha da conta, evitando que requisicoes concorrentes reutilizem o mesmo codigo.
 - MFA administrativo usa TOTP; o segredo fica criptografado no banco.
 - O filtro HTTP evita retornar stack traces e mensagens internas.
 - CORS usa lista permitida; ha cabecalhos basicos de seguranca.
@@ -43,7 +44,7 @@ Atualizado em 25/10/2026 para o codigo disponivel em `main`. Este documento regi
 - O suporte a Cloudflare R2 precisa de bucket, credenciais, politicas de acesso e backup/retencao configurados no ambiente real.
 - Ainda falta aprovacao juridica dos prazos de retencao e descarte por categoria de dado. O autoatendimento tecnico de exportacao e exclusao ja esta implementado.
 - O rate limit em memoria nao coordena multiplas instancias.
-- Os limites por IP nao substituem tentativas persistentes por conta/codigo nem protecao distribuida. Para multiplas instancias, configurar limitacao na borda ou um armazenamento compartilhado antes de abrir o acesso publico.
+- Os limites por conta/codigo persistem no MySQL, mas o limitador por IP segue em memoria e nao coordena multiplas instancias. Configurar limitacao distribuida na borda antes de escalar ou abrir acesso publico amplo.
 - A identificacao por proxy depende de `TRUST_PROXY_HOPS` corresponder exatamente a cadeia validada na hospedagem.
 - Ainda falta definir a politica de expiracao e de sessoes simultaneas em diferentes dispositivos.
 - O launcher local versionado contem valores de desenvolvimento para iniciar a API. Nao reutilize esses valores em ambiente compartilhado ou producao.

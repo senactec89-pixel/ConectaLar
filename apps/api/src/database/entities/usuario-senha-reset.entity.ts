@@ -32,6 +32,12 @@ export class UsuarioSenhaResetEntity {
   @Column({ name: 'usado_em', type: 'timestamp', nullable: true })
   usadoEm!: Date | null;
 
+  @Column({ type: 'smallint', unsigned: true, default: 0 })
+  tentativas!: number;
+
+  @Column({ name: 'bloqueado_em', type: 'timestamp', nullable: true })
+  bloqueadoEm!: Date | null;
+
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;
 }

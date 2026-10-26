@@ -58,6 +58,8 @@ const publicErrors: Readonly<Record<string, string>> = {
   SENHA_ATUAL_INVALIDA: 'Senha atual invalida.',
   SENHA_INVALIDA:
     'Use uma senha com pelo menos 8 caracteres, maiuscula, minuscula, numero e caractere especial.',
+  CODIGO_TEMPORARIAMENTE_BLOQUEADO:
+    'Muitas tentativas ou solicitacoes. Aguarde antes de tentar novamente.',
   CHAT_INDISPONIVEL: 'A conversa nao esta disponivel para este atendimento.',
   MENSAGEM_INVALIDA: 'Digite uma mensagem entre 1 e 1000 caracteres.',
   DENUNCIADO_INVALIDO: 'Nao foi possivel identificar quem sera denunciado.',

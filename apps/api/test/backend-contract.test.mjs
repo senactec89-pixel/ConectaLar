@@ -200,3 +200,27 @@ test('password recovery uses short user-scoped codes without reset links', async
   assert.doesNotMatch(mail, /passwordResetUrl/);
   assert.doesNotMatch(mail, /conectalar:\/\/recuperar-senha/);
 });
+
+test('recovery and e-mail verification have persistent issue and attempt limits', async () => {
+  const auth = await source('dist/auth/auth.service.js');
+  const reset = await source('dist/database/entities/usuario-senha-reset.entity.js');
+  const verification = await source(
+    'dist/database/entities/usuario-email-verificacao.entity.js',
+  );
+  const migration = await source(
+    'dist/database/migrations/1760135000000-LimitesPersistentesCodigosAuth.js',
+  );
+
+  assert.match(auth, /maxCodeAttempts = 5/);
+  assert.match(auth, /maxCodeIssuesPerWindow = 3/);
+  assert.match(auth, /codeIssueCooldownMs = 60 \* 1000/);
+  assert.match(auth, /pessimistic_write/);
+  assert.match(auth, /safeEqualText\(reset\.tokenHash, expectedHash\)/);
+  assert.match(auth, /safeEqualText\(verificacao\.codigoHash, expectedHash\)/);
+  assert.match(reset, /tentativas/);
+  assert.match(reset, /bloqueadoEm/);
+  assert.match(verification, /tentativas/);
+  assert.match(verification, /bloqueadoEm/);
+  assert.match(migration, /senha_reset_solicitacoes/);
+  assert.match(migration, /email_verificacao_solicitacoes/);
+});

@@ -1,10 +1,11 @@
-import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
+import { randomInt, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -98,9 +99,15 @@ interface AceitarConviteAdminRequest {
 
 const resetTokenTtlMinutes = 30;
 const emailVerificationTtlMinutes = 15;
+const codeIssueWindowMs = 60 * 60 * 1000;
+const codeIssueCooldownMs = 60 * 1000;
+const maxCodeIssuesPerWindow = 3;
+const maxCodeAttempts = 5;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(UsuarioEmailVerificacaoEntity)
     private readonly emailVerificacoes: Repository<UsuarioEmailVerificacaoEntity>,
@@ -156,6 +163,7 @@ export class AuthService {
 
     const senhaHash = await this.passwordService.hash(cadastro.senha);
     const codigo = criarCodigoNumerico();
+    const agora = new Date();
     const expiraEm = new Date(Date.now() + emailVerificationTtlMinutes * 60 * 1000);
 
     try {
@@ -172,6 +180,9 @@ export class AuthService {
             senhaHash,
             emailVerificado: false,
             ativo: true,
+            emailVerificacaoSolicitacoes: 1,
+            emailVerificacaoJanelaInicio: agora,
+            emailVerificacaoUltimaSolicitacao: agora,
           }),
         );
         await manager.getRepository(TermoAceiteEntity).save(
@@ -462,37 +473,44 @@ export class AuthService {
   async solicitarRecuperacaoSenha(body: unknown) {
     const input = parseRecuperacaoSenha(body);
     const email = normalizarEmail(input.email);
-    const usuario = await this.usuarios.findOne({
-      where: { email, ativo: true },
+    const codigo = criarCodigoNumerico();
+    const issue = await this.usuarios.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { email, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (usuario === null || !reservarQuotaCodigo(usuario, 'senha', new Date())) {
+        return null;
+      }
+      await manager.save(UsuarioEntity, usuario);
+      await manager.getRepository(UsuarioSenhaResetEntity).update(
+        { usuarioId: usuario.id, usadoEm: IsNull() },
+        { usadoEm: new Date() },
+      );
+      const expiraEm = new Date(Date.now() + resetTokenTtlMinutes * 60 * 1000);
+      const tokenHash = hashResetCode(usuario.id, codigo);
+      await manager.getRepository(UsuarioSenhaResetEntity).save(
+        manager.getRepository(UsuarioSenhaResetEntity).create({
+          usuarioId: usuario.id,
+          tokenHash,
+          expiraEm,
+          usadoEm: null,
+          tentativas: 0,
+          bloqueadoEm: null,
+        }),
+      );
+      return { email: usuario.email };
     });
 
-    if (usuario === null) {
+    if (issue === null) {
       return recuperacaoSolicitadaResponse(null);
     }
 
-    const codigo = criarCodigoNumerico();
-    const tokenHash = hashResetCode(usuario.id, codigo);
-    await this.senhaResets.update(
-      { usuarioId: usuario.id, usadoEm: IsNull() },
-      { usadoEm: new Date() },
-    );
-    await this.senhaResets.save(
-      this.senhaResets.create({
-        usuarioId: usuario.id,
-        tokenHash,
-        expiraEm: new Date(Date.now() + resetTokenTtlMinutes * 60 * 1000),
-        usadoEm: null,
-      }),
-    );
-
-    const delivered = await this.enviarEmailComFalhaControlada(() =>
-      this.mailService.sendPasswordResetEmail(usuario.email, codigo),
-    );
-    if (!delivered && process.env.NODE_ENV === 'production') {
-      throw new ServiceUnavailableException({
-        code: 'EMAIL_RECUPERACAO_INDISPONIVEL',
-        message: 'Servico de recuperacao indisponivel no momento.',
-      });
+    try {
+      await this.mailService.sendPasswordResetEmail(issue.email, codigo);
+    } catch {
+      // Keep the response indistinguishable from unknown-account and throttled requests.
+      this.logger.warn('password_reset_email_delivery_failed');
     }
 
     return recuperacaoSolicitadaResponse(codigo);
@@ -508,11 +526,12 @@ export class AuthService {
     if (usuario.emailVerificado) {
       return { ok: true, emailVerificado: true };
     }
-
+    const result = await this.agendarCodigoVerificacaoEmail(usuario);
+    if (result.alreadyVerified) return { ok: true, emailVerificado: true };
     return {
       ok: true,
       emailVerificado: false,
-      ...(await this.agendarCodigoVerificacaoEmail(usuario)),
+      ...result.response,
     };
   }
 
@@ -521,35 +540,67 @@ export class AuthService {
     body: unknown,
   ) {
     const input = parseConfirmarEmail(body);
-    const usuario = await this.usuarioAtivo(user.id);
-    if (usuario.emailVerificado) {
-      return { ok: true, emailVerificado: true };
-    }
+    const outcome = await this.usuarios.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (usuario === null) throw new UnauthorizedException();
+      if (usuario.emailVerificado) return 'verified' as const;
 
-    const codigoHash = hashEmailVerificationCode(usuario.id, input.codigo);
-    const verificacao = await this.emailVerificacoes
-      .createQueryBuilder('verificacao')
-      .where('verificacao.usuarioId = :usuarioId', { usuarioId: usuario.id })
-      .andWhere('verificacao.codigoHash = :codigoHash', { codigoHash })
-      .andWhere('verificacao.usadoEm IS NULL')
-      .orderBy('verificacao.criadoEm', 'DESC')
-      .getOne();
+      const verificacao = await manager
+        .getRepository(UsuarioEmailVerificacaoEntity)
+        .findOne({
+          where: { usuarioId: usuario.id },
+          order: { criadoEm: 'DESC', id: 'DESC' },
+          lock: { mode: 'pessimistic_write' },
+        });
+      if (verificacao?.bloqueadoEm !== null && verificacao?.bloqueadoEm !== undefined) {
+        return 'locked' as const;
+      }
+      if (
+        verificacao === null || verificacao.usadoEm !== null ||
+        verificacao.expiraEm.getTime() <= Date.now()
+      ) {
+        return 'invalid' as const;
+      }
 
-    if (
-      verificacao === null ||
-      verificacao.expiraEm.getTime() <= Date.now()
-    ) {
-      throw invalidEmailVerificationCode();
-    }
+      const expectedHash = hashEmailVerificationCode(usuario.id, input.codigo);
+      const currentHashMatches = safeEqualText(verificacao.codigoHash, expectedHash);
+      const legacyHashMatches = safeEqualText(
+        verificacao.codigoHash,
+        legacyCodeHash(usuario.id, input.codigo),
+      );
+      if (!currentHashMatches && !legacyHashMatches) {
+        verificacao.tentativas += 1;
+        if (verificacao.tentativas >= maxCodeAttempts) {
+          verificacao.bloqueadoEm = new Date();
+          verificacao.usadoEm = verificacao.bloqueadoEm;
+        }
+        await manager.save(UsuarioEmailVerificacaoEntity, verificacao);
+        return verificacao.bloqueadoEm === null
+          ? 'invalid' as const
+          : 'locked' as const;
+      }
 
-    usuario.emailVerificado = true;
-    await this.usuarios.save(usuario);
-    await this.emailVerificacoes.update(
-      { usuarioId: usuario.id, usadoEm: IsNull() },
-      { usadoEm: new Date() },
-    );
-    await this.emailOutbox.cancelarPendentes(usuario.id);
+      const agora = new Date();
+      usuario.emailVerificado = true;
+      verificacao.usadoEm = agora;
+      await manager.save(UsuarioEntity, usuario);
+      await manager.save(UsuarioEmailVerificacaoEntity, verificacao);
+      await manager.getRepository(UsuarioEmailVerificacaoEntity).update(
+        { usuarioId: usuario.id, usadoEm: IsNull() },
+        { usadoEm: agora },
+      );
+      await manager.getRepository(EmailOutboxEntity).update(
+        { usuarioId: usuario.id, enviadoEm: IsNull(), canceladoEm: IsNull() },
+        { canceladoEm: agora, processandoEm: null, payloadCriptografado: '' },
+      );
+      return 'verified' as const;
+    });
 
+    if (outcome === 'locked') throw codeTemporarilyBlocked();
+    if (outcome === 'invalid') throw invalidEmailVerificationCode();
     return { ok: true, emailVerificado: true };
   }
 
@@ -606,36 +657,59 @@ export class AuthService {
   async confirmarRecuperacaoSenha(body: unknown) {
     const input = parseConfirmarRecuperacaoSenha(body);
     const email = normalizarEmail(input.email);
-    const usuario = await this.usuarios
-      .createQueryBuilder('usuario')
-      .addSelect('usuario.senhaHash')
-      .where('usuario.email = :email', { email })
-      .andWhere('usuario.ativo = :ativo', { ativo: true })
-      .getOne();
-    if (usuario === null) {
-      throw invalidResetToken();
-    }
+    const outcome = await this.usuarios.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { email, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (usuario === null) return 'invalid' as const;
+      const reset = await manager
+        .getRepository(UsuarioSenhaResetEntity)
+        .findOne({
+          where: { usuarioId: usuario.id },
+          order: { criadoEm: 'DESC', id: 'DESC' },
+          lock: { mode: 'pessimistic_write' },
+        });
+      if (reset?.bloqueadoEm !== null && reset?.bloqueadoEm !== undefined) {
+        return 'locked' as const;
+      }
+      if (
+        reset === null || reset.usadoEm !== null ||
+        reset.expiraEm.getTime() <= Date.now()
+      ) {
+        return 'invalid' as const;
+      }
 
-    const tokenHash = hashResetCode(usuario.id, input.token);
-    const reset = await this.senhaResets.findOne({
-      where: { usuarioId: usuario.id, tokenHash },
+      const expectedHash = hashResetCode(usuario.id, input.token);
+      const currentHashMatches = safeEqualText(reset.tokenHash, expectedHash);
+      const legacyHashMatches = safeEqualText(
+        reset.tokenHash,
+        legacyCodeHash(usuario.id, input.token),
+      );
+      if (!currentHashMatches && !legacyHashMatches) {
+        reset.tentativas += 1;
+        if (reset.tentativas >= maxCodeAttempts) {
+          reset.bloqueadoEm = new Date();
+          reset.usadoEm = reset.bloqueadoEm;
+        }
+        await manager.save(UsuarioSenhaResetEntity, reset);
+        return reset.bloqueadoEm === null
+          ? 'invalid' as const
+          : 'locked' as const;
+      }
+
+      usuario.senhaHash = await this.passwordService.hash(input.novaSenha);
+      usuario.tokenVersion += 1;
+      reset.usadoEm = new Date();
+      await manager.save(UsuarioEntity, usuario);
+      await manager.getRepository(UsuarioSenhaResetEntity).update(
+        { usuarioId: usuario.id, usadoEm: IsNull() },
+        { usadoEm: reset.usadoEm },
+      );
+      return 'changed' as const;
     });
-    if (
-      reset === null ||
-      reset.usadoEm !== null ||
-      reset.expiraEm.getTime() <= Date.now()
-    ) {
-      throw invalidResetToken();
-    }
-
-    usuario.senhaHash = await this.passwordService.hash(input.novaSenha);
-    usuario.tokenVersion += 1;
-    await this.usuarios.save(usuario);
-    await this.senhaResets.update(
-      { usuarioId: usuario.id, usadoEm: IsNull() },
-      { usadoEm: new Date() },
-    );
-
+    if (outcome === 'locked') throw codeTemporarilyBlocked();
+    if (outcome !== 'changed') throw invalidResetToken();
     return { ok: true };
   }
 
@@ -814,7 +888,15 @@ export class AuthService {
     const expiraEm = new Date(
       Date.now() + emailVerificationTtlMinutes * 60 * 1000,
     );
-    const outboxId = await this.usuarios.manager.transaction(async (manager) => {
+    const result = await this.usuarios.manager.transaction(async (manager) => {
+      const atual = await manager.findOne(UsuarioEntity, {
+        where: { id: usuario.id, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (atual === null) throw new UnauthorizedException();
+      if (atual.emailVerificado) return { verified: true as const };
+      if (!reservarQuotaCodigo(atual, 'email', new Date())) throw codeTemporarilyBlocked();
+      await manager.save(UsuarioEntity, atual);
       await manager.getRepository(UsuarioEmailVerificacaoEntity).update(
         { usuarioId: usuario.id, usadoEm: IsNull() },
         { usadoEm: new Date() },
@@ -829,31 +911,21 @@ export class AuthService {
           codigoHash: hashEmailVerificationCode(usuario.id, codigo),
           expiraEm,
           usadoEm: null,
+          tentativas: 0,
+          bloqueadoEm: null,
         }),
       );
       const outbox = await manager.getRepository(EmailOutboxEntity).save(
         this.emailOutbox.criarRegistro(usuario.id, codigo, expiraEm),
       );
-      return outbox.id;
+      return { verified: false as const, outboxId: outbox.id };
     });
-    const delivered = await this.emailOutbox.entregarAgora(outboxId);
-    return emailVerificationResponse(delivered, codigo);
-  }
-
-  private async enviarEmailComFalhaControlada(
-    send: () => Promise<boolean>,
-  ): Promise<boolean> {
-    try {
-      return await send();
-    } catch {
-      if (process.env.NODE_ENV === 'production') {
-        throw new ServiceUnavailableException({
-          code: 'EMAIL_INDISPONIVEL',
-          message: 'Servico de e-mail indisponivel no momento.',
-        });
-      }
-      return false;
-    }
+    if (result.verified) return { alreadyVerified: true as const, response: {} };
+    const delivered = await this.emailOutbox.entregarAgora(result.outboxId);
+    return {
+      alreadyVerified: false as const,
+      response: emailVerificationResponse(delivered, codigo),
+    };
   }
 
   private async usuarioAdminComMfa(id: number): Promise<UsuarioEntity> {
@@ -1191,15 +1263,30 @@ function validarSenha(senha: string): void {
 }
 
 function hashResetCode(usuarioId: number, codigo: string): string {
+  return createHmac('sha256', codeHashSecret())
+    .update(`password-reset:v1:${usuarioId}:${codigo}`, 'utf8')
+    .digest('hex');
+}
+
+function hashEmailVerificationCode(usuarioId: number, codigo: string): string {
+  return createHmac('sha256', codeHashSecret())
+    .update(`email-verification:v1:${usuarioId}:${codigo}`, 'utf8')
+    .digest('hex');
+}
+
+function legacyCodeHash(usuarioId: number, codigo: string): string {
   return createHash('sha256')
     .update(`${usuarioId}:${codigo}`, 'utf8')
     .digest('hex');
 }
 
-function hashEmailVerificationCode(usuarioId: number, codigo: string): string {
-  return createHash('sha256')
-    .update(`${usuarioId}:${codigo}`, 'utf8')
-    .digest('hex');
+function codeHashSecret(): string {
+  const secret = process.env.AUTH_TOKEN_SECRET;
+  if (secret !== undefined && secret.length >= 32) return secret;
+  if (process.env.NODE_ENV !== 'production') {
+    return 'conectalar-non-production-code-hash-key';
+  }
+  throw new Error('Authentication configuration is incomplete.');
 }
 
 export function hashAdminInviteToken(token: string): string {
@@ -1222,6 +1309,60 @@ function invalidMfaSetup(): UnauthorizedException {
 
 function criarCodigoNumerico(): string {
   return randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+function reservarQuotaCodigo(
+  usuario: UsuarioEntity,
+  tipo: 'senha' | 'email',
+  agora: Date,
+): boolean {
+  const email = tipo === 'email';
+  const inicio = email
+    ? usuario.emailVerificacaoJanelaInicio
+    : usuario.senhaResetJanelaInicio;
+  const ultimaSolicitacao = email
+    ? usuario.emailVerificacaoUltimaSolicitacao
+    : usuario.senhaResetUltimaSolicitacao;
+  let solicitacoes = email
+    ? usuario.emailVerificacaoSolicitacoes
+    : usuario.senhaResetSolicitacoes;
+  let inicioJanela = inicio;
+
+  if (
+    inicioJanela === null || inicioJanela === undefined ||
+    agora.getTime() - inicioJanela.getTime() >= codeIssueWindowMs
+  ) {
+    solicitacoes = 0;
+    inicioJanela = agora;
+  }
+  if (
+    solicitacoes >= maxCodeIssuesPerWindow ||
+    (ultimaSolicitacao !== null && ultimaSolicitacao !== undefined &&
+      agora.getTime() - ultimaSolicitacao.getTime() < codeIssueCooldownMs)
+  ) {
+    return false;
+  }
+
+  if (email) {
+    usuario.emailVerificacaoSolicitacoes = solicitacoes + 1;
+    usuario.emailVerificacaoJanelaInicio = inicioJanela;
+    usuario.emailVerificacaoUltimaSolicitacao = agora;
+  } else {
+    usuario.senhaResetSolicitacoes = solicitacoes + 1;
+    usuario.senhaResetJanelaInicio = inicioJanela;
+    usuario.senhaResetUltimaSolicitacao = agora;
+  }
+  return true;
+}
+
+function codeTemporarilyBlocked(): HttpException {
+  return new HttpException(
+    {
+      code: 'CODIGO_TEMPORARIAMENTE_BLOQUEADO',
+      message: 'Muitas tentativas ou solicitacoes. Aguarde antes de tentar novamente.',
+    },
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
 }
 
 function recuperacaoSolicitadaResponse(codigo: string | null) {

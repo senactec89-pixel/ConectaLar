@@ -23,7 +23,7 @@
     "email:test": "npm run build && node scripts/test-email-local.mjs",
     "test": "npm run build && node --test test/*.test.mjs",
     "test:integration": "node --test test/integration/*.test.mjs",
-    "test:integration:mysql": "tsc -p tsconfig.build.json && node --test test/integration/mysql-fluxo-principal.test.mjs test/integration/habilitacao-mysql.test.mjs"
+    "test:integration:mysql": "tsc -p tsconfig.build.json && node --test test/integration/mysql-fluxo-principal.test.mjs test/integration/habilitacao-mysql.test.mjs test/integration/auth-code-limits-mysql.test.mjs"
   },
   "dependencies": {
     "@types/node": "24.13.4",

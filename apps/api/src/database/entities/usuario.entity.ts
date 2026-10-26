@@ -75,6 +75,24 @@ export class UsuarioEntity {
   @Column({ name: 'mfa_bloqueado_ate', type: 'datetime', nullable: true })
   mfaBloqueadoAte!: Date | null;
 
+  @Column({ name: 'senha_reset_solicitacoes', type: 'smallint', unsigned: true, default: 0 })
+  senhaResetSolicitacoes!: number;
+
+  @Column({ name: 'senha_reset_janela_inicio', type: 'datetime', nullable: true })
+  senhaResetJanelaInicio!: Date | null;
+
+  @Column({ name: 'senha_reset_ultima_solicitacao', type: 'datetime', nullable: true })
+  senhaResetUltimaSolicitacao!: Date | null;
+
+  @Column({ name: 'email_verificacao_solicitacoes', type: 'smallint', unsigned: true, default: 0 })
+  emailVerificacaoSolicitacoes!: number;
+
+  @Column({ name: 'email_verificacao_janela_inicio', type: 'datetime', nullable: true })
+  emailVerificacaoJanelaInicio!: Date | null;
+
+  @Column({ name: 'email_verificacao_ultima_solicitacao', type: 'datetime', nullable: true })
+  emailVerificacaoUltimaSolicitacao!: Date | null;
+
   @Column({
     name: 'mfa_secret_encrypted',
     type: 'varchar',
