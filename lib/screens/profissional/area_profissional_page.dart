@@ -1363,6 +1363,11 @@ class _PerfilProfissionalPrivadoPageState
     extends State<PerfilProfissionalPrivadoPage> {
   late Future<Map<String, dynamic>> _future = _carregar();
 
+  void _atualizar() => setState(() {
+    _future = _carregar();
+    _future.ignore();
+  });
+
   Future<Map<String, dynamic>> _carregar() async {
     final perfil = await AppServices.instance.profissionais.meuPerfil();
     try {
@@ -1517,28 +1522,52 @@ class _PerfilProfissionalPrivadoPageState
               ),
             ],
             const SizedBox(height: 12),
-            _BadgeCard(
-              icon: podeAtender == true
-                  ? Icons.check_circle_outline_rounded
-                  : Icons.verified_user_outlined,
-              title: podeAtender == true
-                  ? 'Atendimentos liberados'
-                  : podeAtender == false
-                  ? 'Atendimentos ainda bloqueados'
-                  : 'Situação de atendimento indisponível',
-              text: [
-                if (podeAtender == true)
-                  'Sua habilitação permite receber novas solicitações.'
-                else if (podeAtender == false)
-                  'Consulte as etapas da habilitação de segurança. A aprovação de um documento, isoladamente, não libera atendimentos.'
-                else
-                  'Não foi possível consultar sua habilitação agora.',
-                if (situacao != null) situacao.titulo,
-                if (situacao?.motivo?.trim().isNotEmpty == true)
-                  'Motivo: ${situacao!.motivo}',
-              ].join('\n'),
-              onTap: _abrirDocumentos,
-            ),
+            if (podeAtender == null)
+              Card(
+                child: Padding(
+                  padding: AppInsets.card,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Situação de atendimento não consultada',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppSpace.sm),
+                      SectionErrorView(
+                        message:
+                            'Não foi possível confirmar sua habilitação agora.',
+                        onRetry: _atualizar,
+                      ),
+                      TextButton.icon(
+                        onPressed: _abrirDocumentos,
+                        icon: const Icon(Icons.verified_user_outlined),
+                        label: const Text('Ver documentos e etapas'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              _BadgeCard(
+                icon: podeAtender
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.verified_user_outlined,
+                title: podeAtender
+                    ? 'Atendimentos liberados'
+                    : 'Atendimentos ainda bloqueados',
+                text: [
+                  if (podeAtender)
+                    'Sua habilitação permite receber novas solicitações.'
+                  else
+                    'Conclua a habilitação para receber pedidos. Um documento aprovado sozinho não libera atendimentos.',
+                  if (situacao != null) situacao.titulo,
+                  if (situacao?.motivo?.trim().isNotEmpty == true)
+                    'Motivo: ${situacao!.motivo}',
+                  'Toque para ver documentos e etapas.',
+                ].join('\n'),
+                onTap: _abrirDocumentos,
+              ),
             const SizedBox(height: AppSpace.lg),
             const _PerfilSecaoTitulo(
               titulo: 'Dados pessoais',
