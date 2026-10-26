@@ -209,7 +209,16 @@ class _PerfilPageState extends State<PerfilPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                _DadosProtegidos(administrador: administrador),
+                _DadosProtegidos(
+                  mensagem: switch (usuario.tipo) {
+                    TipoUsuario.cliente =>
+                      'Endereço e conversas são privados. Compartilhe dados com cuidado.',
+                    TipoUsuario.profissional || TipoUsuario.empresa =>
+                      'Documentos e conversas são privados. Compartilhe dados com cuidado.',
+                    TipoUsuario.administrador =>
+                      'Dados de moderação são privados. Acesse-os apenas quando necessário.',
+                  },
+                ),
                 const SizedBox(height: AppSpace.xl),
                 Text(
                   administrador ? 'Conta administrativa' : 'Perfil e contato',
@@ -219,7 +228,7 @@ class _PerfilPageState extends State<PerfilPage> {
                 ProfileMenuTile(
                   icon: Icons.badge_outlined,
                   title: 'Meus dados',
-                  subtitle: 'Nome, telefone e e-mail da conta',
+                  subtitle: 'Edite nome e telefone; consulte o e-mail',
                   onTap: () async {
                     final atualizado = await Navigator.pushNamed(
                       context,
@@ -431,9 +440,9 @@ class _FotoPerfilUsuario extends StatelessWidget {
 }
 
 class _DadosProtegidos extends StatelessWidget {
-  const _DadosProtegidos({required this.administrador});
+  const _DadosProtegidos({required this.mensagem});
 
-  final bool administrador;
+  final String mensagem;
 
   @override
   Widget build(BuildContext context) {
@@ -450,9 +459,7 @@ class _DadosProtegidos extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              administrador
-                  ? 'Dados consultados na moderação são privados. Acesse-os somente para as tarefas da sua conta.'
-                  : 'Endereço completo, documentos e conversas são informações privadas. Compartilhe seus dados com cuidado.',
+              mensagem,
               style: const TextStyle(
                 color: AppColors.texto,
                 fontWeight: FontWeight.w700,
