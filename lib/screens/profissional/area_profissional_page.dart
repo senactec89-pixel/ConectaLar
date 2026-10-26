@@ -326,8 +326,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 8),
                   if (novos.isEmpty)
-                    const _EmptyCard(
-                      text: 'Nenhuma solicitação aguardando resposta.',
+                    const InlineEmptyState(
+                      message: 'Nenhuma solicitação aguardando resposta.',
                     )
                   else
                     ...novos
@@ -351,8 +351,9 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                   const SizedBox(height: 8),
                   if (agendados.isEmpty)
-                    const _EmptyCard(
-                      text: 'Nenhum atendimento agendado no momento.',
+                    const InlineEmptyState(
+                      message: 'Nenhum atendimento agendado no momento.',
+                      icon: Icons.event_busy_outlined,
                     )
                   else
                     _PedidoCard(
@@ -561,8 +562,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                               : 'Somente pedidos aceitos aparecem na agenda. Solicitações aguardando resposta ainda não reservam horário.',
                           icon: Icons.event_available_outlined,
                         )
-                      : _EmptyCard(
-                          text: switch (_tab) {
+                      : InlineEmptyState(
+                          message: switch (_tab) {
                             0 => 'Nenhuma solicitação aguardando resposta.',
                             2 => 'Nenhum atendimento aceito para este mês.',
                             _ => switch (_filtro) {
@@ -676,12 +677,19 @@ class _DetalheSolicitacaoProfissionalPageState
       appBar: const AppBarCustom(title: 'Detalhes da solicitação'),
       backgroundColor: AppColors.fundo,
       body: _future == null
-          ? const Center(child: Text('Solicitação não identificada.'))
+          ? const EmptyStateView(
+              title: 'Solicitação não identificada',
+              message:
+                  'Volte à lista e abra um pedido para consultar os detalhes.',
+              icon: Icons.receipt_long_outlined,
+            )
           : FutureBuilder<Map<String, dynamic>>(
               future: _future,
               builder: (context, s) {
                 if (s.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const AsyncLoadingView(
+                    label: 'Carregando solicitação.',
+                  );
                 }
                 final p = s.data?['solicitacao'];
                 if (s.hasError || p is! Map<String, dynamic>) {
@@ -1856,18 +1864,6 @@ class _SectionTitle extends StatelessWidget {
       if (onTap != null)
         TextButton(onPressed: onTap, child: const Text('Ver todos')),
     ],
-  );
-}
-
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.text});
-  final String text;
-  @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: AppInsets.card,
-      child: Text(text, textAlign: TextAlign.center),
-    ),
   );
 }
 

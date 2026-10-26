@@ -182,6 +182,43 @@ class EmptyStateView extends StatelessWidget {
   }
 }
 
+/// Mensagem vazia compacta para seções dentro de uma página carregada.
+class InlineEmptyState extends StatelessWidget {
+  const InlineEmptyState({
+    required this.message,
+    this.icon = Icons.inbox_outlined,
+    super.key,
+  });
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Semantics(
+      container: true,
+      label: message,
+      child: ExcludeSemantics(
+        child: Padding(
+          padding: AppInsets.card,
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.textoSuave, size: 22),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class _StateLayout extends StatelessWidget {
   const _StateLayout({required this.child});
   final Widget child;
