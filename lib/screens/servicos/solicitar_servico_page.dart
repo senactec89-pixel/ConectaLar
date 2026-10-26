@@ -547,7 +547,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                 initialValue: ofertaSelecionadaId,
                 decoration: const InputDecoration(
                   labelText: 'Serviço desejado',
-                  border: OutlineInputBorder(),
                 ),
                 items: [
                   for (final oferta in ofertas)
@@ -604,7 +603,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                             labelText: 'Endereço cadastrado',
                             helperText:
                                 'O endereço completo permanece protegido até o aceite.',
-                            border: OutlineInputBorder(),
                           ),
                           items: [
                             for (final endereco in enderecos)
@@ -637,7 +635,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                   labelText: 'Bairro do atendimento',
                   helperText:
                       'Este bairro identifica a região enquanto o endereço completo está protegido.',
-                  border: OutlineInputBorder(),
                 ),
                 textInputAction: TextInputAction.next,
                 validator: validarCampoObrigatorio,
@@ -719,7 +716,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                     decoration: const InputDecoration(
                       labelText: 'Data desejada',
                       hintText: 'DD/MM/AAAA',
-                      border: OutlineInputBorder(),
                       suffixIcon: Icon(Icons.calendar_month_outlined),
                     ),
                     keyboardType: TextInputType.datetime,
@@ -733,7 +729,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                     decoration: const InputDecoration(
                       labelText: 'Horário',
                       hintText: 'HH:MM',
-                      border: OutlineInputBorder(),
                       suffixIcon: Icon(Icons.schedule_rounded),
                     ),
                     keyboardType: TextInputType.datetime,
@@ -774,7 +769,6 @@ class _FormularioSolicitacao extends StatelessWidget {
                   labelText: 'Descreva a necessidade',
                   hintText: 'Ex.: instalar chuveiro no banheiro social',
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
                 ),
                 validator: validarCampoObrigatorio,
               ),

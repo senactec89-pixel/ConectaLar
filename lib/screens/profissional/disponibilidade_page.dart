@@ -9,6 +9,7 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/action_label.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/responsive_action_row.dart';
 import '../../services/api_service.dart';
 
 class DisponibilidadePage extends StatefulWidget {
@@ -131,7 +132,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                     : () => Navigator.pop(dialogContext, false),
                 child: const Text('Cancelar'),
               ),
-              FilledButton(
+              FilledButton.icon(
                 onPressed: enviando
                     ? null
                     : () async {
@@ -165,12 +166,13 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                           }
                         }
                       },
-                child: enviando
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Bloquear'),
+                icon: enviando
+                    ? const ButtonProgressIndicator()
+                    : const Icon(Icons.block_outlined),
+                label: ActionLabel(
+                  busy: enviando,
+                  text: enviando ? 'Bloqueando...' : 'Bloquear',
+                ),
               ),
             ],
           ),
@@ -314,23 +316,12 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
               AppSpace.pageGutter,
               AppSpace.md,
             ),
-            child: empilharAcoes
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      adicionarHorario,
-                      const SizedBox(height: AppSpace.sm),
-                      salvarEContinuar,
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(child: adicionarHorario),
-                      const SizedBox(width: AppSpace.md),
-                      Expanded(child: salvarEContinuar),
-                    ],
-                  ),
+            child: ResponsiveActionRow(
+              secondary: adicionarHorario,
+              primary: salvarEContinuar,
+              stacked: empilharAcoes,
+              spacing: empilharAcoes ? AppSpace.sm : AppSpace.md,
+            ),
           ),
         ),
       ),

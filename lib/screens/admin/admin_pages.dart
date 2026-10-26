@@ -14,6 +14,7 @@ import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/page_intro.dart';
+import '../../widgets/responsive_action_row.dart';
 
 enum AdminModulo {
   painel,
@@ -1563,49 +1564,37 @@ class _DocumentoModeracaoCard extends StatelessWidget {
                 final ladoALado =
                     (constraints.maxWidth - AppSpace.sm) / 2 >=
                     larguraRotulo + 56;
-                final largura = ladoALado
-                    ? (constraints.maxWidth - AppSpace.sm) / 2
-                    : constraints.maxWidth;
                 const padding = EdgeInsets.symmetric(
                   horizontal: AppSpace.md,
                   vertical: 14,
                 );
-                return Wrap(
-                  spacing: AppSpace.sm,
-                  runSpacing: AppSpace.sm,
-                  children: [
-                    SizedBox(
-                      width: largura,
-                      child: Tooltip(
-                        message: 'Visualizar arquivo',
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size(0, 52),
-                            padding: padding,
-                          ),
-                          onPressed: desabilitado ? null : onVisualizar,
-                          icon: Icon(
-                            documentoCarregado
-                                ? Icons.visibility_rounded
-                                : Icons.visibility_outlined,
-                          ),
-                          label: const Text('Visualizar'),
-                        ),
+                return ResponsiveActionRow(
+                  stacked: !ladoALado,
+                  secondary: Tooltip(
+                    message: 'Visualizar arquivo',
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 52),
+                        padding: padding,
                       ),
-                    ),
-                    SizedBox(
-                      width: largura,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(0, 52),
-                          padding: padding,
-                        ),
-                        onPressed: desabilitado ? null : onAnalisar,
-                        icon: const Icon(Icons.fact_check_outlined),
-                        label: Text(rotuloAnalise),
+                      onPressed: desabilitado ? null : onVisualizar,
+                      icon: Icon(
+                        documentoCarregado
+                            ? Icons.visibility_rounded
+                            : Icons.visibility_outlined,
                       ),
+                      label: const Text('Visualizar'),
                     ),
-                  ],
+                  ),
+                  primary: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                      padding: padding,
+                    ),
+                    onPressed: desabilitado ? null : onAnalisar,
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: Text(rotuloAnalise),
+                  ),
                 );
               },
             ),
