@@ -153,6 +153,7 @@ class _PerfilPageState extends State<PerfilPage> {
               );
             }
             final usuario = snapshot.requireData;
+            final administrador = usuario.tipo == TipoUsuario.administrador;
             final textoAmpliado =
                 MediaQuery.textScalerOf(context).scale(20) > 30;
             final foto = _FotoPerfilUsuario(
@@ -208,10 +209,10 @@ class _PerfilPageState extends State<PerfilPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const _DadosProtegidos(),
+                _DadosProtegidos(administrador: administrador),
                 const SizedBox(height: AppSpace.xl),
                 Text(
-                  'Perfil e contato',
+                  administrador ? 'Conta administrativa' : 'Perfil e contato',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: AppSpace.sm),
@@ -255,20 +256,24 @@ class _PerfilPageState extends State<PerfilPage> {
                     onTap: () =>
                         Navigator.pushNamed(context, AppRoutes.minhasDenuncias),
                   ),
-                const SizedBox(height: AppSpace.lg),
-                Text(
-                  'Contratação e pagamentos',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: AppSpace.sm),
-                ProfileMenuTile(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Política comercial e cancelamento',
-                  subtitle:
-                      'Preços, pagamentos externos e regras para cancelar',
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.politicaComercial),
-                ),
+                if (!administrador) ...[
+                  const SizedBox(height: AppSpace.lg),
+                  Text(
+                    'Contratação e pagamentos',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  ProfileMenuTile(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Política comercial e cancelamento',
+                    subtitle:
+                        'Preços, pagamentos externos e regras para cancelar',
+                    onTap: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.politicaComercial,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: AppSpace.lg),
                 Text(
                   'Acesso e privacidade',
@@ -426,7 +431,9 @@ class _FotoPerfilUsuario extends StatelessWidget {
 }
 
 class _DadosProtegidos extends StatelessWidget {
-  const _DadosProtegidos();
+  const _DadosProtegidos({required this.administrador});
+
+  final bool administrador;
 
   @override
   Widget build(BuildContext context) {
@@ -436,15 +443,17 @@ class _DadosProtegidos extends StatelessWidget {
         color: AppColors.verdeClaro,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.shield_outlined, color: AppColors.verdeEscuro),
-          SizedBox(width: 10),
+          const Icon(Icons.shield_outlined, color: AppColors.verdeEscuro),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Endereço completo, documentos e conversas são informações privadas. Compartilhe seus dados com cuidado.',
-              style: TextStyle(
+              administrador
+                  ? 'Dados consultados na moderação são privados. Acesse-os somente para as tarefas da sua conta.'
+                  : 'Endereço completo, documentos e conversas são informações privadas. Compartilhe seus dados com cuidado.',
+              style: const TextStyle(
                 color: AppColors.texto,
                 fontWeight: FontWeight.w700,
                 height: 1.35,
