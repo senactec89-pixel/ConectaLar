@@ -36,13 +36,13 @@ test('MySQL real: limites persistentes, tentativas e uso unico de codigos', { sk
       SMTP_HOST: '', SMTP_FROM: '',
     });
 
-    const [{ default: source }, { createApp }, { AuthService }, { termoAtual }] = await Promise.all([
+    const [dataSourceModule, { createApp }, { AuthService }, { termoAtual }] = await Promise.all([
       import('../../dist/database/data-source.js'),
       import('../../dist/app.factory.js'),
       import('../../dist/auth/auth.service.js'),
       import('../../dist/termos/termos.service.js'),
     ]);
-    dataSource = source;
+    dataSource = dataSourceModule.default.default ?? dataSourceModule.default;
     await dataSource.initialize();
     await dataSource.runMigrations();
     app = await createApp();

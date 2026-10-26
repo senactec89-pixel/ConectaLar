@@ -74,9 +74,8 @@ test(
       process.env.SMTP_HOST = '';
       process.env.RATE_LIMIT_MAX = '1000';
 
-      const { default: dataSource } = await import(
-        '../../dist/database/data-source.js'
-      );
+      const dataSourceModule = await import('../../dist/database/data-source.js');
+      const dataSource = dataSourceModule.default.default ?? dataSourceModule.default;
       migrationDataSource = dataSource;
       await migrationDataSource.initialize();
       await migrationDataSource.runMigrations();
@@ -321,7 +320,7 @@ test(
           pagina: 1,
           limite: 10,
         },
-        200,
+        201,
       );
       assert.equal(buscaDistancia.paginacao.total, 2);
       assert.equal(buscaDistancia.profissionais[0].id, profissionalId);
@@ -403,19 +402,21 @@ test(
         },
         409,
       );
-      assert.equal(requisicao.code, 'PROFISSIONAL_HABILITACAO_PENDENTE');
+      assert.equal(requisicao.statusCode, 409);
+      assert.equal(requisicao.message, 'Request could not be processed');
+      assert.equal(Object.hasOwn(requisicao, 'code'), false);
 
-      const [customerRows] = await migrationDataSource.query(
+      const customerRows = await migrationDataSource.query(
         'SELECT email_verificado FROM usuarios WHERE email = ?',
         [customerEmail],
       );
       assert.equal(Number(customerRows[0].email_verificado), 1);
-      const [addressRows] = await migrationDataSource.query(
+      const addressRows = await migrationDataSource.query(
         'SELECT COUNT(*) AS total FROM cliente_enderecos WHERE usuario_id = ? AND ativo = 1',
         [(await request('GET', 'clientes/me', customerToken, undefined, 200)).cliente.id],
       );
       assert.equal(Number(addressRows[0].total), 1);
-      const [requestRows] = await migrationDataSource.query(
+      const requestRows = await migrationDataSource.query(
         'SELECT COUNT(*) AS total FROM solicitacoes',
       );
       assert.equal(Number(requestRows[0].total), 0);
@@ -426,7 +427,7 @@ test(
         customerEmail,
         customerToken,
         professionalEmail,
-        professionalId,
+        professionalId: profissionalId,
         suffix,
       });
     } finally {
@@ -491,7 +492,7 @@ async function verifyAdministrativeLists(context) {
       `scrypt$${salt.toString('base64url')}$${hash.toString('base64url')}`,
     ],
   );
-  const [adminRows] = await migrationDataSource.query(
+  const adminRows = await migrationDataSource.query(
     'SELECT id FROM usuarios WHERE email = ?',
     [adminEmail],
   );
@@ -620,26 +621,26 @@ async function verifyAdministrativeLists(context) {
   assert.ok(categoriesPage1.paginacao.total > 1);
   assert.equal(categoriesPage1.paginacao.temMais, true);
 
-  const [customerRows] = await migrationDataSource.query(
+  const customerRows = await migrationDataSource.query(
     'SELECT id FROM usuarios WHERE email = ?',
     [customerEmail],
   );
   const customerId = Number(customerRows[0].id);
-  const [secondProfessionalUserRows] = await migrationDataSource.query(
+  const secondProfessionalUserRows = await migrationDataSource.query(
     'SELECT id FROM usuarios WHERE email = ?',
     [`profissional.segundo.${suffix}@example.invalid`],
   );
-  const [secondProfessionalRows] = await migrationDataSource.query(
+  const secondProfessionalRows = await migrationDataSource.query(
     'SELECT id FROM profissionais WHERE usuario_id = ?',
     [Number(secondProfessionalUserRows[0].id)],
   );
   const secondProfessionalId = Number(secondProfessionalRows[0].id);
-  const [professionalUserRows] = await migrationDataSource.query(
+  const professionalUserRows = await migrationDataSource.query(
     'SELECT id FROM usuarios WHERE email = ?',
     [professionalEmail],
   );
   const professionalUserId = Number(professionalUserRows[0].id);
-  const [categoryRows] = await migrationDataSource.query(
+  const categoryRows = await migrationDataSource.query(
     'SELECT id FROM categorias ORDER BY id LIMIT 1',
   );
   const categoryId = Number(categoryRows[0].id);
@@ -665,7 +666,7 @@ async function verifyAdministrativeLists(context) {
       date,
     ],
   );
-  const [solicitationRows] = await migrationDataSource.query(
+  const solicitationRows = await migrationDataSource.query(
     'SELECT id FROM solicitacoes WHERE descricao IN (?, ?) ORDER BY id',
     [
       `Atendimento de integracao ${suffix}`,

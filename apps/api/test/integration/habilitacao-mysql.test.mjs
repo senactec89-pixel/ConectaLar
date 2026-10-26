@@ -9,6 +9,7 @@ import { ProfissionalPerfilEntity } from '../../dist/database/entities/profissio
 import { AdminAuditoriaEntity } from '../../dist/database/entities/admin-auditoria.entity.js';
 import { HabilitacaoService } from '../../dist/verificacao/habilitacao.service.js';
 import { ProfissionalTelefoneVerificacaoEntity } from '../../dist/database/entities/profissional-telefone-verificacao.entity.js';
+import { ProfissionalTelefoneZapSign1760134000000 } from '../../dist/database/migrations/1760134000000-ProfissionalTelefoneZapSign.js';
 import { invalidarVerificacoesTelefone } from '../../dist/verificacao/telefone-verificacao.util.js';
 
 // Opt-in: creates a fresh random database on LOCAL MySQL, never uses DB_NAME.
@@ -87,7 +88,15 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     }), /test-audit-failure/);
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'suspenso');
     assert.equal((await service.minha(profissional)).habilitacao.podeAtender, false);
-    await assert.rejects(ds.undoLastMigration(), /preserve phone verification records/);
+    const queryRunner = ds.createQueryRunner();
+    try {
+      await assert.rejects(
+        new ProfissionalTelefoneZapSign1760134000000().down(queryRunner),
+        /preserve phone verification records/,
+      );
+    } finally {
+      await queryRunner.release();
+    }
   } finally {
     if (ds?.isInitialized) await ds.destroy();
     if (created) await connection.query(`DROP DATABASE \`${database}\``);
