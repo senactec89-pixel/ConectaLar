@@ -12,6 +12,7 @@ import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/professional_navigation_bar.dart';
 import '../../widgets/profile_menu_tile.dart';
+import '../../widgets/status_badge.dart';
 
 class AreaProfissionalPage extends StatefulWidget {
   const AreaProfissionalPage({super.key, this.initialTab = 0});
@@ -1685,7 +1686,10 @@ class _PedidoCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: _StatusPill(text: _status(pedido['status'])),
+                  child: StatusBadge.solicitacaoValor(
+                    pedido['status'],
+                    label: _status(pedido['status']),
+                  ),
                 ),
               ],
             ),
@@ -1865,27 +1869,6 @@ class _EmptyCard extends StatelessWidget {
     child: Padding(
       padding: const EdgeInsets.all(18),
       child: Text(text, textAlign: TextAlign.center),
-    ),
-  );
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.text});
-  final String text;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: AppColors.verdeClaro,
-      borderRadius: BorderRadius.circular(30),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: AppColors.verdeEscuro,
-      ),
     ),
   );
 }

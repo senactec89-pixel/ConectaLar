@@ -10,6 +10,7 @@ import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/status_badge.dart';
 
 class MeusServicosPage extends StatefulWidget {
   const MeusServicosPage({super.key});
@@ -385,7 +386,7 @@ class _ServicoCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  _StatusPill(status: solicitacao.status),
+                  StatusBadge.solicitacao(solicitacao.status, maxWidth: 142),
                 ],
               ),
               const SizedBox(height: 12),
@@ -448,47 +449,6 @@ class _ServicoCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status});
-
-  final StatusSolicitacao status;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (status) {
-      StatusSolicitacao.aguardandoResposta => const Color(0xFF9A6415),
-      StatusSolicitacao.aceitaAgendada => AppColors.verde,
-      StatusSolicitacao.recusada => AppColors.erro,
-      StatusSolicitacao.cancelada => AppColors.textoSuave,
-      StatusSolicitacao.conclusaoPendente => const Color(0xFF9A6415),
-      StatusSolicitacao.conclusaoContestada => AppColors.erro,
-      StatusSolicitacao.naoComparecimentoInformado => AppColors.erro,
-      StatusSolicitacao.conclusaoConfirmada => AppColors.verdeEscuro,
-    };
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 142),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Text(
-          status.rotulo,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            height: 1.15,
-            fontWeight: FontWeight.w800,
           ),
         ),
       ),

@@ -12,6 +12,7 @@ import 'categoria_form_page.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/status_badge.dart';
 
 enum AdminModulo {
   painel,
@@ -1760,23 +1761,10 @@ class _StatusDocumentoChip extends StatelessWidget {
         : rejeitado
         ? AppColors.erro
         : const Color(0xFF98680F);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpace.sm,
-        vertical: AppSpace.xs,
-      ),
-      decoration: BoxDecoration(
-        color: cor,
-        borderRadius: BorderRadius.circular(AppRadii.pill),
-      ),
-      child: Text(
-        _rotuloStatusDocumento(status),
-        style: TextStyle(
-          color: textoCor,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+    return StatusBadge(
+      label: _rotuloStatusDocumento(status),
+      color: textoCor,
+      backgroundColor: cor,
     );
   }
 }
