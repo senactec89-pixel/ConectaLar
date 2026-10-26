@@ -74,6 +74,16 @@ class _BuscaPageState extends State<BuscaPage> {
     _bairroController.text = _memoria.bairro;
     _cidadeController.text = _memoria.cidade;
     _categoriaSelecionada = _memoria.categoria;
+    if (_memoria.latitude != null && _memoria.longitude != null) {
+      _posicao = DevicePosition(
+        latitude: _memoria.latitude!,
+        longitude: _memoria.longitude!,
+        accuracyMeters: _memoria.precisaoMetros ?? 0,
+      );
+    }
+    _raioKm = _memoria.raioKm;
+    _mostrarMapa = _memoria.mostrarMapa;
+    _comparacao.addAll(_memoria.comparacao);
     _scrollController.addListener(() {
       if (!_restaurarRolagem && _memoria.revisao == _revisaoMemoria) {
         _memoria.rolagem = _scrollController.offset;
@@ -122,7 +132,13 @@ class _BuscaPageState extends State<BuscaPage> {
         ..termo = _termoController.text
         ..bairro = _bairroController.text
         ..cidade = _cidadeController.text
-        ..categoria = _categoriaSelecionada;
+        ..categoria = _categoriaSelecionada
+        ..latitude = _posicao?.latitude
+        ..longitude = _posicao?.longitude
+        ..precisaoMetros = _posicao?.accuracyMeters
+        ..raioKm = _raioKm
+        ..mostrarMapa = _mostrarMapa
+        ..comparacao = List.of(_comparacao);
       if (!_restaurarRolagem && _scrollController.hasClients) {
         _memoria.rolagem = _scrollController.offset;
       }
