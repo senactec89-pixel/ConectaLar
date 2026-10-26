@@ -88,20 +88,31 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
   Future<void> _carregarMaisServicos() async {
     if (_carregandoMais) return;
     setState(() => _carregandoMais = true);
+    final carregamentoAtual = _servicosFuture;
+    final filtroBuscado = _filtro;
+    ApiPage<AtendimentoResumo>? paginasEncontradas;
     try {
-      final atual = await _servicosFuture;
+      var atual = await carregamentoAtual;
       if (!atual.hasMore) return;
-      final proxima = await _carregarServicos(pagina: atual.page + 1);
-      final porId = <int, AtendimentoResumo>{
-        for (final item in atual.items) item.solicitacao.id: item,
-        for (final item in proxima.items) item.solicitacao.id: item,
-      };
-      if (!mounted) return;
-      setState(() {
-        _servicosFuture = Future.value(
-          proxima.copyWith(items: porId.values.toList(growable: false)),
-        );
-      });
+      for (var paginaLida = 0; paginaLida < 5 && atual.hasMore; paginaLida++) {
+        final proxima = await _carregarServicos(pagina: atual.page + 1);
+        if (!mounted || !identical(carregamentoAtual, _servicosFuture)) {
+          return;
+        }
+        final porId = <int, AtendimentoResumo>{
+          for (final item in atual.items) item.solicitacao.id: item,
+          for (final item in proxima.items) item.solicitacao.id: item,
+        };
+        atual = proxima.copyWith(items: porId.values.toList(growable: false));
+        paginasEncontradas = atual;
+        if (filtroBuscado.statuses == null ||
+            proxima.items.any(
+              (item) =>
+                  filtroBuscado.statuses!.contains(item.solicitacao.status),
+            )) {
+          break;
+        }
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,7 +122,15 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _carregandoMais = false);
+      if (mounted) {
+        setState(() {
+          if (paginasEncontradas != null &&
+              identical(carregamentoAtual, _servicosFuture)) {
+            _servicosFuture = Future.value(paginasEncontradas);
+          }
+          _carregandoMais = false;
+        });
+      }
     }
   }
 

@@ -82,20 +82,24 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _carregarMais() async {
     if (_carregandoMais) return;
     setState(() => _carregandoMais = true);
+    final carregamentoAtual = _conversasFuture;
+    ApiPage<AtendimentoResumo>? paginasEncontradas;
     try {
-      final atual = await _conversasFuture;
+      var atual = await carregamentoAtual;
       if (!atual.hasMore) return;
-      final proxima = await _carregarConversas(pagina: atual.page + 1);
-      final porId = <int, AtendimentoResumo>{
-        for (final item in atual.items) item.solicitacao.id: item,
-        for (final item in proxima.items) item.solicitacao.id: item,
-      };
-      if (!mounted) return;
-      setState(() {
-        _conversasFuture = Future.value(
-          proxima.copyWith(items: porId.values.toList(growable: false)),
-        );
-      });
+      for (var paginaLida = 0; paginaLida < 5 && atual.hasMore; paginaLida++) {
+        final proxima = await _carregarConversas(pagina: atual.page + 1);
+        if (!mounted || !identical(carregamentoAtual, _conversasFuture)) {
+          return;
+        }
+        final porId = <int, AtendimentoResumo>{
+          for (final item in atual.items) item.solicitacao.id: item,
+          for (final item in proxima.items) item.solicitacao.id: item,
+        };
+        atual = proxima.copyWith(items: porId.values.toList(growable: false));
+        paginasEncontradas = atual;
+        if (proxima.items.any(_conversaAtiva)) break;
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,9 +109,27 @@ class _ChatPageState extends State<ChatPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _carregandoMais = false);
+      if (mounted) {
+        setState(() {
+          if (paginasEncontradas != null &&
+              identical(carregamentoAtual, _conversasFuture)) {
+            _conversasFuture = Future.value(paginasEncontradas);
+          }
+          _carregandoMais = false;
+        });
+      }
     }
   }
+
+  bool _conversaAtiva(AtendimentoResumo servico) =>
+      switch (servico.solicitacao.status) {
+        StatusSolicitacao.aguardandoResposta ||
+        StatusSolicitacao.aceitaAgendada ||
+        StatusSolicitacao.conclusaoPendente ||
+        StatusSolicitacao.conclusaoContestada ||
+        StatusSolicitacao.naoComparecimentoInformado => true,
+        _ => false,
+      };
 
   Future<void> _abrirConversa(int solicitacaoId) async {
     await Navigator.pushNamed(
@@ -146,19 +168,7 @@ class _ChatPageState extends State<ChatPage> {
                 ? store.usuarioAtual.tipo.valorBanco
                 : '${services.auth.usuarioAtual?['tipo'] ?? ''}';
             final conversas = pagina.items
-                .where(
-                  (servico) =>
-                      servico.solicitacao.status ==
-                          StatusSolicitacao.aguardandoResposta ||
-                      servico.solicitacao.status ==
-                          StatusSolicitacao.aceitaAgendada ||
-                      servico.solicitacao.status ==
-                          StatusSolicitacao.conclusaoPendente ||
-                      servico.solicitacao.status ==
-                          StatusSolicitacao.conclusaoContestada ||
-                      servico.solicitacao.status ==
-                          StatusSolicitacao.naoComparecimentoInformado,
-                )
+                .where(_conversaAtiva)
                 .toList(growable: false);
 
             return ListView(
