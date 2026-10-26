@@ -11,6 +11,7 @@ import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/professional_navigation_bar.dart';
+import '../../widgets/profile_identity_card.dart';
 import '../../widgets/profile_menu_tile.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/page_intro.dart';
@@ -1439,7 +1440,6 @@ class _PerfilProfissionalPrivadoPageState
         final perfilPublico = perfilRaw is Map<String, dynamic>
             ? profissionalFromApi(perfilRaw)
             : null;
-        final textoAmpliado = MediaQuery.textScalerOf(context).scale(20) > 30;
         final avatar = CircleAvatar(
           radius: 34,
           backgroundColor: AppColors.verdeClaro,
@@ -1457,51 +1457,15 @@ class _PerfilProfissionalPrivadoPageState
                 )
               : null,
         );
-        final identificacao = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${usuario['nome'] ?? 'Profissional'}',
-              style: const TextStyle(
-                color: AppColors.texto,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: AppSpace.xs),
-            Text(
-              usuario['tipo'] == 'empresa'
-                  ? 'Empresa · dados privados'
-                  : 'Profissional · dados privados',
-              style: const TextStyle(
-                color: AppColors.textoSuave,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        );
         return ListView(
           padding: AppInsets.page,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Flex(
-                  direction: textoAmpliado ? Axis.vertical : Axis.horizontal,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    avatar,
-                    if (textoAmpliado)
-                      const SizedBox(height: AppSpace.lg)
-                    else
-                      const SizedBox(width: 14),
-                    if (textoAmpliado)
-                      identificacao
-                    else
-                      Expanded(child: identificacao),
-                  ],
-                ),
-              ),
+            ProfileIdentityCard(
+              avatar: avatar,
+              name: '${usuario['nome'] ?? 'Profissional'}',
+              subtitle: usuario['tipo'] == 'empresa'
+                  ? 'Empresa · dados privados'
+                  : 'Profissional · dados privados',
             ),
             const SizedBox(height: AppSpace.md),
             FilledButton.tonalIcon(

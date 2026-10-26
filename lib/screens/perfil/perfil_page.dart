@@ -12,6 +12,7 @@ import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/bottom_navigation.dart';
+import '../../widgets/profile_identity_card.dart';
 import '../../widgets/profile_menu_tile.dart';
 
 class PerfilPage extends StatefulWidget {
@@ -60,7 +61,11 @@ class _PerfilPageState extends State<PerfilPage> {
   }
 
   Future<void> _selecionarFoto() async {
-    if (_alterandoFoto || AppServices.instance.emDemonstracao) return;
+    if (_alterandoFoto) return;
+    if (AppServices.instance.emDemonstracao) {
+      _mostrarInfo(context, 'Entre em uma conta real para alterar sua foto.');
+      return;
+    }
     setState(() => _alterandoFoto = true);
     try {
       final arquivo = await openFile(
@@ -110,7 +115,11 @@ class _PerfilPageState extends State<PerfilPage> {
   }
 
   Future<void> _removerFoto() async {
-    if (_alterandoFoto || AppServices.instance.emDemonstracao) return;
+    if (_alterandoFoto) return;
+    if (AppServices.instance.emDemonstracao) {
+      _mostrarInfo(context, 'Entre em uma conta real para remover sua foto.');
+      return;
+    }
     setState(() => _alterandoFoto = true);
     try {
       await AppServices.instance.auth.removerFotoPerfil();
@@ -154,59 +163,19 @@ class _PerfilPageState extends State<PerfilPage> {
             }
             final usuario = snapshot.requireData;
             final administrador = usuario.tipo == TipoUsuario.administrador;
-            final textoAmpliado =
-                MediaQuery.textScalerOf(context).scale(20) > 30;
             final foto = _FotoPerfilUsuario(
               usuario: usuario,
               alterando: _alterandoFoto,
               onAlterar: _selecionarFoto,
               onRemover: usuario.fotoPerfilUrl == null ? null : _removerFoto,
             );
-            final identificacao = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  usuario.nome,
-                  style: const TextStyle(
-                    color: AppColors.texto,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: AppSpace.xs),
-                Text(
-                  _tipoConta(usuario),
-                  style: const TextStyle(
-                    color: AppColors.textoSuave,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            );
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
               children: [
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Flex(
-                      direction: textoAmpliado
-                          ? Axis.vertical
-                          : Axis.horizontal,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        foto,
-                        if (textoAmpliado)
-                          const SizedBox(height: AppSpace.lg)
-                        else
-                          const SizedBox(width: 14),
-                        if (textoAmpliado)
-                          identificacao
-                        else
-                          Expanded(child: identificacao),
-                      ],
-                    ),
-                  ),
+                ProfileIdentityCard(
+                  avatar: foto,
+                  name: usuario.nome,
+                  subtitle: _tipoConta(usuario),
                 ),
                 const SizedBox(height: 14),
                 _DadosProtegidos(
