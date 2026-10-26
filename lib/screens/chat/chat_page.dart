@@ -174,7 +174,7 @@ class _ChatPageState extends State<ChatPage> {
 
             return ListView(
               key: const PageStorageKey('conversas-lista'),
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+              padding: AppInsets.page,
               children: [
                 if (snapshot.connectionState != ConnectionState.done) ...[
                   const LinearProgressIndicator(),

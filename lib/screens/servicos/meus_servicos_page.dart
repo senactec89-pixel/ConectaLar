@@ -224,7 +224,7 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                           resumo: servico,
                           onTap: () => _abrirDetalhes(servico.solicitacao.id),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpace.md),
                       ],
                     if (pagina.hasMore && servicos.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -353,10 +353,10 @@ class _ServicoCard extends StatelessWidget {
     return Card(
       child: InkWell(
         key: ValueKey('servico-${solicitacao.id}'),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: AppInsets.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

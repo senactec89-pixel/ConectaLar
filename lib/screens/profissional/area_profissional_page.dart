@@ -1657,9 +1657,9 @@ class _PedidoCard extends StatelessWidget {
     final aguardando = pedido['status'] == 'aguardando_resposta';
     final enderecoLiberado = pedido['enderecoCompletoLiberado'] == true;
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: AppSpace.md),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: AppInsets.card,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1825,9 +1825,9 @@ class _InfoCard extends StatelessWidget {
   final String title, value;
   @override
   Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 8),
+    margin: const EdgeInsets.only(bottom: AppSpace.sm),
     child: Padding(
-      padding: const EdgeInsets.all(14),
+      padding: AppInsets.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1865,7 +1865,7 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
-      padding: const EdgeInsets.all(18),
+      padding: AppInsets.card,
       child: Text(text, textAlign: TextAlign.center),
     ),
   );
