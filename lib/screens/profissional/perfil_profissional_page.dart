@@ -152,8 +152,8 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
         SnackBar(
           content: Text(
             data.favorito
-                ? 'Profissional removido dos favoritos.'
-                : 'Profissional salvo nos favoritos.',
+                ? 'Perfil removido dos favoritos.'
+                : 'Perfil salvo nos favoritos.',
           ),
         ),
       );
@@ -196,7 +196,7 @@ class _PerfilProfissionalPageState extends State<PerfilProfissionalPage> {
             }
             if (snapshot.hasError) {
               return AsyncErrorView(
-                message: 'Não foi possível carregar este profissional.',
+                message: 'Não foi possível carregar este perfil.',
                 onRetry: _recarregar,
               );
             }
@@ -361,7 +361,7 @@ class _PerfilProfissionalContentState
               const SizedBox(height: AppSpace.md),
               _SecaoPerfil(
                 key: _sobreKey,
-                title: 'Sobre o profissional',
+                title: 'Apresentação',
                 child: Text(
                   profissional.descricao.trim().isEmpty
                       ? 'Apresentação não informada.'
@@ -402,7 +402,7 @@ class _PerfilProfissionalContentState
                     ),
                     const SizedBox(height: AppSpace.sm),
                     const Text(
-                      'A solicitação será enviada ao profissional e começará aguardando '
+                      'A solicitação será enviada ao prestador e começará aguardando '
                       'resposta. O serviço só fica agendado após aceite válido.',
                     ),
                   ],
@@ -536,7 +536,7 @@ class _CabecalhoPerfil extends StatelessWidget {
                     if (profissional.notaMedia == null)
                       const _ResumoChip(
                         icon: Icons.star_border_rounded,
-                        text: 'Novo profissional',
+                        text: 'Ainda sem avaliações',
                       )
                     else
                       _ResumoChip(
@@ -702,9 +702,7 @@ class _ServicosPerfil extends StatelessWidget {
           ]
         : [for (final nome in profissional.servicos) (nome, null)];
     if (itens.isEmpty) {
-      return const Text(
-        'Consulte o profissional sobre os serviços oferecidos.',
-      );
+      return const Text('Este perfil ainda não apresenta serviços oferecidos.');
     }
     return Column(
       children: [
@@ -786,9 +784,7 @@ class _DisponibilidadePublica extends StatelessWidget {
                     : diferenca;
               });
         if (horarios.isEmpty) {
-          return const Text(
-            'Este profissional ainda não informou horários semanais.',
-          );
+          return const Text('Este perfil ainda não informa horários semanais.');
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -819,7 +815,7 @@ class _DisponibilidadePublica extends StatelessWidget {
             ),
             const SizedBox(height: AppSpace.md),
             Text(
-              'Horários informados pelo profissional. Eles podem mudar e não '
+              'Horários informados pelo prestador. Eles podem mudar e não '
               'garantem vaga nem agendamento.',
               style: Theme.of(
                 context,
@@ -1094,7 +1090,7 @@ class _PerfilIndisponivel extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.all(24),
         child: Text(
-          'Não foi possível carregar os dados deste profissional.',
+          'Não foi possível carregar este perfil.',
           textAlign: TextAlign.center,
         ),
       ),
