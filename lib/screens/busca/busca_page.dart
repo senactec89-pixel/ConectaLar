@@ -284,8 +284,14 @@ class _BuscaPageState extends State<BuscaPage> {
           _carregandoMais = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nao foi possivel carregar mais resultados.'),
+          SnackBar(
+            content: const Text('Não foi possível carregar mais resultados.'),
+            action: SnackBarAction(
+              label: 'Tentar novamente',
+              onPressed: () {
+                if (mounted) _carregarMaisProfissionais();
+              },
+            ),
           ),
         );
         return;
@@ -401,7 +407,7 @@ class _BuscaPageState extends State<BuscaPage> {
       if (!mounted) return;
       setState(() {
         _erroLocalizacao =
-            'Nao foi possivel obter sua localizacao. Tente novamente.';
+            'Não foi possível obter sua localização. Tente novamente.';
         _falhaLocalizacao = DeviceLocationFailure.unavailable;
       });
     } finally {
