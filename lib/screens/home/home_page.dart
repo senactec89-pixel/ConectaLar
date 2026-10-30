@@ -394,7 +394,9 @@ class _NearbyProfessionals extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),
           child: SizedBox(
-            height: 176,
+            height: !showMap && MediaQuery.textScalerOf(context).scale(16) > 24
+                ? 260
+                : 176,
             child: showMap
                 ? GoogleMap(
                     initialCameraPosition: CameraPosition(
@@ -452,30 +454,27 @@ class _MapFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFFE8F2ED),
-      child: InkWell(
-        onTap: onTap,
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.md),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Positioned(
-              left: 28,
-              top: 32,
-              child: Icon(Icons.location_on, color: AppColors.verde, size: 34),
+            const Icon(Icons.map_outlined, color: AppColors.verde, size: 28),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              'Mapa indisponível',
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-            const Positioned(
-              right: 52,
-              bottom: 30,
-              child: Icon(
-                Icons.location_on,
-                color: Color(0xFF1687C9),
-                size: 30,
-              ),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              'Encontre profissionais pela lista.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            Center(
-              child: FilledButton.icon(
-                onPressed: onTap,
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Ver profissionais da região'),
-              ),
+            const SizedBox(height: AppSpace.sm),
+            FilledButton(
+              onPressed: onTap,
+              child: const Text('Ver profissionais da região'),
             ),
           ],
         ),
