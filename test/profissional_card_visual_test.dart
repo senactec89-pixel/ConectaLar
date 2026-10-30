@@ -199,7 +199,7 @@ void main() {
       card: const ProfissionalCard(profissional: profissional),
     );
 
-    expect(find.text('Em verificacao - pedidos indisponiveis'), findsOneWidget);
+    expect(find.text('Em verificação · pedidos indisponíveis'), findsOneWidget);
     expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
   });
 }
