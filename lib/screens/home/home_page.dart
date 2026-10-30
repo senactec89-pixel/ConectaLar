@@ -1210,6 +1210,32 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                         ),
                       ],
                     ),
+                    if (!professional.podeReceberSolicitacoes) ...[
+                      const SizedBox(height: AppSpace.xs),
+                      Semantics(
+                        label:
+                            'Este profissional não recebe novos pedidos no momento.',
+                        child: ExcludeSemantics(
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline_rounded,
+                                size: 14,
+                                color: AppColors.textoSuave,
+                              ),
+                              const SizedBox(width: AppSpace.xs),
+                              Expanded(
+                                child: Text(
+                                  'Não recebe pedidos',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 7),
                     if (professional.servicos.isNotEmpty)
                       Text(
