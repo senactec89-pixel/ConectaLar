@@ -38,6 +38,34 @@ class _AdminListaDados {
   int get total => int.tryParse('${paginacao['total']}') ?? itens.length;
 }
 
+class _AdminFiltros {
+  const _AdminFiltros({
+    required this.pagina,
+    required this.termo,
+    required this.buscaLocal,
+    required this.tipo,
+    required this.statusUsuario,
+    required this.statusCategoria,
+    required this.statusDocumento,
+    required this.tipoDocumento,
+    required this.statusDenuncia,
+    required this.statusAvaliacao,
+    required this.acaoAuditoria,
+  });
+
+  final int pagina;
+  final String termo;
+  final String buscaLocal;
+  final String tipo;
+  final String statusUsuario;
+  final String statusCategoria;
+  final String statusDocumento;
+  final String tipoDocumento;
+  final String statusDenuncia;
+  final String statusAvaliacao;
+  final String acaoAuditoria;
+}
+
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key, this.modulo = AdminModulo.painel});
   final AdminModulo modulo;
@@ -62,6 +90,7 @@ class _AdminPageState extends State<AdminPage> {
   String _statusCategoria = '';
   String _statusDocumento = 'pendente';
   int _pagina = 1;
+  final Map<AdminModulo, _AdminFiltros> _filtrosPorModulo = {};
   final Set<int> _documentosCarregados = {};
   bool _mutando = false;
 
@@ -138,22 +167,39 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  void _abrir(AdminModulo modulo) => setState(() {
-    _modulo = modulo;
-    _pagina = 1;
-    _termo = '';
-    _buscaLocal = '';
-    _tipo = '';
-    _statusUsuario = '';
-    _statusCategoria = '';
-    _statusDocumento = 'pendente';
-    _tipoDocumento = '';
-    _statusDenuncia = '';
-    _statusAvaliacao = 'pendente';
-    _acaoAuditoria = '';
-    _buscaLocalController.clear();
-    _future = _carregar(modulo);
-  });
+  void _abrir(AdminModulo modulo) {
+    if (modulo == _modulo) return;
+    setState(() {
+      _filtrosPorModulo[_modulo] = _AdminFiltros(
+        pagina: _pagina,
+        termo: _termo,
+        buscaLocal: _buscaLocal,
+        tipo: _tipo,
+        statusUsuario: _statusUsuario,
+        statusCategoria: _statusCategoria,
+        statusDocumento: _statusDocumento,
+        tipoDocumento: _tipoDocumento,
+        statusDenuncia: _statusDenuncia,
+        statusAvaliacao: _statusAvaliacao,
+        acaoAuditoria: _acaoAuditoria,
+      );
+      _modulo = modulo;
+      final filtros = _filtrosPorModulo[modulo];
+      _pagina = filtros?.pagina ?? 1;
+      _termo = filtros?.termo ?? '';
+      _buscaLocal = filtros?.buscaLocal ?? '';
+      _tipo = filtros?.tipo ?? '';
+      _statusUsuario = filtros?.statusUsuario ?? '';
+      _statusCategoria = filtros?.statusCategoria ?? '';
+      _statusDocumento = filtros?.statusDocumento ?? 'pendente';
+      _tipoDocumento = filtros?.tipoDocumento ?? '';
+      _statusDenuncia = filtros?.statusDenuncia ?? '';
+      _statusAvaliacao = filtros?.statusAvaliacao ?? 'pendente';
+      _acaoAuditoria = filtros?.acaoAuditoria ?? '';
+      _buscaLocalController.text = _buscaLocal;
+      _future = _carregar(modulo);
+    });
+  }
 
   void _aplicarFiltros() => setState(() {
     _termo = _buscaLocalController.text.trim();
