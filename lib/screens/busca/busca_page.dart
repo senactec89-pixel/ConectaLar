@@ -635,6 +635,23 @@ class _BuscaPageState extends State<BuscaPage> {
                       onModoAlterado: (mapa) =>
                           setState(() => _mostrarMapa = mapa),
                     ),
+                    if (_podeComparar &&
+                        resultados.isNotEmpty &&
+                        !(_mostrarMapa && _mapaDisponivel)) ...[
+                      const SizedBox(height: AppSpace.xs),
+                      Row(
+                        children: [
+                          const Icon(Icons.compare_arrows_rounded, size: 18),
+                          const SizedBox(width: AppSpace.xs),
+                          Expanded(
+                            child: Text(
+                              'Toque no ícone de comparar nos cartões para escolher dois profissionais.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: AppSpace.md),
                     if (resultados.isEmpty)
                       const _EstadoVazioBusca()
