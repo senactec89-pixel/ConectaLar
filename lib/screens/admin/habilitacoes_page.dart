@@ -204,7 +204,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     DropdownButtonFormField<String>(
                       initialValue: _estado,
                       decoration: const InputDecoration(
-                        labelText: 'Habilitacao',
+                        labelText: 'Habilitação',
                       ),
                       items: const [
                         DropdownMenuItem(value: '', child: Text('Todas')),
@@ -214,7 +214,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                         ),
                         DropdownMenuItem(
                           value: 'em_analise',
-                          child: Text('Em analise'),
+                          child: Text('Em análise'),
                         ),
                         DropdownMenuItem(
                           value: 'suspenso',
@@ -264,8 +264,12 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                                   _recarregar();
                                 },
                         ),
-                        Text(
-                          'Pagina $_pagina de $totalPaginas - $total registros',
+                        Expanded(
+                          child: Text(
+                            'Página $_pagina de $totalPaginas - $total registros',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ),
                         IconButton(
                           tooltip: 'Próxima página',
