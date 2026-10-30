@@ -1269,7 +1269,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF15935F),
+                        color: AppColors.verde,
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1308,7 +1308,7 @@ class _SectionHeading extends StatelessWidget {
             style: TextButton.styleFrom(
               padding: const EdgeInsets.only(left: 8),
               minimumSize: const Size(0, 48),
-              foregroundColor: const Color(0xFF15935F),
+              foregroundColor: AppColors.verde,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             iconAlignment: IconAlignment.end,
