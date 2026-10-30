@@ -141,6 +141,8 @@ class _HomeContentView extends StatelessWidget {
     final categoriasEmDestaque = content.categories
         .take(8)
         .toList(growable: false);
+    final textoCategoriaNormal =
+        MediaQuery.textScalerOf(context).scale(12) <= 13.2;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
@@ -168,7 +170,7 @@ class _HomeContentView extends StatelessWidget {
                           action: 'Ver todas',
                           onActionTap: onSearchTap,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: textoCategoriaNormal ? 12 : 16),
                         if (content.categoriesLoadFailed)
                           SectionErrorView(
                             message: 'Não foi possível carregar as categorias.',
@@ -207,7 +209,9 @@ class _HomeContentView extends StatelessWidget {
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: colunas,
-                                      mainAxisSpacing: 12,
+                                      mainAxisSpacing: textoCategoriaNormal
+                                          ? 8
+                                          : 12,
                                       crossAxisSpacing: espacoHorizontal,
                                       mainAxisExtent: textoAmpliado
                                           ? 190
@@ -215,7 +219,7 @@ class _HomeContentView extends StatelessWidget {
                                           ? 140
                                           : colunas == 3
                                           ? 104
-                                          : 124,
+                                          : 112,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = categoriasEmDestaque[index];
@@ -228,7 +232,7 @@ class _HomeContentView extends StatelessWidget {
                                     icon: categoriaIconData(category.icone),
                                     background: style.background,
                                     color: style.foreground,
-                                    compact: colunas == 3,
+                                    compact: textoCategoriaNormal,
                                     onTap: () => onCategoryTap(category),
                                   );
                                 },
@@ -238,7 +242,7 @@ class _HomeContentView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: textoCategoriaNormal ? 20 : 28),
                   _SectionHeading(
                     title: 'Profissionais em destaque',
                     action: 'Ver todos',
