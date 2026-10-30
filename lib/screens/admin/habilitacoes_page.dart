@@ -33,6 +33,13 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
     _future.ignore();
   });
 
+  void _aplicarBusca() {
+    FocusScope.of(context).unfocus();
+    _termo = _buscaController.text.trim();
+    _pagina = 1;
+    _recarregar();
+  }
+
   Future<void> _analisar(Map<String, dynamic> item) async {
     if (_salvando) return;
     String acao = 'iniciar_analise';
@@ -176,6 +183,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                   : const <String, dynamic>{};
               final totalPaginas =
                   int.tryParse('${pagination['totalPaginas']}') ?? 1;
+              final filtrosAtivos = _termo.isNotEmpty || _estado.isNotEmpty;
               return RefreshIndicator(
                 onRefresh: () async {
                   _recarregar();
@@ -190,15 +198,16 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     TextField(
                       controller: _buscaController,
                       textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.search),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search),
                         labelText: 'Buscar profissional',
+                        suffixIcon: IconButton(
+                          tooltip: 'Aplicar busca',
+                          onPressed: _aplicarBusca,
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                        ),
                       ),
-                      onSubmitted: (value) {
-                        _termo = value.trim();
-                        _pagina = 1;
-                        _recarregar();
-                      },
+                      onSubmitted: (_) => _aplicarBusca(),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -233,9 +242,17 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     ),
                     const SizedBox(height: 16),
                     if (itens.isEmpty)
-                      const EmptyStateView(
-                        title: 'Nenhum profissional',
-                        message: 'Não há perfis nesta página.',
+                      EmptyStateView(
+                        title: _pagina > 1
+                            ? 'Nenhum profissional nesta página'
+                            : filtrosAtivos
+                            ? 'Nenhum profissional encontrado'
+                            : 'Nenhum profissional cadastrado',
+                        message: _pagina > 1
+                            ? 'Volte para a página anterior.'
+                            : filtrosAtivos
+                            ? 'Tente outro nome ou altere o filtro de habilitação.'
+                            : 'Os perfis aparecerão aqui quando forem cadastrados.',
                         icon: Icons.person_outline,
                       ),
                     for (final item in itens)
