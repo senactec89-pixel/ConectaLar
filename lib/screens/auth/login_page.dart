@@ -45,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
         _mostrarErro(
           error is GoogleIdentityException
               ? error.message
-              : 'Nao foi possivel entrar com o Google.',
+              : 'Não foi possível entrar com o Google.',
         );
       },
     );
@@ -115,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
             : null;
         if (versaoTermos == null || versaoTermos.isEmpty) {
           throw const ApiException(
-            'Nao foi possivel validar a versao atual dos termos.',
+            'Não foi possível validar a versão atual dos termos.',
           );
         }
         tipoCriado = escolha.tipo;
@@ -147,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) _mostrarErro(error.message);
     } catch (_) {
       if (mounted) {
-        _mostrarErro('Nao foi possivel entrar com o Google. Tente novamente.');
+        _mostrarErro('Não foi possível entrar com o Google. Tente novamente.');
       }
     } finally {
       if (mounted) setState(() => _enviando = false);

@@ -844,7 +844,7 @@ class _AdminPageState extends State<AdminPage> {
                   DropdownMenuItem(value: 'pendente', child: Text('Pendente')),
                   DropdownMenuItem(
                     value: 'em_analise',
-                    child: Text('Em analise'),
+                    child: Text('Em análise'),
                   ),
                   DropdownMenuItem(
                     value: 'resolvida',
@@ -1480,19 +1480,19 @@ class _PaginacaoAdmin extends StatelessWidget {
     child: Row(
       children: [
         IconButton(
-          tooltip: 'Pagina anterior',
+          tooltip: 'Página anterior',
           onPressed: onAnterior,
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         Expanded(
           child: Text(
-            'Pagina $pagina de $totalPaginas  -  $total registros',
+            'Página $pagina de $totalPaginas · $total registros',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
         IconButton(
-          tooltip: 'Proxima pagina',
+          tooltip: 'Próxima página',
           onPressed: onProxima,
           icon: const Icon(Icons.chevron_right_rounded),
         ),

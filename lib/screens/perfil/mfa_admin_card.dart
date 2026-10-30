@@ -64,7 +64,7 @@ class _MfaAdminCardState extends State<MfaAdminCard> {
                   children: [
                     const Expanded(
                       child: Text(
-                        'Nao foi possivel consultar o status do autenticador.',
+                        'Não foi possível consultar o status do autenticador.',
                       ),
                     ),
                     IconButton(
@@ -77,14 +77,14 @@ class _MfaAdminCardState extends State<MfaAdminCard> {
               else ...[
                 Text(
                   ativo
-                      ? 'Status: obrigatorio e ativo'
-                      : 'Status: pendente de configuracao',
+                      ? 'Status: obrigatório e ativo'
+                      : 'Status: pendente de configuração',
                 ),
                 const SizedBox(height: AppSpace.xs),
                 Text(
                   ativo
-                      ? 'Toda entrada administrativa exige um codigo temporario do autenticador. Essa protecao nao pode ser desativada pela conta.'
-                      : 'A API bloqueara as funcoes administrativas ate que a configuracao do autenticador seja concluida no proximo login.',
+                      ? 'Toda entrada administrativa exige um código temporário do autenticador. Essa proteção não pode ser desativada pela conta.'
+                      : 'O acesso administrativo ficará disponível após configurar o autenticador no próximo login.',
                   style: const TextStyle(
                     color: AppColors.textoSuave,
                     height: 1.35,
