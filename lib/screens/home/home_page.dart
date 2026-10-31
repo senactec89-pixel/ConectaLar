@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import '../../data/conectalar_mock_store.dart';
 import '../../widgets/async_state_view.dart';
 import '../../models/categoria.dart';
 import '../../models/busca_estado.dart';
@@ -30,6 +31,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<HomeContent> _contentFuture;
+  int _favoritesRevision = 0;
 
   @override
   void initState() {
@@ -53,8 +55,9 @@ class _HomePageState extends State<HomePage> {
     setState(_loadContent);
   }
 
-  void _openRoute(String route, {Object? arguments}) {
-    Navigator.pushNamed(context, route, arguments: arguments);
+  Future<void> _openRoute(String route, {Object? arguments}) async {
+    await Navigator.pushNamed(context, route, arguments: arguments);
+    if (mounted) setState(() => _favoritesRevision++);
   }
 
   void _onDestinationSelected(int index) {
@@ -83,6 +86,7 @@ class _HomePageState extends State<HomePage> {
 
             return _HomeContentView(
               content: snapshot.data ?? const HomeContent(),
+              favoritesRevision: _favoritesRevision,
               onRetry: _retry,
               retrying: snapshot.connectionState == ConnectionState.waiting,
               onSearchTap: () => _openRoute(
@@ -116,6 +120,7 @@ class _HomePageState extends State<HomePage> {
 class _HomeContentView extends StatelessWidget {
   const _HomeContentView({
     required this.content,
+    required this.favoritesRevision,
     required this.onRetry,
     required this.retrying,
     required this.onSearchTap,
@@ -127,6 +132,7 @@ class _HomeContentView extends StatelessWidget {
   });
 
   final HomeContent content;
+  final int favoritesRevision;
   final VoidCallback onRetry;
   final bool retrying;
   final VoidCallback onSearchTap;
@@ -283,7 +289,9 @@ class _HomeContentView extends StatelessWidget {
                               SizedBox(
                                 width: cardWidth,
                                 child: _FeaturedProfessionalCard(
+                                  key: ValueKey(professional.id),
                                   professional: professional,
+                                  favoritesRevision: favoritesRevision,
                                   onTap: () => onProfessionalTap(professional),
                                 ),
                               ),
@@ -976,11 +984,14 @@ class _CategoryTile extends StatelessWidget {
 
 class _FeaturedProfessionalCard extends StatefulWidget {
   const _FeaturedProfessionalCard({
+    super.key,
     required this.professional,
+    required this.favoritesRevision,
     required this.onTap,
   });
 
   final Profissional professional;
+  final int favoritesRevision;
   final VoidCallback onTap;
 
   @override
@@ -989,7 +1000,141 @@ class _FeaturedProfessionalCard extends StatefulWidget {
 }
 
 class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
+  late final _auth = AppServices.instance.auth;
   bool _isFavorite = false;
+  bool _loadingFavorite = true;
+  bool _favoriteError = false;
+  bool _savingFavorite = false;
+  int _requestRevision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth.addListener(_loadFavorite);
+    ConectaLarMockStore.instance.addListener(_onDemoChanged);
+    _loadFavorite();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FeaturedProfessionalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.professional.id != widget.professional.id ||
+        oldWidget.favoritesRevision != widget.favoritesRevision) {
+      _loadFavorite();
+    }
+  }
+
+  @override
+  void dispose() {
+    _auth.removeListener(_loadFavorite);
+    ConectaLarMockStore.instance.removeListener(_onDemoChanged);
+    super.dispose();
+  }
+
+  void _onDemoChanged() {
+    if (AppServices.instance.emDemonstracao && mounted) {
+      setState(() {
+        _isFavorite = ConectaLarMockStore.instance.isFavorito(
+          widget.professional.id,
+        );
+      });
+    }
+  }
+
+  Future<void> _loadFavorite() async {
+    final services = AppServices.instance;
+    final revision = ++_requestRevision;
+    if (!mounted) return;
+    setState(() {
+      _loadingFavorite = true;
+      _favoriteError = false;
+      _savingFavorite = false;
+    });
+    try {
+      bool favorite = false;
+      if (services.emDemonstracao) {
+        favorite = ConectaLarMockStore.instance.isFavorito(
+          widget.professional.id,
+        );
+      } else if (services.auth.autenticado &&
+          services.auth.usuarioAtual?['tipo'] == 'cliente') {
+        final response = await services.clientes.consultarFavorito(
+          widget.professional.id,
+        );
+        if (response['favorito'] is! bool) {
+          throw const FormatException('Resposta de favorito inválida.');
+        }
+        favorite = response['favorito'] as bool;
+      }
+      if (!mounted || revision != _requestRevision) return;
+      setState(() {
+        _isFavorite = favorite;
+        _loadingFavorite = false;
+      });
+    } catch (_) {
+      if (!mounted || revision != _requestRevision) return;
+      setState(() {
+        _favoriteError = true;
+        _loadingFavorite = false;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final services = AppServices.instance;
+    if (_loadingFavorite || _savingFavorite) return;
+    if (_favoriteError) {
+      await _loadFavorite();
+      return;
+    }
+    if (services.emDemonstracao) {
+      ConectaLarMockStore.instance.toggleFavorito(widget.professional.id);
+      return;
+    }
+    if (!services.auth.autenticado) {
+      await Navigator.pushNamed(context, AppRoutes.login);
+      if (mounted) await _loadFavorite();
+      return;
+    }
+    if (services.auth.usuarioAtual?['tipo'] != 'cliente') return;
+
+    final wasFavorite = _isFavorite;
+    final revision = _requestRevision;
+    setState(() => _savingFavorite = true);
+    try {
+      if (wasFavorite) {
+        await services.clientes.removerFavorito(widget.professional.id);
+      } else {
+        await services.clientes.adicionarFavorito(widget.professional.id);
+      }
+      if (!mounted || revision != _requestRevision) return;
+      setState(() => _isFavorite = !wasFavorite);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite
+                ? 'Perfil removido dos favoritos.'
+                : 'Perfil salvo nos favoritos.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted || revision != _requestRevision) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite
+                ? 'Não foi possível remover este favorito.'
+                : 'Não foi possível salvar este favorito.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted && revision == _requestRevision) {
+        setState(() => _savingFavorite = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -997,6 +1142,9 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
     final price = professional.precoInicial;
     final image = professional.fotoAsset;
     final imageUrl = professional.fotoUrl;
+    final auth = AppServices.instance.auth;
+    final showFavorite =
+        !auth.autenticado || auth.usuarioAtual?['tipo'] == 'cliente';
 
     return Material(
       color: Colors.white,
@@ -1084,32 +1232,47 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                         ),
                       ),
                     ),
-                  Positioned(
-                    right: 9,
-                    top: 8,
-                    child: Material(
-                      color: const Color(0x55000000),
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
-                        ),
-                        tooltip: _isFavorite
-                            ? 'Remover dos favoritos'
-                            : 'Adicionar aos favoritos',
-                        onPressed: () =>
-                            setState(() => _isFavorite = !_isFavorite),
-                        icon: Icon(
-                          _isFavorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: Colors.white,
-                          size: 21,
+                  if (showFavorite)
+                    Positioned(
+                      right: 9,
+                      top: 8,
+                      child: Material(
+                        color: const Color(0x55000000),
+                        shape: const CircleBorder(),
+                        child: IconButton(
+                          key: ValueKey('home-favorito-${professional.id}'),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
+                          ),
+                          tooltip: _favoriteError
+                              ? 'Não foi possível carregar favorito. Tentar novamente'
+                              : _isFavorite
+                              ? 'Remover dos favoritos'
+                              : 'Adicionar aos favoritos',
+                          onPressed: _loadingFavorite || _savingFavorite
+                              ? null
+                              : _toggleFavorite,
+                          icon: _loadingFavorite || _savingFavorite
+                              ? const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  _favoriteError
+                                      ? Icons.refresh_rounded
+                                      : _isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: Colors.white,
+                                  size: 21,
+                                ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

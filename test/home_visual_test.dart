@@ -95,13 +95,17 @@ void main() {
         );
         expect(tester.getSize(verTodas).height, greaterThanOrEqualTo(48));
 
+        final favorito = find.byKey(
+          ValueKey(
+            'home-favorito-${HomeMockData.content.featuredProfessionals.first.id}',
+          ),
+        );
         await tester.scrollUntilVisible(
-          find.byTooltip('Adicionar aos favoritos').first,
+          favorito,
           180,
           scrollable: find.byType(Scrollable).first,
         );
         await tester.pumpAndSettle();
-        final favorito = find.byTooltip('Adicionar aos favoritos').first;
         expect(tester.getSize(favorito).width, greaterThanOrEqualTo(48));
         expect(tester.getSize(favorito).height, greaterThanOrEqualTo(48));
         expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
