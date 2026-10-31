@@ -45,7 +45,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 
 ## Decisoes de produto ainda abertas
 
-- Duracao padrao de atendimento, fuso horario, sobreposicao e capacidade da agenda.
+- P06 está aprovada: padrão de 120 minutos, duração configurável de 1 a 1.440 minutos, sem intervalo adicional, fuso `America/Sao_Paulo` e validação de sobreposição por perfil. P12 continua aberta para equipes e múltiplos executores de empresas.
 - Politica de cancelamento: prazo, excecoes, justificativa e efeitos no historico.
 - Politica de snapshot, historico, retencao e acesso ao endereco apos encerramento/cancelamento.
 - Conjunto documental final exigido para selo, validade documental e eventual revalidacao periodica.

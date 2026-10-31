@@ -198,7 +198,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
           data,
           horario,
           _disponibilidades,
-          duracaoMinutos: _ofertaSelecionada?.duracaoMinutos ?? 60,
+          duracaoMinutos: _ofertaSelecionada?.duracaoMinutos ?? 120,
         )) {
       _mostrarErro(
         'Escolha uma data e horário dentro da disponibilidade informada pelo profissional.',
@@ -1249,7 +1249,7 @@ class _SugestoesAgendaState extends State<_SugestoesAgenda> {
   }
 
   Future<List<_SugestaoAgenda>> _carregar(DateTime? selecionada) async {
-    final duracao = widget.oferta?.duracaoMinutos ?? 60;
+    final duracao = widget.oferta?.duracaoMinutos ?? 120;
     if (AppServices.instance.modoDemo) {
       return _proximasSugestoes(widget.itens, duracao);
     }

@@ -103,6 +103,8 @@ test(
     );
     const profissionalId = perfil.profissional.id;
     const servico = perfil.profissional.servicos[0];
+    assert.equal(servico.duracaoMinutos, 120);
+    assert.equal(servico.intervaloMinutos, 0);
     await request(
       'PUT',
       'profissionais/me/disponibilidade',

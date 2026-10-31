@@ -3350,6 +3350,11 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    DuracaoMinutos:
+      type: integer
+      minimum: 1
+      maximum: 1440
+      default: 120
     Paginacao:
       type: object
       additionalProperties: false
@@ -4176,13 +4181,11 @@ components:
         horarioServico:
           type: string
         duracaoMinutos:
-          type: integer
-          minimum: 15
-          maximum: 480
+          $ref: '#/components/schemas/DuracaoMinutos'
         intervaloMinutos:
           type: integer
-          minimum: 0
-          maximum: 480
+          const: 0
+          description: P06 sets no additional interval between appointments.
         reagendamento:
           oneOf:
             - $ref: '#/components/schemas/Reagendamento'
@@ -4607,8 +4610,12 @@ components:
           minimum: 0
         ativo:
           type: boolean
-        duracaoMinutos: {type: integer, minimum: 15, maximum: 480}
-        intervaloMinutos: {type: integer, minimum: 0, maximum: 480}
+        duracaoMinutos: {$ref: '#/components/schemas/DuracaoMinutos'}
+        intervaloMinutos:
+          type: integer
+          const: 0
+          default: 0
+          description: P06 sets no additional interval between appointments.
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
@@ -4633,15 +4640,12 @@ components:
           type: boolean
           description: Whether the offer is publicly available. Defaults to true for a new offer.
         duracaoMinutos:
-          type: integer
-          minimum: 15
-          maximum: 480
-          default: 60
+          $ref: '#/components/schemas/DuracaoMinutos'
         intervaloMinutos:
           type: integer
           minimum: 0
-          maximum: 480
-          default: 30
+          maximum: 1440
+          description: Legacy input accepted for compatibility; the API ignores it and persists zero per P06.
     ReagendamentoRequest:
       type: object
       additionalProperties: false

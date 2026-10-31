@@ -602,7 +602,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                 if (_tab == 2) ...[
                   const SizedBox(height: AppSpace.md),
                   const Text(
-                    'Antes de aceitar outro pedido, considere a duração dos atendimentos e o tempo de deslocamento. Um dia com atendimento pode ter outros horários livres.',
+                    'Os horários livres consideram a duração de cada serviço. Não há intervalo extra entre atendimentos; organize seu deslocamento ao definir a disponibilidade.',
                     style: TextStyle(color: AppColors.textoSuave),
                   ),
                 ],
@@ -922,10 +922,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
-    var duracaoMinutos =
-        int.tryParse('${servico?['duracaoMinutos'] ?? 60}') ?? 60;
-    var intervaloMinutos =
-        int.tryParse('${servico?['intervaloMinutos'] ?? 30}') ?? 30;
+    final duracao = TextEditingController(
+      text: '${servico?['duracaoMinutos'] ?? 120}',
+    );
     final form = GlobalKey<FormState>();
     var enviando = false;
     String? erro;
@@ -982,46 +981,21 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   validator: validarPrecoOpcional,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: '$duracaoMinutos',
-                  isExpanded: true,
+                TextFormField(
+                  controller: duracao,
+                  enabled: !enviando,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
                   decoration: const InputDecoration(
                     labelText: 'Duração estimada',
                     prefixIcon: Icon(Icons.timer_outlined),
                   ),
-                  items: const [30, 45, 60, 90, 120, 180, 240]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: enviando
-                      ? null
-                      : (value) =>
-                            duracaoMinutos = int.tryParse(value ?? '') ?? 60,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: '$intervaloMinutos',
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Intervalo para deslocamento',
-                    prefixIcon: Icon(Icons.directions_car_outlined),
-                  ),
-                  items: const [0, 15, 30, 45, 60]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: enviando
-                      ? null
-                      : (value) =>
-                            intervaloMinutos = int.tryParse(value ?? '') ?? 30,
+                  validator: (value) {
+                    final minutes = int.tryParse((value ?? '').trim());
+                    return minutes == null || minutes < 1 || minutes > 1440
+                        ? 'Informe uma duração entre 1 e 1.440 minutos.'
+                        : null;
+                  },
                 ),
                 if (erro != null) ...[
                   const SizedBox(height: 12),
@@ -1052,8 +1026,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'categoriaId': categoriaId,
                           'precoInicial': parsePrecoInicial(preco.text),
                           'ativo': servico?['ativo'] != false,
-                          'duracaoMinutos': duracaoMinutos,
-                          'intervaloMinutos': intervaloMinutos,
+                          'duracaoMinutos': int.parse(duracao.text.trim()),
+                          'intervaloMinutos': 0,
                         };
                         if (servico == null) {
                           if (servicos.length >= 12) {
@@ -1129,8 +1103,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'categoriaId': item['categoriaId'] ?? item['categoria']?['id'],
           'precoInicial': item['precoInicial'],
           'ativo': item['ativo'] != false,
-          'duracaoMinutos': item['duracaoMinutos'] ?? 60,
-          'intervaloMinutos': item['intervaloMinutos'] ?? 30,
+          'duracaoMinutos': item['duracaoMinutos'] ?? 120,
+          'intervaloMinutos': 0,
         },
       )
       .toList();
@@ -1304,7 +1278,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         ),
                         title: Text('${e['nome']}'),
                         subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
+                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 120} min ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
                         ),
                         isThreeLine: true,
                         trailing: PopupMenuButton<String>(

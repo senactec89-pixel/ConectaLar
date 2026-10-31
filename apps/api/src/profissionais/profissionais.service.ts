@@ -936,17 +936,16 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
-      duracaoMinutos: durationField(body.duracaoMinutos, 60),
-      intervaloMinutos: durationField(body.intervaloMinutos, 30, true),
+      duracaoMinutos: durationField(body.duracaoMinutos, 120),
+      intervaloMinutos: 0,
     };
   });
 }
 
-function durationField(value: unknown, fallback: number, allowZero = false): number {
+function durationField(value: unknown, fallback: number): number {
   if (value === undefined || value === null || value === '') return fallback;
   const parsed = typeof value === 'string' ? Number(value) : value;
-  const minimum = allowZero ? 0 : 15;
-  if (!Number.isInteger(parsed) || Number(parsed) < minimum || Number(parsed) > 480) {
+  if (!Number.isInteger(parsed) || Number(parsed) < 1 || Number(parsed) > 1440) {
     throw badRequest('DURACAO_INVALIDA');
   }
   return Number(parsed);

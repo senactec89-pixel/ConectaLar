@@ -12,9 +12,50 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
-  testWidgets('novo serviço permite escolher a duração e envia o valor selecionado', (
-    tester,
-  ) async {
+  testWidgets(
+    'novo serviço aceita duração personalizada e envia sem intervalo',
+    (tester) async {
+      Map<String, dynamic>? enviado;
+      await configurarFrontend(
+        papel: 'profissional',
+        responder: (request) async {
+          if (request.url.path.endsWith('/me/servicos')) {
+            if (request.method == 'PUT') {
+              enviado = jsonDecode(request.body) as Map<String, dynamic>;
+            }
+            return jsonResponse({'servicos': []});
+          }
+          return null;
+        },
+      );
+      await abrirFrontend(
+        tester,
+        AppRoutes.servicosProfissional,
+        width: 360,
+        textScale: 2,
+      );
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do serviço'),
+        'Instalação de teste',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Duração estimada (minutos)'),
+        '90',
+      );
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect((enviado!['servicos'] as List).single['duracaoMinutos'], 90);
+      expect((enviado!['servicos'] as List).single['intervaloMinutos'], 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('nova oferta começa com duração de 120 minutos', (tester) async {
     Map<String, dynamic>? enviado;
     await configurarFrontend(
       papel: 'profissional',
@@ -38,16 +79,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Nome do serviço'),
-      'Instalação de teste',
+      'Serviço padrão',
     );
-    await tester.tap(find.text('60 minutos'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('90 minutos').last);
-    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Salvar'));
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
-    expect((enviado!['servicos'] as List).single['duracaoMinutos'], 90);
+    final oferta =
+        (enviado!['servicos'] as List).single as Map<String, dynamic>;
+    expect(oferta['duracaoMinutos'], 120);
+    expect(oferta['intervaloMinutos'], 0);
     expect(tester.takeException(), isNull);
   });
 

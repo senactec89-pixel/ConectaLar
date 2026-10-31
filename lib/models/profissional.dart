@@ -73,8 +73,8 @@ class OfertaProfissional {
     required this.nome,
     this.categoriaId,
     this.precoInicial,
-    this.duracaoMinutos = 60,
-    this.intervaloMinutos = 30,
+    this.duracaoMinutos = 120,
+    this.intervaloMinutos = 0,
   });
   final int id;
   final String nome;

@@ -62,7 +62,7 @@ void main() {
     expect(oferta['nome'], 'Instalação elétrica');
     expect(oferta['ativo'], isFalse);
     expect(oferta['duracaoMinutos'], 90);
-    expect(oferta['intervaloMinutos'], 30);
+    expect(oferta['intervaloMinutos'], 0);
     expect(find.textContaining('Pausada'), findsOneWidget);
   });
 
@@ -339,7 +339,7 @@ Map<String, dynamic> _oferta({required bool ativo}) => {
   'precoInicial': 120,
   'ativo': ativo,
   'duracaoMinutos': 90,
-  'intervaloMinutos': 30,
+  'intervaloMinutos': 0,
 };
 
 Map<String, dynamic> _habilitacao() => {
