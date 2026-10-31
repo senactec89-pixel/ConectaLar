@@ -388,6 +388,8 @@ void main() {
           width: largura,
           textScale: 2,
         );
+        await tester.ensureVisible(find.text('Profissional de teste'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Profissional de teste'));
         await tester.pumpAndSettle();
         expect(find.text('Confirmar'), findsOneWidget);

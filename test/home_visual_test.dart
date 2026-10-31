@@ -38,7 +38,7 @@ void main() {
         if (escala == 2) {
           final buscaCompacta = find.descendant(
             of: find.byKey(const ValueKey('home-search')),
-            matching: find.text('Busca'),
+            matching: find.text('Buscar'),
           );
           expect(buscaCompacta, findsOneWidget);
           expect(

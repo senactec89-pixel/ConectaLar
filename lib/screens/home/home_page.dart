@@ -271,32 +271,23 @@ class _HomeContentView extends StatelessWidget {
                             MediaQuery.textScalerOf(context).scale(13) > 19.5;
                         final columns =
                             constraints.maxWidth < 300 || textoAmpliado ? 1 : 2;
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          primary: false,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: content.featuredProfessionals.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: columns == 1
-                                    ? textoAmpliado
-                                          ? 0.75
-                                          : 0.92
-                                    : constraints.maxWidth > 600
-                                    ? 1.2
-                                    : 0.52,
+                        final cardWidth =
+                            (constraints.maxWidth - (columns - 1) * 12) /
+                            columns;
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (final professional
+                                in content.featuredProfessionals)
+                              SizedBox(
+                                width: cardWidth,
+                                child: _FeaturedProfessionalCard(
+                                  professional: professional,
+                                  onTap: () => onProfessionalTap(professional),
+                                ),
                               ),
-                          itemBuilder: (context, index) {
-                            final professional =
-                                content.featuredProfessionals[index];
-                            return _FeaturedProfessionalCard(
-                              professional: professional,
-                              onTap: () => onProfessionalTap(professional),
-                            );
-                          },
+                          ],
                         );
                       },
                     ),
@@ -397,12 +388,10 @@ class _NearbyProfessionals extends StatelessWidget {
         const SizedBox(height: AppSpace.sm),
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          child: SizedBox(
-            height: !showMap && MediaQuery.textScalerOf(context).scale(16) > 24
-                ? 260
-                : 176,
-            child: showMap
-                ? GoogleMap(
+          child: showMap
+              ? SizedBox(
+                  height: 176,
+                  child: GoogleMap(
                     initialCameraPosition: CameraPosition(
                       target: _mapCenter(located),
                       zoom: 11,
@@ -426,9 +415,12 @@ class _NearbyProfessionals extends StatelessWidget {
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     compassEnabled: false,
-                  )
-                : _MapFallback(onTap: onSeeAll),
-          ),
+                  ),
+                )
+              : ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 176),
+                  child: _MapFallback(onTap: onSeeAll),
+                ),
         ),
       ],
     );
@@ -461,6 +453,7 @@ class _MapFallback extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(AppSpace.md),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.map_outlined, color: AppColors.verde, size: 28),
@@ -1012,6 +1005,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
       child: InkWell(
         onTap: widget.onTap,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
@@ -1119,163 +1113,161 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                 ],
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 17,
-                          backgroundColor: AppColors.verdeClaro,
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : image == null
-                              ? null
-                              : AssetImage(image),
-                          child: imageUrl == null && image == null
-                              ? const Icon(
-                                  Icons.person_outline_rounded,
-                                  color: AppColors.verde,
-                                  size: 18,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                professional.nome,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.texto,
-                                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: AppColors.verdeClaro,
+                        backgroundImage: imageUrl != null
+                            ? NetworkImage(imageUrl)
+                            : image == null
+                            ? null
+                            : AssetImage(image),
+                        child: imageUrl == null && image == null
+                            ? const Icon(
+                                Icons.person_outline_rounded,
+                                color: AppColors.verde,
+                                size: 18,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              professional.nome,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.texto,
                               ),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    size: 14,
-                                    color: AppColors.estrela,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Expanded(
-                                    child: Text(
-                                      professional.notaMedia == null
-                                          ? 'Novo profissional'
-                                          : '${professional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} (${professional.quantidadeAvaliacoes ?? 0})',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textoSuave,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: AppColors.estrela,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    professional.notaMedia == null
+                                        ? 'Novo profissional'
+                                        : '${professional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} (${professional.quantidadeAvaliacoes ?? 0})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textoSuave,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 15,
-                          color: AppColors.textoSuave,
-                        ),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            professional.distanciaKm == null
-                                ? professional.bairro
-                                : '${professional.bairro} · ${professional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textoSuave,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (!professional.podeReceberSolicitacoes) ...[
-                      const SizedBox(height: AppSpace.xs),
-                      Semantics(
-                        label:
-                            'Este profissional não recebe novos pedidos no momento.',
-                        child: ExcludeSemantics(
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline_rounded,
-                                size: 14,
-                                color: AppColors.textoSuave,
-                              ),
-                              const SizedBox(width: AppSpace.xs),
-                              Expanded(
-                                child: Text(
-                                  'Não recebe pedidos',
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 15,
+                        color: AppColors.textoSuave,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          professional.distanciaKm == null
+                              ? professional.bairro
+                              : '${professional.bairro} · ${professional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textoSuave,
                           ),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 7),
-                    if (professional.servicos.isNotEmpty)
-                      Text(
-                        'Serviços: ${professional.servicos.take(2).join(', ')}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textoSuave,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                  ),
+                  if (!professional.podeReceberSolicitacoes) ...[
+                    const SizedBox(height: AppSpace.xs),
+                    Semantics(
+                      label:
+                          'Este profissional não recebe novos pedidos no momento.',
+                      child: ExcludeSemantics(
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 14,
+                              color: AppColors.textoSuave,
+                            ),
+                            const SizedBox(width: AppSpace.xs),
+                            Expanded(
+                              child: Text(
+                                'Não recebe pedidos',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
                         ),
-                      )
-                    else
-                      Text(
-                        professional.descricao,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textoSuave,
-                        ),
-                      ),
-                    const Spacer(),
-                    Text(
-                      price == null
-                          ? 'Preço sob consulta'
-                          : 'A partir de R\$ ${price.toStringAsFixed(2).replaceAll('.', ',')}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.verde,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 7),
+                  if (professional.servicos.isNotEmpty)
+                    Text(
+                      'Serviços: ${professional.servicos.take(2).join(', ')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textoSuave,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    Text(
+                      professional.descricao,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textoSuave,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    price == null
+                        ? 'Preço sob consulta'
+                        : 'A partir de R\$ ${price.toStringAsFixed(2).replaceAll('.', ',')}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.verde,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

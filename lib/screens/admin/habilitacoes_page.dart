@@ -212,6 +212,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _estado,
+                      isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: 'Habilitação',
                       ),
