@@ -207,6 +207,38 @@ class _HomeContentView extends StatelessWidget {
                                           (larguraMinima + espacoHorizontal))
                                       .floor()
                                       .clamp(2, 4);
+                              final larguraCard =
+                                  (constraints.maxWidth -
+                                      (colunas - 1) * espacoHorizontal) /
+                                  colunas;
+                              final alturaMinima = textoAmpliado
+                                  ? 190.0
+                                  : tamanhoTexto > 13.2
+                                  ? 140.0
+                                  : colunas == 3
+                                  ? 104.0
+                                  : 112.0;
+                              var alturaTexto = 0.0;
+                              for (final categoria in categoriasEmDestaque) {
+                                final painter = TextPainter(
+                                  text: TextSpan(
+                                    text: categoria.nome.replaceAll('-', '-\n'),
+                                    style: DefaultTextStyle.of(
+                                      context,
+                                    ).style.merge(_CategoryTile.labelStyle),
+                                  ),
+                                  textDirection: Directionality.of(context),
+                                  textScaler: MediaQuery.textScalerOf(context),
+                                  textAlign: TextAlign.center,
+                                )..layout(maxWidth: larguraCard);
+                                if (painter.height > alturaTexto) {
+                                  alturaTexto = painter.height;
+                                }
+                                painter.dispose();
+                              }
+                              final alturaConteudo =
+                                  alturaTexto +
+                                  (textoCategoriaNormal ? 48.0 : 68.0);
                               return GridView.builder(
                                 shrinkWrap: true,
                                 primary: false,
@@ -219,13 +251,10 @@ class _HomeContentView extends StatelessWidget {
                                           ? 8
                                           : 12,
                                       crossAxisSpacing: espacoHorizontal,
-                                      mainAxisExtent: textoAmpliado
-                                          ? 190
-                                          : tamanhoTexto > 13.2
-                                          ? 140
-                                          : colunas == 3
-                                          ? 104
-                                          : 112,
+                                      mainAxisExtent:
+                                          alturaConteudo > alturaMinima
+                                          ? alturaConteudo
+                                          : alturaMinima,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = categoriasEmDestaque[index];
@@ -928,6 +957,11 @@ class _CategoryTile extends StatelessWidget {
   final Color color;
   final bool compact;
   final VoidCallback onTap;
+  static const labelStyle = TextStyle(
+    color: AppColors.texto,
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -964,14 +998,8 @@ class _CategoryTile extends StatelessWidget {
                 SizedBox(height: compact ? 4 : 8),
                 Text(
                   category.nome.replaceAll('-', '-\n'),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.texto,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: labelStyle,
                 ),
               ],
             ),

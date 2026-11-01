@@ -1,4 +1,6 @@
 import 'package:conectarlar_app/app/theme.dart';
+import 'package:conectarlar_app/models/categoria.dart';
+import 'package:conectarlar_app/models/home_content.dart';
 import 'package:conectarlar_app/screens/home/home_mock_data.dart';
 import 'package:conectarlar_app/screens/home/home_page.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
@@ -8,6 +10,50 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   setUp(() => AppServices.instance = AppServices(modoDemo: true));
+
+  testWidgets('categorias longas permanecem legíveis na Home', (tester) async {
+    const nome = 'Instalação e manutenção de equipamentos residenciais';
+    const dados = HomeContent(
+      categories: [
+        Categoria(id: 1, nome: nome),
+        Categoria(id: 2, nome: 'Limpeza'),
+      ],
+    );
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    for (final largura in [360.0, 390.0, 412.0]) {
+      for (final escala in [1.0, 2.0]) {
+        tester.view.physicalSize = Size(largura, 844);
+        await tester.pumpWidget(
+          MaterialApp(
+            key: ValueKey('$largura-$escala'),
+            theme: AppTheme.light,
+            home: HomePage(loadContent: () async => dados),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(escala)),
+              child: child!,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final titulo = find.text(nome);
+        await tester.scrollUntilVisible(
+          titulo,
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.renderObject<RenderParagraph>(titulo).didExceedMaxLines,
+          isFalse,
+        );
+        expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
+      }
+    }
+  });
 
   testWidgets('Home mantém categorias e ações legíveis em larguras mobile', (
     tester,
