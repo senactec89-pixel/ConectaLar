@@ -492,7 +492,24 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     'Confira a região e o horário. O endereço completo fica protegido até o aceite.',
                   ),
                   const SizedBox(height: 14),
+                  Wrap(
+                    spacing: AppSpace.md,
+                    runSpacing: AppSpace.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Filtrar pedidos',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      Text(
+                        'Deslize para ver mais →',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpace.sm),
                   SingleChildScrollView(
+                    key: const ValueKey('profissional-filtros'),
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
@@ -505,6 +522,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
+                              key: ValueKey('profissional-filtro-$f'),
                               label: Text(f),
                               selected: _filtro == f,
                               onSelected: (_) => setState(() => _filtro = f),
