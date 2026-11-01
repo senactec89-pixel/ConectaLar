@@ -1092,8 +1092,16 @@ class _AdminPageState extends State<AdminPage> {
         builder: (context) => AlertDialog(
           scrollable: true,
           title: Text('${usuario['nome'] ?? 'Usuário'}'),
-          content: Text(
-            'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${_dataAuditoria(usuario['criadoEm'])}',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText('ID da conta: ${usuario['id'] ?? item['id']}'),
+              const SizedBox(height: AppSpace.sm),
+              Text(
+                'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${_dataAuditoria(usuario['criadoEm'])}',
+              ),
+            ],
           ),
           actions: [
             TextButton(

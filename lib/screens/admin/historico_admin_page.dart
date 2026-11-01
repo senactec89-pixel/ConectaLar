@@ -160,7 +160,8 @@ class _HistoricoAdminViewState extends State<_HistoricoAdminView> {
                         decoration: const InputDecoration(
                           labelText: 'ID da conta (opcional)',
                           helperText:
-                              'Filtra a participação de um cliente ou profissional.',
+                              'Filtre por cliente ou profissional. Encontre o ID nos detalhes da conta, na área Contas.',
+                          helperMaxLines: 6,
                         ),
                         keyboardType: TextInputType.number,
                         textInputAction: TextInputAction.search,
