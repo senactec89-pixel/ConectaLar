@@ -26,6 +26,40 @@ Object _notificacoes(bool lida) => {
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('notificações identificam leitura em texto ampliado', (
+    tester,
+  ) async {
+    var lida = false;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/notificacoes/me') {
+          return jsonResponse(_notificacoes(lida));
+        }
+        if (request.method == 'PATCH') {
+          lida = true;
+          return jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    for (final width in [360.0, 390.0, 412.0]) {
+      lida = false;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.notificacoes,
+        width: width,
+        textScale: 2,
+      );
+      expect(find.text('Não lida'), findsOneWidget);
+      await tester.tap(find.byTooltip('Marcar todas como lidas'));
+      await tester.pumpAndSettle();
+      expect(find.text('Lida'), findsOneWidget);
+      expect(find.text('Não lida'), findsNothing);
+      expect(tester.takeException(), isNull, reason: '$width px');
+    }
+  });
+
   testWidgets('notificações podem ser atualizadas pelo botão ou gesto', (
     tester,
   ) async {
