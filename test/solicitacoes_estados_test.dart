@@ -37,6 +37,58 @@ Future<void> _preencherSolicitacao(WidgetTester tester) async {
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('resumo acompanha o endereço escolhido em telas pequenas', (
+    tester,
+  ) async {
+    final segundoEndereco = {
+      ..._previa.endereco,
+      'id': 222,
+      'logradouro': 'Avenida das Flores',
+      'numero': '35',
+      'bairro': 'Vila Nova',
+      'cidade': 'Belo Horizonte',
+      'uf': 'MG',
+      'principal': false,
+    };
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/clientes/me/enderecos') {
+          return jsonResponse({
+            'enderecos': [_previa.endereco, segundoEndereco],
+          });
+        }
+        if (request.url.path.endsWith('/disponibilidade')) {
+          return jsonResponse({'disponibilidades': []});
+        }
+        return null;
+      },
+    );
+    for (final largura in [360.0, 390.0, 412.0]) {
+      for (final escala in [1.0, 2.0]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await abrirFrontend(
+          tester,
+          AppRoutes.solicitarServico,
+          arguments: profissionalFromApi(_previa.profissionais.first),
+          width: largura,
+          textScale: escala,
+        );
+        final endereco = find.byKey(const ValueKey('solicitar-endereco'));
+        await _mostrar(tester, endereco);
+        await tester.tap(endereco);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Vila Nova, Belo Horizonte/MG').last);
+        await tester.pumpAndSettle();
+        final resumo = find.text(
+          clienteEnderecoFromApi(segundoEndereco).completo,
+        );
+        await _mostrar(tester, resumo);
+        expect(resumo, findsOneWidget);
+        expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
+      }
+    }
+  });
+
   testWidgets('filtros de pedidos indicam rolagem e permitem abrir histórico', (
     tester,
   ) async {
