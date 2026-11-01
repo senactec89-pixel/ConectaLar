@@ -1315,47 +1315,79 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   ],
                   ...list.map(
                     (e) => Card(
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.home_repair_service_outlined,
-                          color: AppColors.verde,
-                        ),
-                        title: Text('${e['nome']}'),
-                        subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
-                        ),
-                        isThreeLine: true,
-                        trailing: PopupMenuButton<String>(
-                          tooltip: 'Ações da oferta',
-                          enabled: !_salvando,
-                          onSelected: (acao) {
-                            if (acao == 'editar') {
-                              _editar(servico: e);
-                            } else {
-                              _alterarStatus(e);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'editar',
-                              child: ListTile(
-                                leading: Icon(Icons.edit_outlined),
-                                title: Text('Editar'),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'status',
-                              child: ListTile(
-                                leading: Icon(
-                                  e['ativo'] == true
-                                      ? Icons.pause_circle_outline
-                                      : Icons.play_circle_outline,
+                      child: Padding(
+                        padding: AppInsets.card,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.home_repair_service_outlined,
+                                  color: AppColors.verde,
                                 ),
-                                title: Text(
-                                  e['ativo'] == true ? 'Pausar' : 'Reativar',
+                                const SizedBox(width: AppSpace.sm),
+                                Expanded(
+                                  child: Text(
+                                    '${e['nome']}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  ),
                                 ),
-                              ),
+                                PopupMenuButton<String>(
+                                  tooltip: 'Ações da oferta',
+                                  enabled: !_salvando,
+                                  onSelected: (acao) {
+                                    if (acao == 'editar') {
+                                      _editar(servico: e);
+                                    } else {
+                                      _alterarStatus(e);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'editar',
+                                      child: ListTile(
+                                        leading: Icon(Icons.edit_outlined),
+                                        title: Text('Editar'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'status',
+                                      child: ListTile(
+                                        leading: Icon(
+                                          e['ativo'] == true
+                                              ? Icons.pause_circle_outline
+                                              : Icons.play_circle_outline,
+                                        ),
+                                        title: Text(
+                                          e['ativo'] == true
+                                              ? 'Pausar'
+                                              : 'Reativar',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: AppSpace.xs),
+                            Text(
+                              '${e['categoria']?['nome'] ?? 'Sem categoria'}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: AppSpace.xs),
+                            Text(
+                              e['precoInicial'] == null
+                                  ? 'Preço a informar'
+                                  : 'A partir de R\$ ${e['precoInicial']}',
+                            ),
+                            Text(
+                              '${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo',
+                            ),
+                            Text(e['ativo'] == true ? 'Ativa' : 'Pausada'),
                           ],
                         ),
                       ),
