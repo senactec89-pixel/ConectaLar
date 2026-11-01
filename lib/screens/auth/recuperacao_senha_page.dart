@@ -237,7 +237,7 @@ class _FormularioCodigo extends StatelessWidget {
             icone: Icons.password_rounded,
             titulo: 'Defina uma nova senha',
             descricao:
-                'Digite o código recebido e escolha uma senha com pelo menos 8 caracteres.',
+                'Digite o código recebido. A senha deve ter pelo menos 8 caracteres, incluindo letra maiúscula, letra minúscula, número e caractere especial.',
           ),
           const SizedBox(height: AppSpace.xl),
           if (tokenDemonstracao) ...[
