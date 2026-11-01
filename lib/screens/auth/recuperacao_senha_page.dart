@@ -26,6 +26,7 @@ class _RecuperacaoSenhaPageState extends State<RecuperacaoSenhaPage> {
   bool _concluido = false;
   bool _enviando = false;
   bool _ocultarSenha = true;
+  bool _codigoDemonstracao = false;
 
   @override
   void dispose() {
@@ -45,7 +46,10 @@ class _RecuperacaoSenhaPageState extends State<RecuperacaoSenhaPage> {
       final devToken = response['devToken'];
       if (devToken is String) _token.text = devToken;
       if (!mounted) return;
-      setState(() => _solicitado = true);
+      setState(() {
+        _solicitado = true;
+        _codigoDemonstracao = devToken is String && devToken.isNotEmpty;
+      });
     } on ApiException catch (error) {
       _mensagem(error.message);
     } catch (_) {
@@ -114,7 +118,7 @@ class _RecuperacaoSenhaPageState extends State<RecuperacaoSenhaPage> {
                             setState(() => _ocultarSenha = !_ocultarSenha),
                         onConfirmar: _confirmar,
                         onReenviar: _solicitarCodigo,
-                        tokenDemonstracao: _token.text.isNotEmpty,
+                        tokenDemonstracao: _codigoDemonstracao,
                       )
                     : _FormularioEmail(
                         formKey: _formKey,

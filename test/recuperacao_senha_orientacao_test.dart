@@ -10,6 +10,59 @@ import 'package:http/testing.dart';
 import 'support/frontend_helpers.dart';
 
 void main() {
+  testWidgets('aviso de demonstração depende do código recebido da API', (
+    tester,
+  ) async {
+    var codigoDeTeste = false;
+    AppServices.instance = AppServices(
+      api: ApiService(
+        client: MockClient(
+          (_) async => jsonResponse(
+            codigoDeTeste ? {'devToken': '123456'} : {'ok': true},
+          ),
+        ),
+      ),
+    );
+    addTearDown(() => AppServices.instance.api.close());
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final respostaDeTeste in [false, true]) {
+      codigoDeTeste = respostaDeTeste;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: RecuperacaoSenhaPage(key: ValueKey(respostaDeTeste)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('recuperacao-email')),
+        'cliente@example.invalid',
+      );
+      await tester.tap(find.byKey(const ValueKey('recuperacao-solicitar')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('recuperacao-token')),
+        '123456',
+      );
+      final mostrarSenha = find.byTooltip('Mostrar senha');
+      await tester.ensureVisible(mostrarSenha);
+      await tester.pumpAndSettle();
+      await tester.tap(mostrarSenha);
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Código de demonstração preenchido para este ambiente local.',
+        ),
+        respostaDeTeste ? findsOneWidget : findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('recuperação explica a senha completa com texto ampliado', (
     tester,
   ) async {
