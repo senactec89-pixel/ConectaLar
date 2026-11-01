@@ -208,7 +208,7 @@ class _PerfilPageState extends State<PerfilPage> {
                         _usuarioFuture = _carregarUsuario();
                         _usuarioFuture.ignore();
                       });
-                      _mostrarInfo(context, 'Dados salvos com sucesso.');
+                      _mostrarInfo(this.context, 'Dados salvos com sucesso.');
                     }
                   },
                 ),
