@@ -102,7 +102,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                     ),
                     const SizedBox(height: AppSpace.sm),
                     const Text(
-                      'O convite e individual e expira em 24 horas. Defina sua senha e configure um autenticador antes de acessar as ferramentas administrativas.',
+                      'O convite é individual e expira em 24 horas. Após aceitar, configure um aplicativo autenticador para acessar as ferramentas administrativas.',
                     ),
                     const SizedBox(height: AppSpace.lg),
                     TextFormField(
@@ -150,6 +150,11 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                         ),
                       ),
                       validator: validarSenhaForte,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    Text(
+                      'Use pelo menos 8 caracteres, com letra maiúscula, minúscula, número e caractere especial.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: AppSpace.md),
                     TextFormField(
@@ -208,7 +213,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                       label: ActionLabel(
                         text: _ocupado
                             ? 'Validando convite...'
-                            : 'Aceitar e configurar MFA',
+                            : 'Aceitar e configurar autenticador',
                         busy: _ocupado,
                       ),
                     ),
