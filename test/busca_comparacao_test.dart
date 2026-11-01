@@ -1,5 +1,6 @@
 import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/app/theme.dart';
+import 'package:conectarlar_app/data/frontend_preview_client.dart';
 import 'package:conectarlar_app/models/profissional.dart';
 import 'package:conectarlar_app/screens/profissional/comparar_profissionais_page.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
@@ -26,7 +27,13 @@ void main() {
   testWidgets('cliente seleciona dois profissionais e abre comparação', (
     tester,
   ) async {
-    await configurarFrontend();
+    await configurarFrontend(
+      responder: (request) async => request.url.path == '/profissionais'
+          ? jsonResponse({
+              'profissionais': FrontendPreviewClient().profissionais,
+            })
+          : null,
+    );
     await abrirFrontend(tester, AppRoutes.busca, width: 390);
 
     final primeiro = find.byKey(const ValueKey('busca-comparar-1'));
@@ -34,6 +41,17 @@ void main() {
     await tester.tap(primeiro);
     await tester.pumpAndSettle();
     expect(find.text('1 de 2 selecionados'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('busca-comparacao-chip-1')),
+      findsOneWidget,
+    );
+
+    await tester.tap(primeiro);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('busca-barra-comparacao')), findsNothing);
+    await tornarAcionavel(tester, primeiro);
+    await tester.tap(primeiro);
+    await tester.pumpAndSettle();
 
     final segundo = find.byKey(const ValueKey('busca-comparar-2'));
     await tester.scrollUntilVisible(
