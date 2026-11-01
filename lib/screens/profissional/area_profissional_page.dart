@@ -394,8 +394,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                             ? 'Documento analisado'
                             : 'Verificação documental',
                         text: verificado
-                            ? 'Documento aprovado. A habilitação de segurança continua pendente e os atendimentos estão bloqueados.'
-                            : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
+                            ? 'Documento aprovado. Consulte as demais etapas de habilitação para saber se pode receber pedidos.'
+                            : 'Consulte seus documentos e acompanhe a análise administrativa. O selo não é uma garantia absoluta.',
                         onTap: _abrirDocumentos,
                       );
                     },
