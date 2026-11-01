@@ -317,37 +317,43 @@ class _SegurancaPageState extends State<SegurancaPage> {
                       ),
                       const SizedBox(height: AppSpace.md),
                       Card(
-                        child: Column(
-                          children: [
-                            ListTile(
-                              key: const ValueKey('seguranca-exportar-dados'),
-                              leading: const Icon(
-                                Icons.download_outlined,
-                                color: AppColors.verdeEscuro,
-                              ),
-                              title: const Text('Exportar meus dados'),
-                              subtitle: const Text(
-                                'Gera um arquivo JSON. Senhas e segredos de acesso nunca são incluídos.',
-                              ),
-                              trailing: _exportando
-                                  ? const SizedBox.square(
-                                      dimension: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.chevron_right),
-                              onTap: _exportando || _excluindo
-                                  ? null
-                                  : _exportarDados,
-                            ),
-                            const Divider(height: 1),
-                            if (AppServices
-                                    .instance
-                                    .auth
-                                    .usuarioAtual?['tipo'] ==
-                                'administrador')
-                              const ListTile(
+                        child: ListTile(
+                          key: const ValueKey('seguranca-exportar-dados'),
+                          leading: const Icon(
+                            Icons.download_outlined,
+                            color: AppColors.verdeEscuro,
+                          ),
+                          title: const Text('Exportar meus dados'),
+                          subtitle: const Text(
+                            'Gera um arquivo JSON. Senhas e segredos de acesso nunca são incluídos.',
+                          ),
+                          trailing: _exportando
+                              ? const SizedBox.square(
+                                  dimension: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.chevron_right),
+                          onTap: _exportando || _excluindo
+                              ? null
+                              : _exportarDados,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.lg),
+                      if (AppServices.instance.auth.usuarioAtual?['tipo'] !=
+                          'administrador') ...[
+                        Text(
+                          'Ação definitiva',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppSpace.sm),
+                      ],
+                      Card(
+                        child:
+                            AppServices.instance.auth.usuarioAtual?['tipo'] ==
+                                'administrador'
+                            ? const ListTile(
                                 leading: Icon(
                                   Icons.admin_panel_settings_outlined,
                                   color: AppColors.textoSuave,
@@ -357,8 +363,7 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                   'Para preservar a auditoria, outro administrador deve desativar esta conta.',
                                 ),
                               )
-                            else
-                              ListTile(
+                            : ListTile(
                                 key: const ValueKey('seguranca-excluir-conta'),
                                 leading: const Icon(
                                   Icons.delete_forever_outlined,
@@ -383,8 +388,6 @@ class _SegurancaPageState extends State<SegurancaPage> {
                                     ? null
                                     : _excluirConta,
                               ),
-                          ],
-                        ),
                       ),
                     ],
                   ],
