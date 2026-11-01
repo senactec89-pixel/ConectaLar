@@ -47,7 +47,7 @@ void main() {
       await tester.tap(salvar);
       await tester.pumpAndSettle();
       final erros = find.text(
-        'Use maiuscula, minuscula, numero e caractere especial.',
+        'Use maiúscula, minúscula, número e caractere especial.',
       );
       expect(erros, findsNWidgets(2));
       for (final element in erros.evaluate()) {

@@ -325,6 +325,11 @@ class _CadastroPageState extends State<CadastroPage> {
                           ),
                           validator: validarSenhaForte,
                         ),
+                        const SizedBox(height: AppSpace.xs),
+                        Text(
+                          'Use pelo menos 8 caracteres, com letra maiúscula, minúscula, número e caractere especial.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                         const SizedBox(height: AppSpace.md),
                         TextFormField(
                           key: const ValueKey('cadastro-confirmar-senha'),

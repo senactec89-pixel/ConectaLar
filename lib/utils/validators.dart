@@ -36,7 +36,7 @@ String? validarSenhaForte(String? valor) {
       RegExp(r'[^A-Za-z0-9]').hasMatch(senha);
   return forte
       ? null
-      : 'Use maiuscula, minuscula, numero e caractere especial.';
+      : 'Use maiúscula, minúscula, número e caractere especial.';
 }
 
 String? validarCepOpcional(String? valor) {
