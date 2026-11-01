@@ -1,12 +1,54 @@
 import 'package:conectarlar_app/app/theme.dart';
+import 'package:conectarlar_app/app/routes.dart';
 import 'package:conectarlar_app/screens/perfil/editar_dados_page.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/frontend_helpers.dart';
+
 void main() {
   tearDown(() => AppServices.instance.api.close());
+
+  testWidgets('perfil confirma ao retornar após salvar dados', (tester) async {
+    var salvamentos = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.method == 'PUT' && request.url.path == '/clientes/me') {
+          salvamentos++;
+          return jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.perfil);
+    await tester.tap(find.text('Meus dados'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byKey(const ValueKey('perfil-email')),
+              matching: find.byType(TextField),
+            ),
+          )
+          .readOnly,
+      isTrue,
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('perfil-nome')),
+      'Maria Silva',
+    );
+    final salvar = find.byKey(const ValueKey('perfil-salvar'));
+    await tester.ensureVisible(salvar);
+    await tester.pumpAndSettle();
+    await tester.tap(salvar);
+    await tester.pumpAndSettle();
+    expect(salvamentos, 1);
+    expect(find.text('Dados salvos com sucesso.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Meus dados mostra a ajuda inteira com texto 200% e teclado', (
     tester,
@@ -36,7 +78,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: '$largura px');
 
       final ajuda = find.text(
-        'E-mail vinculado à conta. Você pode consultá-lo aqui.',
+        'E-mail vinculado à conta. A alteração não está disponível nesta tela.',
       );
       await tester.scrollUntilVisible(
         ajuda,
