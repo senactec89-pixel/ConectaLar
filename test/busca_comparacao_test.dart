@@ -4,6 +4,7 @@ import 'package:conectarlar_app/models/profissional.dart';
 import 'package:conectarlar_app/screens/profissional/comparar_profissionais_page.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/frontend_helpers.dart';
@@ -121,6 +122,74 @@ void main() {
           reason: '$width px / escala $textScale',
         );
       }
+    }
+  });
+
+  testWidgets('comparação associa valores a nomes longos com texto ampliado', (
+    tester,
+  ) async {
+    const profissionais = [
+      Profissional(
+        id: 1,
+        usuarioId: 11,
+        nome: 'Ana Maria de Oliveira e Santos',
+        descricao: 'Manutenção',
+        bairro: 'Jardim das Flores e Parque das Palmeiras',
+        servicos: ['Instalação de equipamentos de ar-condicionado residencial'],
+      ),
+      Profissional(
+        id: 2,
+        usuarioId: 22,
+        nome: 'João Henrique da Costa e Almeida',
+        descricao: 'Limpeza',
+        bairro: 'Centro',
+        servicos: ['Limpeza residencial'],
+      ),
+    ];
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    for (final width in [360.0, 390.0, 412.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(width),
+          theme: AppTheme.light,
+          home: CompararProfissionaisPage(profissionais: profissionais),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final servico = find.text(profissionais.first.servicos.first);
+      await tester.scrollUntilVisible(
+        servico,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      final campo = find
+          .ancestor(of: servico, matching: find.byType(Card))
+          .first;
+      expect(
+        find.descendant(
+          of: campo,
+          matching: find.text(profissionais.first.nome),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: campo,
+          matching: find.text(profissionais.last.nome),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.renderObject<RenderParagraph>(servico).didExceedMaxLines,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull, reason: '$width px');
     }
   });
 }
