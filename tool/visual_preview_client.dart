@@ -10,6 +10,13 @@ class VisualPreviewClient extends FrontendPreviewClient {
   VisualPreviewClient({required super.papel});
 
   @override
+  Map<String, dynamic> get endereco => {
+    ...super.endereco,
+    'bairro': '',
+    'cidade': 'Belo Horizonte',
+  };
+
+  @override
   List<Map<String, dynamic>> get profissionais {
     final dados = super.profissionais;
     return [
