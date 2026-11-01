@@ -773,40 +773,53 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.categorias)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final filtro in const {
-                            '': 'Todas',
-                            'ativa': 'Ativas',
-                            'inativa': 'Inativas',
-                          }.entries) ...[
-                            ChoiceChip(
-                              key: ValueKey('admin-categorias-${filtro.key}'),
-                              label: Text(filtro.value),
-                              selected: _statusCategoria == filtro.key,
-                              onSelected: (_) => setState(() {
-                                _statusCategoria = filtro.key;
-                                _pagina = 1;
-                                _future = _carregar(_modulo);
-                              }),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ],
-                      ),
-                    ),
+                  Text(
+                    'Deslize para ver mais filtros →',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    key: const ValueKey('admin-categorias-nova'),
-                    tooltip: 'Nova categoria',
-                    onPressed: _mutando ? null : () => _editarCategoria(),
-                    icon: const Icon(Icons.add),
+                  const SizedBox(height: AppSpace.xs),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          key: const ValueKey('admin-categorias-filtros'),
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final filtro in const {
+                                '': 'Todas',
+                                'ativa': 'Ativas',
+                                'inativa': 'Inativas',
+                              }.entries) ...[
+                                ChoiceChip(
+                                  key: ValueKey(
+                                    'admin-categorias-${filtro.key}',
+                                  ),
+                                  label: Text(filtro.value),
+                                  selected: _statusCategoria == filtro.key,
+                                  onSelected: (_) => setState(() {
+                                    _statusCategoria = filtro.key;
+                                    _pagina = 1;
+                                    _future = _carregar(_modulo);
+                                  }),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        key: const ValueKey('admin-categorias-nova'),
+                        tooltip: 'Nova categoria',
+                        onPressed: _mutando ? null : () => _editarCategoria(),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
                   ),
                 ],
               ),
