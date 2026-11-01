@@ -49,105 +49,142 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
         ? Map<String, dynamic>.from(raw)
         : <String, dynamic>{};
     if (dados['estado'] == 'suspenso') acao = 'reabrir';
+    var enviando = false;
+    String? erro;
     final confirmar = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          scrollable: true,
-          title: Text('${item['nome'] ?? 'Profissional'}'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                HabilitacaoResumo(dados: dados),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  initialValue: acao,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Ação'),
-                  items: [
-                    if (dados['estado'] != 'suspenso')
+        builder: (dialogContext, setDialogState) => PopScope(
+          canPop: !enviando,
+          child: AlertDialog(
+            scrollable: true,
+            title: Text('${item['nome'] ?? 'Profissional'}'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  HabilitacaoResumo(dados: dados),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    key: const ValueKey('habilitacao-acao'),
+                    initialValue: acao,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Ação'),
+                    items: [
+                      if (dados['estado'] != 'suspenso')
+                        const DropdownMenuItem(
+                          value: 'iniciar_analise',
+                          child: Text('Iniciar análise'),
+                        ),
                       const DropdownMenuItem(
-                        value: 'iniciar_analise',
-                        child: Text('Iniciar análise'),
+                        value: 'suspender',
+                        child: Text('Suspender habilitação'),
                       ),
-                    const DropdownMenuItem(
-                      value: 'suspender',
-                      child: Text('Suspender habilitação'),
-                    ),
-                    const DropdownMenuItem(
-                      value: 'reabrir',
-                      child: Text('Voltar para pendente'),
+                      const DropdownMenuItem(
+                        value: 'reabrir',
+                        child: Text('Voltar para pendente'),
+                      ),
+                    ],
+                    onChanged: enviando
+                        ? null
+                        : (value) => setDialogState(() => acao = value!),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    key: const ValueKey('habilitacao-motivo'),
+                    initialValue: motivo,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Motivo'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'revisao_cadastral',
+                        child: Text('Revisão cadastral'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'suspeita_fraude',
+                        child: Text('Suspeita de fraude'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'solicitacao_titular',
+                        child: Text('Solicitação do titular'),
+                      ),
+                    ],
+                    onChanged: enviando
+                        ? null
+                        : (value) => setDialogState(() => motivo = value!),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Esta decisão não aprova identidade ou antecedentes e não libera atendimentos.',
+                  ),
+                  if (erro != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      erro!,
+                      key: const ValueKey('habilitacao-erro-envio'),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
-                  onChanged: (value) => setDialogState(() => acao = value!),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: motivo,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Motivo'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'revisao_cadastral',
-                      child: Text('Revisão cadastral'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'suspeita_fraude',
-                      child: Text('Suspeita de fraude'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'solicitacao_titular',
-                      child: Text('Solicitação do titular'),
-                    ),
-                  ],
-                  onChanged: (value) => setDialogState(() => motivo = value!),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Esta decisão não aprova identidade ou antecedentes e não libera atendimentos.',
-                ),
-              ],
+                ],
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: enviando
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                key: const ValueKey('habilitacao-confirmar'),
+                onPressed: enviando
+                    ? null
+                    : () async {
+                        setDialogState(() {
+                          enviando = true;
+                          erro = null;
+                        });
+                        setState(() => _salvando = true);
+                        try {
+                          await AppServices.instance.admin.analisarHabilitacao(
+                            item['id'] as int,
+                            acao,
+                            motivo,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext, true);
+                          }
+                        } catch (error) {
+                          if (dialogContext.mounted) {
+                            setDialogState(() {
+                              erro = error is ApiException
+                                  ? error.message
+                                  : 'Não foi possível registrar a análise. Tente novamente.';
+                            });
+                          }
+                        } finally {
+                          if (mounted) setState(() => _salvando = false);
+                          if (dialogContext.mounted) {
+                            setDialogState(() => enviando = false);
+                          }
+                        }
+                      },
+                child: Text(enviando ? 'Enviando…' : 'Confirmar'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirmar'),
-            ),
-          ],
         ),
       ),
     );
     if (confirmar != true || !mounted) return;
-    setState(() => _salvando = true);
-    try {
-      await AppServices.instance.admin.analisarHabilitacao(
-        item['id'] as int,
-        acao,
-        motivo,
-      );
-      if (mounted) _recarregar();
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is ApiException
-                  ? error.message
-                  : 'Não foi possível registrar a análise.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
+    _recarregar();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Análise registrada.')));
   }
 
   @override
