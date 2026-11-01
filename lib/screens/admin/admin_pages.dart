@@ -685,13 +685,21 @@ class _AdminPageState extends State<AdminPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _buscaLocalController,
+                textInputAction: TextInputAction.search,
                 onChanged: (value) => setState(() => _buscaLocal = value),
                 onSubmitted: (_) => _aplicarFiltros(),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search_rounded),
-                  labelText: _modulo == AdminModulo.categorias
-                      ? 'Buscar categoria'
-                      : 'Buscar avaliação',
+                  labelText: switch (_modulo) {
+                    AdminModulo.categorias => 'Buscar categoria',
+                    AdminModulo.documentos => 'Buscar documento',
+                    AdminModulo.denuncias => 'Buscar denúncia',
+                    AdminModulo.avaliacoes => 'Buscar avaliação',
+                    AdminModulo.auditoria => 'Buscar registro',
+                    _ => 'Buscar',
+                  },
+                  helperText: 'Use a busca do teclado para aplicar.',
+                  helperMaxLines: 3,
                   suffixIcon: _buscaLocal.isEmpty
                       ? null
                       : IconButton(
@@ -721,6 +729,8 @@ class _AdminPageState extends State<AdminPage> {
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
                       labelText: 'Buscar nome ou e-mail',
+                      helperText: 'Use a busca do teclado para aplicar.',
+                      helperMaxLines: 3,
                     ),
                     onChanged: (value) => setState(() => _buscaLocal = value),
                     onSubmitted: (_) => _aplicarFiltros(),
@@ -804,7 +814,7 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.usuarios)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: filtroDropdown('Situacao da conta', _statusUsuario, const [
+              child: filtroDropdown('Situação da conta', _statusUsuario, const [
                 DropdownMenuItem(value: '', child: Text('Todas')),
                 DropdownMenuItem(value: 'true', child: Text('Ativas')),
                 DropdownMenuItem(value: 'false', child: Text('Desativadas')),
@@ -821,7 +831,7 @@ class _AdminPageState extends State<AdminPage> {
                 ),
                 DropdownMenuItem(
                   value: 'comprovante_endereco',
-                  child: Text('Comprovante de endereco'),
+                  child: Text('Comprovante de endereço'),
                 ),
                 DropdownMenuItem(
                   value: 'certificado_opcional',
@@ -837,7 +847,7 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: filtroDropdown(
-                'Situacao da denuncia',
+                'Situação da denúncia',
                 _statusDenuncia,
                 const [
                   DropdownMenuItem(value: '', child: Text('Todas')),
@@ -862,7 +872,7 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: filtroDropdown(
-                'Situacao da avaliacao',
+                'Situação da avaliação',
                 _statusAvaliacao,
                 const [
                   DropdownMenuItem(value: 'todas', child: Text('Todas')),
@@ -880,15 +890,15 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child:
-                  filtroDropdown('Acao administrativa', _acaoAuditoria, const [
-                    DropdownMenuItem(value: '', child: Text('Todas as acoes')),
+                  filtroDropdown('Ação administrativa', _acaoAuditoria, const [
+                    DropdownMenuItem(value: '', child: Text('Todas as ações')),
                     DropdownMenuItem(
                       value: 'usuario_ativado',
-                      child: Text('Ativacao de conta'),
+                      child: Text('Ativação de conta'),
                     ),
                     DropdownMenuItem(
                       value: 'usuario_desativado',
-                      child: Text('Desativacao de conta'),
+                      child: Text('Desativação de conta'),
                     ),
                     DropdownMenuItem(
                       value: 'categoria_criada',
@@ -904,11 +914,11 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     DropdownMenuItem(
                       value: 'denuncia_moderada',
-                      child: Text('Denuncia moderada'),
+                      child: Text('Denúncia moderada'),
                     ),
                     DropdownMenuItem(
                       value: 'avaliacao_moderada',
-                      child: Text('Avaliacao moderada'),
+                      child: Text('Avaliação moderada'),
                     ),
                     DropdownMenuItem(
                       value: 'administrador_criado',
@@ -916,11 +926,11 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     DropdownMenuItem(
                       value: 'habilitacao_analisada',
-                      child: Text('Habilitacao analisada'),
+                      child: Text('Habilitação analisada'),
                     ),
                     DropdownMenuItem(
                       value: 'habilitacao_revisao_solicitada',
-                      child: Text('Revisao solicitada'),
+                      child: Text('Revisão solicitada'),
                     ),
                   ], (value) => _acaoAuditoria = value ?? ''),
             ),
