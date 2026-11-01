@@ -993,9 +993,11 @@ class _FiltrosBusca extends StatelessWidget {
           const SizedBox(height: AppSpace.xs),
           Text(
             [
-              bairroController.text.trim(),
-              cidadeController.text.trim(),
-            ].where((valor) => valor.isNotEmpty).join(' · '),
+              if (bairroController.text.trim().isNotEmpty)
+                'Bairro: ${bairroController.text.trim()}',
+              if (cidadeController.text.trim().isNotEmpty)
+                'Cidade: ${cidadeController.text.trim()}',
+            ].join(' · '),
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.verdeEscuro),

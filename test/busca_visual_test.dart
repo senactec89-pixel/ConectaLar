@@ -153,6 +153,10 @@ void main() {
       find.byKey(const ValueKey('busca-bairro')),
       'Vila Nova',
     );
+    await tester.enterText(
+      find.byKey(const ValueKey('busca-cidade')),
+      'Belo Horizonte',
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('busca-localizacao-toggle')));
     await tester.pumpAndSettle();
@@ -161,7 +165,10 @@ void main() {
       matching: find.byType(Card),
     );
     expect(
-      find.descendant(of: filtros, matching: find.text('Vila Nova')),
+      find.descendant(
+        of: filtros,
+        matching: find.text('Bairro: Vila Nova · Cidade: Belo Horizonte'),
+      ),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('busca-bairro')), findsNothing);
