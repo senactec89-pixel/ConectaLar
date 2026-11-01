@@ -18,8 +18,9 @@ void main() {
         responder: (request) async {
           if (request.url.path != '/clientes/me/favoritos') return null;
           final pagina = request.url.queryParameters['pagina'];
-          if (pagina == '2' && falhar)
+          if (pagina == '2' && falhar) {
             return jsonResponse({'message': 'Erro'}, 503);
+          }
           return jsonResponse({
             'favoritos': [
               {'profissional': profissionais[pagina == '2' ? 1 : 0]},
