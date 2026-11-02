@@ -216,7 +216,9 @@ class _AdminPageState extends State<AdminPage> {
     if (_modulo == AdminModulo.moderacao) return;
     if (_modulo == AdminModulo.painel) {
       final carregamento = AppServices.instance.admin.painel();
-      setState(() => _painelFuture = carregamento);
+      setState(() {
+        _painelFuture = carregamento;
+      });
       try {
         await carregamento;
       } catch (_) {
@@ -226,7 +228,9 @@ class _AdminPageState extends State<AdminPage> {
     }
 
     final carregamento = _carregar(_modulo);
-    setState(() => _future = carregamento);
+    setState(() {
+      _future = carregamento;
+    });
     try {
       await carregamento;
     } catch (_) {
