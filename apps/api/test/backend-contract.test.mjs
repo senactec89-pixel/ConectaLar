@@ -66,8 +66,8 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/profissionais\/busca:/);
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /duracaoMinutos/);
-  assert.match(openapi, /DuracaoMinutos:\s+\n\s+type: integer\s+\n\s+minimum: 1\s+\n\s+maximum: 1440\s+\n\s+default: 120/);
-  assert.match(openapi, /intervaloMinutos:\s+\n\s+type: integer\s+\n\s+const: 0/);
+  assert.match(openapi, /DuracaoMinutos:\r?\n\s+type: integer\r?\n\s+minimum: 1\r?\n\s+maximum: 1440\r?\n\s+default: 120/);
+  assert.match(openapi, /intervaloMinutos:\r?\n\s+type: integer\r?\n\s+const: 0/);
   assert.match(openapi, /\/profissionais\/me\/bloqueios:/);
   assert.match(openapi, /\/solicitacoes\/\{id\}\/reagendamento:/);
   assert.match(openapi, /nomeServico/);
