@@ -1,5 +1,9 @@
 # Habilitacao profissional: preparacao de seguranca
 
+Politica operacional vigente: [politica-habilitacao-profissional.md](politica-habilitacao-profissional.md).
+Ela define o estado atual como bloqueado para contratacoes; este documento descreve
+as integracoes e os limites tecnicos dessa decisao.
+
 Estado em 25/10/2026: a API e a interface Flutter para posse de telefone por codigo
 WhatsApp estao implementadas e testadas com MySQL isolado e respostas simuladas. O
 recurso permanece desativado: `ID_ZAPSIGN_PHONE_ENABLED=false`; nenhum codigo real foi

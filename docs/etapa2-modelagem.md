@@ -21,7 +21,7 @@ Diferenças e riscos a resolver no modelo novo:
 - Localização em texto livre não resolve município/bairro, cobertura ou cidades de lançamento; P05 permanece pendente.
 - `solicitacoes` guarda endereço diretamente junto ao atendimento. O acesso precisa respeitar a confirmação, P04 e retenção P13.
 - O `ENUM` legado de status não substitui automaticamente os cinco estados documentados nem define transições/cancelamento de P08.
-- Data e hora sem fuso/duração e sem bloqueio de concorrência não fecham agenda; P06 precisa de decisão antes da estrutura definitiva.
+- O modelo da agenda segue P06 aprovada: horário civil em `America/Sao_Paulo`, duração configurável de 1 a 1.440 minutos e sobreposição por duração; capacidade por equipes permanece em P12.
 - A tabela de mensagens não decide início/encerramento, anexos, leitura ou reenvio do chat; depende de P09.
 - `arquivo_url`/`foto_url` não definem armazenamento privado, autorização ou retenção de documentos e imagens; P10/P13 e a arquitetura aprovada de arquivos precisam guiar o desenho.
 - Empresas, integrantes, permissões e capacidade não aparecem como modelo próprio; dependem de P12/P15.
@@ -71,7 +71,7 @@ As restrições abaixo são pontos de projeto, não DDL aprovado:
 - Mensagens podem usar índice `(conversa, criado_em, id)` para leitura ordenada. Retenção e cursor de leitura dependem de P09/P13.
 - Referências históricas não serão removidas em cascata por padrão. Política de retenção, anonimização e descarte é necessária antes de escolher `CASCADE`, soft delete ou snapshot.
 - Preço será persistido em tipo decimal exato ou unidade monetária inteira, nunca ponto flutuante. A escolha de formato, preço sob consulta e snapshots dependem de P03.
-- Restrições de horário e sobreposição precisam da granularidade, fuso e capacidade aprovados em P06/P12; não criar uma constraint que simule reserva para pedido pendente.
+- Restrições de horário e sobreposição seguem P06 aprovada (duração completa no fuso `America/Sao_Paulo`, sem intervalo extra e capacidade de um atendimento por perfil). Equipes e múltiplos executores continuam dependentes de P12; não criar constraint que simule reserva para pedido pendente.
 
 ## Persistência selecionada e estratégia de migração
 
@@ -91,7 +91,7 @@ Se aprovada, a estratégia será:
 | IDs da API | Identificadores opacos serializados como string; não tratar autenticação ou autorização como segredo do ID. Representação persistida e ID de login são decisões distintas. | P01 e contratos |
 | Datas civis | `YYYY-MM-DD`, sem fuso, para uma data de calendário. | Uso por fluxo |
 | Instantes | RFC 3339 em UTC (`Z`) para eventos registrados; fuso é apresentação, não muda o instante armazenado. | RNF014, P06 |
-| Agenda local | Guardar/transportar fuso IANA junto ao horário local; regra de conversão e duração só fecha após P06. | P06 |
+| Agenda local | Guardar/transportar `America/Sao_Paulo` junto ao horário civil; duração e sobreposição conforme `docs/agenda-duracao.md`. | P06 |
 | Paginação | Cursor opaco com ordenação estável e desempate por identificador; limite máximo fica pendente de volume e metas aprovadas. | Q01/Q02 propostas; RNF009 |
 | Erros | Manter resposta genérica atual para exceções internas; contratos de negócio terão códigos estáveis e validação por campo sem SQL, stack ou dados privados. | Contratos por módulo |
 | Repetição | Operações críticas precisam ser idempotentes ou permitir consulta de resultado incerto, conforme RB23/RF030; definir chave/ciclo no contrato específico. | P06, P08, P17 |
@@ -107,7 +107,7 @@ Estas convenções são propostas de engenharia. Não acrescentam requisito de p
 Antes de fechar contratos de negócio, registrar uma decisão para:
 
 - Identificadores públicos e internos, mantendo autorização por papel e vínculo em toda operação.
-- Datas civis (`YYYY-MM-DD`) versus instantes; fuso IANA e horário local para agenda são parte da decisão P06.
+- Datas civis (`YYYY-MM-DD`) versus instantes; a agenda usa horário local em `America/Sao_Paulo` conforme P06.
 - Paginação e ordenação estável para listas. Não aplicar um limite numérico proposto sem justificativa e aprovação.
 - Códigos de erro, campos protegidos e critérios de exibição por ator. O envelope atual cobre apenas a fundação.
 

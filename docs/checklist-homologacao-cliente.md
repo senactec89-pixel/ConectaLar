@@ -2,6 +2,8 @@
 
 Use aparelho Android real conectado à rede do servidor. A API deve apontar para um MySQL descartável de teste, com migrations atuais aplicadas. Registre data, modelo/versão do aparelho, build do app, commit, base URL sem credenciais, usuário de teste e resultado. Não use dados pessoais reais.
 
+**Política atual:** novas contratações estão deliberadamente bloqueadas pela API (`409 PROFISSIONAL_HABILITACAO_PENDENTE`). Isso é o resultado esperado, não uma falha a contornar. Não marque contratação ponta a ponta como aprovada nem altere dados para habilitar um profissional. Chat, conclusão e avaliação só devem ser exercitados com registros legados de teste ou fixtures isoladas que não liberem novas contratações.
+
 ## Preparação
 
 - [ ] API responde em /health e os endpoints de negócio estão montados.
@@ -30,19 +32,16 @@ Use aparelho Android real conectado à rede do servidor. A API deve apontar para
 
 ## Solicitação e atendimento
 
-- [ ] Abrir solicitação e selecionar oferta, data, horário e endereço cadastrado.
-- [ ] Confirmar que não é possível enviar sem endereço.
-- [ ] Confirmar que a solicitação aparece como aguardando resposta.
-- [ ] Antes do aceite, conferir que o profissional não recebe o endereço completo.
-- [ ] Usar conta profissional de teste para aceitar; confirmar endereço liberado somente conforme contrato.
-- [ ] Enviar e receber mensagens no chat; atualizar a conversa.
-- [ ] Concluir atendimento e confirmar o estado.
-- [ ] Enviar avaliação uma vez e conferir que não é possível duplicá-la.
-- [ ] Registrar denúncia pelo fluxo do atendimento e conferir confirmação/aviso.
-- [ ] Conferir notificação e histórico resultantes.
+- [ ] Consultar o catálogo e confirmar que profissionais indisponíveis exibem aviso e não parecem contratáveis.
+- [ ] Tentar enviar solicitação para profissional pendente; confirmar HTTP `409`, ausência de pedido criado/notificação de sucesso e código `PROFISSIONAL_HABILITACAO_PENDENTE` no log seguro da API.
+- [ ] Confirmar que o bloqueio também ocorre diretamente na API, não apenas na interface.
+- [ ] Confirmar que uma tentativa bloqueada não libera endereço, chat ou agenda.
+- [ ] Se houver registro legado de teste, verificar apenas as permissões de leitura conforme as regras atuais; não criar atendimento para forçar o fluxo.
+- [ ] Testar chat, conclusão, avaliação e denúncia somente com dados sintéticos isolados, caso seja necessário validar esses módulos separadamente.
 
 ## Resultado
 
-- [ ] Fluxo concluído sem erro.
+- [ ] Bloqueio deliberado de contratação validado como esperado; não declarar contratação ponta a ponta homologada.
+- [ ] Módulos posteriores testados separadamente apenas com fixtures isoladas, se aplicável.
 - [ ] Erros/retries registrados com passo e horário.
 - [ ] Capturas anexadas ao registro de homologação.

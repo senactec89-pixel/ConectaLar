@@ -20,26 +20,28 @@
     "diagnostico:local": "node scripts/diagnostico-local.mjs",
     "diagnostico:fluxo": "node scripts/diagnostico-fluxo-local.mjs",
     "diagnostico:mfa": "node scripts/diagnostico-mfa-local.mjs",
+    "r2:pilot": "node scripts/test-r2-pilot.mjs",
+    "r2:clamav:pilot": "node scripts/test-r2-clamav-pilot.mjs",
     "email:test": "npm run build && node scripts/test-email-local.mjs",
     "test": "npm run build && node --test test/*.test.mjs",
     "test:integration": "node --test test/integration/*.test.mjs",
     "test:integration:mysql": "tsc -p tsconfig.build.json && node --test test/integration/mysql-fluxo-principal.test.mjs test/integration/habilitacao-mysql.test.mjs test/integration/auth-code-limits-mysql.test.mjs"
   },
   "dependencies": {
-    "@types/node": "24.13.4",
     "@aws-sdk/client-s3": "^3.1151.0",
     "@nestjs/common": "12.2.0",
     "@nestjs/core": "12.2.0",
     "@nestjs/platform-express": "12.2.0",
     "@nestjs/typeorm": "12.0.2",
+    "@types/node": "24.13.4",
     "google-auth-library": "^10.5.0",
     "mysql2": "3.24.5",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "typescript": "6.0.2",
-    "typeorm": "1.1.2"
+    "sharp": "0.35.5",
+    "typeorm": "1.1.2",
+    "typescript": "6.0.2"
   },
-  "devDependencies": {},
   "overrides": {
     "body-parser": "2.4.0",
     "multer": "2.5.0"

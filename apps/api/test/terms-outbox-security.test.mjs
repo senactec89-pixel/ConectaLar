@@ -204,7 +204,7 @@ test('registration commits user, current terms, verification and outbox together
     senha: 'SenhaSegura123!',
     tipo: 'cliente',
     aceitouTermos: true,
-    versaoTermos: '2026-10-24.v5',
+    versaoTermos: '2026-10-26.v6',
   });
 
   assert.equal(fixture.transacoes, 1);
@@ -232,7 +232,7 @@ test('registration does not attempt delivery when its transaction fails', async 
       senha: 'SenhaSegura123!',
       tipo: 'cliente',
       aceitouTermos: true,
-      versaoTermos: '2026-10-24.v5',
+      versaoTermos: '2026-10-26.v6',
     }),
     /simulated transaction failure/,
   );

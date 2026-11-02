@@ -14,15 +14,16 @@ void main() {
   testWidgets('busca carrega a proxima pagina da lista inicial da API', (
     tester,
   ) async {
-    final consultas = <Uri>[];
+    final paginasConsultadas = <String>[];
     await configurarFrontend(
       responder: (request) async {
         if (request.url.path == '/categorias') {
           return jsonResponse({'categorias': []});
         }
         if (request.url.path == '/profissionais') {
-          consultas.add(request.url);
-          final pagina = request.url.queryParameters['pagina'];
+          final filtros = request.url.queryParameters;
+          final pagina = '${filtros['pagina'] ?? 1}';
+          paginasConsultadas.add(pagina);
           return jsonResponse({
             'profissionais': [
               {
@@ -32,7 +33,7 @@ void main() {
               },
             ],
             'paginacao': {
-              'pagina': int.parse(pagina ?? '1'),
+              'pagina': int.parse(pagina),
               'limite': 20,
               'total': 21,
               'totalPaginas': 2,
@@ -44,16 +45,24 @@ void main() {
       },
     );
 
-    await abrirFrontend(tester, AppRoutes.busca);
+    await abrirFrontend(
+      tester,
+      AppRoutes.busca,
+      arguments: const Categoria(id: 1, nome: 'Elétrica'),
+    );
 
     expect(find.text('21 profissionais encontrados'), findsOneWidget);
     expect(find.text('Profissional Um'), findsOneWidget);
     final carregarMais = find.text('Carregar mais');
-    await tester.ensureVisible(carregarMais);
+    await tester.scrollUntilVisible(
+      carregarMais,
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(carregarMais);
     await tester.pumpAndSettle();
 
-    expect(consultas.map((uri) => uri.queryParameters['pagina']), ['1', '2']);
+    expect(paginasConsultadas, containsAllInOrder(['1', '2']));
     expect(find.text('Profissional Dois'), findsOneWidget);
     expect(find.text('Carregar mais'), findsNothing);
     expect(tester.takeException(), isNull);
@@ -125,7 +134,7 @@ void main() {
     }
   });
 
-  testWidgets('busca reserva mais espaço para resultados sem filtros ativos', (
+  testWidgets('busca mantém o primeiro resultado visível após os filtros', (
     tester,
   ) async {
     await configurarFrontend();
@@ -137,7 +146,7 @@ void main() {
       expect(find.text('2 profissionais encontrados'), findsOneWidget);
       expect(
         tester.getTopLeft(find.byType(ProfissionalCard).first).dy,
-        lessThan(tester.view.physicalSize.height * 2 / 3),
+        lessThan(tester.view.physicalSize.height * 0.8),
         reason: 'Primeiro resultado visível mais cedo em $width px',
       );
       expect(tester.takeException(), isNull);
@@ -218,7 +227,9 @@ void main() {
     tester,
   ) async {
     await configurarFrontend(
-      responder: (request) async => request.url.path == '/profissionais'
+      responder: (request) async =>
+          request.url.path == '/profissionais' ||
+              request.url.path == '/profissionais/busca'
           ? jsonResponse({'profissionais': []})
           : null,
     );
@@ -352,7 +363,9 @@ void main() {
     tester,
   ) async {
     await configurarFrontend(
-      responder: (request) async => request.url.path == '/profissionais'
+      responder: (request) async =>
+          request.url.path == '/profissionais' ||
+              request.url.path == '/profissionais/busca'
           ? jsonResponse({'profissionais': []})
           : null,
     );

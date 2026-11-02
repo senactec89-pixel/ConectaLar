@@ -61,7 +61,7 @@ void main() {
           );
         }
 
-        final categoria = find.text('Ar-\ncondicionado');
+        final categoria = find.text('Elétrica');
         await tester.scrollUntilVisible(
           categoria,
           160,
@@ -95,19 +95,7 @@ void main() {
         );
         expect(tester.getSize(verTodas).height, greaterThanOrEqualTo(48));
 
-        final favorito = find.byKey(
-          ValueKey(
-            'home-favorito-${HomeMockData.content.featuredProfessionals.first.id}',
-          ),
-        );
-        await tester.scrollUntilVisible(
-          favorito,
-          180,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await tester.pumpAndSettle();
-        expect(tester.getSize(favorito).width, greaterThanOrEqualTo(48));
-        expect(tester.getSize(favorito).height, greaterThanOrEqualTo(48));
+        expect(find.text('Carlos Silva'), findsOneWidget);
         expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
       }
     }

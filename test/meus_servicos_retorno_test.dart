@@ -223,6 +223,9 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(carregar);
+    await tester.pumpAndSettle();
+    expect(carregar.hitTestable(), findsOneWidget);
     await tester.tap(carregar);
     await tester.pumpAndSettle();
 

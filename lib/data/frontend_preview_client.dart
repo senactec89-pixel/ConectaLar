@@ -83,7 +83,6 @@ class FrontendPreviewClient extends http.BaseClient {
 
   List<Map<String, dynamic>> _buscarProfissionais(Map<String, String> query) {
     // A prévia considera os dois perfis na área de cobertura do endereço demo.
-    if (query.containsKey('raioKm')) return profissionais;
     String normalizar(Object? value) => (value?.toString() ?? '')
         .toLowerCase()
         .replaceAll(RegExp('[áàãâä]'), 'a')
@@ -121,10 +120,12 @@ class FrontendPreviewClient extends http.BaseClient {
     'apelido': 'Endereço fictício',
     'logradouro': 'Rua de exemplo',
     'numero': '100',
-    'bairro': 'Centro',
-    'cidade': 'Cidade de exemplo',
+    'bairro': '',
+    'cidade': 'Belo Horizonte',
     'uf': 'MG',
     'cep': '00000-000',
+    'latitude': -19.9167,
+    'longitude': -43.9345,
     'principal': true,
   };
 
@@ -205,6 +206,34 @@ class FrontendPreviewClient extends http.BaseClient {
       };
     } else if (request.method == 'POST' && path == '/auth/logout') {
       data = {'ok': true};
+    } else if (request.method == 'POST' && path == '/profissionais/busca') {
+      final body = request is http.Request ? request.body : '';
+      final decoded = jsonDecode(body);
+      if (decoded is! Map) {
+        status = 400;
+        data = {'message': 'Invalid search filters.'};
+      } else {
+        final filters = Map<String, String>.fromEntries(
+          decoded.entries.map(
+            (entry) => MapEntry('${entry.key}', '${entry.value}'),
+          ),
+        );
+        final matches = _buscarProfissionais(filters);
+        final page = int.tryParse(filters['pagina'] ?? '') ?? 1;
+        final limit = int.tryParse(filters['limite'] ?? '') ?? 20;
+        final start = ((page - 1) * limit).clamp(0, matches.length);
+        final end = (start + limit).clamp(start, matches.length);
+        data = {
+          'profissionais': matches.sublist(start, end),
+          'paginacao': {
+            'pagina': page,
+            'limite': limit,
+            'total': matches.length,
+            'totalPaginas': (matches.length / limit).ceil(),
+            'temMais': end < matches.length,
+          },
+        };
+      }
     } else if (request.method != 'GET') {
       status = 409;
       data = {

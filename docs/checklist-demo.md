@@ -2,6 +2,8 @@
 
 Use esta lista para validar a demo com API e MySQL locais. Marque somente quando o fluxo for testado no ambiente integrado atual.
 
+> **Atenção: evidência histórica.** O resultado abaixo registra uma demo anterior em que a contratação estava liberada. A política atual bloqueia deliberadamente novas solicitações e aceites com `409 PROFISSIONAL_HABILITACAO_PENDENTE`. Os itens marcados como concluídos descrevem apenas aquele commit/ambiente antigo; não são evidência de que a contratação atual esteja liberada ou homologada.
+
 ## Resultado em 2026-10-10
 
 Validacao automatizada via HTTP contra API local `127.0.0.1:3016` e MySQL `conectalar_dev`:
@@ -29,6 +31,8 @@ Observacao: esta evidencia valida API, banco, autorizacao e contrato usado pelo 
 - [ ] App Flutter apontando para a API local correta.
 
 ## Fluxo cliente/profissional
+
+**Estado atual esperado:** a API deve negar a criação de nova solicitação e o aceite de pedido pendente enquanto a habilitação profissional não estiver liberada pela política oficial. Use os checklists atuais de cliente e profissional para o roteiro. Não repita a sequência histórica abaixo em base operacional.
 
 - [x] Cadastro de cliente concluido.
 - [x] Cadastro de profissional concluido.

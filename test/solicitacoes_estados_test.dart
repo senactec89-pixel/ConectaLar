@@ -21,6 +21,7 @@ Future<void> _mostrar(WidgetTester tester, Finder finder) async {
 Future<void> _preencherSolicitacao(WidgetTester tester) async {
   final data = DateTime.now().add(const Duration(days: 30));
   final campos = {
+    'solicitar-bairro': 'Centro',
     'solicitar-data':
         '${data.day.toString().padLeft(2, '0')}/'
         '${data.month.toString().padLeft(2, '0')}/${data.year}',
@@ -96,6 +97,10 @@ void main() {
       var consultas = 0;
       var envios = 0;
       Map<String, dynamic>? enviado;
+      final profissionalElegivel = profissionalFromApi({
+        ..._previa.profissionais.first,
+        'podeReceberSolicitacoes': true,
+      });
       final respostaEndereco = Completer<http.Response>();
       await configurarFrontend(
         responder: (request) async {
@@ -119,7 +124,7 @@ void main() {
       await abrirFrontend(
         tester,
         AppRoutes.solicitarServico,
-        arguments: profissionalFromApi(_previa.profissionais.first),
+        arguments: profissionalElegivel,
       );
       expect(
         find.text('Não foi possível carregar seus endereços.'),
@@ -156,7 +161,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       respostaEndereco.complete(
         jsonResponse({
-          'enderecos': [_previa.endereco],
+          'enderecos': [
+            {..._previa.endereco, 'bairro': 'Centro'},
+          ],
         }),
       );
       await tester.pumpAndSettle();

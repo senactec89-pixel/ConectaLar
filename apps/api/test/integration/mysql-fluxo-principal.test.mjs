@@ -116,7 +116,7 @@ test(
             senha: 'ConectaLarTeste123!',
             tipo,
             aceitouTermos: true,
-            versaoTermos: '2026-10-24.v5',
+            versaoTermos: '2026-10-26.v6',
             ...(telefone ? { telefone } : {}),
           },
           201,
@@ -155,7 +155,7 @@ test(
           senha: 'ConectaLarTeste123!',
           tipo: 'cliente',
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         409,
       );
@@ -170,7 +170,7 @@ test(
           tipo: 'cliente',
           telefone: `+55 ${customerPhone.slice(0, 2)} 9${customerPhone.slice(3)}`,
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         409,
       );

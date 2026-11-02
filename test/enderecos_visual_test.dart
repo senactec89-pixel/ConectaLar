@@ -20,9 +20,7 @@ void main() {
           width: width,
           textScale: 2,
         );
-        final endereco = find.text(
-          'Rua de exemplo, 100 - Centro, Cidade de exemplo/MG',
-        );
+        final endereco = find.text('Rua de exemplo, 100 - Belo Horizonte/MG');
         expect(tester.getSize(endereco).width, greaterThan(width - 96));
         expect(tester.takeException(), isNull);
         final editar = find.widgetWithText(OutlinedButton, 'Editar');

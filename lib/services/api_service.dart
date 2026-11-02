@@ -61,6 +61,86 @@ class ApiService {
     return _request('POST', endpoint, body: body);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    required String fieldName,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final path = endpoint.replaceFirst(RegExp(r'^/+'), '');
+    final requestToken = _accessToken;
+    final requestRevision = _sessionRevision;
+    final request = http.MultipartRequest('POST', _buildUri(endpoint, null))
+      ..headers['Accept'] = 'application/json';
+    if (requestToken != null) {
+      request.headers['Authorization'] = 'Bearer $requestToken';
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes(fieldName, bytes, filename: fileName),
+    );
+
+    final timeout = Duration(seconds: AppConstants.apiTimeoutSeconds);
+    final http.Response response;
+    try {
+      final streamed = await _client.send(request).timeout(timeout);
+      response = await http.Response.fromStream(streamed).timeout(timeout);
+    } on TimeoutException {
+      throw const ApiException(
+        'A resposta demorou. Verifique sua conexao e tente novamente.',
+      );
+    } on http.ClientException {
+      throw const ApiException(
+        'Nao foi possivel conectar. Verifique sua conexao e tente novamente.',
+      );
+    }
+
+    final Object? decoded;
+    try {
+      decoded = response.body.trim().isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
+    } on FormatException {
+      if (response.statusCode == 401 &&
+          requestToken != null &&
+          requestRevision == _sessionRevision) {
+        await onSessionExpired?.call();
+      }
+      throw ApiException(
+        'Nao foi possivel carregar os dados. Tente novamente.',
+        statusCode: response.statusCode,
+      );
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw ApiException(
+        'Nao foi possivel carregar os dados. Tente novamente.',
+        statusCode: response.statusCode,
+      );
+    }
+    if (response.statusCode == 401 &&
+        requestToken != null &&
+        requestRevision == _sessionRevision) {
+      await onSessionExpired?.call();
+    }
+    if (response.statusCode == 403 &&
+        decoded['code'] == 'TERMOS_NAO_ACEITOS' &&
+        requestToken != null &&
+        requestRevision == _sessionRevision) {
+      await onTermsRequired?.call();
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(
+        _mensagemResposta(
+          decoded['message'],
+          statusCode: response.statusCode,
+          endpoint: path,
+        ),
+        statusCode: response.statusCode,
+        code: decoded['code'] is String ? decoded['code'] as String : null,
+      );
+    }
+    return decoded;
+  }
+
   Future<Map<String, dynamic>> put(
     String endpoint, {
     Map<String, dynamic>? body,

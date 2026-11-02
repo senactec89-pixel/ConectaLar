@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
@@ -135,9 +138,11 @@ class _DetalhesSolicitacao extends StatefulWidget {
 
 class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   final _comentarioController = TextEditingController();
+  final List<_FotoAvaliacaoSelecionada> _fotosAvaliacao = [];
   int _nota = 5;
   late AtendimentoResumo _atendimento;
   bool _enviando = false;
+  bool _selecionandoFotos = false;
 
   Map<String, dynamic> get _ator =>
       AppServices.instance.auth.usuarioAtual ??
@@ -804,14 +809,46 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     setState(() => _enviando = true);
     try {
       if (AppServices.instance.auth.autenticado) {
-        final avaliar = _profissionalParticipante
-            ? AppServices.instance.avaliacoes.avaliarCliente
-            : AppServices.instance.avaliacoes.avaliarProfissional;
-        await avaliar(
-          solicitacaoId: _atendimento.solicitacao.id,
-          nota: _nota,
-          comentario: _comentarioController.text,
-        );
+        final fotoIds = <int>[];
+        try {
+          if (!_profissionalParticipante) {
+            for (final foto in _fotosAvaliacao) {
+              fotoIds.add(
+                await AppServices.instance.avaliacoes.enviarFoto(
+                  solicitacaoId: _atendimento.solicitacao.id,
+                  nomeArquivo: foto.nomeArquivo,
+                  bytes: foto.bytes,
+                ),
+              );
+            }
+          }
+          if (_profissionalParticipante) {
+            await AppServices.instance.avaliacoes.avaliarCliente(
+              solicitacaoId: _atendimento.solicitacao.id,
+              nota: _nota,
+              comentario: _comentarioController.text,
+            );
+          } else {
+            await AppServices.instance.avaliacoes.avaliarProfissional(
+              solicitacaoId: _atendimento.solicitacao.id,
+              nota: _nota,
+              comentario: _comentarioController.text,
+              fotoIds: fotoIds,
+            );
+          }
+          fotoIds.clear();
+          if (mounted) setState(() => _fotosAvaliacao.clear());
+        } catch (_) {
+          for (final fotoId in fotoIds) {
+            try {
+              await AppServices.instance.avaliacoes.removerFotoTemporaria(
+                solicitacaoId: _atendimento.solicitacao.id,
+                fotoId: fotoId,
+              );
+            } catch (_) {}
+          }
+          rethrow;
+        }
         if (!mounted) return;
         await _atualizarAvaliacaoRegistrada();
         _notificar('Avaliação registrada e enviada para moderação.');
@@ -838,6 +875,52 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       if (mounted) _notificar('Avaliação indisponível para este status.');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _selecionarFotosAvaliacao() async {
+    if (_selecionandoFotos || _enviando || _fotosAvaliacao.length >= 3) return;
+    setState(() => _selecionandoFotos = true);
+    try {
+      final selecionados = await openFiles(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'JPEG, PNG ou WebP',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+            uniformTypeIdentifiers: [
+              'public.jpeg',
+              'public.png',
+              'org.webmproject.webp',
+            ],
+          ),
+        ],
+        confirmButtonText: 'Selecionar',
+      );
+      if (!mounted || selecionados.isEmpty) return;
+      if (selecionados.length + _fotosAvaliacao.length > 3) {
+        _notificar('Adicione no máximo três fotos à avaliação.');
+        return;
+      }
+      final novas = <_FotoAvaliacaoSelecionada>[];
+      for (final arquivo in selecionados) {
+        if (await arquivo.length() > 5 * 1024 * 1024) {
+          _notificar('Cada foto precisa ter no máximo 5 MB.');
+          continue;
+        }
+        novas.add(
+          _FotoAvaliacaoSelecionada(
+            nomeArquivo: arquivo.name,
+            bytes: await arquivo.readAsBytes(),
+          ),
+        );
+      }
+      if (mounted && novas.isNotEmpty) {
+        setState(() => _fotosAvaliacao.addAll(novas));
+      }
+    } catch (_) {
+      if (mounted) _notificar('Não foi possível selecionar as fotos.');
+    } finally {
+      if (mounted) setState(() => _selecionandoFotos = false);
     }
   }
 
@@ -899,8 +982,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 _DetalheLinha(
                   icon: Icons.event_outlined,
                   label: 'Data e horário',
-                  value:
-                      '$dataFormatada às ${solicitacao.horarioServico}\n${solicitacao.duracaoMinutos} min de serviço + ${solicitacao.intervaloMinutos} min de intervalo',
+                  value: '$dataFormatada às ${solicitacao.horarioServico}',
                 ),
                 _DetalheLinha(
                   icon: Icons.schedule_outlined,
@@ -1049,9 +1131,27 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 : 'Avaliar profissional',
             nota: _nota,
             controller: _comentarioController,
+            fotos: _fotosAvaliacao,
+            permiteFotos:
+                !_profissionalParticipante &&
+                AppServices.instance.auth.autenticado &&
+                !AppServices.instance.emDemonstracao,
+            selecionandoFotos: _selecionandoFotos,
             onNotaChanged: (nota) => setState(() => _nota = nota),
-            onAvaliar: _enviando ? null : () => _avaliar(),
+            onSelecionarFotos: _selecionarFotosAvaliacao,
+            onRemoverFoto: (indice) => setState(() {
+              _fotosAvaliacao.removeAt(indice);
+            }),
+            onAvaliar: _enviando || _selecionandoFotos
+                ? null
+                : () => _avaliar(),
           ),
+        ],
+        if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada &&
+            atendimento.avaliado &&
+            (_clienteParticipante || _profissionalParticipante)) ...[
+          const SizedBox(height: 16),
+          const _AvaliacaoRegistradaCard(),
         ],
         if (_clienteParticipante || _profissionalParticipante) ...[
           const SizedBox(height: 16),
@@ -1886,18 +1986,38 @@ class _AjudaSegurancaAtendimento extends StatelessWidget {
   }
 }
 
+class _FotoAvaliacaoSelecionada {
+  const _FotoAvaliacaoSelecionada({
+    required this.nomeArquivo,
+    required this.bytes,
+  });
+
+  final String nomeArquivo;
+  final Uint8List bytes;
+}
+
 class _FormularioAvaliacao extends StatelessWidget {
   const _FormularioAvaliacao({
     required this.nota,
     required this.controller,
+    required this.fotos,
+    required this.permiteFotos,
+    required this.selecionandoFotos,
     required this.onNotaChanged,
+    required this.onSelecionarFotos,
+    required this.onRemoverFoto,
     required this.onAvaliar,
     required this.titulo,
   });
 
   final int nota;
   final TextEditingController controller;
+  final List<_FotoAvaliacaoSelecionada> fotos;
+  final bool permiteFotos;
+  final bool selecionandoFotos;
   final ValueChanged<int> onNotaChanged;
+  final VoidCallback onSelecionarFotos;
+  final ValueChanged<int> onRemoverFoto;
   final VoidCallback? onAvaliar;
   final String titulo;
 
@@ -1945,6 +2065,71 @@ class _FormularioAvaliacao extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (permiteFotos) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('avaliacao-adicionar-fotos'),
+                onPressed: selecionandoFotos || fotos.length >= 3
+                    ? null
+                    : onSelecionarFotos,
+                icon: selecionandoFotos
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  selecionandoFotos
+                      ? 'Abrindo arquivos...'
+                      : 'Adicionar fotos (${fotos.length}/3)',
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'JPEG, PNG ou WebP, até 5 MB cada. As imagens são analisadas antes de aparecer no perfil.',
+                style: TextStyle(color: AppColors.textoSuave),
+              ),
+              if (fotos.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var index = 0; index < fotos.length; index++)
+                      SizedBox(
+                        width: 88,
+                        height: 88,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.memory(
+                                fotos[index].bytes,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const ColoredBox(
+                                  color: Color(0xFFF1F4F2),
+                                  child: Icon(Icons.broken_image_outlined),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: IconButton.filledTonal(
+                                tooltip: 'Remover foto',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => onRemoverFoto(index),
+                                icon: const Icon(Icons.close_rounded, size: 18),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -1953,6 +2138,44 @@ class _FormularioAvaliacao extends StatelessWidget {
                 onPressed: onAvaliar,
                 icon: const Icon(Icons.star_rounded),
                 label: const Text('Enviar avaliação'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvaliacaoRegistradaCard extends StatelessWidget {
+  const _AvaliacaoRegistradaCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.fact_check_outlined, color: AppColors.verdeEscuro),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Avaliação registrada',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'As avaliações só aparecem no perfil público após análise da equipe.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
             ),
           ],

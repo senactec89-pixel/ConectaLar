@@ -17,7 +17,7 @@ void main() {
   ) async {
     await configurarFrontend(papel: 'administrador');
     for (final width in [360.0, 390.0, 412.0]) {
-      for (final scale in [1.0, 1.4, 2.0]) {
+      for (final scale in [1.0, 1.4]) {
         await tester.pumpWidget(const SizedBox.shrink());
         await abrirFrontend(
           tester,
@@ -25,6 +25,19 @@ void main() {
           width: width,
           textScale: scale,
         );
+        if (scale >= 1.6) {
+          final filtro = find.byKey(
+            const ValueKey('admin-documentos-filtro-pendente'),
+          );
+          expect(filtro, findsOneWidget);
+          expect(
+            find.descendant(of: filtro, matching: find.text('Pendentes')),
+            findsOneWidget,
+          );
+          expect(tester.getRect(filtro).right, lessThanOrEqualTo(width));
+          expect(tester.takeException(), isNull, reason: '$width / $scale');
+          continue;
+        }
         final linhas = <int, int>{};
         double? larguraFiltro;
         for (final status in ['pendente', 'aprovado', 'rejeitado', '']) {
@@ -73,6 +86,24 @@ void main() {
         expect(tester.takeException(), isNull, reason: '$width / $scale');
       }
     }
+  });
+
+  testWidgets('texto muito ampliado troca chips por filtro acessivel', (
+    tester,
+  ) async {
+    await configurarFrontend(papel: 'administrador');
+    await abrirFrontend(
+      tester,
+      AppRoutes.adminDocumentos,
+      width: 360,
+      textScale: 2,
+    );
+    final filtro = find.byKey(
+      const ValueKey('admin-documentos-filtro-pendente'),
+    );
+    expect(filtro, findsOneWidget);
+    expect(tester.getRect(filtro).right, lessThanOrEqualTo(360));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

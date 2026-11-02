@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
-import { extname, join, resolve, sep } from 'node:path';
+import { dirname, extname, join } from 'node:path';
+import { readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import {
+  ensurePrivateStorageDirectory,
+  localStoragePath,
+} from '../storage/local-storage';
 import {
   GetObjectCommand,
   PutObjectCommand,
@@ -15,7 +19,6 @@ export interface DocumentoArquivo {
   readonly nomeSeguro: string;
 }
 
-const pastaDocumentosRelativa = join('storage', 'documentos-verificacao');
 const r2Prefix = 'r2://';
 
 @Injectable()
@@ -42,12 +45,18 @@ export class DocumentoStorageService {
       return `${r2Prefix}${key}`;
     }
 
-    const pastaRelativa = join(pastaDocumentosRelativa, String(profissionalId));
+    const pastaRelativa = join(
+      'storage',
+      'documentos-verificacao',
+      String(profissionalId),
+    );
     const nomeArquivo = `${randomUUID()}${extensao}`;
-    const pastaAbsoluta = join(process.cwd(), pastaRelativa);
-    await mkdir(pastaAbsoluta, { recursive: true });
-    await writeFile(join(pastaAbsoluta, nomeArquivo), conteudo, { flag: 'wx' });
-    return join(pastaRelativa, nomeArquivo).replace(/\\/g, '/');
+    const referencia = join(pastaRelativa, nomeArquivo).replace(/\\/g, '/');
+    const caminho = localStoragePath(referencia, 'documentos-verificacao');
+    if (caminho === null) throw documentoIndisponivel();
+    await ensurePrivateStorageDirectory(dirname(caminho));
+    await writeFile(caminho, conteudo, { flag: 'wx', mode: 0o600 });
+    return referencia;
   }
 
   async carregar(
@@ -72,7 +81,7 @@ export class DocumentoStorageService {
       return;
     }
 
-    const caminho = caminhoDocumentoSeguro(referencia);
+    const caminho = localStoragePath(referencia, 'documentos-verificacao');
     if (caminho === null) return;
     try {
       await unlink(caminho);
@@ -117,7 +126,7 @@ function carregarLocal(
   nomeArquivo: string | null,
 ): Promise<DocumentoArquivo> {
   return (async () => {
-    const caminho = caminhoDocumentoSeguro(referencia);
+    const caminho = localStoragePath(referencia, 'documentos-verificacao');
     if (caminho === null) throw documentoIndisponivel();
 
     const extensao = extname(caminho).toLowerCase();
@@ -170,13 +179,6 @@ function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) throw documentoIndisponivel();
   return value;
-}
-
-function caminhoDocumentoSeguro(referencia: string): string | null {
-  const root = resolve(process.cwd(), pastaDocumentosRelativa);
-  const caminho = resolve(process.cwd(), referencia);
-  if (caminho !== root && !caminho.startsWith(`${root}${sep}`)) return null;
-  return caminho;
 }
 
 function nomeSeguroDocumento(

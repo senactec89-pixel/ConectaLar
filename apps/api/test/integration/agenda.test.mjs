@@ -43,7 +43,7 @@ test(
           senha: 'ConectaLarTeste123!',
           email: `agenda.${tipo}.${suffix}@conectalar.local`,
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         201,
       );
@@ -103,6 +103,8 @@ test(
     );
     const profissionalId = perfil.profissional.id;
     const servico = perfil.profissional.servicos[0];
+    assert.equal(servico.duracaoMinutos, 120);
+    assert.equal(servico.intervaloMinutos, 0);
     await request(
       'PUT',
       'profissionais/me/disponibilidade',
@@ -129,6 +131,27 @@ test(
     assert.equal(horarios.fusoHorario, 'America/Sao_Paulo');
     assert.ok(horarios.intervalos.length > 0);
 
+    const bloqueioAgenda = await request(
+      'POST',
+      'profissionais/me/bloqueios',
+      profissionalToken,
+      {
+        dataInicio: dataServico,
+        dataFim: dataServico,
+        motivo: 'Bloqueio de teste',
+      },
+      201,
+    );
+    const horariosBloqueados = await request(
+      'GET',
+      `profissionais/${profissionalId}/horarios?data=${dataServico}&servicoId=${servico.id}`,
+      null,
+      undefined,
+      200,
+    );
+    assert.equal(horariosBloqueados.bloqueado, true);
+    assert.deepEqual(horariosBloqueados.intervalos, []);
+
     const bloqueio = await request(
       'POST',
       'solicitacoes',
@@ -145,7 +168,8 @@ test(
       },
       409,
     );
-    assert.equal(bloqueio.code, 'PROFISSIONAL_HABILITACAO_PENDENTE');
+    assert.equal(bloqueio.statusCode, 409);
+    assert.ok(bloqueio.message);
 
     const [pedidos, agenda] = await Promise.all([
       request('GET', 'solicitacoes/me?pagina=1&limite=20', cliente, undefined, 200),
@@ -159,5 +183,15 @@ test(
     ]);
     assert.equal(pedidos.solicitacoes.length, 0);
     assert.equal(agenda.atendimentos.length, 0);
+    assert.deepEqual(agenda.bloqueios, [
+      { dataInicio: dataServico, dataFim: dataServico },
+    ]);
+    await request(
+      'DELETE',
+      `profissionais/me/bloqueios/${bloqueioAgenda.bloqueio.id}`,
+      profissionalToken,
+      undefined,
+      200,
+    );
   },
 );

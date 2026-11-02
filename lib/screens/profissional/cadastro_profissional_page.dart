@@ -297,8 +297,8 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             'nome': servico['nome'],
             'categoriaId': ?categoriaId,
             'precoInicial': ?preco,
-            'duracaoMinutos': servico['duracaoMinutos'] ?? 60,
-            'intervaloMinutos': servico['intervaloMinutos'] ?? 30,
+            'duracaoMinutos': servico['duracaoMinutos'] ?? 120,
+            'intervaloMinutos': servico['intervaloMinutos'] ?? 0,
             'ativo': servico['ativo'] != false,
           };
         })
@@ -882,7 +882,7 @@ class _DocumentoAviso extends StatelessWidget {
         SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Documentos ficam restritos à administração. O selo só aparece após aprovação e não garante resultado.',
+            'Documentos ficam restritos à administração. A análise aprovada não confirma identidade nem habilita atendimentos.',
             style: TextStyle(color: AppColors.textoSuave, height: 1.35),
           ),
         ),

@@ -139,7 +139,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Solicitar serviço'), findsNothing);
-      expect(find.text('Habilitação pendente'), findsOneWidget);
+      expect(find.text('Atendimento indisponível'), findsWidgets);
       expect(
         tester
             .widget<FilledButton>(
@@ -154,6 +154,10 @@ void main() {
   testWidgets('formulário isolado de demonstração inicia aguardando resposta', (
     tester,
   ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final amanha = DateTime.now().add(const Duration(days: 1));
     final dataAtendimento =
         '${amanha.day.toString().padLeft(2, '0')}/'
@@ -197,6 +201,7 @@ void main() {
       500,
       scrollable: find.byType(Scrollable).last,
     );
+    await tester.ensureVisible(find.byKey(const ValueKey('solicitar-enviar')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('solicitar-enviar')));
     await tester.pumpAndSettle();
@@ -291,7 +296,8 @@ void main() {
       await tester.pumpWidget(const ConectaLarApp());
       await tester.pumpAndSettle();
 
-      expect(tester.takeException(), isNull, reason: 'Largura: $width px');
+      final exception = tester.takeException();
+      expect(exception, isNull, reason: 'Largura: $width px');
     }
   });
 
@@ -303,7 +309,7 @@ void main() {
 
     expect(find.text('Nenhuma categoria disponível.'), findsOneWidget);
     expect(
-      find.text('Nenhum profissional disponível no momento.'),
+      find.text('Nenhum profissional encontrado na região do seu endereço.'),
       findsOneWidget,
     );
   });

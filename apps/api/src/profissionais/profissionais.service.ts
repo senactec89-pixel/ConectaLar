@@ -4,13 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Brackets, EntityManager, In, Repository } from 'typeorm';
+import {
+  Between,
+  Brackets,
+  EntityManager,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -61,6 +70,8 @@ export class ProfissionaisService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly localizacao: LocalizacaoService,
+    @InjectRepository(ProfissionalBloqueioEntity)
+    private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
   ) {}
 
   async listar(query: Record<string, unknown>) {
@@ -259,19 +270,29 @@ export class ProfissionaisService {
     });
     if (servicoId !== null && oferta === null) throw badRequest('OFERTA_INDISPONIVEL');
     const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
-    const [semanais, ocupados] = await Promise.all([
+    const [semanais, ocupados, bloqueio] = await Promise.all([
       this.disponibilidades.find({ where: { profissionalId: id, ativo: true } }),
       this.solicitacoes.find({ where: {
         profissionalId: id, status: SolicitacaoStatus.AceitaAgendada,
         dataServico: Between(diaAnterior(data), data),
       } }),
+      this.bloqueios.findOne({
+        where: {
+          profissionalId: id,
+          dataInicio: LessThanOrEqual(data),
+          dataFim: MoreThanOrEqual(data),
+        },
+      }),
     ]);
     // Only free windows are public: no customer, request IDs, address, or busy
     // appointment details leave this endpoint.
     return {
       data, fusoHorario: fusoAgenda, duracaoMinutos,
-      intervalos: intervalosLivres(data, semanais, ocupados).filter((item) =>
-        minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
+      bloqueado: bloqueio !== null,
+      intervalos: bloqueio !== null
+        ? []
+        : intervalosLivres(data, semanais, ocupados).filter((item) =>
+            minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
     };
   }
 
@@ -389,11 +410,17 @@ export class ProfissionaisService {
     const perfil = await this.carregarMeuPerfil(user);
     const mes = parseMes(query.mes);
     if (perfil === null) {
-      return { mes, fusoHorario: fusoAgenda, disponibilidade: [], atendimentos: [] };
+      return {
+        mes,
+        fusoHorario: fusoAgenda,
+        disponibilidade: [],
+        atendimentos: [],
+        bloqueios: [],
+      };
     }
 
     const [inicio, fim] = intervaloMes(mes);
-    const [disponibilidade, atendimentos] = await Promise.all([
+    const [disponibilidade, atendimentos, bloqueios] = await Promise.all([
       this.disponibilidades.find({
         where: { profissionalId: perfil.id, ativo: true },
         order: { diaSemana: 'ASC', horaInicio: 'ASC' },
@@ -414,6 +441,14 @@ export class ProfissionaisService {
         .orderBy('solicitacao.dataServico', 'ASC')
         .addOrderBy('solicitacao.horarioServico', 'ASC')
         .getMany(),
+      this.bloqueios.find({
+        where: {
+          profissionalId: perfil.id,
+          dataInicio: LessThanOrEqual(fim),
+          dataFim: MoreThanOrEqual(inicio),
+        },
+        order: { dataInicio: 'ASC' },
+      }),
     ]);
 
     return {
@@ -421,6 +456,10 @@ export class ProfissionaisService {
       fusoHorario: fusoAgenda,
       disponibilidade: disponibilidade.map(disponibilidadeResponse),
       atendimentos: atendimentos.map((item) => agendaAtendimentoResponse(item, podeAtender(perfil))),
+      bloqueios: bloqueios.map((item) => ({
+        dataInicio: item.dataInicio,
+        dataFim: item.dataFim,
+      })),
     };
   }
 
@@ -625,6 +664,7 @@ export class ProfissionaisService {
     const filtros = parseAvaliacoesQuery(query);
     const consulta = this.avaliacoes
       .createQueryBuilder('avaliacao')
+      .leftJoinAndSelect('avaliacao.fotos', 'foto')
       .where('avaliacao.avaliadoId = :usuarioId', { usuarioId })
       .andWhere('avaliacao.moderacaoStatus = :status', {
         status: AvaliacaoModeracaoStatus.Aprovada,
@@ -656,6 +696,10 @@ export class ProfissionaisService {
         id: a.id,
         nota: a.nota,
         comentario: a.comentario,
+        fotos: (a.fotos ?? []).map((foto) => ({
+          id: foto.id,
+          url: `avaliacoes/${a.id}/fotos/${foto.id}`,
+        })),
         criadoEm: a.criadoEm.toISOString(),
       })),
     };
@@ -936,17 +980,16 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
-      duracaoMinutos: durationField(body.duracaoMinutos, 60),
-      intervaloMinutos: durationField(body.intervaloMinutos, 30, true),
+      duracaoMinutos: durationField(body.duracaoMinutos, 120),
+      intervaloMinutos: 0,
     };
   });
 }
 
-function durationField(value: unknown, fallback: number, allowZero = false): number {
+function durationField(value: unknown, fallback: number): number {
   if (value === undefined || value === null || value === '') return fallback;
   const parsed = typeof value === 'string' ? Number(value) : value;
-  const minimum = allowZero ? 0 : 15;
-  if (!Number.isInteger(parsed) || Number(parsed) < minimum || Number(parsed) > 480) {
+  if (!Number.isInteger(parsed) || Number(parsed) < 1 || Number(parsed) > 1440) {
     throw badRequest('DURACAO_INVALIDA');
   }
   return Number(parsed);

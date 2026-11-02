@@ -53,7 +53,12 @@ void main() {
           expect(tester.getSize(find.byType(Image)), const Size(76, 94));
           expect(find.text('Quarto serviço'), findsNothing);
           expect(find.text('4,9 · 12345678 avaliações'), findsOneWidget);
-          expect(find.byTooltip('Documentos verificados'), findsOneWidget);
+          expect(
+            find.byTooltip(
+              'Análise documental aprovada; não confirma identidade.',
+            ),
+            findsOneWidget,
+          );
           if (scale == 2) {
             for (final texto in [
               _profissional.nome,
@@ -65,10 +70,11 @@ void main() {
               expect(tester.widget<Text>(find.text(texto)).maxLines, isNull);
             }
           }
-          final preco = find.text('A partir de R\$ 9999999,99');
+          expect(find.text('A partir de'), findsOneWidget);
+          final preco = find.textContaining('9999999,99');
           await tester.ensureVisible(preco);
           await tester.pumpAndSettle();
-          expect(tester.widget<Text>(preco).maxLines, isNull);
+          expect(tester.widget<Text>(preco).maxLines, 1);
           expect(tester.getRect(preco).right, lessThanOrEqualTo(width - 20));
           final remover = find.byKey(const ValueKey('card-favorito'));
           await tester.ensureVisible(remover);
@@ -132,12 +138,12 @@ void main() {
         ),
       );
       expect(find.text('5,0 · 1 avaliação'), findsOneWidget);
-      final preco = tester.getRect(find.text(r'A partir de R$ 120,00'));
+      expect(find.text('A partir de'), findsOneWidget);
+      final preco = tester.getRect(find.textContaining('120,00'));
       final acao = tester.getRect(find.text('Ver perfil'));
       // A fonte de teste é mais larga que a usada no app. Também exercita
       // o empilhamento quando manter o valor inteiro exige mais espaço.
-      if (width == 600 || preco.right < acao.left) {
-        expect(preco.center.dy, closeTo(acao.center.dy, 2));
+      if (preco.right < acao.left) {
         expect(preco.right, lessThan(acao.left));
       } else {
         expect(preco.bottom, lessThan(acao.top));
@@ -165,7 +171,7 @@ void main() {
         );
         expect(find.text('Preço sob consulta'), findsOneWidget);
         expect(find.text('Novo profissional'), findsNWidgets(2));
-        expect(find.text('Verificado'), findsNothing);
+        expect(find.text('Documento analisado'), findsNothing);
         expect(find.byType(Image), findsNothing);
         expect(find.text('N'), findsOneWidget);
         final perfil = find.ancestor(

@@ -70,7 +70,7 @@ void main() {
     await tester.tap(continuar);
     await tester.pumpAndSettle();
 
-    expect(find.text('ConectaLar Profissional'), findsWidgets);
+    expect(find.text('Área profissional'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('continuar-sem-documentos')),
       findsNothing,
@@ -213,7 +213,9 @@ void main() {
         ),
       ),
     );
-    final confirmado = find.text('Acesso ao telefone confirmado.');
+    final confirmado = find.text(
+      'Acesso ao telefone confirmado pelo fornecedor.',
+    );
     await revelar(tester, confirmado);
     expect(confirmado, findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -388,13 +390,17 @@ void main() {
           width: largura,
           textScale: 2,
         );
-        await tester.ensureVisible(find.text('Profissional de teste'));
+        final profissional = find.text('Profissional de teste');
+        await tester.ensureVisible(profissional);
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Profissional de teste'));
+        expect(profissional.hitTestable(), findsOneWidget);
+        await tester.tap(profissional);
         await tester.pumpAndSettle();
         expect(find.text('Confirmar'), findsOneWidget);
         expect(find.text('Aprovar'), findsNothing);
         expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.text('Confirmar'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Confirmar'));
         await tester.pumpAndSettle();
         expect(chamadas.last, {

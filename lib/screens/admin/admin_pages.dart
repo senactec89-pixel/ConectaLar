@@ -15,6 +15,7 @@ import '../../widgets/async_state_view.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/page_intro.dart';
 import '../../widgets/responsive_action_row.dart';
+import '../../widgets/avaliacao_fotos_view.dart';
 
 enum AdminModulo {
   painel,
@@ -612,12 +613,17 @@ class _AdminPageState extends State<AdminPage> {
       value is Map<String, dynamic> ? value : const {};
 
   Future<void> _criarAdministrador() async {
-    final criado = await Navigator.pushNamed<bool>(
+    final resultado = await Navigator.pushNamed<Object?>(
       context,
       AppRoutes.adminCriarAdministrador,
     );
-    if (!mounted || criado != true) return;
-    _avisar('Convite administrativo registrado. Confira a entrega do e-mail.');
+    if (!mounted || resultado is! Map) return;
+    if (resultado['criado'] != true) return;
+    _avisar(
+      resultado['emailEnviado'] == true
+          ? 'Convite enviado. A pessoa deve conferir o e-mail para continuar.'
+          : 'Convite registrado, mas o envio do e-mail esta pendente. Verifique o servico de e-mail antes de tentar novamente.',
+    );
     setState(() {
       _future = _carregar(_modulo);
       _future.ignore();
@@ -685,6 +691,7 @@ class _AdminPageState extends State<AdminPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _buscaLocalController,
+                textInputAction: TextInputAction.search,
                 onChanged: (value) => setState(() => _buscaLocal = value),
                 onSubmitted: (_) => _aplicarFiltros(),
                 decoration: InputDecoration(
@@ -1310,13 +1317,27 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _analisarAvaliacao(Map<String, dynamic> item) async {
     if (_mutando) return;
+    final fotos = item['fotos'] is List
+        ? List<dynamic>.from(item['fotos'] as List)
+        : const <dynamic>[];
     final status = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
         title: Text('Avaliação #${item['id']}'),
-        content: Text(
-          '“${item['comentario'] ?? 'Sem comentário'}”\n\nAção preserva o registro histórico.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '“${item['comentario'] ?? 'Sem comentário'}”\n\nAção preserva o registro histórico.',
+            ),
+            if (fotos.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Fotos anexadas'),
+              AvaliacaoFotosView(fotos: fotos),
+            ],
+          ],
         ),
         actions: [
           TextButton(

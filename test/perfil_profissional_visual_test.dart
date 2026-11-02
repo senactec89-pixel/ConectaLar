@@ -58,7 +58,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final selo = find.text('Documentos verificados');
+        final selo = find.text('Análise documental aprovada');
         expect(selo, findsOneWidget);
         expect(
           tester.renderObject<RenderParagraph>(selo).didExceedMaxLines,
@@ -163,7 +163,7 @@ void main() {
         for (final atalho in [
           ('servicos', 'Serviços oferecidos'),
           ('avaliacoes', 'Avaliações de clientes'),
-          ('sobre', 'Sobre o profissional'),
+          ('sobre', 'Apresentação'),
         ]) {
           final botao = find.byKey(ValueKey('perfil-atalho-${atalho.$1}'));
           await tester.ensureVisible(botao);
@@ -194,7 +194,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(argumento, isNull);
         expect(tester.widget<FilledButton>(solicitar).onPressed, isNull);
-        expect(find.text('Habilitação pendente'), findsOneWidget);
+        expect(find.text('Atendimento indisponível'), findsWidgets);
         expect(tester.takeException(), isNull);
       }
     },
@@ -225,7 +225,7 @@ void main() {
         textScale: 2,
       );
       expect(find.text('N'), findsOneWidget);
-      expect(find.text('Documentos verificados'), findsNothing);
+      expect(find.text('Análise documental aprovada'), findsNothing);
       expect(find.text('Preço inicial sob consulta'), findsNWidgets(2));
       expect(find.text('A partir de R\$ 80,00'), findsOneWidget);
       expect(tester.takeException(), isNull);

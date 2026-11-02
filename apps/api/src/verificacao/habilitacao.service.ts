@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
@@ -37,7 +37,7 @@ export class HabilitacaoService {
     return { habilitacao: habilitacaoProfissional(
       perfil,
       etapaIdentidade(identidade?.estado),
-      etapaTelefone(telefone, perfil?.usuario?.telefoneNormalizado, this.identidade.telefoneDisponivel),
+      etapaTelefone(telefone, perfil?.usuario?.telefoneNormalizado, telefoneConfigurado()),
     ) };
   }
 
@@ -164,6 +164,229 @@ export class HabilitacaoService {
     return { telefone: respostaTelefone(persistida.atual, true, usuario?.telefoneNormalizado) };
   }
 
+  async iniciarTelefoneManual(user: AuthenticatedUser, body: unknown) {
+    this.exigirProfissional(user);
+    const input = corpo(body, ['consentimento']);
+    if (input.consentimento !== true) throw invalido();
+    const numeroOficial = numeroWhatsAppManual();
+    if (!numeroOficial || !this.telefones || !segredoCodigoConfigurado()) {
+      throw telefoneManualIndisponivel();
+    }
+
+    const criado = await this.telefones.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!usuario?.telefoneNormalizado) throw telefoneAusente();
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { usuarioId: user.id, ativo: true },
+      });
+      if (!perfil) throw naoEncontrado();
+
+      const repo = manager.getRepository(ProfissionalTelefoneVerificacaoEntity);
+      const ultima = await repo.findOne({
+        where: { usuarioId: user.id }, order: { criadoEm: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const now = new Date();
+      if (ultima && ultima.telefoneVinculado !== usuario.telefoneNormalizado &&
+        !['invalidada', 'expirada', 'falha'].includes(ultima.estado)) {
+        ultima.estado = 'invalidada';
+        ultima.codigoHash = null;
+        ultima.resolvidaEm = now;
+        await repo.save(ultima);
+      }
+      if (ultima?.telefoneVinculado === usuario.telefoneNormalizado && ultima.estado === 'confirmada') {
+        return { verificacao: ultima, codigo: null, jaConfirmado: true };
+      }
+      if (ultima?.telefoneVinculado === usuario.telefoneNormalizado &&
+        ultima.metodo === 'whatsapp_manual' && ultima.estado === 'pendente' &&
+        ultima.expiraEm && ultima.expiraEm > now) {
+        return { verificacao: ultima, codigo: null, jaConfirmado: false };
+      }
+      if (ultima?.telefoneVinculado === usuario.telefoneNormalizado &&
+        ultima.estado === 'pendente' && ultima.expiraEm && ultima.expiraEm > now) {
+        throw new ConflictException({
+          code: 'OUTRA_VERIFICACAO_TELEFONE_PENDENTE',
+          message: 'Ja existe outra confirmacao de telefone pendente. Aguarde ou conclua a atual.',
+        });
+      }
+      if (ultima?.estado === 'pendente' || ultima?.estado === 'iniciando') {
+        ultima.estado = 'expirada';
+        ultima.codigoHash = null;
+        ultima.resolvidaEm = now;
+        await repo.save(ultima);
+      }
+
+      const desde = new Date(now.getTime() - 24 * 60 * 60_000);
+      const recentes = await repo.createQueryBuilder('verificacao')
+        .where('verificacao.usuarioId = :usuarioId', { usuarioId: user.id })
+        .andWhere('verificacao.criadoEm >= :desde', { desde })
+        .getCount();
+      if (recentes >= 3) throw limiteTelefone();
+      if (ultima && now.getTime() - ultima.criadoEm.getTime() < 10 * 60_000) {
+        throw new ConflictException({
+          code: 'AGUARDE_NOVA_VERIFICACAO_TELEFONE',
+          message: 'Aguarde alguns minutos antes de solicitar outro desafio.',
+        });
+      }
+
+      const codigo = randomInt(0, 100_000_000).toString().padStart(8, '0');
+      const referenciaExterna = randomUUID();
+      const expiraEm = new Date(now.getTime() + 10 * 60_000);
+      const verificacao = await repo.save(repo.create({
+        usuarioId: user.id,
+        telefoneVinculado: usuario.telefoneNormalizado,
+        metodo: 'whatsapp_manual',
+        codigoHash: hashDesafioTelefone(referenciaExterna, codigo),
+        referencia: null,
+        referenciaExterna,
+        chaveIdempotencia: null,
+        tentativaId: null,
+        chaveIdempotenciaTentativa: null,
+        tentativaEmAndamento: false,
+        consentimentoEm: now,
+        versaoAviso: 'conectalar-telefone-manual-v1',
+        estado: 'pendente',
+        tentativasRestantes: 5,
+        expiraEm,
+        resolvidaEm: null,
+      }));
+      return { verificacao, codigo, jaConfirmado: false };
+    });
+
+    const usuario = await this.usuarios.findOneBy({ id: user.id, ativo: true });
+    const telefone = respostaTelefone(criado.verificacao, true, usuario?.telefoneNormalizado);
+    telefone.metodo = criado.verificacao.metodo;
+    telefone.whatsAppManualDisponivel = true;
+    telefone.numeroWhatsAppManual = numeroOficial;
+    if (criado.codigo) {
+      telefone.codigo = criado.codigo;
+      telefone.linkWhatsApp = linkWhatsApp(numeroOficial);
+      telefone.codigoExibidoUmaVez = true;
+    } else {
+      telefone.codigoExibidoUmaVez = false;
+      telefone.jaConfirmado = criado.jaConfirmado;
+    }
+    return { telefone };
+  }
+
+  async confirmarTelefoneManual(user: AuthenticatedUser, id: number, body: unknown) {
+    await this.exigirAdminMfa(user);
+    if (!numeroWhatsAppManual()) throw telefoneManualIndisponivel();
+    const input = corpo(body, ['codigo', 'telefoneRemetente']);
+    if (typeof input.codigo !== 'string' || !/^\d{8}$/.test(input.codigo) ||
+      typeof input.telefoneRemetente !== 'string') throw invalido();
+    const codigo = input.codigo as string;
+    const telefoneRemetente = normalizarTelefoneRemetente(input.telefoneRemetente);
+    if (!telefoneRemetente || !this.telefones) throw invalido();
+
+    const resultado = await this.telefones.manager.transaction(async (manager) => {
+      const admin = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!admin?.mfaAtivo || admin.tipo !== UsuarioTipo.Administrador) {
+        throw new ForbiddenException({ code: 'MFA_ADMIN_OBRIGATORIO', message: 'Ative a verificacao em duas etapas para gerenciar habilitacoes.' });
+      }
+      const perfilInicial = await manager.findOne(ProfissionalPerfilEntity, { where: { id } });
+      if (!perfilInicial || perfilInicial.usuarioId === user.id) throw naoEncontrado();
+      // Keep lock order aligned with challenge creation: user, profile, verification.
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { id: perfilInicial.usuarioId, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!usuario?.telefoneNormalizado) throw telefoneAusente();
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!perfil || perfil.usuarioId !== perfilInicial.usuarioId) throw naoEncontrado();
+      const repo = manager.getRepository(ProfissionalTelefoneVerificacaoEntity);
+      const verificacao = await repo.findOne({
+        where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const now = new Date();
+      if (verificacao?.metodo === 'whatsapp_manual' && verificacao.estado === 'pendente' &&
+        verificacao.expiraEm && verificacao.expiraEm <= now) {
+        verificacao.estado = 'expirada';
+        verificacao.codigoHash = null;
+        verificacao.resolvidaEm = now;
+        await repo.save(verificacao);
+        return { invalido: false, esgotado: false, expirado: true };
+      }
+      if (!verificacao || verificacao.metodo !== 'whatsapp_manual' ||
+        verificacao.estado !== 'pendente' || !verificacao.codigoHash ||
+        !verificacao.expiraEm || verificacao.tentativasRestantes === null ||
+        verificacao.tentativasRestantes < 1) {
+        throw desafioTelefoneIndisponivel();
+      }
+      if (verificacao.telefoneVinculado !== usuario.telefoneNormalizado) {
+        verificacao.estado = 'invalidada';
+        verificacao.codigoHash = null;
+        verificacao.resolvidaEm = now;
+        await repo.save(verificacao);
+        return { invalido: true, esgotado: false, expirado: false };
+      }
+
+      const codigoCorreto = compararHashDesafio(
+        verificacao.referenciaExterna,
+        codigo,
+        verificacao.codigoHash,
+      );
+      const remetenteCorreto = telefoneRemetente === usuario.telefoneNormalizado;
+      if (!codigoCorreto || !remetenteCorreto) {
+        verificacao.tentativasRestantes -= 1;
+        const esgotado = verificacao.tentativasRestantes === 0;
+        if (esgotado) {
+          verificacao.estado = 'falha';
+          verificacao.codigoHash = null;
+          verificacao.resolvidaEm = now;
+        }
+        await repo.save(verificacao);
+        return { invalido: true, esgotado, expirado: false };
+      }
+
+      verificacao.estado = 'confirmada';
+      verificacao.codigoHash = null;
+      verificacao.tentativasRestantes = null;
+      verificacao.resolvidaEm = now;
+      await repo.save(verificacao);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.TelefoneManualConfirmado,
+        alvoTipo: 'profissional_telefone_verificacao',
+        alvoId: verificacao.id,
+        detalhe: {
+          profissionalUsuarioId: perfil.usuarioId,
+          metodo: 'whatsapp_manual',
+          telefoneMascarado: mascararTelefone(usuario.telefoneNormalizado),
+          estado: { antes: 'pendente', depois: 'confirmada' },
+          confirmadoEm: now.toISOString(),
+          telefoneRemetenteConferido: true,
+          efeito: 'confirma_acesso_ao_whatsapp; nao_confirma_identidade_ou_habilitacao',
+        },
+      });
+      return { invalido: false, esgotado: false, expirado: false, verificacao, telefoneAtual: usuario.telefoneNormalizado };
+    });
+
+    if (resultado.expirado) {
+      throw new ConflictException({
+        code: 'DESAFIO_TELEFONE_EXPIRADO',
+        message: 'O desafio expirou. O profissional pode solicitar outro.',
+      });
+    }
+    if (resultado.invalido) {
+      throw new ConflictException({
+        code: resultado.esgotado ? 'DESAFIO_TELEFONE_BLOQUEADO' : 'DESAFIO_TELEFONE_NAO_CONFIRMADO',
+        message: resultado.esgotado
+          ? 'Desafio bloqueado apos tentativas invalidas. O profissional deve solicitar outro.'
+          : 'Nao foi possivel confirmar o desafio e o remetente. Confira os dados e tente novamente.',
+      });
+    }
+    const telefone = respostaTelefone(resultado.verificacao!, true, resultado.telefoneAtual);
+    telefone.metodo = 'whatsapp_manual';
+    return { telefone };
+  }
+
   async consultarTelefone(user: AuthenticatedUser) {
     this.exigirProfissional(user);
     if (!this.telefones) return { telefone: respostaTelefone(null, false) };
@@ -173,22 +396,32 @@ export class HabilitacaoService {
       where: { usuarioId: user.id }, order: { criadoEm: 'DESC' },
     });
     if (!verificacao) {
-      return { telefone: respostaTelefone(null, this.identidade.telefoneDisponivel, usuario.telefoneNormalizado) };
+      const telefone = respostaTelefone(null, telefoneConfigurado(), usuario.telefoneNormalizado);
+      telefone.whatsAppManualDisponivel = Boolean(numeroWhatsAppManual() && segredoCodigoConfigurado());
+      telefone.numeroWhatsAppManual = numeroWhatsAppManual();
+      return { telefone };
     }
     if (verificacao.telefoneVinculado !== usuario.telefoneNormalizado &&
       !['invalidada', 'expirada', 'falha'].includes(verificacao.estado)) {
       verificacao.estado = 'invalidada';
+      verificacao.codigoHash = null;
       verificacao.resolvidaEm = new Date();
       verificacao.tentativaEmAndamento = false;
       await this.telefones.save(verificacao);
     }
     if (verificacao.estado === 'pendente' && verificacao.expiraEm && verificacao.expiraEm <= new Date()) {
       verificacao.estado = 'expirada';
+      verificacao.codigoHash = null;
       verificacao.resolvidaEm = new Date();
       verificacao.tentativaEmAndamento = false;
       await this.telefones.save(verificacao);
     }
-    return { telefone: respostaTelefone(verificacao, this.identidade.telefoneDisponivel, usuario.telefoneNormalizado) };
+    const disponivel = telefoneConfigurado();
+    const telefone = respostaTelefone(verificacao, disponivel, usuario.telefoneNormalizado);
+    telefone.metodo = verificacao.metodo;
+    telefone.whatsAppManualDisponivel = Boolean(numeroWhatsAppManual() && segredoCodigoConfigurado());
+    telefone.numeroWhatsAppManual = numeroWhatsAppManual();
+    return { telefone };
   }
 
   async confirmarTelefone(user: AuthenticatedUser, body: unknown) {
@@ -453,8 +686,16 @@ export class HabilitacaoService {
         habilitacao: habilitacaoProfissional(
           p,
           etapaIdentidade(identidade?.estado),
-          etapaTelefone(telefone, p.usuario.telefoneNormalizado, this.identidade.telefoneDisponivel),
+          etapaTelefone(telefone, p.usuario.telefoneNormalizado, telefoneConfigurado()),
         ),
+        telefoneVerificacao: telefone ? {
+          metodo: telefone.metodo,
+          estado: etapaTelefone(telefone, p.usuario.telefoneNormalizado, telefoneConfigurado()),
+          expiraEm: telefone.expiraEm?.toISOString() ?? null,
+          tentativasRestantes: telefone.metodo === 'whatsapp_manual' && telefone.estado === 'pendente'
+            ? telefone.tentativasRestantes : null,
+          telefoneMascarado: mascararTelefone(telefone.telefoneVinculado),
+        } : null,
       };
       })),
     };
@@ -507,7 +748,7 @@ export class HabilitacaoService {
     const identidade = await this.identidades?.findOne({ where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' } });
     const telefone = await this.telefones?.findOne({ where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' } });
     return { habilitacao: habilitacaoProfissional(perfil, etapaIdentidade(identidade?.estado),
-      etapaTelefone(telefone, perfil.usuario?.telefoneNormalizado, this.identidade.telefoneDisponivel)) };
+      etapaTelefone(telefone, perfil.usuario?.telefoneNormalizado, telefoneConfigurado())) };
   }
 
   private async atualizarIdentidade(verificacao: ProfissionalIdentidadeVerificacaoEntity) {
@@ -538,6 +779,67 @@ export class HabilitacaoService {
       throw new ForbiddenException({ code: 'MFA_ADMIN_OBRIGATORIO', message: 'Ative a verificacao em duas etapas para gerenciar habilitacoes.' });
     }
   }
+}
+
+function numeroWhatsAppManual(): string | null {
+  if (process.env.WHATSAPP_MANUAL_ENABLED !== 'true') return null;
+  const digits = (process.env.WHATSAPP_MANUAL_NUMBER ?? '').replace(/\D/g, '');
+  return /^55[1-9]\d{9,10}$/.test(digits) ? digits : null;
+}
+
+function telefoneConfigurado(): boolean {
+  return Boolean(numeroWhatsAppManual() && segredoCodigoConfigurado()) ||
+    process.env.ID_ZAPSIGN_PHONE_ENABLED === 'true';
+}
+
+function segredoCodigoConfigurado(): boolean {
+  return Buffer.byteLength(process.env.AUTH_TOKEN_SECRET ?? '', 'utf8') >= 32;
+}
+
+function linkWhatsApp(numero: string): string {
+  return `https://wa.me/${numero}`;
+}
+
+function hashDesafioTelefone(referencia: string, codigo: string): string {
+  const segredo = process.env.AUTH_TOKEN_SECRET;
+  if (!segredo || Buffer.byteLength(segredo, 'utf8') < 32) throw telefoneManualIndisponivel();
+  return createHmac('sha256', segredo)
+    .update(`conectalar:whatsapp-manual:v1:${referencia}:${codigo}`)
+    .digest('hex');
+}
+
+function compararHashDesafio(referencia: string, codigo: string, hashSalvo: string): boolean {
+  const esperado = Buffer.from(hashDesafioTelefone(referencia, codigo), 'hex');
+  const salvo = Buffer.from(hashSalvo, 'hex');
+  return esperado.length === salvo.length && timingSafeEqual(esperado, salvo);
+}
+
+function normalizarTelefoneRemetente(value: string): string | null {
+  if (!/^[+\d().\s-]{10,24}$/.test(value)) return null;
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+  return digits.length === 10 || digits.length === 11 ? digits : null;
+}
+
+function limiteTelefone() {
+  return new HttpException({
+    code: 'LIMITE_VERIFICACAO_TELEFONE',
+    message: 'Limite diario de desafios de telefone atingido. Tente novamente mais tarde.',
+  }, HttpStatus.TOO_MANY_REQUESTS);
+}
+
+function telefoneManualIndisponivel() {
+  return new ServiceUnavailableException({
+    code: 'VERIFICACAO_MANUAL_WHATSAPP_INDISPONIVEL',
+    message: 'A confirmacao manual por WhatsApp ainda nao foi configurada. Seu cadastro permanece pendente.',
+  });
+}
+
+function desafioTelefoneIndisponivel() {
+  return new ConflictException({
+    code: 'DESAFIO_TELEFONE_INDISPONIVEL',
+    message: 'Nao ha desafio manual valido aguardando confirmacao.',
+  });
 }
 
 function corpo(body: unknown, permitidas: string[]): Record<string, unknown> {
@@ -573,6 +875,7 @@ function etapaTelefone(
   if (!telefoneAtual) return 'telefone_ausente';
   if (!verificacao) return disponivel ? 'nao_iniciada' : 'aguardando_integracao';
   if (verificacao.telefoneVinculado !== telefoneAtual && verificacao.estado !== 'invalidada') return 'invalidada';
+  if (verificacao.estado === 'pendente' && verificacao.expiraEm && verificacao.expiraEm <= new Date()) return 'expirada';
   if (verificacao.estado === 'confirmada') return 'confirmado';
   if (verificacao.estado === 'pendente' || verificacao.estado === 'iniciando') return 'em_analise';
   if (verificacao.estado === 'expirada') return 'expirada';
@@ -583,7 +886,7 @@ function respostaTelefone(
   verificacao: ProfissionalTelefoneVerificacaoEntity | null,
   disponivel = true,
   telefoneAtual?: string | null,
-) {
+): Record<string, unknown> {
   const vinculado = verificacao?.telefoneVinculado ?? null;
   const estado = verificacao && telefoneAtual !== undefined && vinculado !== telefoneAtual &&
     verificacao.estado !== 'invalidada' ? 'invalidada' : verificacao?.estado ??

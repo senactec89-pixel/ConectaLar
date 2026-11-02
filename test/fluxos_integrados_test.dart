@@ -212,9 +212,7 @@ void main() {
     (tester) async {
       await _sessao(
         'profissional',
-        (_) async => _json({
-          'solicitacao': _pedido(status: 'aceita_agendada'),
-        }),
+        (_) async => _json({'solicitacao': _pedido(status: 'aceita_agendada')}),
       );
       await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
       await tester.scrollUntilVisible(
@@ -229,9 +227,8 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await _sessao(
         'cliente',
-        (_) async => _json({
-          'solicitacao': _pedido(status: 'conclusao_pendente'),
-        }),
+        (_) async =>
+            _json({'solicitacao': _pedido(status: 'conclusao_pendente')}),
       );
       await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
       await tester.scrollUntilVisible(
@@ -369,6 +366,13 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -700));
       await tester.pumpAndSettle();
       expect(find.text('Avaliado'), findsOneWidget);
+      expect(find.text('Avaliação registrada'), findsOneWidget);
+      expect(
+        find.text(
+          'As avaliações só aparecem no perfil público após análise da equipe.',
+        ),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('avaliacao-enviar')), findsNothing);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -579,10 +583,7 @@ void main() {
       );
       expect(ofertaEnviada, isNull);
       await tester.enterText(find.byType(TextFormField).at(1), '125,50');
-      await tester.tap(find.text('60 minutos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('90 minutos').last);
-      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).at(2), '90');
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       final oferta = (ofertaEnviada?['servicos'] as List).single;
@@ -689,9 +690,9 @@ void main() {
         return _json({'solicitacoes': []});
       });
       await _abrir(tester, AppRoutes.perfilProfissionalPrivado);
-      await tester.ensureVisible(find.text('Região atendida'));
+      await tester.ensureVisible(find.text('Editar perfil profissional'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Região atendida'));
+      await tester.tap(find.text('Editar perfil profissional'));
       await tester.pumpAndSettle();
       expect(find.text('Editar perfil profissional'), findsOneWidget);
       await tester.enterText(find.byType(TextFormField).at(1), 'Bairro Novo');

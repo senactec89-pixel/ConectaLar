@@ -22,7 +22,23 @@ void main() {
         papel: 'administrador',
         responder: (request) async {
           if (request.url.path == '/categorias/admin') {
-            return jsonResponse({'categorias': categorias});
+            final termo = request.url.queryParameters['termo']?.toLowerCase();
+            final ativo = request.url.queryParameters['ativo'];
+            final filtradas = termo == null || termo.isEmpty
+                ? categorias
+                : categorias;
+            final resultado = filtradas.where((categoria) {
+              final correspondeTermo =
+                  termo == null ||
+                  termo.isEmpty ||
+                  (categoria['nome'] as String).toLowerCase().contains(termo);
+              final correspondeStatus =
+                  ativo == null ||
+                  ativo.isEmpty ||
+                  categoria['ativo'] == (ativo == 'true');
+              return correspondeTermo && correspondeStatus;
+            }).toList();
+            return jsonResponse({'categorias': resultado});
           }
           if (request.url.path == '/categorias/2' &&
               request.method == 'PATCH') {
@@ -40,6 +56,7 @@ void main() {
 
       final busca = find.byType(TextField).first;
       await tester.enterText(busca, 'Pintura');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(find.text('Jardinagem'), findsNothing);
       await tester.tap(find.byTooltip('Limpar busca'));

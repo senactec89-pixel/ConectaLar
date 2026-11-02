@@ -18,7 +18,7 @@ test('duration must fit completely inside weekly availability', () => {
   assert.equal(horarioDisponivel(disponibilidade, '2026-10-19', '11:00', 90), false);
 });
 
-test('overlap includes service duration and travel interval', () => {
+test('overlap rejects intersections and allows back-to-back appointments', () => {
   assert.equal(intervalosConflitam(14 * 60 + 30, 16 * 60, 14 * 60, 15 * 60 + 30), true);
   assert.equal(intervalosConflitam(15 * 60 + 30, 16 * 60, 14 * 60, 15 * 60 + 30), false);
 });
@@ -34,4 +34,25 @@ test('professional blocks migration references the professionals table', async (
 
   assert.match(migration, /REFERENCES profissionais\(id\) ON DELETE CASCADE/);
   assert.doesNotMatch(migration, /REFERENCES profissional_perfis\(id\)/);
+});
+
+test('P06 migration applies 120-minute defaults and removes extra intervals', async () => {
+  const migration = await readFile(
+    new URL(
+      '../src/database/migrations/1760138000000-AgendaP06Defaults.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  assert.match(migration, /duracao_minutos SET DEFAULT 120/);
+  assert.match(migration, /intervalo_minutos SET DEFAULT 0/);
+  assert.match(
+    migration,
+    /UPDATE profissional_servicos\s+SET duracao_minutos = 120, intervalo_minutos = 0/,
+  );
+  assert.match(
+    migration,
+    /UPDATE solicitacoes SET duracao_minutos = 120, intervalo_minutos = 0/,
+  );
 });

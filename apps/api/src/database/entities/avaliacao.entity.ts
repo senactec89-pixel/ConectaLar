@@ -5,12 +5,14 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { AvaliacaoModeracaoStatus } from '../../domain/avaliacao-moderacao-status.js';
 import { SolicitacaoEntity } from './solicitacao.entity.js';
 import { UsuarioEntity } from './usuario.entity.js';
+import { AvaliacaoFotoEntity } from './avaliacao-foto.entity.js';
 
 @Entity({ name: 'avaliacoes' })
 @Index('uq_avaliacoes_participantes', ['solicitacaoId', 'avaliadorId', 'avaliadoId'], {
@@ -51,6 +53,9 @@ export class AvaliacaoEntity {
 
   @Column({ name: 'moderacao_status', type: 'varchar', length: 24 })
   moderacaoStatus!: AvaliacaoModeracaoStatus;
+
+  @OneToMany(() => AvaliacaoFotoEntity, (foto) => foto.avaliacao)
+  fotos!: AvaliacaoFotoEntity[];
 
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;

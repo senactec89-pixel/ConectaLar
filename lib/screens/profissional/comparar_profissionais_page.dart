@@ -120,7 +120,9 @@ class _ResumoProfissional extends StatelessWidget {
                 const SizedBox(width: AppSpace.xs),
                 Flexible(
                   child: Text(
-                    profissional.verificado ? 'Verificado' : 'Sem selo',
+                    profissional.verificado
+                        ? 'Documento analisado'
+                        : 'Sem análise documental',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelMedium,
                   ),

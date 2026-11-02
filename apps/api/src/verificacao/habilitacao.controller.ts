@@ -22,6 +22,12 @@ export class HabilitacaoController {
     return this.service.iniciarTelefone(user, body);
   }
 
+  @Post('profissionais/me/habilitacao/telefone/manual')
+  @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
+  iniciarTelefoneManual(@UsuarioAtual() user: AuthenticatedUser, @Body() body: unknown) {
+    return this.service.iniciarTelefoneManual(user, body);
+  }
+
   @Get('profissionais/me/habilitacao/telefone')
   @Roles(UsuarioTipo.Profissional, UsuarioTipo.Empresa)
   consultarTelefone(@UsuarioAtual() user: AuthenticatedUser) {
@@ -54,5 +60,15 @@ export class HabilitacaoController {
   @Roles(UsuarioTipo.Administrador)
   analisar(@UsuarioAtual() user: AuthenticatedUser, @Param('id', ParseIntPipe) id: number, @Body() body: unknown) {
     return this.service.analisar(user, id, body);
+  }
+
+  @Post('admin/profissionais/:id/habilitacao/telefone/confirmacao-manual')
+  @Roles(UsuarioTipo.Administrador)
+  confirmarTelefoneManual(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: unknown,
+  ) {
+    return this.service.confirmarTelefoneManual(user, id, body);
   }
 }

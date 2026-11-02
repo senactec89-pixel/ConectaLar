@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Flutter checks and Android target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --debug
+      - name: Verify APK target API
+        shell: bash
+        run: |
+          analyzer="$(find "$ANDROID_SDK_ROOT/cmdline-tools" -type f -name apkanalyzer -print -quit)"
+          test -n "$analyzer"
+          target="$($analyzer manifest target-sdk build/app/outputs/flutter-apk/app-debug.apk)"
+          echo "APK target SDK: $target"
+          test "$target" = "36"
+
+  api:
+    name: API checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

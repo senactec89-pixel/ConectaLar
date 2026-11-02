@@ -57,22 +57,41 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
       _erro = null;
     });
     try {
-      await services.admin.criarAdministrador(
+      final resposta = await services.admin.criarAdministrador(
         nome: _nome.text.trim(),
         email: _email.text.trim(),
         telefone: _telefone.text.trim().isEmpty ? null : _telefone.text.trim(),
       );
-      if (mounted) Navigator.pop(context, true);
+      if (!mounted) return;
+      final convite = resposta['convite'];
+      Navigator.pop(context, {
+        'criado': true,
+        'emailEnviado': convite is Map && convite['emailEnviado'] == true,
+      });
     } on ApiException catch (error) {
       if (!mounted) return;
       setState(() {
-        _erro = switch (error.statusCode) {
-          403 => 'Sua conta não tem permissão para convidar administradores.',
-          409 => 'Não foi possível criar o convite. Confira e-mail e telefone.',
-          503 =>
-            'O envio de e-mail está indisponível. Nenhum convite foi criado.',
-          401 => 'Sua sessão expirou. Entre novamente para continuar.',
-          _ => error.message,
+        _erro = switch (error.code) {
+          'MFA_ADMIN_OBRIGATORIO' =>
+            'Conclua a configuracao do autenticador da sua conta antes de convidar outro administrador.',
+          'TERMOS_NAO_ACEITOS' =>
+            'Aceite a versao atual dos termos antes de continuar.',
+          'EMAIL_NAO_VERIFICADO' =>
+            'Confirme o e-mail da sua conta administrativa antes de continuar.',
+          'EMAIL_CONVITE_INDISPONIVEL' =>
+            'O envio de convites esta indisponivel. Confira a configuracao de e-mail da API.',
+          'CONTA_NAO_CRIADA' =>
+            'Nao foi possivel criar o convite. Confira se o e-mail ou telefone ja pertence a uma conta.',
+          _ => switch (error.statusCode) {
+            403 => 'Sua conta nao tem permissao para convidar administradores.',
+            409 =>
+              'Nao foi possivel criar o convite. Confira os dados informados.',
+            503 =>
+              'O envio de e-mail esta indisponivel. Nenhum convite foi criado.',
+            401 => 'Sua sessao expirou. Entre novamente para continuar.',
+            _ =>
+              'Nao foi possivel enviar o convite. Verifique a conexao e tente novamente.',
+          },
         };
       });
     } catch (_) {

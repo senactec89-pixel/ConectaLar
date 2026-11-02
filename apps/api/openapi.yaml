@@ -137,6 +137,62 @@ paths:
         '409': { description: No active verification, expired flow, changed phone, or another attempt is running }
         '503': { description: Provider integration is disabled or unavailable }
         default: { $ref: '#/components/responses/ApiErrorResponse' }
+  /profissionais/me/habilitacao/telefone/manual:
+    post:
+      operationId: postIniciarDesafioManualWhatsApp
+      summary: Creates a one-time challenge for manual WhatsApp sender review
+      description: Requires explicit consent and WHATSAPP_MANUAL_ENABLED plus the official number. The code is shown only once, stored as a keyed digest, expires in ten minutes, and can only be confirmed by an MFA-enabled administrator. Confirmation proves access to the WhatsApp account at that time, not identity or eligibility.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [consentimento]
+              properties:
+                consentimento: { type: boolean, const: true }
+      responses:
+        '201':
+          description: One-time challenge and WhatsApp link, or existing challenge status without re-exposing its code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [telefone]
+                properties:
+                  telefone: { $ref: '#/components/schemas/TelefoneProfissionalVerificacao' }
+        '429': { description: Persistent daily challenge limit reached }
+        '503': { description: Manual WhatsApp number or server secret not configured }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
+  /admin/profissionais/{id}/habilitacao/telefone/confirmacao-manual:
+    post:
+      operationId: postConfirmarDesafioManualWhatsApp
+      summary: Confirms a WhatsApp challenge after checking sender in the official account
+      description: Requires administrator MFA. The API checks the sender against the professional's current normalized phone, consumes the challenge, and commits an audit record atomically. Codes and full phone numbers are excluded from audit details.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [codigo, telefoneRemetente]
+              properties:
+                codigo: { type: string, pattern: '^\d{8}$' }
+                telefoneRemetente: { type: string, minLength: 10, maxLength: 24 }
+      responses:
+        '200': { description: WhatsApp access confirmed; no identity or attendance approval is granted }
+        '403': { description: Administrator MFA required; self-confirmation forbidden }
+        '409': { description: Challenge invalid, expired, exhausted, mismatched, or already consumed }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
   /profissionais/me/habilitacao/revisao:
     post:
       operationId: postSolicitarRevisaoHabilitacao
@@ -195,6 +251,14 @@ paths:
                         id: { type: integer }
                         nome: { type: string }
                         habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
+                        telefoneVerificacao:
+                          type: [object, 'null']
+                          properties:
+                            metodo: { type: string, enum: [id_zapsign, whatsapp_manual] }
+                            estado: { type: string }
+                            expiraEm: { type: [string, 'null'], format: date-time }
+                            tentativasRestantes: { type: [integer, 'null'], minimum: 0, maximum: 5 }
+                            telefoneMascarado: { type: [string, 'null'] }
         '403':
           description: Administrator role and active MFA required
   /admin/profissionais/{id}/habilitacao:
@@ -2749,6 +2813,108 @@ paths:
                       $ref: '#/components/schemas/Avaliacao'
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/fotos:
+    post:
+      operationId: postFotoAvaliacaoTemporaria
+      summary: Uploads an optional customer review photo for a completed request
+      description: Accepts one JPEG, PNG, or WebP image up to 5 MiB. The API scans and re-encodes it as JPEG, strips metadata, and keeps the upload private until the review is approved. Unattached uploads expire after 24 hours.
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [arquivo]
+              properties:
+                arquivo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Private staged photo upload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [foto]
+                properties:
+                  foto:
+                    type: object
+                    required: [id, mimeType]
+                    properties:
+                      id: { type: integer, minimum: 1 }
+                      mimeType: { type: string, enum: [image/jpeg] }
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/fotos/{fotoId}:
+    delete:
+      operationId: deleteFotoAvaliacaoTemporaria
+      summary: Deletes an unattached staged review photo owned by the authenticated client
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: fotoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Staged photo deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /avaliacoes/{avaliacaoId}/fotos/{fotoId}:
+    get:
+      operationId: getFotoAvaliacaoPrivada
+      summary: Streams an approved public review photo or an authorized private review photo
+      description: Approved photos are public. Pending or rejected photos require the authenticated uploader or an administrator; the evaluated user cannot see them before approval.
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: avaliacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: fotoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Normalized JPEG review photo. Approved reviews are public; pending or rejected reviews require an authorized uploader or administrator.
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'private, no-store' }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /solicitacoes/{solicitacaoId}/avaliacoes/profissional:
     post:
       operationId: postAvaliacaoProfissional
@@ -3350,6 +3516,11 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
   schemas:
+    DuracaoMinutos:
+      type: integer
+      minimum: 1
+      maximum: 1440
+      default: 120
     Paginacao:
       type: object
       additionalProperties: false
@@ -3379,8 +3550,8 @@ components:
           items:
             type: object
             properties:
-              codigo: { type: string, enum: [perfil, email, telefone, identidade, antecedentes, aprovacao] }
-              status: { type: string, enum: [cadastrado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
+              codigo: { type: string, enum: [perfil, email, documentos, telefone, identidade, antecedentes, aprovacao] }
+              status: { type: string, enum: [cadastrado, analisado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
     TelefoneProfissionalVerificacao:
       type: object
       additionalProperties: false
@@ -3393,6 +3564,12 @@ components:
         tentativasRestantes: { type: [integer, 'null'], minimum: 0, maximum: 3 }
         expiraEm: { type: [string, 'null'], format: date-time }
         resolvidaEm: { type: [string, 'null'], format: date-time }
+        metodo: { type: string, enum: [id_zapsign, whatsapp_manual] }
+        whatsAppManualDisponivel: { type: boolean }
+        numeroWhatsAppManual: { type: [string, 'null'], description: Public official ConectaLar WhatsApp number; never the professional's phone. }
+        codigo: { type: string, pattern: '^\d{8}$', description: One-time challenge returned only by manual challenge creation; never returned by status queries. }
+        codigoExibidoUmaVez: { type: boolean }
+        linkWhatsApp: { type: string, format: uri, description: Opens the official WhatsApp chat without embedding the challenge code in the URL. }
     IdentidadeProfissional:
       type: object
       required: [estado, disponivel, url, expiraEm, resolvidaEm]
@@ -4176,13 +4353,11 @@ components:
         horarioServico:
           type: string
         duracaoMinutos:
-          type: integer
-          minimum: 15
-          maximum: 480
+          $ref: '#/components/schemas/DuracaoMinutos'
         intervaloMinutos:
           type: integer
-          minimum: 0
-          maximum: 480
+          const: 0
+          description: P06 não prevê intervalo adicional entre atendimentos.
         reagendamento:
           oneOf:
             - $ref: '#/components/schemas/Reagendamento'
@@ -4570,11 +4745,14 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, nota, comentario, criadoEm]
+            required: [id, nota, comentario, fotos, criadoEm]
             properties:
               id: {type: integer, minimum: 1}
               nota: {type: integer, minimum: 1, maximum: 5}
               comentario: {type: [string, 'null']}
+              fotos:
+                type: array
+                items: { $ref: '#/components/schemas/AvaliacaoFoto' }
               criadoEm: {type: string, format: date-time}
         paginacao:
           type: object
@@ -4607,8 +4785,12 @@ components:
           minimum: 0
         ativo:
           type: boolean
-        duracaoMinutos: {type: integer, minimum: 15, maximum: 480}
-        intervaloMinutos: {type: integer, minimum: 0, maximum: 480}
+        duracaoMinutos: {$ref: '#/components/schemas/DuracaoMinutos'}
+        intervaloMinutos:
+          type: integer
+          const: 0
+          default: 0
+          description: P06 não prevê intervalo adicional entre atendimentos.
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
@@ -4633,15 +4815,12 @@ components:
           type: boolean
           description: Whether the offer is publicly available. Defaults to true for a new offer.
         duracaoMinutos:
-          type: integer
-          minimum: 15
-          maximum: 480
-          default: 60
+          $ref: '#/components/schemas/DuracaoMinutos'
         intervaloMinutos:
           type: integer
           minimum: 0
-          maximum: 480
-          default: 30
+          maximum: 1440
+          description: Campo legado aceito para compatibilidade; a API ignora o valor e persiste zero conforme P06.
     ReagendamentoRequest:
       type: object
       additionalProperties: false
@@ -4873,10 +5052,15 @@ components:
         comentario:
           type: [string, 'null']
           maxLength: 600
+        fotoIds:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
     Avaliacao:
       type: object
       additionalProperties: false
-      required: [id, solicitacaoId, avaliador, avaliado, nota, comentario, moderacaoStatus, criadoEm, atualizadoEm]
+      required: [id, solicitacaoId, avaliador, avaliado, nota, comentario, fotos, moderacaoStatus, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4894,6 +5078,10 @@ components:
           maximum: 5
         comentario:
           type: [string, 'null']
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvaliacaoFoto'
         moderacaoStatus:
           type: string
           enum: [pendente, aprovada, rejeitada]
@@ -4903,6 +5091,17 @@ components:
         atualizadoEm:
           type: string
           format: date-time
+    AvaliacaoFoto:
+      type: object
+      additionalProperties: false
+      required: [id, url]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          description: Authenticated API route; not a public object-storage URL.
     Denuncia:
       type: object
       additionalProperties: false

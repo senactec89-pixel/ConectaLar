@@ -253,6 +253,39 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     .where((item) => item['ativo'] != false)
                     .toList()
               : <Map<String, dynamic>>[];
+          final diasBloqueados = <int>{};
+          final mesInicio = DateTime(_mesAgenda.year, _mesAgenda.month, 1);
+          final mesFim = DateTime(_mesAgenda.year, _mesAgenda.month + 1, 0);
+          final bloqueios = data['bloqueios'] is List
+              ? (data['bloqueios'] as List).whereType<Map<String, dynamic>>()
+              : const <Map<String, dynamic>>[];
+          for (final bloqueio in bloqueios) {
+            final inicioTexto = '${bloqueio['dataInicio'] ?? ''}';
+            final fimTexto = '${bloqueio['dataFim'] ?? ''}';
+            if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(inicioTexto) ||
+                !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(fimTexto)) {
+              continue;
+            }
+            final inicio = _dataDoServico(inicioTexto);
+            final fim = _dataDoServico(fimTexto);
+            if (fim.isBefore(inicio)) continue;
+            final primeiroDia = inicio.isBefore(mesInicio) ? mesInicio : inicio;
+            final ultimoDia = fim.isAfter(mesFim) ? mesFim : fim;
+            for (
+              var dia = DateTime(
+                primeiroDia.year,
+                primeiroDia.month,
+                primeiroDia.day,
+              );
+              !dia.isAfter(ultimoDia);
+              dia = dia.add(const Duration(days: 1))
+            ) {
+              if (dia.year == _mesAgenda.year &&
+                  dia.month == _mesAgenda.month) {
+                diasBloqueados.add(dia.day);
+              }
+            }
+          }
           final diaInicial = atendimentosDoMes.isNotEmpty
               ? _dataDoServico(atendimentosDoMes.first['dataServico'])
               : DateTime.now().year == _mesAgenda.year &&
@@ -395,7 +428,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                             : 'Verificação documental',
                         text: verificado
                             ? 'Documento aprovado. A habilitação de segurança continua pendente e os atendimentos estão bloqueados.'
-                            : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
+                            : 'Envie seus documentos para análise administrativa. A análise não confirma identidade nem habilita atendimentos.',
                         onTap: _abrirDocumentos,
                       );
                     },
@@ -472,6 +505,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                           .map((item) => int.tryParse('${item['diaSemana']}'))
                           .whereType<int>()
                           .toSet(),
+                      diasBloqueados: diasBloqueados,
                       onDiaSelecionado: (dia) =>
                           setState(() => _diaSelecionado = dia),
                       onMudarMes: _mudarMesAgenda,
@@ -535,6 +569,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   _DisponibilidadeDoDia(
                     itens: horariosDoDia,
                     dia: diaSelecionado,
+                    bloqueado: diasBloqueados.contains(diaSelecionado.day),
                   ),
                   const SizedBox(height: AppSpace.sm),
                   OutlinedButton.icon(
@@ -602,7 +637,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                 if (_tab == 2) ...[
                   const SizedBox(height: AppSpace.md),
                   const Text(
-                    'Antes de aceitar outro pedido, considere a duração dos atendimentos e o tempo de deslocamento. Um dia com atendimento pode ter outros horários livres.',
+                    'Os horários livres consideram a duração de cada serviço. Não há intervalo extra entre atendimentos; organize seu deslocamento ao definir a disponibilidade.',
                     style: TextStyle(color: AppColors.textoSuave),
                   ),
                 ],
@@ -922,10 +957,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
-    var duracaoMinutos =
-        int.tryParse('${servico?['duracaoMinutos'] ?? 60}') ?? 60;
-    var intervaloMinutos =
-        int.tryParse('${servico?['intervaloMinutos'] ?? 30}') ?? 30;
+    final duracao = TextEditingController(
+      text: '${servico?['duracaoMinutos'] ?? 120}',
+    );
     final form = GlobalKey<FormState>();
     var enviando = false;
     String? erro;
@@ -982,46 +1016,22 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   validator: validarPrecoOpcional,
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: '$duracaoMinutos',
-                  isExpanded: true,
+                TextFormField(
+                  controller: duracao,
+                  enabled: !enviando,
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
                   decoration: const InputDecoration(
-                    labelText: 'Duração estimada',
+                    labelText: 'Duração estimada (minutos)',
+                    helperText: 'De 1 a 1.440 minutos',
                     prefixIcon: Icon(Icons.timer_outlined),
                   ),
-                  items: const [30, 45, 60, 90, 120, 180, 240]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: enviando
-                      ? null
-                      : (value) =>
-                            duracaoMinutos = int.tryParse(value ?? '') ?? 60,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: '$intervaloMinutos',
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Intervalo para deslocamento',
-                    prefixIcon: Icon(Icons.directions_car_outlined),
-                  ),
-                  items: const [0, 15, 30, 45, 60]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: enviando
-                      ? null
-                      : (value) =>
-                            intervaloMinutos = int.tryParse(value ?? '') ?? 30,
+                  validator: (value) {
+                    final minutes = int.tryParse((value ?? '').trim());
+                    return minutes == null || minutes < 1 || minutes > 1440
+                        ? 'Informe uma duração entre 1 e 1.440 minutos.'
+                        : null;
+                  },
                 ),
                 if (erro != null) ...[
                   const SizedBox(height: 12),
@@ -1052,8 +1062,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'categoriaId': categoriaId,
                           'precoInicial': parsePrecoInicial(preco.text),
                           'ativo': servico?['ativo'] != false,
-                          'duracaoMinutos': duracaoMinutos,
-                          'intervaloMinutos': intervaloMinutos,
+                          'duracaoMinutos': int.parse(duracao.text.trim()),
+                          'intervaloMinutos': 0,
                         };
                         if (servico == null) {
                           if (servicos.length >= 12) {
@@ -1116,6 +1126,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     nome.dispose();
     preco.dispose();
+    duracao.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
@@ -1129,8 +1140,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'categoriaId': item['categoriaId'] ?? item['categoria']?['id'],
           'precoInicial': item['precoInicial'],
           'ativo': item['ativo'] != false,
-          'duracaoMinutos': item['duracaoMinutos'] ?? 60,
-          'intervaloMinutos': item['intervaloMinutos'] ?? 30,
+          'duracaoMinutos': item['duracaoMinutos'] ?? 120,
+          'intervaloMinutos': 0,
         },
       )
       .toList();
@@ -1304,7 +1315,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         ),
                         title: Text('${e['nome']}'),
                         subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
+                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 120} min ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
                         ),
                         isThreeLine: true,
                         trailing: PopupMenuButton<String>(
@@ -1961,6 +1972,7 @@ class _CalendarioAgenda extends StatelessWidget {
     required this.diaSelecionado,
     required this.atendimentosPorDia,
     required this.diasSemanaComDisponibilidade,
+    required this.diasBloqueados,
     required this.onDiaSelecionado,
     required this.onMudarMes,
   });
@@ -1969,6 +1981,7 @@ class _CalendarioAgenda extends StatelessWidget {
   final DateTime diaSelecionado;
   final Map<DateTime, int> atendimentosPorDia;
   final Set<int> diasSemanaComDisponibilidade;
+  final Set<int> diasBloqueados;
   final ValueChanged<DateTime> onDiaSelecionado;
   final ValueChanged<int> onMudarMes;
 
@@ -2057,11 +2070,12 @@ class _CalendarioAgenda extends StatelessWidget {
                 }
                 final dia = DateTime(mes.year, mes.month, diaDoMes);
                 final selecionado = _mesmoDia(dia, diaSelecionado);
+                final bloqueado = diasBloqueados.contains(diaDoMes);
                 final quantidade = atendimentosPorDia[dia] ?? 0;
                 final temAtendimento = quantidade > 0;
-                final horarioSemanal = diasSemanaComDisponibilidade.contains(
-                  dia.weekday % 7,
-                );
+                final horarioSemanal =
+                    !bloqueado &&
+                    diasSemanaComDisponibilidade.contains(dia.weekday % 7);
                 return Semantics(
                   key: ValueKey('agenda-dia-${_chaveMes(dia)}-$diaDoMes'),
                   button: true,
@@ -2073,7 +2087,11 @@ class _CalendarioAgenda extends StatelessWidget {
                           : quantidade == 1
                           ? '1 atendimento agendado'
                           : '$quantidade atendimentos agendados'}'
-                      ', ${horarioSemanal ? 'com horário semanal cadastrado' : 'sem horário semanal cadastrado'}',
+                      ', ${bloqueado
+                          ? 'data bloqueada'
+                          : horarioSemanal
+                          ? 'com horário semanal cadastrado'
+                          : 'sem horário semanal cadastrado'}',
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () => onDiaSelecionado(dia),
@@ -2091,16 +2109,36 @@ class _CalendarioAgenda extends StatelessWidget {
                                   backgroundColor: AppColors.verde,
                                 ),
                               if (!selecionado &&
-                                  (horarioSemanal || temAtendimento))
+                                  (bloqueado ||
+                                      horarioSemanal ||
+                                      temAtendimento))
                                 Positioned.fill(
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
-                                      color: AppColors.verdeClaro,
+                                      color: bloqueado
+                                          ? AppColors.erro.withValues(
+                                              alpha: 0.10,
+                                            )
+                                          : AppColors.verdeClaro,
                                       shape: BoxShape.circle,
-                                      border: !temAtendimento
+                                      border: bloqueado
+                                          ? Border.all(color: AppColors.erro)
+                                          : !temAtendimento
                                           ? Border.all(color: AppColors.verde)
                                           : null,
                                     ),
+                                  ),
+                                ),
+                              if (bloqueado)
+                                Positioned(
+                                  top: 2,
+                                  right: 1,
+                                  child: Icon(
+                                    Icons.block,
+                                    size: 12,
+                                    color: selecionado
+                                        ? AppColors.branco
+                                        : AppColors.erro,
                                   ),
                                 ),
                               Padding(
@@ -2152,6 +2190,11 @@ class _CalendarioAgenda extends StatelessWidget {
                     _LegendaAgenda(label: 'Selecionado'),
                     _LegendaAgenda(label: 'Com atendimento', ponto: true),
                     _LegendaAgenda(
+                      label: 'Data bloqueada',
+                      contorno: true,
+                      estaBloqueado: true,
+                    ),
+                    _LegendaAgenda(
                       label: 'Horário semanal sem agendamento',
                       contorno: true,
                     ),
@@ -2176,11 +2219,13 @@ class _LegendaAgenda extends StatelessWidget {
     required this.label,
     this.ponto = false,
     this.contorno = false,
+    this.estaBloqueado = false,
   });
 
   final String label;
   final bool ponto;
   final bool contorno;
+  final bool estaBloqueado;
 
   @override
   Widget build(BuildContext context) {
@@ -2191,9 +2236,17 @@ class _LegendaAgenda extends StatelessWidget {
           width: ponto ? 6 : 12,
           height: ponto ? 6 : 12,
           decoration: BoxDecoration(
-            color: contorno ? AppColors.verdeClaro : AppColors.verde,
+            color: estaBloqueado
+                ? AppColors.erro.withValues(alpha: 0.10)
+                : contorno
+                ? AppColors.verdeClaro
+                : AppColors.verde,
             shape: BoxShape.circle,
-            border: contorno ? Border.all(color: AppColors.verde) : null,
+            border: contorno
+                ? Border.all(
+                    color: estaBloqueado ? AppColors.erro : AppColors.verde,
+                  )
+                : null,
           ),
         ),
         const SizedBox(width: AppSpace.sm),
@@ -2206,22 +2259,32 @@ class _LegendaAgenda extends StatelessWidget {
 }
 
 class _DisponibilidadeDoDia extends StatelessWidget {
-  const _DisponibilidadeDoDia({required this.itens, required this.dia});
+  const _DisponibilidadeDoDia({
+    required this.itens,
+    required this.dia,
+    this.bloqueado = false,
+  });
 
   final List<Map<String, dynamic>> itens;
   final DateTime dia;
+  final bool bloqueado;
 
   @override
   Widget build(BuildContext context) {
     final diaLabel = _nomeDia(dia.weekday % 7);
     return Card(
-      color: AppColors.verdePastel,
+      color: bloqueado
+          ? AppColors.erro.withValues(alpha: 0.08)
+          : AppColors.verdePastel,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.schedule_outlined, color: AppColors.verde),
+            Icon(
+              bloqueado ? Icons.block_outlined : Icons.schedule_outlined,
+              color: bloqueado ? AppColors.erro : AppColors.verde,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -2233,7 +2296,9 @@ class _DisponibilidadeDoDia extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    itens.isEmpty
+                    bloqueado
+                        ? 'Este dia esta bloqueado para ferias ou imprevisto.'
+                        : itens.isEmpty
                         ? 'Nenhum horário semanal cadastrado para este dia.'
                         : itens
                               .map(

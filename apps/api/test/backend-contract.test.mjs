@@ -66,6 +66,8 @@ test('backend contract documents logout, agenda, protected address, and audit', 
   assert.match(openapi, /\/profissionais\/busca:/);
   assert.match(openapi, /servicoId/);
   assert.match(openapi, /duracaoMinutos/);
+  assert.match(openapi, /DuracaoMinutos:\s+\n\s+type: integer\s+\n\s+minimum: 1\s+\n\s+maximum: 1440\s+\n\s+default: 120/);
+  assert.match(openapi, /intervaloMinutos:\s+\n\s+type: integer\s+\n\s+const: 0/);
   assert.match(openapi, /\/profissionais\/me\/bloqueios:/);
   assert.match(openapi, /\/solicitacoes\/\{id\}\/reagendamento:/);
   assert.match(openapi, /nomeServico/);
@@ -125,7 +127,8 @@ test('verification upload keeps files private and validates size and type', asyn
   assert.match(verificacao, /ASSINATURA_ARQUIVO_INVALIDA/);
   assert.match(verificacao, /NOME_ARQUIVO_INVALIDO/);
   assert.match(verificacao, /arquivoParaAnalise/);
-  assert.match(storage, /caminhoDocumentoSeguro/);
+  assert.match(storage, /localStoragePath/);
+  assert.match(storage, /ensurePrivateStorageDirectory/);
   assert.match(verificacao, /AMEACA_DOCUMENTO_DETECTADA/);
   assert.match(verificacao, /VARREDURA_DOCUMENTO_OBRIGATORIA/);
   assert.match(scanner, /MALWARE_SCAN_MODE/);

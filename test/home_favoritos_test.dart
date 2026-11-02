@@ -14,7 +14,7 @@ void main() {
     AppRoutes.home: (_) =>
         HomePage(loadContent: () async => HomeMockData.content),
   };
-  final favorito = find.byKey(const ValueKey('home-favorito-1'));
+  final favorito = find.byKey(const ValueKey('home-favorite-1'));
 
   Future<void> mostrarFavorito(WidgetTester tester) async {
     await tester.scrollUntilVisible(
@@ -73,7 +73,7 @@ void main() {
       'Remover dos favoritos',
     );
     expect(
-      find.text('Não foi possível remover este favorito.'),
+      find.text('Não foi possível atualizar o favorito.'),
       findsOneWidget,
     );
     falhar = false;
@@ -105,7 +105,7 @@ void main() {
     await mostrarFavorito(tester);
     expect(
       tester.widget<IconButton>(favorito).tooltip,
-      'Não foi possível carregar favorito. Tentar novamente',
+      'Tentar carregar favorito',
     );
     falhar = false;
     await tester.tap(favorito);

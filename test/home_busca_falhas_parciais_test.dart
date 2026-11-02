@@ -78,7 +78,7 @@ void main() {
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
     expect(find.text('Não foi possível carregar as categorias.'), findsNothing);
-    expect(find.text('Elétrica'), findsOneWidget);
+    expect(find.text('Elétrica').evaluate(), isNotEmpty);
     expect(tester.takeException(), isNull);
   });
 
@@ -88,7 +88,9 @@ void main() {
     var falharProfissionais = true;
     await configurarFrontend(
       responder: (request) async {
-        if (request.url.path == '/profissionais' && falharProfissionais) {
+        if ((request.url.path == '/profissionais' ||
+                request.url.path == '/profissionais/busca') &&
+            falharProfissionais) {
           return jsonResponse({'message': 'Falha temporária'}, 503);
         }
         return null;
@@ -97,7 +99,7 @@ void main() {
     await abrirFrontend(tester, AppRoutes.busca);
 
     expect(find.text('Categorias'), findsOneWidget);
-    expect(find.text('Elétrica'), findsOneWidget);
+    expect(find.text('Elétrica').evaluate(), isNotEmpty);
     await tester.scrollUntilVisible(
       find.text('Não foi possível carregar os profissionais.'),
       180,

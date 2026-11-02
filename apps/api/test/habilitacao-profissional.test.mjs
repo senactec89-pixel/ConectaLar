@@ -184,10 +184,41 @@ test('agenda nao contorna protecao de endereco de pedidos antigos', async () => 
   const { p, solicitacao } = solicitacoesFixture('aceita_agendada');
   const builder = new Proxy({}, { get: (_, key) => key === 'getMany' ? async () => [solicitacao] : () => builder });
   const service = new ProfissionaisService({}, {}, { async find() { return []; } },
-    { async findOne() { return p; } }, {}, { createQueryBuilder() { return builder; } }, {}, {});
+    { async findOne() { return p; } }, {}, { createQueryBuilder() { return builder; } }, {}, {},
+    { async find() { return [{ dataInicio: '2026-10-12', dataFim: '2026-10-14' }]; } });
   const resposta = await service.minhaAgenda(profissional, { mes: '2026-10' });
   assert.equal(resposta.atendimentos[0].enderecoAtendimento, null);
   assert.equal(resposta.atendimentos[0].enderecoCompleto, null);
+  assert.deepEqual(resposta.bloqueios, [
+    { dataInicio: '2026-10-12', dataFim: '2026-10-14' },
+  ]);
+});
+
+test('horarios publicos nao oferecem intervalos em uma data bloqueada', async () => {
+  const service = new ProfissionaisService(
+    {},
+    {},
+    {
+      async find() {
+        return [{ diaSemana: 0, horaInicio: '08:00', horaFim: '18:00', ativo: true }];
+      },
+    },
+    {},
+    { async findOne() { return { duracaoMinutos: 60 }; } },
+    { async find() { return []; } },
+    {},
+    {},
+    { async findOne() { return { dataInicio: '2026-10-18', dataFim: '2026-10-18' }; } },
+  );
+  service.obter = async () => ({ profissional: { id: 10 } });
+
+  const resposta = await service.horariosLivres(10, {
+    data: '2026-10-18',
+    servicoId: '5',
+  });
+
+  assert.equal(resposta.bloqueado, true);
+  assert.deepEqual(resposta.intervalos, []);
 });
 
 test('upload nao pode ser usado para coletar antecedentes ou biometria sem politica', async () => {

@@ -54,6 +54,7 @@ export function habilitacaoProfissional(
     etapas: [
       { codigo: 'perfil', status: perfil ? 'cadastrado' : 'pendente' },
       { codigo: 'email', status: perfil?.usuario?.emailVerificado === true ? 'confirmado' : 'pendente' },
+      { codigo: 'documentos', status: perfil?.verificado === true ? 'analisado' : 'pendente' },
       { codigo: 'telefone', status: telefoneStatus ?? 'aguardando_integracao' },
       { codigo: 'identidade', status: identidadeStatus ?? 'aguardando_integracao' },
       { codigo: 'antecedentes', status: 'aguardando_politica' },

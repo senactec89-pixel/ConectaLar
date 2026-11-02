@@ -5,9 +5,9 @@ import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 
 export const termoAtual = {
-  versao: '2026-10-24.v5',
+  versao: '2026-10-26.v6',
   titulo: 'Termos de uso e aviso de privacidade do ConectaLar',
-  publicadoEm: '2026-10-24',
+  publicadoEm: '2026-10-26',
   resumo:
     'O ConectaLar conecta clientes e prestadores. Confira as regras de preco, pagamento e cancelamento: o app nao processa pagamentos, e o cancelamento segue o status e o horario do atendimento.',
   secoes: [
@@ -25,7 +25,7 @@ export const termoAtual = {
     {
       titulo: '3. Dados que usamos',
       texto:
-        'Usamos dados necessarios para criar conta, autenticar acesso, inclusive o identificador estavel quando voce escolhe entrar com Google, exibir perfis, registrar pedidos, mensagens, avaliacoes, favoritos, documentos de verificacao, denuncias, notificacoes e aceites destes termos. O ConectaLar nao recebe sua senha do Google.',
+        'Usamos dados necessarios para criar conta, autenticar acesso, inclusive o identificador estavel quando voce escolhe entrar com Google, exibir perfis, registrar pedidos, mensagens, avaliacoes e fotos opcionais anexadas a elas, favoritos, documentos de verificacao, denuncias, notificacoes e aceites destes termos. Fotos de avaliacao ficam privadas enquanto aguardam moderacao e so aparecem no perfil publico se aprovadas. Removemos metadados de imagem, como localizacao EXIF, antes do armazenamento. O ConectaLar nao recebe sua senha do Google.',
     },
     {
       titulo: '4. Por que usamos seus dados',
@@ -40,7 +40,7 @@ export const termoAtual = {
     {
       titulo: '6. Seus direitos pela LGPD',
       texto:
-        'Na tela Seguranca, voce pode confirmar sua senha e exportar uma copia dos dados ligados a sua conta. Tambem pode excluir a conta. A exclusao remove acesso, perfil, contatos, enderecos, foto, documentos e textos pessoais enviados pelo titular. Registros minimos de atendimentos, aceites e moderacao podem permanecer anonimizados quando necessarios para seguranca, defesa de direitos, auditoria ou obrigacao legal. Atendimentos em aberto precisam ser cancelados ou concluidos antes da exclusao.',
+        'Na tela Seguranca, voce pode confirmar sua senha e exportar uma copia dos dados ligados a sua conta, incluindo fotos enviadas em avaliacoes. Tambem pode excluir a conta. A exclusao remove acesso, perfil, contatos, enderecos, foto, documentos, fotos de avaliacao e textos pessoais enviados pelo titular. Registros minimos de atendimentos, aceites e moderacao podem permanecer anonimizados quando necessarios para seguranca, defesa de direitos, auditoria ou obrigacao legal. Atendimentos em aberto precisam ser cancelados ou concluidos antes da exclusao.',
     },
     {
       grupo: 'comercial',

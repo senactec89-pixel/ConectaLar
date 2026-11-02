@@ -8,6 +8,6 @@ export async function invalidarVerificacoesTelefone(
   await manager.update(
     ProfissionalTelefoneVerificacaoEntity,
     { usuarioId, estado: In(['iniciando', 'pendente', 'confirmada', 'revisao_necessaria']) },
-    { estado: 'invalidada', resolvidaEm: new Date(), tentativaEmAndamento: false },
+    { estado: 'invalidada', codigoHash: null, resolvidaEm: new Date(), tentativaEmAndamento: false },
   );
 }

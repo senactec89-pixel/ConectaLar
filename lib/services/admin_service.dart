@@ -27,6 +27,15 @@ class AdminService {
     body: {'acao': acao, 'motivo': motivo},
   );
 
+  Future<Map<String, dynamic>> confirmarTelefoneManual({
+    required int profissionalId,
+    required String codigo,
+    required String telefoneRemetente,
+  }) => _api.post(
+    'admin/profissionais/$profissionalId/habilitacao/telefone/confirmacao-manual',
+    body: {'codigo': codigo, 'telefoneRemetente': telefoneRemetente},
+  );
+
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
 
   Future<Map<String, dynamic>> auditoria({

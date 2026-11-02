@@ -308,7 +308,8 @@ class _RodapeProfissional extends StatelessWidget {
             ) +
             40 +
             (trailingAction == null ? 0 : 52);
-        if (larguraPreco + 8 + larguraAcoes > constraints.maxWidth) {
+        if (constraints.maxWidth < 420 ||
+            larguraPreco + 40 + larguraAcoes > constraints.maxWidth) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -385,7 +386,8 @@ class _FotoProfissional extends StatelessWidget {
               right: 4,
               bottom: 4,
               child: Tooltip(
-                message: 'Documentos verificados',
+                message:
+                    'Análise documental aprovada; não confirma identidade.',
                 child: Container(
                   width: 28,
                   height: 28,

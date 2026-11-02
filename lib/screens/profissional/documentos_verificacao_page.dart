@@ -150,18 +150,52 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
 
   Future<void> _iniciarTelefone() async {
     if (_iniciandoTelefone) return;
+    final manual = _telefone['whatsAppManualDisponivel'] == true;
     final aceitou = await showDialog<bool>(
       context: context,
-      builder: (_) => const _ConsentimentoTelefoneDialog(),
+      builder: (_) => _ConsentimentoTelefoneDialog(manual: manual),
     );
     if (aceitou != true || !mounted) return;
     setState(() => _iniciandoTelefone = true);
     try {
-      final resposta = await AppServices.instance.verificacao
-          .iniciarPosseTelefone();
+      final resposta = manual
+          ? await AppServices.instance.verificacao
+                .iniciarDesafioManualWhatsApp()
+          : await AppServices.instance.verificacao.iniciarPosseTelefone();
       final raw = resposta['telefone'];
       _telefone = raw is Map ? Map<String, dynamic>.from(raw) : const {};
       _tentativaTelefoneId = null;
+      if (manual) {
+        final codigo = _telefone['codigo']?.toString();
+        final link = _telefone['linkWhatsApp']?.toString();
+        if (codigo == null ||
+            link == null ||
+            !link.startsWith('https://wa.me/')) {
+          throw const ApiException(
+            'O desafio não foi retornado. Consulte o estado antes de tentar novamente.',
+          );
+        }
+        if (!mounted) return;
+        final abrir = await showDialog<bool>(
+          context: context,
+          builder: (_) => _DesafioWhatsAppDialog(codigo: codigo),
+        );
+        if (abrir == true && mounted) {
+          final abriu = await launchUrl(
+            Uri.parse(link),
+            mode: LaunchMode.externalApplication,
+          );
+          if (!abriu && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Não foi possível abrir o WhatsApp. Copie o código e envie manualmente para o contato oficial exibido no app.',
+                ),
+              ),
+            );
+          }
+        }
+      }
       if (mounted) _recarregar(consultarIdentidade: false);
     } catch (error) {
       if (mounted) _mostrarErroTelefone(error);
@@ -633,6 +667,9 @@ class _CartaoTelefone extends StatelessWidget {
   Widget build(BuildContext context) {
     final estado = dados['estado']?.toString() ?? 'nao_iniciada';
     final disponivel = dados['disponivel'] == true;
+    final manual =
+        dados['metodo'] == 'whatsapp_manual' ||
+        dados['whatsAppManualDisponivel'] == true;
     final falhaConsulta = dados['falhaConsulta'] == true;
     final pendente = estado == 'pendente';
     final confirmado = estado == 'confirmada';
@@ -653,10 +690,27 @@ class _CartaoTelefone extends StatelessWidget {
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
-            Text(_rotuloTelefone(estado, disponivel, falhaConsulta)),
+            Text(
+              _rotuloTelefone(
+                estado,
+                disponivel,
+                falhaConsulta,
+                manual: manual,
+              ),
+            ),
+            if (manual && pendente) ...[
+              const SizedBox(height: 6),
+              const Text(
+                'O código não pode ser recuperado pelo app. Se você já o enviou, aguarde a conferência; se perdeu o código, solicite outro após a expiração.',
+              ),
+            ],
             if (telefone != null) ...[
               const SizedBox(height: 6),
               Text('Número cadastrado: $telefone'),
+            ],
+            if (manual && dados['numeroWhatsAppManual'] is String) ...[
+              const SizedBox(height: 6),
+              Text('WhatsApp oficial: ${dados['numeroWhatsAppManual']}'),
             ],
             if (pendente && tentativas != null) ...[
               const SizedBox(height: 6),
@@ -676,14 +730,16 @@ class _CartaoTelefone extends StatelessWidget {
                         : const Icon(Icons.sms_outlined),
                     label: Text(
                       iniciando
-                          ? 'Enviando...'
+                          ? 'Preparando...'
+                          : manual
+                          ? 'Criar desafio pelo WhatsApp'
                           : estado == 'nao_iniciada' ||
                                 estado == 'telefone_ausente'
                           ? 'Confirmar por WhatsApp'
                           : 'Tentar novamente',
                     ),
                   ),
-                if (pendente && disponivel)
+                if (pendente && disponivel && !manual)
                   FilledButton.icon(
                     key: const ValueKey('informar-codigo-telefone'),
                     onPressed: confirmando ? null : onConfirmar,
@@ -715,7 +771,9 @@ class _CartaoTelefone extends StatelessWidget {
 }
 
 class _ConsentimentoTelefoneDialog extends StatefulWidget {
-  const _ConsentimentoTelefoneDialog();
+  const _ConsentimentoTelefoneDialog({required this.manual});
+
+  final bool manual;
 
   @override
   State<_ConsentimentoTelefoneDialog> createState() =>
@@ -733,20 +791,20 @@ class _ConsentimentoTelefoneDialogState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'O ID ZapSign enviará um código pelo WhatsApp ao número cadastrado. '
-            'O ConectaLar receberá somente o resultado da confirmação e não '
-            'armazena o código. Esta etapa confirma acesso ao número; não '
-            'confirma sua identidade nem habilita automaticamente o perfil '
-            'para receber solicitações.',
+          Text(
+            widget.manual
+                ? 'Você enviará uma mensagem com um desafio temporário para o WhatsApp oficial do ConectaLar. Um administrador conferirá o remetente e confirmará o desafio. O código não será armazenado. Isso confirma acesso ao WhatsApp naquele momento, não identidade ou prova de vida, e não libera atendimentos.'
+                : 'O ID ZapSign enviará um código pelo WhatsApp ao número cadastrado. O ConectaLar receberá somente o resultado da confirmação e não armazena o código. Esta etapa confirma acesso ao número; não confirma sua identidade nem habilita automaticamente o perfil para receber solicitações.',
           ),
           CheckboxListTile(
             key: const ValueKey('consentimento-confirmacao-telefone'),
             contentPadding: EdgeInsets.zero,
             value: _aceito,
             onChanged: (value) => setState(() => _aceito = value == true),
-            title: const Text(
-              'Li o aviso e autorizo o envio do código para o telefone cadastrado.',
+            title: Text(
+              widget.manual
+                  ? 'Li o aviso e autorizo o registro desta solicitação de confirmação manual.'
+                  : 'Li o aviso e autorizo o envio do código para o telefone cadastrado.',
             ),
             controlAffinity: ListTileControlAffinity.leading,
           ),
@@ -762,6 +820,55 @@ class _ConsentimentoTelefoneDialogState
         key: const ValueKey('confirmar-consentimento-telefone'),
         onPressed: _aceito ? () => Navigator.pop(context, true) : null,
         child: const Text('Continuar'),
+      ),
+    ],
+  );
+}
+
+class _DesafioWhatsAppDialog extends StatelessWidget {
+  const _DesafioWhatsAppDialog({required this.codigo});
+
+  final String codigo;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Desafio de WhatsApp'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Envie este código pelo WhatsApp do número cadastrado para o contato oficial do ConectaLar. O administrador conferirá o remetente. O código aparece apenas agora e expira em 10 minutos.',
+        ),
+        const SizedBox(height: 16),
+        SelectableText(
+          codigo,
+          key: const ValueKey('codigo-desafio-whatsapp'),
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Nunca envie este código para outra pessoa nem o publique. Se fechar esta tela sem guardar o código, aguarde a expiração para pedir outro.',
+        ),
+      ],
+    ),
+    actions: [
+      TextButton.icon(
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: codigo));
+          if (context.mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Código copiado.')));
+          }
+        },
+        icon: const Icon(Icons.copy),
+        label: const Text('Copiar código'),
+      ),
+      FilledButton.icon(
+        onPressed: () => Navigator.pop(context, true),
+        icon: const Icon(Icons.open_in_new),
+        label: const Text('Abrir WhatsApp'),
       ),
     ],
   );
@@ -845,7 +952,12 @@ String _statusEtapaTelefone(Object? estado) => switch (estado) {
   _ => 'aguardando_integracao',
 };
 
-String _rotuloTelefone(String estado, bool disponivel, bool falhaConsulta) {
+String _rotuloTelefone(
+  String estado,
+  bool disponivel,
+  bool falhaConsulta, {
+  bool manual = false,
+}) {
   if (falhaConsulta) {
     return 'Não foi possível consultar o estado agora. Tente atualizar.';
   }
@@ -858,9 +970,14 @@ String _rotuloTelefone(String estado, bool disponivel, bool falhaConsulta) {
   return switch (estado) {
     'telefone_ausente' =>
       'Cadastre um telefone válido nos seus dados antes de iniciar.',
-    'iniciando' ||
-    'pendente' => 'Aguardando a confirmação do código enviado ao WhatsApp.',
-    'confirmada' => 'Acesso ao telefone confirmado.',
+    'iniciando' || 'pendente' =>
+      manual
+          ? 'Desafio criado. A confirmação depende da conferência manual do remetente no WhatsApp oficial.'
+          : 'Aguardando a confirmação do código enviado ao WhatsApp.',
+    'confirmada' =>
+      manual
+          ? 'Acesso ao WhatsApp do telefone cadastrado foi confirmado manualmente.'
+          : 'Acesso ao telefone confirmado pelo fornecedor.',
     'expirada' => 'O código expirou. Você pode iniciar uma nova confirmação.',
     'invalidada' =>
       'O telefone foi alterado. Inicie uma nova confirmação para o número atual.',

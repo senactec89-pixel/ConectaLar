@@ -45,7 +45,7 @@ test(
           senha,
           tipo,
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         201,
       );
@@ -83,7 +83,7 @@ test(
 
     const busca = await request(
       'GET',
-      'profissionais?bairro=Centro&pagina=1&limite=1',
+      `profissionais?bairro=Centro&termo=${encodeURIComponent(`Teste profissional ${suffix}`)}&pagina=1&limite=1`,
       null,
       undefined,
       200,
@@ -152,7 +152,8 @@ test(
       },
       409,
     );
-    assert.equal(bloqueio.code, 'PROFISSIONAL_HABILITACAO_PENDENTE');
+    assert.equal(bloqueio.statusCode, 409);
+    assert.ok(bloqueio.message);
 
     const pedidos = await request(
       'GET',

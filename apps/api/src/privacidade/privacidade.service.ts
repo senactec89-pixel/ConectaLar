@@ -14,6 +14,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { PasswordService } from '../auth/password.service.js';
 import { AdminAuditoriaEntity } from '../database/entities/admin-auditoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
+import { AvaliacaoFotoEntity } from '../database/entities/avaliacao-foto.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ClientePerfilEntity } from '../database/entities/cliente-perfil.entity.js';
 import { DenunciaEntity } from '../database/entities/denuncia.entity.js';
@@ -43,6 +44,7 @@ import {
   removerFotoPerfilArquivo,
 } from '../usuarios/foto-perfil.storage.js';
 import { DocumentoStorageService } from '../verificacao/documento-storage.service.js';
+import { AvaliacaoFotoStorageService } from '../avaliacoes/avaliacao-foto-storage.service.js';
 
 interface CredencialInput {
   readonly senhaAtual: string;
@@ -60,6 +62,7 @@ export class PrivacidadeService {
     private readonly dataSource: DataSource,
     private readonly passwordService: PasswordService,
     private readonly documentoStorage: DocumentoStorageService,
+    private readonly avaliacaoFotoStorage: AvaliacaoFotoStorageService,
     @InjectRepository(PrivacidadeSolicitacaoEntity)
     private readonly solicitacoesPrivacidade: Repository<PrivacidadeSolicitacaoEntity>,
   ) {}
@@ -98,6 +101,7 @@ export class PrivacidadeService {
   async excluirConta(user: AuthenticatedUser, body: unknown) {
     const input = parseExclusao(body);
     const arquivosDocumentos: string[] = [];
+    const arquivosAvaliacoes: string[] = [];
     let fotoPerfil: string | null = null;
 
     await this.dataSource.transaction('READ COMMITTED', async (manager) => {
@@ -156,6 +160,13 @@ export class PrivacidadeService {
       await manager.save(PrivacidadeSolicitacaoEntity, registro);
 
       fotoPerfil = usuario.fotoPerfil;
+      const fotosAvaliacao = await manager.find(AvaliacaoFotoEntity, {
+        where: { enviadoPorId: usuario.id },
+      });
+      arquivosAvaliacoes.push(
+        ...fotosAvaliacao.map((foto) => foto.referenciaArquivo),
+      );
+      await manager.delete(AvaliacaoFotoEntity, { enviadoPorId: usuario.id });
       if (profissional !== null) {
         const documentos = await manager.find(
           ProfissionalDocumentoVerificacaoEntity,
@@ -318,7 +329,9 @@ export class PrivacidadeService {
     await removerArquivosPrivados(
       fotoPerfil,
       arquivosDocumentos,
+      arquivosAvaliacoes,
       this.documentoStorage,
+      this.avaliacaoFotoStorage,
       this.logger,
     );
     return {
@@ -418,7 +431,7 @@ export class PrivacidadeService {
       .getMany();
     const solicitacaoIds = solicitacoes.map((item) => item.id);
 
-    const [mensagens, avaliacoes, denuncias, orcamentos, historicoPrivacidade] =
+    const [mensagens, avaliacoes, fotosAvaliacoes, denuncias, orcamentos, historicoPrivacidade] =
       await Promise.all([
         solicitacaoIds.length === 0
           ? []
@@ -436,6 +449,10 @@ export class PrivacidadeService {
           })
           .orderBy('avaliacao.criado_em', 'DESC')
           .getMany(),
+        manager.find(AvaliacaoFotoEntity, {
+          where: { enviadoPorId: usuario.id },
+          order: { criadoEm: 'ASC' },
+        }),
         manager
           .createQueryBuilder(DenunciaEntity, 'denuncia')
           .where('denuncia.denunciante_id = :usuarioId', {
@@ -509,6 +526,9 @@ export class PrivacidadeService {
         avaliadorId: item.avaliadorId === usuario.id ? usuario.id : null,
         avaliadoId: item.avaliadoId === usuario.id ? usuario.id : null,
       })),
+      fotosEnviadasEmAvaliacoes: await Promise.all(
+        fotosAvaliacoes.map((foto) => this.exportarFotoAvaliacao(foto)),
+      ),
       denuncias: denuncias.map((item) => ({
         ...semRelacoes(item),
         relacao:
@@ -561,6 +581,34 @@ export class PrivacidadeService {
         analisadoPorId: null,
         arquivo: null,
         avisoArquivo: 'Arquivo indisponivel no momento da exportacao.',
+      };
+    }
+  }
+
+  private async exportarFotoAvaliacao(foto: AvaliacaoFotoEntity) {
+    try {
+      return {
+        id: foto.id,
+        solicitacaoId: foto.solicitacaoId,
+        avaliacaoId: foto.avaliacaoId,
+        mimeType: foto.mimeType,
+        tamanhoBytes: foto.tamanhoBytes,
+        pronto: foto.pronto,
+        criadoEm: iso(foto.criadoEm),
+        conteudoBase64: (await this.avaliacaoFotoStorage.carregar(
+          foto.referenciaArquivo,
+        )).toString('base64'),
+      };
+    } catch {
+      return {
+        id: foto.id,
+        solicitacaoId: foto.solicitacaoId,
+        avaliacaoId: foto.avaliacaoId,
+        mimeType: foto.mimeType,
+        tamanhoBytes: foto.tamanhoBytes,
+        pronto: foto.pronto,
+        criadoEm: iso(foto.criadoEm),
+        indisponivel: true,
       };
     }
   }
@@ -657,12 +705,15 @@ async function exportarFoto(referencia: string | null) {
 async function removerArquivosPrivados(
   fotoPerfil: string | null,
   documentos: readonly string[],
+  fotosAvaliacoes: readonly string[],
   storage: DocumentoStorageService,
+  storageAvaliacoes: AvaliacaoFotoStorageService,
   logger: Logger,
 ): Promise<void> {
   const resultados = await Promise.allSettled([
     removerFotoPerfilArquivo(fotoPerfil),
     ...documentos.map((referencia) => storage.remover(referencia)),
+    ...fotosAvaliacoes.map((referencia) => storageAvaliacoes.remover(referencia)),
   ]);
   const falhas = resultados.filter((resultado) => resultado.status === 'rejected');
   if (falhas.length > 0) {
