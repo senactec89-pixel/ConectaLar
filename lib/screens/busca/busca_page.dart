@@ -901,9 +901,17 @@ class _FiltrosBusca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (textoAmpliado) ...[
+          Text(
+            'Serviço ou profissional',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: AppSpace.xs),
+        ],
         TextField(
           key: const ValueKey('busca-termo'),
           controller: termoController,
@@ -912,7 +920,7 @@ class _FiltrosBusca extends StatelessWidget {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search_rounded),
-            labelText: 'Serviço ou profissional',
+            labelText: textoAmpliado ? 'Buscar' : 'Serviço ou profissional',
             hintText: 'Ex.: elétrica, limpeza, Carlos',
             suffixIcon: posicao == null
                 ? IconButton(

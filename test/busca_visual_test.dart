@@ -296,6 +296,9 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       AppServices.instance.buscaEstado.limpar();
       await abrirFrontend(tester, AppRoutes.busca, width: width, textScale: 2);
+      expect(find.text('Serviço ou profissional'), findsOneWidget);
+      final rotulo = tester.widget<Text>(find.text('Serviço ou profissional'));
+      expect(rotulo.maxLines, isNull);
       await tester.scrollUntilVisible(
         find.text('2 profissionais encontrados'),
         200,
