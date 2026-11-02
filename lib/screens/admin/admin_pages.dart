@@ -655,12 +655,22 @@ class _AdminPageState extends State<AdminPage> {
         String label,
         String value,
         List<DropdownMenuItem<String>> options,
-        ValueChanged<String?> onChanged,
-      ) => DropdownButtonFormField<String>(
+        ValueChanged<String?> onChanged, {
+        Map<String, String>? selectedLabels,
+      }) => DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: options,
+        selectedItemBuilder: selectedLabels == null
+            ? null
+            : (context) => [
+                for (final option in options)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(selectedLabels[option.value] ?? ''),
+                  ),
+              ],
         onChanged: _mutando
             ? null
             : (value) => setState(() {
@@ -840,25 +850,40 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.documentos)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: filtroDropdown('Tipo de documento', _tipoDocumento, const [
-                DropdownMenuItem(value: '', child: Text('Todos os documentos')),
-                DropdownMenuItem(
-                  value: 'documento_identidade',
-                  child: Text('Identidade'),
-                ),
-                DropdownMenuItem(
-                  value: 'comprovante_endereco',
-                  child: Text('Comprovante de endereço'),
-                ),
-                DropdownMenuItem(
-                  value: 'certificado_opcional',
-                  child: Text('Certificado profissional'),
-                ),
-                DropdownMenuItem(
-                  value: 'certificado_curso',
-                  child: Text('Certificado de curso'),
-                ),
-              ], (value) => _tipoDocumento = value ?? ''),
+              child: filtroDropdown(
+                'Tipo de documento',
+                _tipoDocumento,
+                const [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text('Todos os documentos'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'documento_identidade',
+                    child: Text('Identidade'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'comprovante_endereco',
+                    child: Text('Comprovante de endereço'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'certificado_opcional',
+                    child: Text('Certificado profissional'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'certificado_curso',
+                    child: Text('Certificado de curso'),
+                  ),
+                ],
+                (value) => _tipoDocumento = value ?? '',
+                selectedLabels: const {
+                  '': 'Todos',
+                  'documento_identidade': 'Identidade',
+                  'comprovante_endereco': 'Endereço',
+                  'certificado_opcional': 'Profissional',
+                  'certificado_curso': 'Curso',
+                },
+              ),
             ),
           if (_modulo == AdminModulo.denuncias)
             Padding(
