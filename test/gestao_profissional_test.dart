@@ -22,7 +22,7 @@ void main() {
         .pushNamed(AppRoutes.areaProfissional);
     await tester.pumpAndSettle();
 
-    expect(find.text('ConectaLar Profissional'), findsWidgets);
+    expect(find.text('Área profissional'), findsWidgets);
     expect(find.byType(BackButton), findsNothing);
   });
 

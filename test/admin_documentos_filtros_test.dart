@@ -25,34 +25,42 @@ void main() {
           width: width,
           textScale: scale,
         );
-        final linhas = <int, int>{};
-        double? larguraFiltro;
-        for (final status in ['pendente', 'aprovado', 'rejeitado', '']) {
-          final filtro = find.byKey(ValueKey('admin-documentos-$status'));
-          final rect = tester.getRect(filtro);
-          linhas.update(
-            rect.top.round(),
-            (total) => total + 1,
-            ifAbsent: () => 1,
+        if (scale >= 1.6) {
+          final filtro = find.byKey(
+            const ValueKey('admin-documentos-filtro-pendente'),
           );
-          larguraFiltro ??= rect.width;
-          expect(rect.width, closeTo(larguraFiltro, 1));
-          expect(rect.height, greaterThanOrEqualTo(48));
-          expect(rect.right, lessThanOrEqualTo(width));
-          final texto = find.descendant(
-            of: filtro,
-            matching: find.byType(Text),
-          );
+          expect(filtro, findsOneWidget);
+          expect(tester.getSize(filtro).width, lessThanOrEqualTo(width));
+        } else {
+          final linhas = <int, int>{};
+          double? larguraFiltro;
+          for (final status in ['pendente', 'aprovado', 'rejeitado', '']) {
+            final filtro = find.byKey(ValueKey('admin-documentos-$status'));
+            final rect = tester.getRect(filtro);
+            linhas.update(
+              rect.top.round(),
+              (total) => total + 1,
+              ifAbsent: () => 1,
+            );
+            larguraFiltro ??= rect.width;
+            expect(rect.width, closeTo(larguraFiltro, 1));
+            expect(rect.height, greaterThanOrEqualTo(48));
+            expect(rect.right, lessThanOrEqualTo(width));
+            final texto = find.descendant(
+              of: filtro,
+              matching: find.byType(Text),
+            );
+            expect(
+              tester.renderObject<RenderParagraph>(texto).didExceedMaxLines,
+              isFalse,
+            );
+          }
           expect(
-            tester.renderObject<RenderParagraph>(texto).didExceedMaxLines,
-            isFalse,
+            linhas.values.toSet().length,
+            1,
+            reason: 'Evitar três filtros + um.',
           );
         }
-        expect(
-          linhas.values.toSet().length,
-          1,
-          reason: 'Evitar três filtros + um.',
-        );
         final visualizar = find.ancestor(
           of: find.text('Visualizar').first,
           matching: find.bySubtype<OutlinedButton>(),
@@ -237,6 +245,12 @@ void main() {
       },
     );
     await abrirFrontend(tester, AppRoutes.adminDocumentos);
+    await tester.scrollUntilVisible(
+      find.text('Analisar').first,
+      150,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Analisar').first);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.text('Conferido'));

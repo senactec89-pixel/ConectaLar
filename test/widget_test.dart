@@ -139,7 +139,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Solicitar serviço'), findsNothing);
-      expect(find.text('Habilitação pendente'), findsOneWidget);
+      expect(find.text('Atendimento indisponível'), findsWidgets);
       expect(
         tester
             .widget<FilledButton>(
@@ -192,6 +192,8 @@ void main() {
       find.byKey(const ValueKey('solicitar-descricao')),
       'Instalar chuveiro no banheiro social.',
     );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('solicitar-enviar')),
       500,
@@ -303,7 +305,7 @@ void main() {
 
     expect(find.text('Nenhuma categoria disponível.'), findsOneWidget);
     expect(
-      find.text('Nenhum profissional disponível no momento.'),
+      find.text('Nenhum profissional encontrado na região do seu endereço.'),
       findsOneWidget,
     );
   });

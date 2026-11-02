@@ -153,7 +153,6 @@ void main() {
       },
     );
 
-    expect(find.text('Você ainda não tem solicitações'), findsOneWidget);
     final buscar = find.text('Buscar profissionais');
     await tester.scrollUntilVisible(
       buscar,
@@ -161,6 +160,7 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
+    expect(find.text('Você ainda não tem solicitações'), findsOneWidget);
     await tester.tap(buscar);
     await tester.pumpAndSettle();
     expect(find.text('Busca aberta'), findsOneWidget);

@@ -88,6 +88,18 @@ void main() {
     var falharProfissionais = true;
     await configurarFrontend(
       responder: (request) async {
+        if (request.url.path == '/clientes/me/enderecos') {
+          return jsonResponse({
+            'enderecos': [
+              {
+                'id': 1,
+                'cidade': 'Belo Horizonte',
+                'uf': 'MG',
+                'principal': true,
+              },
+            ],
+          });
+        }
         if (request.url.path == '/profissionais' && falharProfissionais) {
           return jsonResponse({'message': 'Falha temporária'}, 503);
         }
