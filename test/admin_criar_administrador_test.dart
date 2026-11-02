@@ -17,8 +17,6 @@ Future<void> _preencher(WidgetTester tester) async {
     'nome': '  Ana Administradora  ',
     'email': 'ana@example.invalid',
     'telefone': '(31) 99999-4321',
-    'senha': 'Segura123!',
-    'confirmacao': 'Segura123!',
   }.entries) {
     final field = find.byKey(ValueKey('admin-criar-${campo.key}'));
     await tester.ensureVisible(field);
@@ -89,7 +87,6 @@ void main() {
       'nome': 'Ana Administradora',
       'email': 'ana@example.invalid',
       'telefone': '(31) 99999-4321',
-      'senha': 'Segura123!',
     });
     expect(authorization, startsWith('Bearer '));
     expect(resultado, isTrue);
@@ -144,8 +141,8 @@ void main() {
       expect(
         find.text(
           status == 409
-              ? 'Não foi possível criar a conta com estes dados. Confira o e-mail e o telefone.'
-              : 'Sua conta não tem permissão para criar administradores.',
+              ? 'Não foi possível criar o convite. Confira e-mail e telefone.'
+              : 'Sua conta não tem permissão para convidar administradores.',
         ),
         findsOneWidget,
       );
@@ -157,15 +154,6 @@ void main() {
             .controller!
             .text,
         'ana@example.invalid',
-      );
-      expect(
-        tester
-            .widget<TextFormField>(
-              find.byKey(const ValueKey('admin-criar-senha')),
-            )
-            .controller!
-            .text,
-        'Segura123!',
       );
       expect(
         tester.widget<FilledButton>(find.byKey(_salvar)).onPressed,
@@ -195,7 +183,7 @@ void main() {
     await tester.tap(find.byKey(_salvar));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Criando conta...'), findsOneWidget);
+    expect(find.text('Enviando convite...'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(_salvar)).onPressed, isNull);
     for (final field in tester.widgetList<TextFormField>(
       find.byType(TextFormField),
@@ -264,9 +252,9 @@ void main() {
           width: width,
           textScale: 2,
         );
-        final senha = find.byKey(const ValueKey('admin-criar-senha'));
-        await tester.ensureVisible(senha);
-        await tester.enterText(senha, 'fraca');
+        final email = find.byKey(const ValueKey('admin-criar-email'));
+        await tester.ensureVisible(email);
+        await tester.enterText(email, 'email-invalido');
         tester.view.viewInsets = const FakeViewPadding(bottom: 300);
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.byKey(_salvar));
@@ -281,11 +269,7 @@ void main() {
           find.text('Informe um nome entre 3 e 140 caracteres.'),
           findsOneWidget,
         );
-        expect(
-          find.text('A senha deve ter pelo menos 8 caracteres.'),
-          findsOneWidget,
-        );
-        expect(find.text('As senhas precisam ser iguais.'), findsOneWidget);
+        expect(find.text('Informe um e-mail válido.'), findsOneWidget);
         expect(chamadas, 0);
         expect(tester.takeException(), isNull);
         tester.view.resetViewInsets();
