@@ -1,0 +1,216 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "capturas": [
+    {
+      "arquivo": "home-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "home-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "busca-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "perfil-profissional-privado-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "agenda-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "home-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "busca-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "perfil-profissional-privado-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "agenda-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    }
+  ],
+  "excecoesNavegador": []
+}

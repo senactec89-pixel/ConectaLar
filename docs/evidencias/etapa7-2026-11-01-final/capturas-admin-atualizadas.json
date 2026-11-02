@@ -1,0 +1,48 @@
+{
+  "origem": "Flutter Web em galeria DEMO local; dados fictícios",
+  "capturas": [
+    {
+      "arquivo": "admin-documentos-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-200-360.png",
+      "largura": 360,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-200-390.png",
+      "largura": 390,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    },
+    {
+      "arquivo": "admin-documentos-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 1
+    },
+    {
+      "arquivo": "admin-documentos-200-412.png",
+      "largura": 412,
+      "altura": 844,
+      "dpr": 1,
+      "escalaTexto": 2
+    }
+  ],
+  "excecoesNavegador": []
+}
