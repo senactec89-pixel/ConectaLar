@@ -131,7 +131,7 @@ class _AtendimentoIndisponivel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Perfil em verificacao. Ainda nao recebe solicitacoes.',
+    label: 'Perfil em verificação. Ainda não recebe solicitações.',
     child: ExcludeSemantics(
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -144,7 +144,7 @@ class _AtendimentoIndisponivel extends StatelessWidget {
           const SizedBox(width: AppSpace.xs),
           Flexible(
             child: Text(
-              'Em verificacao - pedidos indisponiveis',
+              'Em verificação · pedidos indisponíveis',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: AppColors.textoSuave,
                 fontWeight: FontWeight.w700,

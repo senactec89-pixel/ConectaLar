@@ -45,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
         _mostrarErro(
           error is GoogleIdentityException
               ? error.message
-              : 'Nao foi possivel entrar com o Google.',
+              : 'Não foi possível entrar com o Google.',
         );
       },
     );
@@ -115,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
             : null;
         if (versaoTermos == null || versaoTermos.isEmpty) {
           throw const ApiException(
-            'Nao foi possivel validar a versao atual dos termos.',
+            'Não foi possível validar a versão atual dos termos.',
           );
         }
         tipoCriado = escolha.tipo;
@@ -147,7 +147,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) _mostrarErro(error.message);
     } catch (_) {
       if (mounted) {
-        _mostrarErro('Nao foi possivel entrar com o Google. Tente novamente.');
+        _mostrarErro('Não foi possível entrar com o Google. Tente novamente.');
       }
     } finally {
       if (mounted) setState(() => _enviando = false);
@@ -419,6 +419,8 @@ class _GoogleCadastroDialogState extends State<_GoogleCadastroDialog> {
   TipoUsuario _tipo = TipoUsuario.cliente;
   bool _aceitouTermos = false;
   bool _mostrarErro = false;
+  bool _mostrarSenha = false;
+  bool _mostrarConfirmacao = false;
 
   @override
   void dispose() {
@@ -500,7 +502,7 @@ class _GoogleCadastroDialogState extends State<_GoogleCadastroDialog> {
                     items: const [
                       DropdownMenuItem(
                         value: TipoUsuario.profissional,
-                        child: Text('Autonomo'),
+                        child: Text('Autônomo'),
                       ),
                       DropdownMenuItem(
                         value: TipoUsuario.empresa,
@@ -514,17 +516,29 @@ class _GoogleCadastroDialogState extends State<_GoogleCadastroDialog> {
                 ],
                 const SizedBox(height: AppSpace.lg),
                 const Text(
-                  'Crie uma senha de recuperacao do ConectaLar. Ela nao e a senha da sua conta Google.',
+                  'Crie uma senha de recuperação do ConectaLar. Ela não é a senha da sua conta Google.',
                   style: TextStyle(color: AppColors.textoSuave, height: 1.35),
                 ),
                 const SizedBox(height: AppSpace.md),
                 TextFormField(
                   key: const ValueKey('google-cadastro-senha'),
                   controller: _senhaController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: !_mostrarSenha,
+                  decoration: InputDecoration(
                     labelText: 'Senha do ConectaLar',
-                    prefixIcon: Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      tooltip: _mostrarSenha
+                          ? 'Ocultar senha'
+                          : 'Mostrar senha',
+                      onPressed: () =>
+                          setState(() => _mostrarSenha = !_mostrarSenha),
+                      icon: Icon(
+                        _mostrarSenha
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                    ),
                   ),
                   validator: validarSenhaForte,
                 ),
@@ -532,10 +546,23 @@ class _GoogleCadastroDialogState extends State<_GoogleCadastroDialog> {
                 TextFormField(
                   key: const ValueKey('google-cadastro-confirmar-senha'),
                   controller: _confirmarSenhaController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: !_mostrarConfirmacao,
+                  decoration: InputDecoration(
                     labelText: 'Confirmar senha',
-                    prefixIcon: Icon(Icons.lock_reset_outlined),
+                    prefixIcon: const Icon(Icons.lock_reset_outlined),
+                    suffixIcon: IconButton(
+                      tooltip: _mostrarConfirmacao
+                          ? 'Ocultar confirmação de senha'
+                          : 'Mostrar confirmação de senha',
+                      onPressed: () => setState(
+                        () => _mostrarConfirmacao = !_mostrarConfirmacao,
+                      ),
+                      icon: Icon(
+                        _mostrarConfirmacao
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                    ),
                   ),
                   validator: (value) {
                     final error = validarSenhaForte(value);
@@ -556,7 +583,7 @@ class _GoogleCadastroDialogState extends State<_GoogleCadastroDialog> {
                     'Li e aceito os termos e o aviso de privacidade.',
                   ),
                   subtitle: _mostrarErro && !_aceitouTermos
-                      ? const Text('Obrigatorio para continuar.')
+                      ? const Text('Obrigatório para continuar.')
                       : null,
                   onChanged: (value) => setState(() {
                     _aceitouTermos = value ?? false;

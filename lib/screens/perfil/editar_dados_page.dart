@@ -249,7 +249,7 @@ class _EditarDadosPageState extends State<EditarDadosPage> {
                                         labelText: 'E-mail',
                                         prefixIcon: Icon(Icons.mail_outline),
                                         helperText:
-                                            'E-mail vinculado à conta. Você pode consultá-lo aqui.',
+                                            'E-mail vinculado à conta. A alteração não está disponível nesta tela.',
                                         helperMaxLines: 10,
                                       ),
                                     ),

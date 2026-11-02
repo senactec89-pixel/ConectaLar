@@ -34,6 +34,62 @@ Future<void> _verResultados(WidgetTester tester, Finder target) async {
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('ID de conta pode ser consultado para filtrar o histórico', (
+    tester,
+  ) async {
+    final usuario = {
+      'id': 42,
+      'nome': 'Conta de teste',
+      'email': 'teste@example.invalid',
+      'tipo': 'cliente',
+      'ativo': true,
+    };
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async {
+        if (request.url.path == '/admin/usuarios') {
+          return jsonResponse({
+            'usuarios': [usuario],
+          });
+        }
+        if (request.url.path == '/admin/usuarios/42') {
+          return jsonResponse({'usuario': usuario});
+        }
+        if (request.url.path == '/admin/historico/atendimentos') {
+          return jsonResponse({'atendimentos': []});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.adminUsuarios,
+      width: 360,
+      textScale: 2,
+    );
+    final conta = find.text('Conta de teste');
+    await tester.ensureVisible(conta);
+    await tester.pumpAndSettle();
+    await tester.tap(conta);
+    await tester.pumpAndSettle();
+    expect(find.text('ID da conta: 42'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await abrirFrontend(
+      tester,
+      AppRoutes.adminHistorico,
+      width: 360,
+      textScale: 2,
+    );
+    expect(
+      find.text(
+        'Filtre por cliente ou profissional. Encontre o ID nos detalhes da conta, na área Contas.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('prévia administrativa mostra histórico fictício sem endereço', (
     tester,
   ) async {

@@ -250,7 +250,19 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
                                   : FontWeight.w900,
                             ),
                           ),
-                          subtitle: Text(notificacao.mensagem),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(notificacao.mensagem),
+                              const SizedBox(height: AppSpace.xs),
+                              Text(
+                                notificacao.lida ? 'Lida' : 'Não lida',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
                           trailing: const Icon(Icons.chevron_right),
                         ),
                       );

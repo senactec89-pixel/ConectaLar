@@ -39,8 +39,15 @@ class _DenunciasPageState extends State<DenunciasPage> {
 
   Future<void> _atualizar() async {
     final future = _carregar(pagina: 1);
-    setState(() => _denunciasFuture = future);
-    await future;
+    future.ignore();
+    setState(() {
+      _denunciasFuture = future;
+    });
+    try {
+      await future;
+    } catch (_) {
+      // O FutureBuilder mostra o erro e oferece nova tentativa.
+    }
   }
 
   Future<void> _carregarMais() async {
@@ -169,7 +176,7 @@ class _DenunciaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = '${denuncia['status'] ?? 'pendente'}';
+    final status = '${denuncia['status'] ?? ''}';
     final visual = _statusVisual(status);
     final atendimento = denuncia['atendimento'] is Map<String, dynamic>
         ? denuncia['atendimento'] as Map<String, dynamic>
@@ -182,6 +189,7 @@ class _DenunciaCard extends StatelessWidget {
     );
     final decisao = _textoOpcional(denuncia['decisao']);
     final analisadoEm = _dataHora(denuncia['analisadoEm']);
+    final criadoEm = _dataHora(denuncia['criadoEm']);
 
     return Card(
       child: Padding(
@@ -189,23 +197,16 @@ class _DenunciaCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    '${atendimento['nomeServico'] ?? 'Atendimento'} #$solicitacaoId',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                const SizedBox(width: AppSpace.sm),
-                Chip(
-                  avatar: Icon(visual.icon, size: 18, color: visual.cor),
-                  label: Text(visual.rotulo),
-                  side: BorderSide(color: visual.cor),
-                  backgroundColor: visual.cor.withValues(alpha: 0.08),
-                ),
-              ],
+            Text(
+              '${atendimento['nomeServico'] ?? 'Atendimento'} #$solicitacaoId',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: AppSpace.xs),
+            Chip(
+              avatar: Icon(visual.icon, size: 18, color: visual.cor),
+              label: Text(visual.rotulo),
+              side: BorderSide(color: visual.cor),
+              backgroundColor: visual.cor.withValues(alpha: 0.08),
             ),
             const SizedBox(height: AppSpace.sm),
             Text(
@@ -222,7 +223,9 @@ class _DenunciaCard extends StatelessWidget {
             ),
             _LinhaInfo(
               icon: Icons.event_outlined,
-              texto: 'Enviada em ${_dataHora(denuncia['criadoEm'])}',
+              texto: criadoEm == null
+                  ? 'Data de envio indisponível'
+                  : 'Enviada em $criadoEm',
             ),
             if (decisao != null) ...[
               const Divider(height: AppSpace.xl),
@@ -235,18 +238,21 @@ class _DenunciaCard extends StatelessWidget {
               if (analisadoEm != null) ...[
                 const SizedBox(height: AppSpace.xs),
                 Text(
-                  'Concluida em $analisadoEm',
+                  'Concluída em $analisadoEm',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ] else ...[
               const Divider(height: AppSpace.xl),
-              Text(
-                status == 'em_analise'
-                    ? 'A equipe está analisando o relato. Atualize esta tela para acompanhar.'
-                    : 'O relato aguarda o início da análise administrativa.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(switch (status) {
+                'em_analise' =>
+                  'A equipe está analisando o relato. Atualize esta tela para acompanhar.',
+                'pendente' =>
+                  'O relato aguarda o início da análise administrativa.',
+                'resolvida' || 'rejeitada' =>
+                  'A análise foi encerrada. Nenhum detalhe da decisão foi informado.',
+                _ => 'A situação da denúncia está indisponível no momento.',
+              }, style: Theme.of(context).textTheme.bodySmall),
             ],
             const SizedBox(height: AppSpace.md),
             Align(
@@ -309,9 +315,14 @@ class _LinhaInfo extends StatelessWidget {
       icon: Icons.block_outlined,
       cor: AppColors.erro,
     ),
-    _ => (
+    'pendente' => (
       rotulo: 'Pendente',
       icon: Icons.schedule_outlined,
+      cor: AppColors.textoSuave,
+    ),
+    _ => (
+      rotulo: 'Indisponível',
+      icon: Icons.info_outline,
       cor: AppColors.textoSuave,
     ),
   };

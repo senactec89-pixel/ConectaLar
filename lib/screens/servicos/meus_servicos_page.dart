@@ -190,6 +190,22 @@ class _MeusServicosPageState extends State<MeusServicosPage> {
                     ],
                     const _AvisoStatus(),
                     const SizedBox(height: 16),
+                    Wrap(
+                      spacing: AppSpace.md,
+                      runSpacing: AppSpace.xs,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'Filtrar pedidos',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        Text(
+                          'Deslize para ver mais →',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.sm),
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(

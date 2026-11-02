@@ -212,9 +212,7 @@ void main() {
     (tester) async {
       await _sessao(
         'profissional',
-        (_) async => _json({
-          'solicitacao': _pedido(status: 'aceita_agendada'),
-        }),
+        (_) async => _json({'solicitacao': _pedido(status: 'aceita_agendada')}),
       );
       await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
       await tester.scrollUntilVisible(
@@ -229,9 +227,8 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await _sessao(
         'cliente',
-        (_) async => _json({
-          'solicitacao': _pedido(status: 'conclusao_pendente'),
-        }),
+        (_) async =>
+            _json({'solicitacao': _pedido(status: 'conclusao_pendente')}),
       );
       await _abrir(tester, AppRoutes.detalhesServico, arguments: 45);
       await tester.scrollUntilVisible(
@@ -689,9 +686,9 @@ void main() {
         return _json({'solicitacoes': []});
       });
       await _abrir(tester, AppRoutes.perfilProfissionalPrivado);
-      await tester.ensureVisible(find.text('Região atendida'));
+      await tester.ensureVisible(find.text('Editar perfil profissional'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Região atendida'));
+      await tester.tap(find.text('Editar perfil profissional'));
       await tester.pumpAndSettle();
       expect(find.text('Editar perfil profissional'), findsOneWidget);
       await tester.enterText(find.byType(TextFormField).at(1), 'Bairro Novo');

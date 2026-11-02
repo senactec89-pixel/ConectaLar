@@ -284,8 +284,14 @@ class _BuscaPageState extends State<BuscaPage> {
           _carregandoMais = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nao foi possivel carregar mais resultados.'),
+          SnackBar(
+            content: const Text('Não foi possível carregar mais resultados.'),
+            action: SnackBarAction(
+              label: 'Tentar novamente',
+              onPressed: () {
+                if (mounted) _carregarMaisProfissionais();
+              },
+            ),
           ),
         );
         return;
@@ -401,7 +407,7 @@ class _BuscaPageState extends State<BuscaPage> {
       if (!mounted) return;
       setState(() {
         _erroLocalizacao =
-            'Nao foi possivel obter sua localizacao. Tente novamente.';
+            'Não foi possível obter sua localização. Tente novamente.';
         _falhaLocalizacao = DeviceLocationFailure.unavailable;
       });
     } finally {
@@ -629,6 +635,23 @@ class _BuscaPageState extends State<BuscaPage> {
                       onModoAlterado: (mapa) =>
                           setState(() => _mostrarMapa = mapa),
                     ),
+                    if (_podeComparar &&
+                        resultados.isNotEmpty &&
+                        !(_mostrarMapa && _mapaDisponivel)) ...[
+                      const SizedBox(height: AppSpace.xs),
+                      Row(
+                        children: [
+                          const Icon(Icons.compare_arrows_rounded, size: 18),
+                          const SizedBox(width: AppSpace.xs),
+                          Expanded(
+                            child: Text(
+                              'Toque no ícone de comparar nos cartões para escolher dois profissionais.',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: AppSpace.md),
                     if (resultados.isEmpty)
                       const _EstadoVazioBusca()
@@ -878,9 +901,17 @@ class _FiltrosBusca extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (textoAmpliado) ...[
+          Text(
+            'Serviço ou profissional',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: AppSpace.xs),
+        ],
         TextField(
           key: const ValueKey('busca-termo'),
           controller: termoController,
@@ -889,7 +920,7 @@ class _FiltrosBusca extends StatelessWidget {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.search_rounded),
-            labelText: 'Serviço ou profissional',
+            labelText: textoAmpliado ? 'Buscar' : 'Serviço ou profissional',
             hintText: 'Ex.: elétrica, limpeza, Carlos',
             suffixIcon: posicao == null
                 ? IconButton(
@@ -970,9 +1001,11 @@ class _FiltrosBusca extends StatelessWidget {
           const SizedBox(height: AppSpace.xs),
           Text(
             [
-              bairroController.text.trim(),
-              cidadeController.text.trim(),
-            ].where((valor) => valor.isNotEmpty).join(' · '),
+              if (bairroController.text.trim().isNotEmpty)
+                'Bairro: ${bairroController.text.trim()}',
+              if (cidadeController.text.trim().isNotEmpty)
+                'Cidade: ${cidadeController.text.trim()}',
+            ].join(' · '),
             style: Theme.of(
               context,
             ).textTheme.bodySmall?.copyWith(color: AppColors.verdeEscuro),

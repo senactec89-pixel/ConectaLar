@@ -2,6 +2,7 @@ import 'package:conectarlar_app/app/theme.dart';
 import 'package:conectarlar_app/models/profissional.dart';
 import 'package:conectarlar_app/widgets/profissional_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _profissional = Profissional(
@@ -65,10 +66,14 @@ void main() {
               expect(tester.widget<Text>(find.text(texto)).maxLines, isNull);
             }
           }
-          final preco = find.text('A partir de R\$ 9999999,99');
+          final preco = find.text('R\$\u00a09999999,99');
           await tester.ensureVisible(preco);
           await tester.pumpAndSettle();
-          expect(tester.widget<Text>(preco).maxLines, isNull);
+          expect(tester.widget<Text>(preco).maxLines, 1);
+          expect(
+            tester.renderObject<RenderParagraph>(preco).didExceedMaxLines,
+            isFalse,
+          );
           expect(tester.getRect(preco).right, lessThanOrEqualTo(width - 20));
           final remover = find.byKey(const ValueKey('card-favorito'));
           await tester.ensureVisible(remover);
@@ -132,15 +137,16 @@ void main() {
         ),
       );
       expect(find.text('5,0 · 1 avaliação'), findsOneWidget);
-      final preco = tester.getRect(find.text(r'A partir de R$ 120,00'));
+      final preco = tester.getRect(find.text('R\$\u00a0120,00'));
       final acao = tester.getRect(find.text('Ver perfil'));
       // A fonte de teste é mais larga que a usada no app. Também exercita
       // o empilhamento quando manter o valor inteiro exige mais espaço.
-      if (width == 600 || preco.right < acao.left) {
-        expect(preco.center.dy, closeTo(acao.center.dy, 2));
-        expect(preco.right, lessThan(acao.left));
+      if (preco.bottom <= acao.top) {
+        expect(preco.bottom, lessThanOrEqualTo(acao.top));
       } else {
-        expect(preco.bottom, lessThan(acao.top));
+        expect(preco.top, lessThan(acao.bottom));
+        expect(preco.bottom, greaterThan(acao.top));
+        expect(preco.right, lessThan(acao.left));
       }
       expect(tester.takeException(), isNull);
     }
@@ -199,7 +205,7 @@ void main() {
       card: const ProfissionalCard(profissional: profissional),
     );
 
-    expect(find.text('Em verificacao - pedidos indisponiveis'), findsOneWidget);
+    expect(find.text('Em verificação · pedidos indisponíveis'), findsOneWidget);
     expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
   });
 }

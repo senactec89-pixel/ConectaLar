@@ -45,7 +45,10 @@ class _EnderecosPageState extends State<EnderecosPage> {
       isScrollControlled: true,
       builder: (context) => _EnderecoForm(endereco: endereco),
     );
-    if (salvou == true) _recarregar();
+    if (salvou == true && mounted) {
+      _recarregar();
+      _snack('Endereço salvo com sucesso.');
+    }
   }
 
   Future<void> _remover(ClienteEndereco endereco) async {
@@ -216,13 +219,23 @@ class _EnderecoCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    endereco.apelido,
-                    style: const TextStyle(
-                      color: AppColors.texto,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        endereco.apelido,
+                        style: const TextStyle(
+                          color: AppColors.texto,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (endereco.principal)
+                        Text(
+                          'Endereço principal',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                    ],
                   ),
                 ),
               ],

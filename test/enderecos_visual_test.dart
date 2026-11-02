@@ -23,6 +23,7 @@ void main() {
         final endereco = find.text(
           'Rua de exemplo, 100 - Centro, Cidade de exemplo/MG',
         );
+        expect(find.text('Endereço principal'), findsOneWidget);
         expect(tester.getSize(endereco).width, greaterThan(width - 96));
         expect(tester.takeException(), isNull);
         final editar = find.widgetWithText(OutlinedButton, 'Editar');
@@ -53,6 +54,44 @@ void main() {
       }
     },
   );
+
+  testWidgets('salvar endereço mostra confirmação e remover pede confirmação', (
+    tester,
+  ) async {
+    var salvamentos = 0;
+    var remocoes = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/clientes/me/enderecos/1') {
+          if (request.method == 'PATCH') salvamentos++;
+          if (request.method == 'DELETE') remocoes++;
+          return jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.enderecos);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Editar'));
+    await tester.pumpAndSettle();
+    final salvar = find.widgetWithText(FilledButton, 'Salvar endereço');
+    await tester.ensureVisible(salvar);
+    await tester.pumpAndSettle();
+    await tester.tap(salvar);
+    await tester.pumpAndSettle();
+    expect(salvamentos, 1);
+    expect(find.text('Endereço salvo com sucesso.'), findsOneWidget);
+    ScaffoldMessenger.of(
+      tester.element(find.text('Endereço salvo com sucesso.')),
+    ).removeCurrentSnackBar();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remover'));
+    await tester.pumpAndSettle();
+    expect(find.text('Remover endereço?'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('cancelar-remover-endereco')));
+    await tester.pumpAndSettle();
+    expect(remocoes, 0);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('CEP preenche rua, bairro, cidade e UF automaticamente', (
     tester,

@@ -986,8 +986,6 @@ class _SolicitarServicoBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Não recebe novos pedidos agora',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),

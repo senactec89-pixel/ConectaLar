@@ -117,7 +117,11 @@ void main() {
         },
       );
       await abrirFrontend(tester, AppRoutes.conversa, arguments: 1001);
-      expect(find.text('Conversa somente para consulta.'), findsOneWidget);
+      if (papel == 'administrador') {
+        expect(find.text('Área indisponível para esta conta'), findsOneWidget);
+      } else {
+        expect(find.text('Conversa somente para consulta.'), findsOneWidget);
+      }
       expect(find.byKey(const ValueKey('chat-mensagem')), findsNothing);
       expect(find.byKey(const ValueKey('chat-enviar')), findsNothing);
       expect(find.textContaining('Use a conversa'), findsNothing);

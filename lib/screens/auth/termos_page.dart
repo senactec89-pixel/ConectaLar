@@ -67,7 +67,7 @@ class _TermosPageState extends State<TermosPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Nao foi possivel registrar o aceite. Tente novamente.',
+            'Não foi possível registrar o aceite. Tente novamente.',
           ),
         ),
       );

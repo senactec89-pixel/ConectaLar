@@ -129,12 +129,24 @@ class _AvaliacoesPublicadasViewState extends State<AvaliacoesPublicadasView> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Filtrar por nota',
-                style: Theme.of(context).textTheme.labelLarge,
+              Wrap(
+                spacing: AppSpace.md,
+                runSpacing: AppSpace.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Filtrar por nota',
+                    style: Theme.of(context).textTheme.labelLarge,
+                  ),
+                  Text(
+                    'Deslize para ver mais →',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
               const SizedBox(height: AppSpace.xs),
               SingleChildScrollView(
+                key: const ValueKey('avaliacoes-filtros-nota'),
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
@@ -149,6 +161,7 @@ class _AvaliacoesPublicadasViewState extends State<AvaliacoesPublicadasView> {
                       Padding(
                         padding: const EdgeInsets.only(right: AppSpace.sm),
                         child: ChoiceChip(
+                          key: ValueKey('avaliacoes-nota-${filtro.$1}'),
                           label: Text(filtro.$2),
                           selected: _nota == filtro.$1,
                           onSelected: (_) {

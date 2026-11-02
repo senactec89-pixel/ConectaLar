@@ -72,6 +72,14 @@ void main() {
           const ValueKey('perfil-solicitar-servico'),
         );
         expect(tester.getSize(solicitar).height, greaterThanOrEqualTo(48));
+        expect(
+          tester
+              .renderObject<RenderParagraph>(
+                find.text('Não recebe novos pedidos agora'),
+              )
+              .didExceedMaxLines,
+          isFalse,
+        );
         final resumo = find.byKey(const ValueKey('perfil-resumo'));
         await tester.ensureVisible(resumo);
         await tester.pumpAndSettle();
@@ -163,7 +171,7 @@ void main() {
         for (final atalho in [
           ('servicos', 'Serviços oferecidos'),
           ('avaliacoes', 'Avaliações de clientes'),
-          ('sobre', 'Sobre o profissional'),
+          ('sobre', 'Apresentação'),
         ]) {
           final botao = find.byKey(ValueKey('perfil-atalho-${atalho.$1}'));
           await tester.ensureVisible(botao);
@@ -194,7 +202,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(argumento, isNull);
         expect(tester.widget<FilledButton>(solicitar).onPressed, isNull);
-        expect(find.text('Habilitação pendente'), findsOneWidget);
+        expect(find.text('Atendimento indisponível'), findsWidgets);
         expect(tester.takeException(), isNull);
       }
     },

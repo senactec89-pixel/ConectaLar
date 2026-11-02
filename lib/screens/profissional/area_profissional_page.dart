@@ -394,8 +394,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                             ? 'Documento analisado'
                             : 'Verificação documental',
                         text: verificado
-                            ? 'Documento aprovado. A habilitação de segurança continua pendente e os atendimentos estão bloqueados.'
-                            : 'Envie seus documentos para análise administrativa. O selo não é uma garantia absoluta.',
+                            ? 'Documento aprovado. Consulte as demais etapas de habilitação para saber se pode receber pedidos.'
+                            : 'Consulte seus documentos e acompanhe a análise administrativa. O selo não é uma garantia absoluta.',
                         onTap: _abrirDocumentos,
                       );
                     },
@@ -492,7 +492,24 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     'Confira a região e o horário. O endereço completo fica protegido até o aceite.',
                   ),
                   const SizedBox(height: 14),
+                  Wrap(
+                    spacing: AppSpace.md,
+                    runSpacing: AppSpace.xs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Filtrar pedidos',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      Text(
+                        'Deslize para ver mais →',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpace.sm),
                   SingleChildScrollView(
+                    key: const ValueKey('profissional-filtros'),
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
@@ -505,6 +522,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                           Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
+                              key: ValueKey('profissional-filtro-$f'),
                               label: Text(f),
                               selected: _filtro == f,
                               onSelected: (_) => setState(() => _filtro = f),
@@ -602,7 +620,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                 if (_tab == 2) ...[
                   const SizedBox(height: AppSpace.md),
                   const Text(
-                    'Os horários livres consideram a duração de cada serviço. Não há intervalo extra entre atendimentos; organize seu deslocamento ao definir a disponibilidade.',
+                    'Antes de aceitar outro pedido, considere a duração dos atendimentos e o tempo de deslocamento. Um dia com atendimento pode ter outros horários livres.',
                     style: TextStyle(color: AppColors.textoSuave),
                   ),
                 ],
@@ -997,6 +1015,11 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         : null;
                   },
                 ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  'Sem intervalo adicional entre atendimentos.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 if (erro != null) ...[
                   const SizedBox(height: 12),
                   Text(erro!, style: const TextStyle(color: AppColors.erro)),
@@ -1271,47 +1294,79 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   ],
                   ...list.map(
                     (e) => Card(
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.home_repair_service_outlined,
-                          color: AppColors.verde,
-                        ),
-                        title: Text('${e['nome']}'),
-                        subtitle: Text(
-                          '${e['categoria']?['nome'] ?? 'Sem categoria'} ⬢ ${e['precoInicial'] == null ? 'Preço a informar' : 'A partir de R\$ ${e['precoInicial']}'}\n${e['duracaoMinutos'] ?? 120} min ⬢ ${e['ativo'] == true ? 'Ativa' : 'Pausada'}',
-                        ),
-                        isThreeLine: true,
-                        trailing: PopupMenuButton<String>(
-                          tooltip: 'Ações da oferta',
-                          enabled: !_salvando,
-                          onSelected: (acao) {
-                            if (acao == 'editar') {
-                              _editar(servico: e);
-                            } else {
-                              _alterarStatus(e);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'editar',
-                              child: ListTile(
-                                leading: Icon(Icons.edit_outlined),
-                                title: Text('Editar'),
-                              ),
-                            ),
-                            PopupMenuItem(
-                              value: 'status',
-                              child: ListTile(
-                                leading: Icon(
-                                  e['ativo'] == true
-                                      ? Icons.pause_circle_outline
-                                      : Icons.play_circle_outline,
+                      child: Padding(
+                        padding: AppInsets.card,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.home_repair_service_outlined,
+                                  color: AppColors.verde,
                                 ),
-                                title: Text(
-                                  e['ativo'] == true ? 'Pausar' : 'Reativar',
+                                const SizedBox(width: AppSpace.sm),
+                                Expanded(
+                                  child: Text(
+                                    '${e['nome']}',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleMedium,
+                                  ),
                                 ),
-                              ),
+                                PopupMenuButton<String>(
+                                  tooltip: 'Ações da oferta',
+                                  enabled: !_salvando,
+                                  onSelected: (acao) {
+                                    if (acao == 'editar') {
+                                      _editar(servico: e);
+                                    } else {
+                                      _alterarStatus(e);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'editar',
+                                      child: ListTile(
+                                        leading: Icon(Icons.edit_outlined),
+                                        title: Text('Editar'),
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'status',
+                                      child: ListTile(
+                                        leading: Icon(
+                                          e['ativo'] == true
+                                              ? Icons.pause_circle_outline
+                                              : Icons.play_circle_outline,
+                                        ),
+                                        title: Text(
+                                          e['ativo'] == true
+                                              ? 'Pausar'
+                                              : 'Reativar',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: AppSpace.xs),
+                            Text(
+                              '${e['categoria']?['nome'] ?? 'Sem categoria'}',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: AppSpace.xs),
+                            Text(
+                              e['precoInicial'] == null
+                                  ? 'Preço a informar'
+                                  : 'A partir de R\$ ${e['precoInicial']}',
+                            ),
+                            Text(
+                              '${e['duracaoMinutos'] ?? 120} min',
+                            ),
+                            Text(e['ativo'] == true ? 'Ativa' : 'Pausada'),
                           ],
                         ),
                       ),
@@ -1363,12 +1418,12 @@ class _PerfilProfissionalPrivadoPageState
 
   Future<void> _abrirDocumentos() async {
     await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
-    if (mounted) setState(() => _future = _carregar());
+    if (mounted) _atualizar();
   }
 
   Future<void> _abrirConta() async {
     await Navigator.pushNamed(context, AppRoutes.perfil);
-    if (mounted) setState(() => _future = _carregar());
+    if (mounted) _atualizar();
   }
 
   @override

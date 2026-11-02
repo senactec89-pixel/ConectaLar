@@ -36,14 +36,14 @@ String? validarSenhaForte(String? valor) {
       RegExp(r'[^A-Za-z0-9]').hasMatch(senha);
   return forte
       ? null
-      : 'Use maiuscula, minuscula, numero e caractere especial.';
+      : 'Use maiúscula, minúscula, número e caractere especial.';
 }
 
 String? validarCepOpcional(String? valor) {
   final texto = (valor ?? '').trim();
   if (texto.isEmpty) return null;
   final digitos = texto.replaceAll(RegExp(r'\D'), '');
-  return digitos.length == 8 ? null : 'Informe um CEP com 8 digitos.';
+  return digitos.length == 8 ? null : 'Informe um CEP com 8 dígitos.';
 }
 
 String? validarTelefoneObrigatorio(String? valor) {

@@ -10,11 +10,48 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('ação definitiva fica separada e pode ser cancelada', (
+    tester,
+  ) async {
+    var exclusoes = 0;
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/privacidade/me/exclusao') exclusoes++;
+        return null;
+      },
+    );
+    for (final largura in [360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.privacidade,
+        width: largura,
+        textScale: 2,
+      );
+      expect(find.text('Ação definitiva'), findsOneWidget);
+      final excluir = find.byKey(const ValueKey('seguranca-excluir-conta'));
+      await tester.ensureVisible(excluir);
+      await tester.pumpAndSettle();
+      await tester.tap(excluir);
+      await tester.pumpAndSettle();
+      expect(find.text('Excluir conta permanentemente?'), findsOneWidget);
+      await tester.tap(find.text('Manter minha conta'));
+      await tester.pumpAndSettle();
+      expect(exclusoes, 0);
+      expect(tester.takeException(), isNull, reason: '$largura px');
+    }
+  });
+
   testWidgets('privacidade explica exportacao e exige confirmacao forte', (
     tester,
   ) async {
     await configurarFrontend();
-    await abrirFrontend(tester, AppRoutes.privacidade, width: 360, textScale: 2);
+    await abrirFrontend(
+      tester,
+      AppRoutes.privacidade,
+      width: 360,
+      textScale: 2,
+    );
 
     expect(find.text('Exportar meus dados'), findsOneWidget);
     expect(find.text('Excluir minha conta'), findsOneWidget);

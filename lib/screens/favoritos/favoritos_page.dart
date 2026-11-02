@@ -94,7 +94,7 @@ class _FavoritosPageState extends State<FavoritosPage> {
       setState(() => _carregandoMais = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('NÃ£o foi possÃ­vel carregar mais favoritos.'),
+          content: Text('Não foi possível carregar mais favoritos.'),
         ),
       );
     }

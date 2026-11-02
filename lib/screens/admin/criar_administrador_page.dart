@@ -67,16 +67,16 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
       if (!mounted) return;
       setState(() {
         _erro = switch (error.statusCode) {
-          403 => 'Sua conta nao tem permissao para convidar administradores.',
-          409 => 'Nao foi possivel criar o convite. Confira e-mail e telefone.',
+          403 => 'Sua conta não tem permissão para convidar administradores.',
+          409 => 'Não foi possível criar o convite. Confira e-mail e telefone.',
           503 =>
-            'O envio de e-mail esta indisponivel. Nenhum convite foi criado.',
-          401 => 'Sua sessao expirou. Entre novamente para continuar.',
+            'O envio de e-mail está indisponível. Nenhum convite foi criado.',
+          401 => 'Sua sessão expirou. Entre novamente para continuar.',
           _ => error.message,
         };
       });
     } catch (_) {
-      if (mounted) setState(() => _erro = 'Nao foi possivel enviar o convite.');
+      if (mounted) setState(() => _erro = 'Não foi possível enviar o convite.');
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
@@ -109,14 +109,14 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
                       ),
                       const SizedBox(height: AppSpace.sm),
                       const Text(
-                        'A pessoa convidada definira a propria senha, confirmara o e-mail e configurara um autenticador antes de receber acesso administrativo.',
+                        'A pessoa convidada definirá a própria senha, confirmará o e-mail e configurará um autenticador antes de receber acesso administrativo.',
                       ),
                       const SizedBox(height: AppSpace.lg),
                       const Card(
                         child: Padding(
                           padding: AppInsets.card,
                           child: Text(
-                            'O convite e individual, vale por 24 horas e so pode ser usado uma vez. O codigo nao e mostrado nesta tela; sera enviado ao e-mail informado.',
+                            'O convite é individual, vale por 24 horas e só pode ser usado uma vez. O código não é mostrado nesta tela; será enviado ao e-mail informado.',
                           ),
                         ),
                       ),
@@ -154,7 +154,7 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
                           final error = validarEmail(value);
                           if (error != null) return error;
                           return value!.trim().length > 180
-                              ? 'Use um e-mail com ate 180 caracteres.'
+                              ? 'Use um e-mail com até 180 caracteres.'
                               : null;
                         },
                       ),
@@ -172,7 +172,7 @@ class _FormularioAdministradorState extends State<_FormularioAdministrador> {
                           helperText: 'Inclua o DDD.',
                         ),
                         validator: (value) => (value ?? '').trim().length > 32
-                            ? 'Use ate 32 caracteres.'
+                            ? 'Use até 32 caracteres.'
                             : validarTelefoneOpcional(value),
                       ),
                       if (_erro != null) ...[

@@ -52,6 +52,13 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   bool _enderecosCarregados = false;
   bool _erroEnderecos = false;
 
+  ClienteEndereco? get _enderecoSelecionado {
+    for (final endereco in _enderecos) {
+      if (endereco.id == _enderecoSelecionadoId) return endereco;
+    }
+    return null;
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -388,6 +395,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                       dataController: _dataController,
                       horarioController: _horarioController,
                       enderecoSelecionadoId: _enderecoSelecionadoId,
+                      enderecoSelecionado: _enderecoSelecionado,
                       enderecosFuture: _enderecosFuture,
                       disponibilidadeFuture: _disponibilidadeFuture,
                       onOfertaChanged: (id) =>
@@ -482,6 +490,7 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.dataController,
     required this.horarioController,
     required this.enderecoSelecionadoId,
+    required this.enderecoSelecionado,
     required this.enderecosFuture,
     required this.disponibilidadeFuture,
     required this.onOfertaChanged,
@@ -502,6 +511,7 @@ class _FormularioSolicitacao extends StatelessWidget {
   final TextEditingController dataController;
   final TextEditingController horarioController;
   final int? enderecoSelecionadoId;
+  final ClienteEndereco? enderecoSelecionado;
   final Future<List<ClienteEndereco>>? enderecosFuture;
   final Future<List<Disponibilidade>>? disponibilidadeFuture;
   final ValueChanged<int?> onOfertaChanged;
@@ -591,6 +601,7 @@ class _FormularioSolicitacao extends StatelessWidget {
                     return Column(
                       children: [
                         DropdownButtonFormField<int>(
+                          key: const ValueKey('solicitar-endereco'),
                           isExpanded: true,
                           initialValue:
                               enderecos.any(
@@ -776,6 +787,7 @@ class _FormularioSolicitacao extends StatelessWidget {
               _ResumoSolicitacaoPreview(
                 profissional: profissional,
                 oferta: ofertaSelecionada,
+                endereco: enderecoSelecionado,
                 bairroController: bairroController,
                 dataController: dataController,
                 horarioController: horarioController,
@@ -898,6 +910,7 @@ class _ResumoSolicitacaoPreview extends StatelessWidget {
   const _ResumoSolicitacaoPreview({
     required this.profissional,
     required this.oferta,
+    required this.endereco,
     required this.bairroController,
     required this.dataController,
     required this.horarioController,
@@ -905,6 +918,7 @@ class _ResumoSolicitacaoPreview extends StatelessWidget {
 
   final Profissional profissional;
   final OfertaProfissional? oferta;
+  final ClienteEndereco? endereco;
   final TextEditingController bairroController;
   final TextEditingController dataController;
   final TextEditingController horarioController;
@@ -967,6 +981,11 @@ class _ResumoSolicitacaoPreview extends StatelessWidget {
                 _ResumoLinha(
                   label: 'Região',
                   value: bairro.isEmpty ? 'Informe o bairro' : bairro,
+                ),
+                _ResumoLinha(
+                  label: 'Endereço',
+                  value:
+                      endereco?.completo ?? 'Selecione um endereço cadastrado',
                 ),
               ],
             ),

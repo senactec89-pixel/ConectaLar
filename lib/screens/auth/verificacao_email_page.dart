@@ -146,6 +146,11 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
                   : 'Digite o código de 6 dígitos enviado para $email.',
               style: const TextStyle(color: AppColors.textoSuave, height: 1.35),
             ),
+            const SizedBox(height: AppSpace.sm),
+            Text(
+              'Não encontrou o e-mail? Confira a pasta de spam ou solicite outro código abaixo.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: AppSpace.lg),
             Card(
               child: Padding(
@@ -208,7 +213,7 @@ class _VerificacaoEmailPageState extends State<VerificacaoEmailPage> {
                               AppRoutes.seguranca,
                             ),
                       icon: const Icon(Icons.manage_accounts_outlined),
-                      label: const Text('Seguranca e privacidade da conta'),
+                      label: const Text('Segurança e privacidade da conta'),
                     ),
                   ],
                 ),

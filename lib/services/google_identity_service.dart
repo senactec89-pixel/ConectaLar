@@ -44,7 +44,7 @@ class PluginGoogleIdentityClient implements GoogleIdentityClient {
   Future<void> initialize() {
     if (!configured) {
       throw const GoogleIdentityException(
-        'O login com Google ainda nao foi configurado neste aplicativo.',
+        'O login com Google ainda não foi configurado neste aplicativo.',
       );
     }
     return _initialization ??= _initializePlugin();
@@ -68,7 +68,7 @@ class PluginGoogleIdentityClient implements GoogleIdentityClient {
               } else {
                 _idTokenController.addError(
                   const GoogleIdentityException(
-                    'O Google nao retornou uma credencial valida.',
+                    'O Google não retornou uma credencial válida.',
                   ),
                 );
               }
@@ -88,7 +88,7 @@ class PluginGoogleIdentityClient implements GoogleIdentityClient {
     await initialize();
     if (!GoogleSignIn.instance.supportsAuthenticate()) {
       throw const GoogleIdentityException(
-        'Use o botao oficial do Google exibido nesta pagina.',
+        'Use o botão oficial do Google exibido nesta página.',
       );
     }
     try {
@@ -96,7 +96,7 @@ class PluginGoogleIdentityClient implements GoogleIdentityClient {
       final token = account.authentication.idToken;
       if (token == null || token.isEmpty) {
         throw const GoogleIdentityException(
-          'O Google nao retornou uma credencial valida.',
+          'O Google não retornou uma credencial válida.',
         );
       }
       return token;
@@ -125,15 +125,15 @@ class PluginGoogleIdentityClient implements GoogleIdentityClient {
         GoogleSignInExceptionCode.clientConfigurationError ||
         GoogleSignInExceptionCode.providerConfigurationError =>
           const GoogleIdentityException(
-            'O login com Google nao esta configurado corretamente.',
+            'O login com Google não está configurado corretamente.',
           ),
         _ => const GoogleIdentityException(
-          'Nao foi possivel entrar com o Google. Tente novamente.',
+          'Não foi possível entrar com o Google. Tente novamente.',
         ),
       };
     }
     return const GoogleIdentityException(
-      'Nao foi possivel entrar com o Google. Tente novamente.',
+      'Não foi possível entrar com o Google. Tente novamente.',
     );
   }
 }

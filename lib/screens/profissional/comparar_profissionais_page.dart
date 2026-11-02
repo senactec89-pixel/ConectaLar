@@ -35,19 +35,39 @@ class CompararProfissionaisPage extends StatelessWidget {
                 ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
               ),
               const SizedBox(height: AppSpace.md),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final profissional in profissionais)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpace.xs,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final empilhar =
+                      constraints.maxWidth < 280 ||
+                      MediaQuery.textScalerOf(context).scale(16) > 24;
+                  if (empilhar) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final profissional in profissionais) ...[
+                          _ResumoProfissional(profissional: profissional),
+                          const SizedBox(height: AppSpace.sm),
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final profissional in profissionais)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpace.xs,
+                            ),
+                            child: _ResumoProfissional(
+                              profissional: profissional,
+                            ),
+                          ),
                         ),
-                        child: _ResumoProfissional(profissional: profissional),
-                      ),
-                    ),
-                ],
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: AppSpace.sm),
               for (final campo in _camposComparacao(profissionais))
@@ -149,26 +169,58 @@ class _CampoComparacao extends StatelessWidget {
           children: [
             Text(campo.titulo, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: AppSpace.sm),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var index = 0; index < campo.valores.length; index++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        left: index == 0 ? 0 : AppSpace.sm,
-                      ),
-                      child: Semantics(
-                        label:
-                            '${campo.profissionais[index]}: ${campo.valores[index]}',
-                        child: Text(
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final empilhar =
+                    constraints.maxWidth < 260 ||
+                    MediaQuery.textScalerOf(context).scale(16) > 24;
+                if (empilhar) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (
+                        var index = 0;
+                        index < campo.valores.length;
+                        index++
+                      ) ...[
+                        if (index > 0) const SizedBox(height: AppSpace.md),
+                        Text(
+                          campo.profissionais[index],
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                        const SizedBox(height: AppSpace.xs),
+                        Text(
                           campo.valores[index],
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
+                      ],
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var index = 0; index < campo.valores.length; index++)
+                      Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: index == 0 ? 0 : AppSpace.sm,
+                          ),
+                          child: Semantics(
+                            label:
+                                '${campo.profissionais[index]}: ${campo.valores[index]}',
+                            child: ExcludeSemantics(
+                              child: Text(
+                                campo.valores[index],
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                );
+              },
             ),
           ],
         ),

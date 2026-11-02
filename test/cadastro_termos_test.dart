@@ -6,6 +6,7 @@ import 'package:conectarlar_app/services/api_service.dart';
 import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:conectarlar_app/services/session_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -17,9 +18,13 @@ http.Response _json(Object data, [int status = 200]) => http.Response(
   headers: {'content-type': 'application/json; charset=utf-8'},
 );
 
-Future<void> _abrir(WidgetTester tester, String route) async {
+Future<void> _abrir(
+  WidgetTester tester,
+  String route, {
+  double width = 360,
+}) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(360, 844);
+  tester.view.physicalSize = Size(width, 844);
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final routes = {
@@ -47,6 +52,33 @@ Future<void> _abrir(WidgetTester tester, String route) async {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   tearDown(() => AppServices.instance.api.close());
+
+  testWidgets('requisitos da senha aparecem completos com texto ampliado', (
+    tester,
+  ) async {
+    AppServices.instance = AppServices(modoDemo: true);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    addTearDown(tester.view.resetViewInsets);
+    for (final width in [360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _abrir(tester, AppRoutes.cadastro, width: width);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      final orientacao = find.text(
+        'Use pelo menos 8 caracteres, com letra maiúscula, minúscula, número e caractere especial.',
+      );
+      await tester.ensureVisible(orientacao);
+      await tester.pumpAndSettle();
+      expect(orientacao, findsOneWidget);
+      expect(
+        tester.renderObject<RenderParagraph>(orientacao).didExceedMaxLines,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+      tester.view.resetViewInsets();
+    }
+  });
 
   testWidgets('termos são públicos, mostram versão e permitem nova tentativa', (
     tester,
@@ -78,6 +110,78 @@ void main() {
     expect(find.text('Texto retornado pela API.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'termos longos permanecem legíveis e permitem voltar ao cadastro',
+    (tester) async {
+      final textoLongo = List.filled(
+        20,
+        'Texto de privacidade para leitura.',
+      ).join(' ');
+      AppServices.instance = AppServices(
+        api: ApiService(
+          client: MockClient(
+            (_) async => _json({
+              'termos': {
+                'titulo': 'Termos de teste',
+                'versao': '2026.v1',
+                'secoes': [
+                  {'titulo': 'Privacidade', 'texto': textoLongo},
+                ],
+              },
+            }),
+          ),
+        ),
+      );
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      for (final width in [360.0, 390.0, 412.0]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await _abrir(tester, AppRoutes.cadastro, width: width);
+        final nome = find.byKey(const ValueKey('cadastro-nome'));
+        await tester.ensureVisible(nome);
+        await tester.enterText(nome, 'Nome preservado');
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+        final lerTermos = find.text('Ler termos e aviso de privacidade');
+        await tester.scrollUntilVisible(
+          lerTermos,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(lerTermos);
+        await tester.pumpAndSettle();
+        await tester.tap(lerTermos);
+        await tester.pumpAndSettle();
+        final conteudo = find.text(textoLongo);
+        await tester.scrollUntilVisible(
+          conteudo,
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.renderObject<RenderParagraph>(conteudo).didExceedMaxLines,
+          isFalse,
+        );
+        final voltar = find.text('Voltar');
+        await tester.scrollUntilVisible(
+          voltar,
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(voltar);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<TextFormField>(nome).controller!.text,
+          'Nome preservado',
+        );
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 
   testWidgets('cadastro envia aceite e versao na mesma operacao atomica', (
     tester,
@@ -132,6 +236,7 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('cadastro-termos')));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -170,6 +275,7 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Ler termos e aviso de privacidade'));
     await tester.pumpAndSettle();
     expect(find.text('Termos de teste'), findsOneWidget);

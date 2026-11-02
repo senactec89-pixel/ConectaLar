@@ -65,4 +65,20 @@ void main() {
       'Não foi possível entrar. Confira seus dados e tente novamente.',
     );
   });
+
+  test(
+    'resposta genérica em inglês no login recebe orientação em português',
+    () async {
+      final error = await _erroHttp(
+        endpoint: 'auth/login',
+        status: 401,
+        resposta: {'message': 'Request could not be processed.'},
+      );
+
+      expect(
+        error.message,
+        'Não foi possível entrar. Confira seus dados e tente novamente.',
+      );
+    },
+  );
 }

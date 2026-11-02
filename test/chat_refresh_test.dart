@@ -36,10 +36,35 @@ void main() {
     await tester.tap(find.text('Tentar novamente'));
     await tester.pumpAndSettle();
     expect(find.text('Mensagem recebida 2'), findsOneWidget);
+    expect(find.text('Atualizar'), findsOneWidget);
     await tester.tap(find.byTooltip('Atualizar conversa'));
     await tester.pumpAndSettle();
     expect(find.text('Mensagem recebida 3'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ação de atualizar permanece acessível em telas menores', (
+    tester,
+  ) async {
+    await configurarFrontend();
+    for (final largura in [360.0, 390.0, 412.0]) {
+      for (final escala in [1.0, 1.4, 2.0]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await abrirFrontend(
+          tester,
+          AppRoutes.conversa,
+          arguments: 1001,
+          width: largura,
+          textScale: escala,
+        );
+        final atualizar = find.byTooltip('Atualizar conversa');
+        expect(atualizar.hitTestable(), findsOneWidget);
+        if (escala == 1.0) expect(find.text('Atualizar'), findsOneWidget);
+        await tester.tap(atualizar);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: '$largura px, $escala×');
+      }
+    }
   });
 
   testWidgets('chat preserva mensagem quando envio falha', (tester) async {

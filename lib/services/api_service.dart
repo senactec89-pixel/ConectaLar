@@ -271,7 +271,10 @@ class ApiService {
   }
 
   bool _pareceMensagemTecnica(String mensagem) {
-    final normalizada = mensagem.trim().toLowerCase();
+    final normalizada = mensagem.trim().toLowerCase().replaceFirst(
+      RegExp(r'[.!]+$'),
+      '',
+    );
     if (const {
       'error',
       'exception',
@@ -281,6 +284,7 @@ class ApiService {
       'bad request',
       'internal server error',
       'too many requests',
+      'request could not be processed',
     }.contains(normalizada)) {
       return true;
     }

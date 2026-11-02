@@ -70,7 +70,7 @@ void main() {
     await tester.tap(continuar);
     await tester.pumpAndSettle();
 
-    expect(find.text('ConectaLar Profissional'), findsWidgets);
+    expect(find.text('Área profissional'), findsWidgets);
     expect(
       find.byKey(const ValueKey('continuar-sem-documentos')),
       findsNothing,
@@ -388,6 +388,8 @@ void main() {
           width: largura,
           textScale: 2,
         );
+        await tester.ensureVisible(find.text('Profissional de teste'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Profissional de teste'));
         await tester.pumpAndSettle();
         expect(find.text('Confirmar'), findsOneWidget);

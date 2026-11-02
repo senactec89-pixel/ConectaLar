@@ -50,7 +50,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
           ? termos['versao']?.toString().trim()
           : null;
       if (versao == null || versao.isEmpty) {
-        throw const ApiException('Nao foi possivel validar os termos atuais.');
+        throw const ApiException('Não foi possível validar os termos atuais.');
       }
       final response = await AppServices.instance.auth.aceitarConviteAdmin(
         token: _token.text.replaceAll(RegExp(r'\s'), ''),
@@ -59,7 +59,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
       );
       final setupToken = response['mfaSetupToken'];
       if (setupToken is! String || setupToken.isEmpty) {
-        throw const ApiException('O convite nao pode ser concluido agora.');
+        throw const ApiException('O convite não pode ser concluído agora.');
       }
       if (!mounted) return;
       await Navigator.pushAndRemoveUntil<void>(
@@ -73,7 +73,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
       if (mounted) setState(() => _erro = error.message);
     } catch (_) {
       if (mounted) {
-        setState(() => _erro = 'Nao foi possivel aceitar o convite.');
+        setState(() => _erro = 'Não foi possível aceitar o convite.');
       }
     } finally {
       if (mounted) setState(() => _ocupado = false);
@@ -102,7 +102,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                     ),
                     const SizedBox(height: AppSpace.sm),
                     const Text(
-                      'O convite e individual e expira em 24 horas. Defina sua senha e configure um autenticador antes de acessar as ferramentas administrativas.',
+                      'O convite é individual e expira em 24 horas. Após aceitar, configure um aplicativo autenticador para acessar as ferramentas administrativas.',
                     ),
                     const SizedBox(height: AppSpace.lg),
                     TextFormField(
@@ -113,13 +113,13 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                       enableSuggestions: false,
                       textInputAction: TextInputAction.next,
                       decoration: const InputDecoration(
-                        labelText: 'Codigo do convite',
+                        labelText: 'Código do convite',
                         prefixIcon: Icon(Icons.key_outlined),
                       ),
                       validator: (value) =>
                           (value ?? '').replaceAll(RegExp(r'\s'), '').length !=
                               43
-                          ? 'Informe o codigo completo recebido no e-mail.'
+                          ? 'Informe o código completo recebido no e-mail.'
                           : null,
                     ),
                     const SizedBox(height: AppSpace.md),
@@ -150,6 +150,11 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                         ),
                       ),
                       validator: validarSenhaForte,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    Text(
+                      'Use pelo menos 8 caracteres, com letra maiúscula, minúscula, número e caractere especial.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: AppSpace.md),
                     TextFormField(
@@ -208,7 +213,7 @@ class _AdminInvitePageState extends State<AdminInvitePage> {
                       label: ActionLabel(
                         text: _ocupado
                             ? 'Validando convite...'
-                            : 'Aceitar e configurar MFA',
+                            : 'Aceitar e configurar autenticador',
                         busy: _ocupado,
                       ),
                     ),

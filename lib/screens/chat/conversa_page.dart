@@ -319,11 +319,22 @@ class _ConversaPageState extends State<ConversaPage> {
       appBar: AppBarCustom(
         title: 'Conversa',
         actions: [
-          IconButton(
-            tooltip: 'Atualizar conversa',
-            onPressed: _atualizando || _enviando ? null : _atualizar,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
+          if (MediaQuery.sizeOf(context).width >= 360 &&
+              MediaQuery.textScalerOf(context).scale(1) <= 1.3)
+            Tooltip(
+              message: 'Atualizar conversa',
+              child: TextButton.icon(
+                onPressed: _atualizando || _enviando ? null : _atualizar,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Atualizar'),
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Atualizar conversa',
+              onPressed: _atualizando || _enviando ? null : _atualizar,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
         ],
       ),
       backgroundColor: AppColors.fundo,

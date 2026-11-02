@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
+import '../../data/conectalar_mock_store.dart';
 import '../../widgets/async_state_view.dart';
 import '../../models/categoria.dart';
 import '../../models/busca_estado.dart';
@@ -30,6 +31,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<HomeContent> _contentFuture;
+  int _favoritesRevision = 0;
 
   @override
   void initState() {
@@ -53,8 +55,9 @@ class _HomePageState extends State<HomePage> {
     setState(_loadContent);
   }
 
-  void _openRoute(String route, {Object? arguments}) {
-    Navigator.pushNamed(context, route, arguments: arguments);
+  Future<void> _openRoute(String route, {Object? arguments}) async {
+    await Navigator.pushNamed(context, route, arguments: arguments);
+    if (mounted) setState(() => _favoritesRevision++);
   }
 
   void _onDestinationSelected(int index) {
@@ -83,6 +86,7 @@ class _HomePageState extends State<HomePage> {
 
             return _HomeContentView(
               content: snapshot.data ?? const HomeContent(),
+              favoritesRevision: _favoritesRevision,
               onRetry: _retry,
               retrying: snapshot.connectionState == ConnectionState.waiting,
               onSearchTap: () => _openRoute(
@@ -116,6 +120,7 @@ class _HomePageState extends State<HomePage> {
 class _HomeContentView extends StatelessWidget {
   const _HomeContentView({
     required this.content,
+    required this.favoritesRevision,
     required this.onRetry,
     required this.retrying,
     required this.onSearchTap,
@@ -127,6 +132,7 @@ class _HomeContentView extends StatelessWidget {
   });
 
   final HomeContent content;
+  final int favoritesRevision;
   final VoidCallback onRetry;
   final bool retrying;
   final VoidCallback onSearchTap;
@@ -141,6 +147,8 @@ class _HomeContentView extends StatelessWidget {
     final categoriasEmDestaque = content.categories
         .take(8)
         .toList(growable: false);
+    final textoCategoriaNormal =
+        MediaQuery.textScalerOf(context).scale(12) <= 13.2;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
@@ -168,7 +176,7 @@ class _HomeContentView extends StatelessWidget {
                           action: 'Ver todas',
                           onActionTap: onSearchTap,
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: textoCategoriaNormal ? 12 : 16),
                         if (content.categoriesLoadFailed)
                           SectionErrorView(
                             message: 'Não foi possível carregar as categorias.',
@@ -199,6 +207,38 @@ class _HomeContentView extends StatelessWidget {
                                           (larguraMinima + espacoHorizontal))
                                       .floor()
                                       .clamp(2, 4);
+                              final larguraCard =
+                                  (constraints.maxWidth -
+                                      (colunas - 1) * espacoHorizontal) /
+                                  colunas;
+                              final alturaMinima = textoAmpliado
+                                  ? 190.0
+                                  : tamanhoTexto > 13.2
+                                  ? 140.0
+                                  : colunas == 3
+                                  ? 104.0
+                                  : 112.0;
+                              var alturaTexto = 0.0;
+                              for (final categoria in categoriasEmDestaque) {
+                                final painter = TextPainter(
+                                  text: TextSpan(
+                                    text: categoria.nome.replaceAll('-', '-\n'),
+                                    style: DefaultTextStyle.of(
+                                      context,
+                                    ).style.merge(_CategoryTile.labelStyle),
+                                  ),
+                                  textDirection: Directionality.of(context),
+                                  textScaler: MediaQuery.textScalerOf(context),
+                                  textAlign: TextAlign.center,
+                                )..layout(maxWidth: larguraCard);
+                                if (painter.height > alturaTexto) {
+                                  alturaTexto = painter.height;
+                                }
+                                painter.dispose();
+                              }
+                              final alturaConteudo =
+                                  alturaTexto +
+                                  (textoCategoriaNormal ? 48.0 : 68.0);
                               return GridView.builder(
                                 shrinkWrap: true,
                                 primary: false,
@@ -207,15 +247,14 @@ class _HomeContentView extends StatelessWidget {
                                 gridDelegate:
                                     SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: colunas,
-                                      mainAxisSpacing: 12,
+                                      mainAxisSpacing: textoCategoriaNormal
+                                          ? 8
+                                          : 12,
                                       crossAxisSpacing: espacoHorizontal,
-                                      mainAxisExtent: textoAmpliado
-                                          ? 190
-                                          : tamanhoTexto > 13.2
-                                          ? 140
-                                          : colunas == 3
-                                          ? 104
-                                          : 124,
+                                      mainAxisExtent:
+                                          alturaConteudo > alturaMinima
+                                          ? alturaConteudo
+                                          : alturaMinima,
                                     ),
                                 itemBuilder: (context, index) {
                                   final category = categoriasEmDestaque[index];
@@ -228,7 +267,7 @@ class _HomeContentView extends StatelessWidget {
                                     icon: categoriaIconData(category.icone),
                                     background: style.background,
                                     color: style.foreground,
-                                    compact: colunas == 3,
+                                    compact: textoCategoriaNormal,
                                     onTap: () => onCategoryTap(category),
                                   );
                                 },
@@ -238,7 +277,7 @@ class _HomeContentView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  SizedBox(height: textoCategoriaNormal ? 20 : 28),
                   _SectionHeading(
                     title: 'Profissionais em destaque',
                     action: 'Ver todos',
@@ -267,32 +306,25 @@ class _HomeContentView extends StatelessWidget {
                             MediaQuery.textScalerOf(context).scale(13) > 19.5;
                         final columns =
                             constraints.maxWidth < 300 || textoAmpliado ? 1 : 2;
-                        return GridView.builder(
-                          shrinkWrap: true,
-                          primary: false,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: content.featuredProfessionals.length,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: columns == 1
-                                    ? textoAmpliado
-                                          ? 0.75
-                                          : 0.92
-                                    : constraints.maxWidth > 600
-                                    ? 1.2
-                                    : 0.52,
+                        final cardWidth =
+                            (constraints.maxWidth - (columns - 1) * 12) /
+                            columns;
+                        return Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (final professional
+                                in content.featuredProfessionals)
+                              SizedBox(
+                                width: cardWidth,
+                                child: _FeaturedProfessionalCard(
+                                  key: ValueKey(professional.id),
+                                  professional: professional,
+                                  favoritesRevision: favoritesRevision,
+                                  onTap: () => onProfessionalTap(professional),
+                                ),
                               ),
-                          itemBuilder: (context, index) {
-                            final professional =
-                                content.featuredProfessionals[index];
-                            return _FeaturedProfessionalCard(
-                              professional: professional,
-                              onTap: () => onProfessionalTap(professional),
-                            );
-                          },
+                          ],
                         );
                       },
                     ),
@@ -393,10 +425,10 @@ class _NearbyProfessionals extends StatelessWidget {
         const SizedBox(height: AppSpace.sm),
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadii.card),
-          child: SizedBox(
-            height: 176,
-            child: showMap
-                ? GoogleMap(
+          child: showMap
+              ? SizedBox(
+                  height: 176,
+                  child: GoogleMap(
                     initialCameraPosition: CameraPosition(
                       target: _mapCenter(located),
                       zoom: 11,
@@ -420,9 +452,12 @@ class _NearbyProfessionals extends StatelessWidget {
                     myLocationButtonEnabled: false,
                     zoomControlsEnabled: false,
                     compassEnabled: false,
-                  )
-                : _MapFallback(onTap: onSeeAll),
-          ),
+                  ),
+                )
+              : ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 176),
+                  child: _MapFallback(onTap: onSeeAll),
+                ),
         ),
       ],
     );
@@ -452,30 +487,28 @@ class _MapFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: const Color(0xFFE8F2ED),
-      child: InkWell(
-        onTap: onTap,
-        child: Stack(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.md),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Positioned(
-              left: 28,
-              top: 32,
-              child: Icon(Icons.location_on, color: AppColors.verde, size: 34),
+            const Icon(Icons.map_outlined, color: AppColors.verde, size: 28),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              'Mapa indisponível',
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-            const Positioned(
-              right: 52,
-              bottom: 30,
-              child: Icon(
-                Icons.location_on,
-                color: Color(0xFF1687C9),
-                size: 30,
-              ),
+            const SizedBox(height: AppSpace.xs),
+            Text(
+              'Encontre profissionais pela lista.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
-            Center(
-              child: FilledButton.icon(
-                onPressed: onTap,
-                icon: const Icon(Icons.map_outlined),
-                label: const Text('Ver profissionais da região'),
-              ),
+            const SizedBox(height: AppSpace.sm),
+            FilledButton(
+              onPressed: onTap,
+              child: const Text('Ver profissionais da região'),
             ),
           ],
         ),
@@ -924,6 +957,11 @@ class _CategoryTile extends StatelessWidget {
   final Color color;
   final bool compact;
   final VoidCallback onTap;
+  static const labelStyle = TextStyle(
+    color: AppColors.texto,
+    fontSize: 12,
+    fontWeight: FontWeight.w600,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -960,14 +998,8 @@ class _CategoryTile extends StatelessWidget {
                 SizedBox(height: compact ? 4 : 8),
                 Text(
                   category.nome.replaceAll('-', '-\n'),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppColors.texto,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: labelStyle,
                 ),
               ],
             ),
@@ -980,11 +1012,14 @@ class _CategoryTile extends StatelessWidget {
 
 class _FeaturedProfessionalCard extends StatefulWidget {
   const _FeaturedProfessionalCard({
+    super.key,
     required this.professional,
+    required this.favoritesRevision,
     required this.onTap,
   });
 
   final Profissional professional;
+  final int favoritesRevision;
   final VoidCallback onTap;
 
   @override
@@ -993,7 +1028,141 @@ class _FeaturedProfessionalCard extends StatefulWidget {
 }
 
 class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
+  late final _auth = AppServices.instance.auth;
   bool _isFavorite = false;
+  bool _loadingFavorite = true;
+  bool _favoriteError = false;
+  bool _savingFavorite = false;
+  int _requestRevision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _auth.addListener(_loadFavorite);
+    ConectaLarMockStore.instance.addListener(_onDemoChanged);
+    _loadFavorite();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FeaturedProfessionalCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.professional.id != widget.professional.id ||
+        oldWidget.favoritesRevision != widget.favoritesRevision) {
+      _loadFavorite();
+    }
+  }
+
+  @override
+  void dispose() {
+    _auth.removeListener(_loadFavorite);
+    ConectaLarMockStore.instance.removeListener(_onDemoChanged);
+    super.dispose();
+  }
+
+  void _onDemoChanged() {
+    if (AppServices.instance.emDemonstracao && mounted) {
+      setState(() {
+        _isFavorite = ConectaLarMockStore.instance.isFavorito(
+          widget.professional.id,
+        );
+      });
+    }
+  }
+
+  Future<void> _loadFavorite() async {
+    final services = AppServices.instance;
+    final revision = ++_requestRevision;
+    if (!mounted) return;
+    setState(() {
+      _loadingFavorite = true;
+      _favoriteError = false;
+      _savingFavorite = false;
+    });
+    try {
+      bool favorite = false;
+      if (services.emDemonstracao) {
+        favorite = ConectaLarMockStore.instance.isFavorito(
+          widget.professional.id,
+        );
+      } else if (services.auth.autenticado &&
+          services.auth.usuarioAtual?['tipo'] == 'cliente') {
+        final response = await services.clientes.consultarFavorito(
+          widget.professional.id,
+        );
+        if (response['favorito'] is! bool) {
+          throw const FormatException('Resposta de favorito inválida.');
+        }
+        favorite = response['favorito'] as bool;
+      }
+      if (!mounted || revision != _requestRevision) return;
+      setState(() {
+        _isFavorite = favorite;
+        _loadingFavorite = false;
+      });
+    } catch (_) {
+      if (!mounted || revision != _requestRevision) return;
+      setState(() {
+        _favoriteError = true;
+        _loadingFavorite = false;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final services = AppServices.instance;
+    if (_loadingFavorite || _savingFavorite) return;
+    if (_favoriteError) {
+      await _loadFavorite();
+      return;
+    }
+    if (services.emDemonstracao) {
+      ConectaLarMockStore.instance.toggleFavorito(widget.professional.id);
+      return;
+    }
+    if (!services.auth.autenticado) {
+      await Navigator.pushNamed(context, AppRoutes.login);
+      if (mounted) await _loadFavorite();
+      return;
+    }
+    if (services.auth.usuarioAtual?['tipo'] != 'cliente') return;
+
+    final wasFavorite = _isFavorite;
+    final revision = _requestRevision;
+    setState(() => _savingFavorite = true);
+    try {
+      if (wasFavorite) {
+        await services.clientes.removerFavorito(widget.professional.id);
+      } else {
+        await services.clientes.adicionarFavorito(widget.professional.id);
+      }
+      if (!mounted || revision != _requestRevision) return;
+      setState(() => _isFavorite = !wasFavorite);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite
+                ? 'Perfil removido dos favoritos.'
+                : 'Perfil salvo nos favoritos.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted || revision != _requestRevision) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            wasFavorite
+                ? 'Não foi possível remover este favorito.'
+                : 'Não foi possível salvar este favorito.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted && revision == _requestRevision) {
+        setState(() => _savingFavorite = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1001,6 +1170,9 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
     final price = professional.precoInicial;
     final image = professional.fotoAsset;
     final imageUrl = professional.fotoUrl;
+    final auth = AppServices.instance.auth;
+    final showFavorite =
+        !auth.autenticado || auth.usuarioAtual?['tipo'] == 'cliente';
 
     return Material(
       color: Colors.white,
@@ -1009,6 +1181,7 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
       child: InkWell(
         onTap: widget.onTap,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
@@ -1087,166 +1260,205 @@ class _FeaturedProfessionalCardState extends State<_FeaturedProfessionalCard> {
                         ),
                       ),
                     ),
-                  Positioned(
-                    right: 9,
-                    top: 8,
-                    child: Material(
-                      color: const Color(0x55000000),
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
-                        ),
-                        tooltip: _isFavorite
-                            ? 'Remover dos favoritos'
-                            : 'Adicionar aos favoritos',
-                        onPressed: () =>
-                            setState(() => _isFavorite = !_isFavorite),
-                        icon: Icon(
-                          _isFavorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: Colors.white,
-                          size: 21,
+                  if (showFavorite)
+                    Positioned(
+                      right: 9,
+                      top: 8,
+                      child: Material(
+                        color: const Color(0x55000000),
+                        shape: const CircleBorder(),
+                        child: IconButton(
+                          key: ValueKey('home-favorito-${professional.id}'),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
+                          ),
+                          tooltip: _favoriteError
+                              ? 'Não foi possível carregar favorito. Tentar novamente'
+                              : _isFavorite
+                              ? 'Remover dos favoritos'
+                              : 'Adicionar aos favoritos',
+                          onPressed: _loadingFavorite || _savingFavorite
+                              ? null
+                              : _toggleFavorite,
+                          icon: _loadingFavorite || _savingFavorite
+                              ? const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  _favoriteError
+                                      ? Icons.refresh_rounded
+                                      : _isFavorite
+                                      ? Icons.favorite_rounded
+                                      : Icons.favorite_border_rounded,
+                                  color: Colors.white,
+                                  size: 21,
+                                ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 17,
-                          backgroundColor: AppColors.verdeClaro,
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : image == null
-                              ? null
-                              : AssetImage(image),
-                          child: imageUrl == null && image == null
-                              ? const Icon(
-                                  Icons.person_outline_rounded,
-                                  color: AppColors.verde,
-                                  size: 18,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                professional.nome,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.texto,
-                                ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: AppColors.verdeClaro,
+                        backgroundImage: imageUrl != null
+                            ? NetworkImage(imageUrl)
+                            : image == null
+                            ? null
+                            : AssetImage(image),
+                        child: imageUrl == null && image == null
+                            ? const Icon(
+                                Icons.person_outline_rounded,
+                                color: AppColors.verde,
+                                size: 18,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              professional.nome,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.texto,
                               ),
-                              const SizedBox(height: 3),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    size: 14,
-                                    color: AppColors.estrela,
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Expanded(
-                                    child: Text(
-                                      professional.notaMedia == null
-                                          ? 'Novo profissional'
-                                          : '${professional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} (${professional.quantidadeAvaliacoes ?? 0})',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textoSuave,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: AppColors.estrela,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    professional.notaMedia == null
+                                        ? 'Novo profissional'
+                                        : '${professional.notaMedia!.toStringAsFixed(1).replaceAll('.', ',')} (${professional.quantidadeAvaliacoes ?? 0})',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textoSuave,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on_outlined,
-                          size: 15,
-                          color: AppColors.textoSuave,
-                        ),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            professional.distanciaKm == null
-                                ? professional.bairro
-                                : '${professional.bairro} · ${professional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textoSuave,
+                                ),
+                              ],
                             ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 7),
-                    if (professional.servicos.isNotEmpty)
-                      Text(
-                        'Serviços: ${professional.servicos.take(2).join(', ')}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textoSuave,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    else
-                      Text(
-                        professional.descricao,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textoSuave,
+                          ],
                         ),
                       ),
-                    const Spacer(),
-                    Text(
-                      price == null
-                          ? 'Preço sob consulta'
-                          : 'A partir de R\$ ${price.toStringAsFixed(2).replaceAll('.', ',')}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF15935F),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        size: 15,
+                        color: AppColors.textoSuave,
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          professional.distanciaKm == null
+                              ? professional.bairro
+                              : '${professional.bairro} · ${professional.distanciaKm!.toStringAsFixed(1).replaceAll('.', ',')} km',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textoSuave,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!professional.podeReceberSolicitacoes) ...[
+                    const SizedBox(height: AppSpace.xs),
+                    Semantics(
+                      label:
+                          'Este profissional não recebe novos pedidos no momento.',
+                      child: ExcludeSemantics(
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 14,
+                              color: AppColors.textoSuave,
+                            ),
+                            const SizedBox(width: AppSpace.xs),
+                            Expanded(
+                              child: Text(
+                                'Não recebe pedidos',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 7),
+                  if (professional.servicos.isNotEmpty)
+                    Text(
+                      'Serviços: ${professional.servicos.take(2).join(', ')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textoSuave,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    )
+                  else
+                    Text(
+                      professional.descricao,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textoSuave,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    price == null
+                        ? 'Preço sob consulta'
+                        : 'A partir de R\$ ${price.toStringAsFixed(2).replaceAll('.', ',')}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.verde,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1279,7 +1491,7 @@ class _SectionHeading extends StatelessWidget {
             style: TextButton.styleFrom(
               padding: const EdgeInsets.only(left: 8),
               minimumSize: const Size(0, 48),
-              foregroundColor: const Color(0xFF15935F),
+              foregroundColor: AppColors.verde,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             iconAlignment: IconAlignment.end,

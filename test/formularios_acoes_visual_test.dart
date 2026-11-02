@@ -17,6 +17,45 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('teclado do login avança do e-mail para a senha', (tester) async {
+    AppServices.instance = AppServices(modoDemo: true);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    for (final width in [360.0, 390.0, 412.0]) {
+      tester.view.physicalSize = Size(width, 844);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: LoginPage(key: ValueKey(width)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final email = find.byKey(const ValueKey('login-email'));
+      final senha = find.byKey(const ValueKey('login-senha'));
+      await tester.ensureVisible(email);
+      await tester.tap(email);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pumpAndSettle();
+      final senhaEditavel = find.descendant(
+        of: senha,
+        matching: find.byType(EditableText),
+      );
+      expect(
+        tester.widget<EditableText>(senhaEditavel).focusNode.hasFocus,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+      tester.view.resetViewInsets();
+    }
+  });
+
   testWidgets('validação de senha permanece inteira com texto 200% e teclado', (
     tester,
   ) async {
@@ -47,7 +86,7 @@ void main() {
       await tester.tap(salvar);
       await tester.pumpAndSettle();
       final erros = find.text(
-        'Use maiuscula, minuscula, numero e caractere especial.',
+        'Use maiúscula, minúscula, número e caractere especial.',
       );
       expect(erros, findsNWidgets(2));
       for (final element in erros.evaluate()) {

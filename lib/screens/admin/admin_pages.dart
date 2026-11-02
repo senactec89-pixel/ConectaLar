@@ -38,6 +38,34 @@ class _AdminListaDados {
   int get total => int.tryParse('${paginacao['total']}') ?? itens.length;
 }
 
+class _AdminFiltros {
+  const _AdminFiltros({
+    required this.pagina,
+    required this.termo,
+    required this.buscaLocal,
+    required this.tipo,
+    required this.statusUsuario,
+    required this.statusCategoria,
+    required this.statusDocumento,
+    required this.tipoDocumento,
+    required this.statusDenuncia,
+    required this.statusAvaliacao,
+    required this.acaoAuditoria,
+  });
+
+  final int pagina;
+  final String termo;
+  final String buscaLocal;
+  final String tipo;
+  final String statusUsuario;
+  final String statusCategoria;
+  final String statusDocumento;
+  final String tipoDocumento;
+  final String statusDenuncia;
+  final String statusAvaliacao;
+  final String acaoAuditoria;
+}
+
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key, this.modulo = AdminModulo.painel});
   final AdminModulo modulo;
@@ -62,6 +90,7 @@ class _AdminPageState extends State<AdminPage> {
   String _statusCategoria = '';
   String _statusDocumento = 'pendente';
   int _pagina = 1;
+  final Map<AdminModulo, _AdminFiltros> _filtrosPorModulo = {};
   final Set<int> _documentosCarregados = {};
   bool _mutando = false;
 
@@ -138,22 +167,39 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  void _abrir(AdminModulo modulo) => setState(() {
-    _modulo = modulo;
-    _pagina = 1;
-    _termo = '';
-    _buscaLocal = '';
-    _tipo = '';
-    _statusUsuario = '';
-    _statusCategoria = '';
-    _statusDocumento = 'pendente';
-    _tipoDocumento = '';
-    _statusDenuncia = '';
-    _statusAvaliacao = 'pendente';
-    _acaoAuditoria = '';
-    _buscaLocalController.clear();
-    _future = _carregar(modulo);
-  });
+  void _abrir(AdminModulo modulo) {
+    if (modulo == _modulo) return;
+    setState(() {
+      _filtrosPorModulo[_modulo] = _AdminFiltros(
+        pagina: _pagina,
+        termo: _termo,
+        buscaLocal: _buscaLocal,
+        tipo: _tipo,
+        statusUsuario: _statusUsuario,
+        statusCategoria: _statusCategoria,
+        statusDocumento: _statusDocumento,
+        tipoDocumento: _tipoDocumento,
+        statusDenuncia: _statusDenuncia,
+        statusAvaliacao: _statusAvaliacao,
+        acaoAuditoria: _acaoAuditoria,
+      );
+      _modulo = modulo;
+      final filtros = _filtrosPorModulo[modulo];
+      _pagina = filtros?.pagina ?? 1;
+      _termo = filtros?.termo ?? '';
+      _buscaLocal = filtros?.buscaLocal ?? '';
+      _tipo = filtros?.tipo ?? '';
+      _statusUsuario = filtros?.statusUsuario ?? '';
+      _statusCategoria = filtros?.statusCategoria ?? '';
+      _statusDocumento = filtros?.statusDocumento ?? 'pendente';
+      _tipoDocumento = filtros?.tipoDocumento ?? '';
+      _statusDenuncia = filtros?.statusDenuncia ?? '';
+      _statusAvaliacao = filtros?.statusAvaliacao ?? 'pendente';
+      _acaoAuditoria = filtros?.acaoAuditoria ?? '';
+      _buscaLocalController.text = _buscaLocal;
+      _future = _carregar(modulo);
+    });
+  }
 
   void _aplicarFiltros() => setState(() {
     _termo = _buscaLocalController.text.trim();
@@ -170,7 +216,9 @@ class _AdminPageState extends State<AdminPage> {
     if (_modulo == AdminModulo.moderacao) return;
     if (_modulo == AdminModulo.painel) {
       final carregamento = AppServices.instance.admin.painel();
-      setState(() => _painelFuture = carregamento);
+      setState(() {
+        _painelFuture = carregamento;
+      });
       try {
         await carregamento;
       } catch (_) {
@@ -180,7 +228,9 @@ class _AdminPageState extends State<AdminPage> {
     }
 
     final carregamento = _carregar(_modulo);
-    setState(() => _future = carregamento);
+    setState(() {
+      _future = carregamento;
+    });
     try {
       await carregamento;
     } catch (_) {
@@ -605,12 +655,22 @@ class _AdminPageState extends State<AdminPage> {
         String label,
         String value,
         List<DropdownMenuItem<String>> options,
-        ValueChanged<String?> onChanged,
-      ) => DropdownButtonFormField<String>(
+        ValueChanged<String?> onChanged, {
+        Map<String, String>? selectedLabels,
+      }) => DropdownButtonFormField<String>(
         initialValue: value,
         isExpanded: true,
         decoration: InputDecoration(labelText: label),
         items: options,
+        selectedItemBuilder: selectedLabels == null
+            ? null
+            : (context) => [
+                for (final option in options)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(selectedLabels[option.value] ?? ''),
+                  ),
+              ],
         onChanged: _mutando
             ? null
             : (value) => setState(() {
@@ -639,13 +699,21 @@ class _AdminPageState extends State<AdminPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(
                 controller: _buscaLocalController,
+                textInputAction: TextInputAction.search,
                 onChanged: (value) => setState(() => _buscaLocal = value),
                 onSubmitted: (_) => _aplicarFiltros(),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search_rounded),
-                  labelText: _modulo == AdminModulo.categorias
-                      ? 'Buscar categoria'
-                      : 'Buscar avaliação',
+                  labelText: switch (_modulo) {
+                    AdminModulo.categorias => 'Buscar categoria',
+                    AdminModulo.documentos => 'Buscar documento',
+                    AdminModulo.denuncias => 'Buscar denúncia',
+                    AdminModulo.avaliacoes => 'Buscar avaliação',
+                    AdminModulo.auditoria => 'Buscar registro',
+                    _ => 'Buscar',
+                  },
+                  helperText: 'Use a busca do teclado para aplicar.',
+                  helperMaxLines: 3,
                   suffixIcon: _buscaLocal.isEmpty
                       ? null
                       : IconButton(
@@ -675,6 +743,8 @@ class _AdminPageState extends State<AdminPage> {
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
                       labelText: 'Buscar nome ou e-mail',
+                      helperText: 'Use a busca do teclado para aplicar.',
+                      helperMaxLines: 3,
                     ),
                     onChanged: (value) => setState(() => _buscaLocal = value),
                     onSubmitted: (_) => _aplicarFiltros(),
@@ -717,40 +787,53 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.categorias)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          for (final filtro in const {
-                            '': 'Todas',
-                            'ativa': 'Ativas',
-                            'inativa': 'Inativas',
-                          }.entries) ...[
-                            ChoiceChip(
-                              key: ValueKey('admin-categorias-${filtro.key}'),
-                              label: Text(filtro.value),
-                              selected: _statusCategoria == filtro.key,
-                              onSelected: (_) => setState(() {
-                                _statusCategoria = filtro.key;
-                                _pagina = 1;
-                                _future = _carregar(_modulo);
-                              }),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                        ],
-                      ),
-                    ),
+                  Text(
+                    'Deslize para ver mais filtros →',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    key: const ValueKey('admin-categorias-nova'),
-                    tooltip: 'Nova categoria',
-                    onPressed: _mutando ? null : () => _editarCategoria(),
-                    icon: const Icon(Icons.add),
+                  const SizedBox(height: AppSpace.xs),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          key: const ValueKey('admin-categorias-filtros'),
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              for (final filtro in const {
+                                '': 'Todas',
+                                'ativa': 'Ativas',
+                                'inativa': 'Inativas',
+                              }.entries) ...[
+                                ChoiceChip(
+                                  key: ValueKey(
+                                    'admin-categorias-${filtro.key}',
+                                  ),
+                                  label: Text(filtro.value),
+                                  selected: _statusCategoria == filtro.key,
+                                  onSelected: (_) => setState(() {
+                                    _statusCategoria = filtro.key;
+                                    _pagina = 1;
+                                    _future = _carregar(_modulo);
+                                  }),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filled(
+                        key: const ValueKey('admin-categorias-nova'),
+                        tooltip: 'Nova categoria',
+                        onPressed: _mutando ? null : () => _editarCategoria(),
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -758,7 +841,7 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.usuarios)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: filtroDropdown('Situacao da conta', _statusUsuario, const [
+              child: filtroDropdown('Situação da conta', _statusUsuario, const [
                 DropdownMenuItem(value: '', child: Text('Todas')),
                 DropdownMenuItem(value: 'true', child: Text('Ativas')),
                 DropdownMenuItem(value: 'false', child: Text('Desativadas')),
@@ -767,38 +850,53 @@ class _AdminPageState extends State<AdminPage> {
           if (_modulo == AdminModulo.documentos)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: filtroDropdown('Tipo de documento', _tipoDocumento, const [
-                DropdownMenuItem(value: '', child: Text('Todos os documentos')),
-                DropdownMenuItem(
-                  value: 'documento_identidade',
-                  child: Text('Identidade'),
-                ),
-                DropdownMenuItem(
-                  value: 'comprovante_endereco',
-                  child: Text('Comprovante de endereco'),
-                ),
-                DropdownMenuItem(
-                  value: 'certificado_opcional',
-                  child: Text('Certificado profissional'),
-                ),
-                DropdownMenuItem(
-                  value: 'certificado_curso',
-                  child: Text('Certificado de curso'),
-                ),
-              ], (value) => _tipoDocumento = value ?? ''),
+              child: filtroDropdown(
+                'Tipo de documento',
+                _tipoDocumento,
+                const [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text('Todos os documentos'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'documento_identidade',
+                    child: Text('Identidade'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'comprovante_endereco',
+                    child: Text('Comprovante de endereço'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'certificado_opcional',
+                    child: Text('Certificado profissional'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'certificado_curso',
+                    child: Text('Certificado de curso'),
+                  ),
+                ],
+                (value) => _tipoDocumento = value ?? '',
+                selectedLabels: const {
+                  '': 'Todos',
+                  'documento_identidade': 'Identidade',
+                  'comprovante_endereco': 'Endereço',
+                  'certificado_opcional': 'Profissional',
+                  'certificado_curso': 'Curso',
+                },
+              ),
             ),
           if (_modulo == AdminModulo.denuncias)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: filtroDropdown(
-                'Situacao da denuncia',
+                'Situação da denúncia',
                 _statusDenuncia,
                 const [
                   DropdownMenuItem(value: '', child: Text('Todas')),
                   DropdownMenuItem(value: 'pendente', child: Text('Pendente')),
                   DropdownMenuItem(
                     value: 'em_analise',
-                    child: Text('Em analise'),
+                    child: Text('Em análise'),
                   ),
                   DropdownMenuItem(
                     value: 'resolvida',
@@ -816,7 +914,7 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: filtroDropdown(
-                'Situacao da avaliacao',
+                'Situação da avaliação',
                 _statusAvaliacao,
                 const [
                   DropdownMenuItem(value: 'todas', child: Text('Todas')),
@@ -834,15 +932,15 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child:
-                  filtroDropdown('Acao administrativa', _acaoAuditoria, const [
-                    DropdownMenuItem(value: '', child: Text('Todas as acoes')),
+                  filtroDropdown('Ação administrativa', _acaoAuditoria, const [
+                    DropdownMenuItem(value: '', child: Text('Todas as ações')),
                     DropdownMenuItem(
                       value: 'usuario_ativado',
-                      child: Text('Ativacao de conta'),
+                      child: Text('Ativação de conta'),
                     ),
                     DropdownMenuItem(
                       value: 'usuario_desativado',
-                      child: Text('Desativacao de conta'),
+                      child: Text('Desativação de conta'),
                     ),
                     DropdownMenuItem(
                       value: 'categoria_criada',
@@ -858,11 +956,11 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     DropdownMenuItem(
                       value: 'denuncia_moderada',
-                      child: Text('Denuncia moderada'),
+                      child: Text('Denúncia moderada'),
                     ),
                     DropdownMenuItem(
                       value: 'avaliacao_moderada',
-                      child: Text('Avaliacao moderada'),
+                      child: Text('Avaliação moderada'),
                     ),
                     DropdownMenuItem(
                       value: 'administrador_criado',
@@ -870,11 +968,11 @@ class _AdminPageState extends State<AdminPage> {
                     ),
                     DropdownMenuItem(
                       value: 'habilitacao_analisada',
-                      child: Text('Habilitacao analisada'),
+                      child: Text('Habilitação analisada'),
                     ),
                     DropdownMenuItem(
                       value: 'habilitacao_revisao_solicitada',
-                      child: Text('Revisao solicitada'),
+                      child: Text('Revisão solicitada'),
                     ),
                   ], (value) => _acaoAuditoria = value ?? ''),
             ),
@@ -1036,8 +1134,16 @@ class _AdminPageState extends State<AdminPage> {
         builder: (context) => AlertDialog(
           scrollable: true,
           title: Text('${usuario['nome'] ?? 'Usuário'}'),
-          content: Text(
-            'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${_dataAuditoria(usuario['criadoEm'])}',
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText('ID da conta: ${usuario['id'] ?? item['id']}'),
+              const SizedBox(height: AppSpace.sm),
+              Text(
+                'Tipo: ${_rotuloTipoConta(usuario['tipo'])}\nE-mail: ${usuario['email']}\nTelefone: ${usuario['telefone'] ?? 'Não informado'}\nStatus: ${usuario['ativo'] == true ? 'Ativo' : 'Desativado'}\nCriado em: ${_dataAuditoria(usuario['criadoEm'])}',
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -1434,19 +1540,19 @@ class _PaginacaoAdmin extends StatelessWidget {
     child: Row(
       children: [
         IconButton(
-          tooltip: 'Pagina anterior',
+          tooltip: 'Página anterior',
           onPressed: onAnterior,
           icon: const Icon(Icons.chevron_left_rounded),
         ),
         Expanded(
           child: Text(
-            'Pagina $pagina de $totalPaginas  -  $total registros',
+            'Página $pagina de $totalPaginas · $total registros',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
         IconButton(
-          tooltip: 'Proxima pagina',
+          tooltip: 'Próxima página',
           onPressed: onProxima,
           icon: const Icon(Icons.chevron_right_rounded),
         ),
