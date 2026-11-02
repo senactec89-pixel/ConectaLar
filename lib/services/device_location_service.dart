@@ -28,7 +28,7 @@ class GeolocatorDeviceLocationClient implements DeviceLocationClient {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const DeviceLocationException(
         DeviceLocationFailure.serviceDisabled,
-        'Ative a localizacao do aparelho para buscar profissionais proximos.',
+        'Ative a localização do aparelho para buscar profissionais próximos.',
       );
     }
 
@@ -39,13 +39,13 @@ class GeolocatorDeviceLocationClient implements DeviceLocationClient {
     if (permission == LocationPermission.denied) {
       throw const DeviceLocationException(
         DeviceLocationFailure.permissionDenied,
-        'A permissao de localizacao foi negada.',
+        'A permissão de localização foi negada.',
       );
     }
     if (permission == LocationPermission.deniedForever) {
       throw const DeviceLocationException(
         DeviceLocationFailure.permissionDeniedForever,
-        'Libere a localizacao nas configuracoes do aplicativo.',
+        'Libere a localização nas configurações do aplicativo.',
       );
     }
 
@@ -64,12 +64,12 @@ class GeolocatorDeviceLocationClient implements DeviceLocationClient {
     } on TimeoutException {
       throw const DeviceLocationException(
         DeviceLocationFailure.unavailable,
-        'Nao foi possivel obter sua localizacao a tempo. Tente novamente.',
+        'Não foi possível obter sua localização a tempo. Tente novamente.',
       );
     } catch (_) {
       throw const DeviceLocationException(
         DeviceLocationFailure.unavailable,
-        'Nao foi possivel obter sua localizacao. Tente novamente.',
+        'Não foi possível obter sua localização. Tente novamente.',
       );
     }
   }
