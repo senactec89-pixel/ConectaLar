@@ -1439,12 +1439,12 @@ class _PerfilProfissionalPrivadoPageState
 
   Future<void> _abrirDocumentos() async {
     await Navigator.pushNamed(context, AppRoutes.documentosProfissional);
-    if (mounted) setState(() => _future = _carregar());
+    if (mounted) _atualizar();
   }
 
   Future<void> _abrirConta() async {
     await Navigator.pushNamed(context, AppRoutes.perfil);
-    if (mounted) setState(() => _future = _carregar());
+    if (mounted) _atualizar();
   }
 
   @override
