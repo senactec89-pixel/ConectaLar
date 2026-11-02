@@ -22,7 +22,15 @@ void main() {
         papel: 'administrador',
         responder: (request) async {
           if (request.url.path == '/categorias/admin') {
-            return jsonResponse({'categorias': categorias});
+            final termo = request.url.queryParameters['termo']?.toLowerCase();
+            final ativo = request.url.queryParameters['ativo'];
+            return jsonResponse({
+              'categorias': categorias.where((categoria) {
+                final nome = (categoria['nome'] as String).toLowerCase();
+                return (termo == null || nome.contains(termo)) &&
+                    (ativo == null || '${categoria['ativo']}' == ativo);
+              }).toList(),
+            });
           }
           if (request.url.path == '/categorias/2' &&
               request.method == 'PATCH') {
@@ -40,6 +48,7 @@ void main() {
 
       final busca = find.byType(TextField).first;
       await tester.enterText(busca, 'Pintura');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
       await tester.pumpAndSettle();
       expect(find.text('Jardinagem'), findsNothing);
       await tester.tap(find.byTooltip('Limpar busca'));
