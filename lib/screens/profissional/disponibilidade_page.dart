@@ -57,7 +57,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
     var enviando = false;
     String? erroMotivo;
     String? erroEnvio;
-    final salvo = await showDialog<bool>(
+    final dialogo = DialogRoute<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -179,16 +179,22 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
         ),
       ),
     );
+    final salvo = await Navigator.of(context).push(dialogo);
+    await dialogo.completed;
     motivo.dispose();
     if (salvo == true && mounted) {
-      setState(() => _bloqueiosFuture = _carregarBloqueios());
+      _atualizarBloqueios();
     }
   }
+
+  void _atualizarBloqueios() => setState(() {
+    _bloqueiosFuture = _carregarBloqueios();
+  });
 
   Future<void> _removerBloqueio(int id) async {
     try {
       await AppServices.instance.profissionais.removerBloqueio(id);
-      if (mounted) setState(() => _bloqueiosFuture = _carregarBloqueios());
+      if (mounted) _atualizarBloqueios();
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -435,9 +441,7 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                         }
                         if (snapshot.hasError || _erroBloqueios) {
                           return TextButton.icon(
-                            onPressed: () => setState(
-                              () => _bloqueiosFuture = _carregarBloqueios(),
-                            ),
+                            onPressed: _atualizarBloqueios,
                             icon: const Icon(Icons.refresh_rounded),
                             label: const Text(
                               'Tentar carregar bloqueios novamente',
