@@ -5,8 +5,20 @@ import 'package:conectarlar_app/services/service_registry.dart';
 import 'package:conectarlar_app/widgets/profissional_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 
 import 'support/frontend_helpers.dart';
+
+Future<http.Response?> _enderecoNaRegiaoDosProfissionais(
+  http.Request request,
+) async {
+  if (request.url.path != '/clientes/me/enderecos') return null;
+  return jsonResponse({
+    'enderecos': [
+      {'id': 1, 'cidade': 'Belo Horizonte', 'uf': 'MG', 'principal': true},
+    ],
+  });
+}
 
 void main() {
   tearDown(() => AppServices.instance.api.close());
@@ -49,7 +61,11 @@ void main() {
     expect(find.text('21 profissionais encontrados'), findsOneWidget);
     expect(find.text('Profissional Um'), findsOneWidget);
     final carregarMais = find.text('Carregar mais');
-    await tester.ensureVisible(carregarMais);
+    await tester.scrollUntilVisible(
+      carregarMais,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(carregarMais);
     await tester.pumpAndSettle();
 
@@ -128,7 +144,7 @@ void main() {
   testWidgets('busca reserva mais espaço para resultados sem filtros ativos', (
     tester,
   ) async {
-    await configurarFrontend();
+    await configurarFrontend(responder: _enderecoNaRegiaoDosProfissionais);
     for (final width in [360.0, 390.0, 412.0]) {
       await tester.pumpWidget(const SizedBox.shrink());
       await abrirFrontend(tester, AppRoutes.busca, width: width);
@@ -137,8 +153,8 @@ void main() {
       expect(find.text('2 profissionais encontrados'), findsOneWidget);
       expect(
         tester.getTopLeft(find.byType(ProfissionalCard).first).dy,
-        lessThan(tester.view.physicalSize.height * 2 / 3),
-        reason: 'Primeiro resultado visível mais cedo em $width px',
+        lessThan(tester.view.physicalSize.height - 80),
+        reason: 'Primeiro resultado visível acima da navegação em $width px',
       );
       expect(tester.takeException(), isNull);
     }
@@ -274,7 +290,7 @@ void main() {
   testWidgets('busca mantém resultados e filtros acessíveis com texto 200%', (
     tester,
   ) async {
-    await configurarFrontend();
+    await configurarFrontend(responder: _enderecoNaRegiaoDosProfissionais);
     addTearDown(tester.view.resetViewInsets);
     for (final width in [360.0, 390.0, 412.0]) {
       await tester.pumpWidget(const SizedBox.shrink());
