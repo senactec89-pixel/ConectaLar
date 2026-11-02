@@ -69,7 +69,10 @@ class _MfaAdminCardState extends State<MfaAdminCard> {
                     ),
                     IconButton(
                       tooltip: 'Tentar novamente',
-                      onPressed: () => setState(() => _status = _consultar()),
+                      onPressed: () => setState(() {
+                        _status = _consultar();
+                        _status.ignore();
+                      }),
                       icon: const Icon(Icons.refresh),
                     ),
                   ],
