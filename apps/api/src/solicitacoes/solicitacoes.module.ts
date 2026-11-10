@@ -15,6 +15,8 @@ import { SolicitacaoPropostaEntity } from '../database/entities/solicitacao-prop
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
+import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
+import { PrazosSolicitacoesService } from './prazos-solicitacoes.service.js';
 import { SolicitacoesController } from './solicitacoes.controller.js';
 import { SolicitacoesService } from './solicitacoes.service.js';
 
@@ -36,9 +38,10 @@ import { SolicitacoesService } from './solicitacoes.service.js';
       SolicitacaoPropostaEntity,
       ProfissionalBloqueioEntity,
       UsuarioEntity,
+      NotificacaoEntity,
     ]),
   ],
   controllers: [SolicitacoesController],
-  providers: [SolicitacoesService],
+  providers: [SolicitacoesService, PrazosSolicitacoesService],
 })
 export class SolicitacoesModule {}
