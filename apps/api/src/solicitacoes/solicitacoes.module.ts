@@ -11,6 +11,7 @@ import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { SolicitacaoReagendamentoEntity } from '../database/entities/solicitacao-reagendamento.entity.js';
 import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
+import { SolicitacaoPropostaEntity } from '../database/entities/solicitacao-proposta.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
@@ -32,6 +33,7 @@ import { SolicitacoesService } from './solicitacoes.service.js';
       SolicitacaoEventoEntity,
       SolicitacaoReagendamentoEntity,
       SolicitacaoOrcamentoEntity,
+      SolicitacaoPropostaEntity,
       ProfissionalBloqueioEntity,
       UsuarioEntity,
     ]),

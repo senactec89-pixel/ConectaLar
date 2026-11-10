@@ -119,6 +119,13 @@ export class SolicitacaoEntity {
   @Column({ type: 'varchar', length: 32 })
   status!: SolicitacaoStatus;
 
+  // Null for requests created before the operational deadlines were enabled.
+  @Column({ name: 'prazo_resposta_em', type: 'datetime', precision: 3, nullable: true })
+  prazoRespostaEm!: Date | null;
+
+  @Column({ name: 'prazo_inatividade_em', type: 'datetime', precision: 3, nullable: true })
+  prazoInatividadeEm!: Date | null;
+
   @Column({
     name: 'cancelamento_motivo',
     type: 'varchar',

@@ -21,6 +21,7 @@ import { SolicitacaoEntity } from './entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from './entities/solicitacao-evento.entity.js';
 import { SolicitacaoReagendamentoEntity } from './entities/solicitacao-reagendamento.entity.js';
 import { SolicitacaoOrcamentoEntity } from './entities/solicitacao-orcamento.entity.js';
+import { SolicitacaoPropostaEntity } from './entities/solicitacao-proposta.entity.js';
 import { TermoAceiteEntity } from './entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from './entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from './entities/usuario-senha-reset.entity.js';
@@ -105,6 +106,7 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       PrivacidadeSolicitacaoEntity,
       SolicitacaoReagendamentoEntity,
       SolicitacaoOrcamentoEntity,
+      SolicitacaoPropostaEntity,
     ],
   };
 }
