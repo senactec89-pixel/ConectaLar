@@ -1152,6 +1152,19 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     final dataFormatada =
         '${data.day.toString().padLeft(2, '0')}/'
         '${data.month.toString().padLeft(2, '0')}/${data.year}';
+    final exibirProposta =
+        !AppServices.instance.emDemonstracao &&
+        (solicitacao.status == StatusSolicitacao.aguardandoResposta ||
+            solicitacao.propostasPreAceite.isNotEmpty);
+    Widget propostaCard() => _PropostaAntesAceiteCard(
+      solicitacao: solicitacao,
+      cliente: _clienteParticipante,
+      profissional: _profissionalParticipante,
+      ocupada: _enviando,
+      onPropor: _proporAntesAceite,
+      onResponder: _responderPropostaAntesAceite,
+      onAtualizar: _atualizarPedido,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -1226,18 +1239,8 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
         ),
         const SizedBox(height: 16),
-        if (!AppServices.instance.emDemonstracao &&
-            (solicitacao.status == StatusSolicitacao.aguardandoResposta ||
-                solicitacao.propostasPreAceite.isNotEmpty)) ...[
-          _PropostaAntesAceiteCard(
-            solicitacao: solicitacao,
-            cliente: _clienteParticipante,
-            profissional: _profissionalParticipante,
-            ocupada: _enviando,
-            onPropor: _proporAntesAceite,
-            onResponder: _responderPropostaAntesAceite,
-            onAtualizar: _atualizarPedido,
-          ),
+        if (exibirProposta && !_profissionalParticipante) ...[
+          propostaCard(),
           const SizedBox(height: 16),
         ],
         if (solicitacao.status == StatusSolicitacao.aceitaAgendada ||
@@ -1337,6 +1340,10 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
             atorId: intValue(_ator['id']),
           ),
         ],
+        if (exibirProposta && _profissionalParticipante) ...[
+          const SizedBox(height: 16),
+          propostaCard(),
+        ],
         if (solicitacao.eventos.isNotEmpty) ...[
           const SizedBox(height: 16),
           _HistoricoAtendimento(eventos: solicitacao.eventos),
@@ -1402,6 +1409,7 @@ class _OrcamentoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = '${orcamento?['status'] ?? ''}';
     final pendente = status == 'pendente';
+    final venceEm = DateTime.tryParse('${orcamento?['venceEm'] ?? ''}');
     final valor = double.tryParse('${orcamento?['valor'] ?? ''}');
     final descricao = '${orcamento?['descricao'] ?? ''}'.trim();
     final anteriores = historico
@@ -1468,9 +1476,17 @@ class _OrcamentoCard extends StatelessWidget {
                     ? 'Valor aceito pelo cliente e registrado no atendimento.'
                     : status == 'recusado'
                     ? 'O cliente recusou esta proposta.'
+                    : status == 'expirado'
+                    ? 'O prazo terminou. O valor anterior continua válido.'
                     : 'Esta proposta foi substituída por uma versão mais recente.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (pendente && venceEm != null) ...[
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  'Responda até ${_dataHoraBr(venceEm.toIso8601String())}, antes do início do atendimento.',
+                ),
+              ],
             ],
             if (precoFinal != null && status != 'aceito') ...[
               const Divider(height: AppSpace.xl),
@@ -1560,6 +1576,7 @@ class _OrcamentoStatus extends StatelessWidget {
     final (rotulo, icon, cor) = switch (status) {
       'aceito' => ('Aceito', Icons.check_circle_outline, AppColors.verdeEscuro),
       'recusado' => ('Recusado', Icons.cancel_outlined, AppColors.erro),
+      'expirado' => ('Expirado', Icons.schedule_outlined, AppColors.textoSuave),
       'substituido' => (
         'Substituído',
         Icons.history_outlined,
@@ -1600,6 +1617,7 @@ class _ReagendamentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pendente = proposta?['status'] == 'pendente';
+    final venceEm = DateTime.tryParse('${proposta?['venceEm'] ?? ''}');
     final anteriores = historico
         .where((item) => item['id'] != proposta?['id'])
         .toList(growable: false);
@@ -1649,6 +1667,12 @@ class _ReagendamentoCard extends StatelessWidget {
                       ? 'Proposta enviada por você. Aguardando resposta.'
                       : 'Proposta recebida. Confirme, recuse ou sugira outra data.',
                   style: const TextStyle(color: AppColors.textoSuave),
+                ),
+              ],
+              if (pendente && venceEm != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Responda até ${_dataHoraBr(venceEm.toIso8601String())}; alterações exigem que o atendimento ainda não tenha iniciado.',
                 ),
               ],
             ] else ...[
@@ -1785,6 +1809,7 @@ String _statusOrcamento(Object? value) => switch (value) {
   'aceito' => 'aceito',
   'recusado' => 'recusado',
   'substituido' => 'substituído',
+  'expirado' => 'expirado',
   _ => 'situação indisponível',
 };
 
@@ -1799,6 +1824,7 @@ String _statusReagendamento(Object? value) => switch (value) {
   'aceito' => 'confirmado',
   'recusado' => 'recusado',
   'cancelado' => 'substituído',
+  'expirado' => 'expirado',
   _ => 'indisponível',
 };
 
@@ -1938,11 +1964,14 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'orcamento_proposto' => 'Orçamento final enviado',
   'orcamento_aceito' => 'Cliente aceitou o orçamento',
   'orcamento_recusado' => 'Cliente recusou o orçamento',
+  'orcamento_expirado' => 'Orçamento expirou sem resposta',
+  'reagendamento_expirado' => 'Reagendamento expirou sem resposta',
   'proposta_pre_aceite_criada' => 'Profissional enviou uma proposta',
   'proposta_pre_aceite_aceita' => 'Cliente aceitou a proposta',
   'proposta_pre_aceite_recusada' => 'Cliente recusou a proposta',
   'proposta_pre_aceite_expirada' => 'Proposta expirou sem resposta',
   'pedido_expirado_sem_resposta' => 'Pedido encerrado sem resposta',
+  'pedido_expirado_horario' => 'Pedido encerrado ao chegar o horário',
   'pedido_expirado_inatividade' => 'Pedido encerrado por inatividade',
   'estado_importado' => 'Situação anterior registrada',
   _ => 'Atendimento atualizado',
@@ -1973,11 +2002,7 @@ class _PropostaAntesAceiteCard extends StatelessWidget {
     final proposta = solicitacao.propostaPreAceite;
     final prazo = solicitacao.prazoInatividadeEm ?? solicitacao.prazoRespostaEm;
     final venceEm = DateTime.tryParse('${proposta?['venceEm'] ?? ''}');
-    final propostaAtiva =
-        pendente &&
-        proposta?['status'] == 'pendente' &&
-        venceEm != null &&
-        venceEm.isAfter(DateTime.now());
+    final propostaAtiva = pendente && proposta?['status'] == 'pendente';
     final status = switch ('${proposta?['status']}') {
       'pendente' => 'Aguardando resposta do cliente',
       'aceita' => 'Proposta aceita',
@@ -2000,7 +2025,7 @@ class _PropostaAntesAceiteCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 solicitacao.prazoInatividadeEm == null
-                    ? 'O profissional pode responder até ${_dataHoraBr(prazo.toIso8601String())}.'
+                    ? 'O profissional pode responder até ${_dataHoraBr(prazo.toIso8601String())} ou até o horário solicitado, se for antes.'
                     : 'Negociação aberta até ${_dataHoraBr(prazo.toIso8601String())}, se não houver nova ação formal.',
               ),
             ],
@@ -2017,12 +2042,9 @@ class _PropostaAntesAceiteCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text('Escopo proposto: ${proposta['escopo']}'),
               ],
-              if (propostaAtiva)
+              if (propostaAtiva && venceEm != null)
                 Text('Responda até ${_dataHoraBr(venceEm.toIso8601String())}.'),
-              if (pendente &&
-                  proposta['status'] == 'pendente' &&
-                  !propostaAtiva) ...[
-                const Text('O prazo desta proposta terminou.'),
+              if (propostaAtiva) ...[
                 TextButton.icon(
                   onPressed: ocupada ? null : onAtualizar,
                   icon: const Icon(Icons.refresh_rounded),
