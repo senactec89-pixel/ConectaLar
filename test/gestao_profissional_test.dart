@@ -104,16 +104,64 @@ void main() {
       find.widgetWithText(TextFormField, 'Preço inicial (R\$)'),
       '80',
     );
+    final campoInclui = find.widgetWithText(
+      TextFormField,
+      'O que o serviço inclui',
+    );
+    await tester.ensureVisible(campoInclui);
+    await tester.enterText(campoInclui, 'Troca da tomada');
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
 
     expect(find.text('Adicionar serviço'), findsNWidgets(2));
     expect(find.text('Troca de tomada'), findsOneWidget);
     expect(find.text('80'), findsOneWidget);
+    expect(find.text('Troca da tomada'), findsOneWidget);
     expect(
       find.text('Não foi possível salvar esta oferta agora.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('profissional envia escopo sem dados fictícios', (tester) async {
+    Map<String, dynamic>? salvo;
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/categorias') {
+          return jsonResponse({'categorias': []});
+        }
+        if (request.url.path == '/profissionais/me/servicos' &&
+            request.method == 'GET') {
+          return jsonResponse({'servicos': []});
+        }
+        if (request.url.path == '/profissionais/me/servicos' &&
+            request.method == 'PUT') {
+          salvo = jsonDecode(request.body) as Map<String, dynamic>;
+          return jsonResponse({'servicos': salvo!['servicos']});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.servicosProfissional);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar serviço'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Nome do serviço'),
+      'Limpeza residencial',
+    );
+    final inclui = find.widgetWithText(TextFormField, 'O que o serviço inclui');
+    await tester.ensureVisible(inclui);
+    await tester.enterText(inclui, 'Pisos\n Superfícies ');
+    final opcional = find.widgetWithText(TextFormField, 'Opcionais a combinar');
+    await tester.ensureVisible(opcional);
+    await tester.enterText(opcional, 'Janelas');
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+    await tester.pumpAndSettle();
+    final oferta = (salvo!['servicos'] as List).single as Map<String, dynamic>;
+    expect(oferta['inclui'], ['Pisos', 'Superfícies']);
+    expect(oferta['naoInclui'], isEmpty);
+    expect(oferta['opcionais'], ['Janelas']);
   });
 
   testWidgets('cadastro mostra progresso real e acesso ao perfil público', (

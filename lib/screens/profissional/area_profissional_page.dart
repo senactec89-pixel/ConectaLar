@@ -940,6 +940,25 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
+    String textoEscopo(String chave) =>
+        (servico?[chave] as List? ?? []).whereType<String>().join('\n');
+    final inclui = TextEditingController(text: textoEscopo('inclui'));
+    final naoInclui = TextEditingController(text: textoEscopo('naoInclui'));
+    final opcionais = TextEditingController(text: textoEscopo('opcionais'));
+    List<String> itens(String valor) => valor
+        .split('\n')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    String? validarEscopo(String? valor) {
+      final lista = itens(valor ?? '');
+      if (lista.length > 10) return 'Informe até 10 itens.';
+      if (lista.any((item) => item.length > 160)) {
+        return 'Cada item deve ter até 160 caracteres.';
+      }
+      return null;
+    }
+
     var duracaoMinutos =
         int.tryParse('${servico?['duracaoMinutos'] ?? 60}') ?? 60;
     var intervaloMinutos =
@@ -1041,6 +1060,25 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                       : (value) =>
                             intervaloMinutos = int.tryParse(value ?? '') ?? 30,
                 ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Detalhes visíveis para o cliente. Escreva um item por linha e não inclua dados pessoais.',
+                ),
+                for (final campo in [
+                  (inclui, 'O que o serviço inclui'),
+                  (naoInclui, 'O que não está incluído'),
+                  (opcionais, 'Opcionais a combinar'),
+                ]) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: campo.$1,
+                    enabled: !enviando,
+                    minLines: 2,
+                    maxLines: 5,
+                    decoration: InputDecoration(labelText: campo.$2),
+                    validator: validarEscopo,
+                  ),
+                ],
                 if (erro != null) ...[
                   const SizedBox(height: 12),
                   Text(erro!, style: const TextStyle(color: AppColors.erro)),
@@ -1072,6 +1110,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'ativo': servico?['ativo'] != false,
                           'duracaoMinutos': duracaoMinutos,
                           'intervaloMinutos': intervaloMinutos,
+                          'inclui': itens(inclui.text),
+                          'naoInclui': itens(naoInclui.text),
+                          'opcionais': itens(opcionais.text),
                         };
                         if (servico == null) {
                           if (servicos.length >= 12) {
@@ -1134,6 +1175,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     nome.dispose();
     preco.dispose();
+    inclui.dispose();
+    naoInclui.dispose();
+    opcionais.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
