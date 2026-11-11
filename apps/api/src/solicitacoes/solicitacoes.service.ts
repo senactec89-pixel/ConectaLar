@@ -32,7 +32,7 @@ import {
 } from '../database/entities/solicitacao-proposta.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
-import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodosSobrepostos } from '../domain/agendamento.js';
+import { cancelamentoClienteExcepcional, diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
@@ -479,7 +479,15 @@ export class SolicitacoesService {
       [SolicitacaoStatus.AguardandoResposta, SolicitacaoStatus.AceitaAgendada],
       SolicitacaoStatus.Cancelada,
       user,
-      'solicitacao_cancelada',
+      (atual) => {
+        if (atual.status === SolicitacaoStatus.AceitaAgendada && agendamentoJaIniciou(atual)) {
+          throw new ConflictException({ code: 'CANCELAMENTO_APOS_INICIO' });
+        }
+        return atual.status === SolicitacaoStatus.AceitaAgendada &&
+          user.id === atual.clienteId &&
+          cancelamentoClienteExcepcional(atual.dataServico, atual.horarioServico)
+          ? 'cancelamento_cliente_excepcional' : 'solicitacao_cancelada';
+      },
       motivo,
       (atual) => {
         atual.cancelamentoMotivo = motivo;
@@ -990,7 +998,7 @@ export class SolicitacoesService {
     origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
     destino: SolicitacaoStatus,
     user: AuthenticatedUser,
-    eventoTipo: string,
+    eventoTipo: string | ((solicitacao: SolicitacaoEntity) => string),
     motivo: string | null = null,
     atualizar?: (solicitacao: SolicitacaoEntity) => void,
   ) {
@@ -1044,6 +1052,7 @@ export class SolicitacoesService {
           );
         }
         const statusAnterior = atual.status;
+        const tipoEvento = typeof eventoTipo === 'function' ? eventoTipo(atual) : eventoTipo;
         atual.status = destino;
         if (statusAnterior === SolicitacaoStatus.AguardandoResposta &&
             destino !== SolicitacaoStatus.AguardandoResposta) {
@@ -1066,7 +1075,7 @@ export class SolicitacoesService {
           manager.create(SolicitacaoEventoEntity, {
             solicitacaoId: atual.id,
             atorId: user.id,
-            tipo: eventoTipo,
+            tipo: tipoEvento,
             statusAnterior,
             statusNovo: destino,
             motivo,

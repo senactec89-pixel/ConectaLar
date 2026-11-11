@@ -1967,6 +1967,7 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'solicitacao_aceita' => 'Solicitação aceita',
   'solicitacao_recusada' => 'Solicitação recusada',
   'solicitacao_cancelada' => 'Solicitação cancelada',
+  'cancelamento_cliente_excepcional' => 'Cancelamento excepcional do cliente',
   'servico_marcado_realizado' => 'Profissional marcou o serviço como realizado',
   'conclusao_confirmada' => 'Cliente confirmou a conclusão',
   'conclusao_contestada' => 'Cliente contestou a conclusão',

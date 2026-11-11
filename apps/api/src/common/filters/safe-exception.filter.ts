@@ -53,6 +53,8 @@ const publicErrors: Readonly<Record<string, string>> = {
   HORARIO_PASSADO: 'Escolha uma data e um horário futuros para o atendimento.',
   REAGENDAMENTO_APOS_INICIO:
     'O atendimento já começou. Use a opção de ajuda ou registre uma ocorrência.',
+  CANCELAMENTO_APOS_INICIO:
+    'O atendimento já começou. Use a opção de ajuda ou registre uma ocorrência.',
   INTERVALO_INVALIDO:
     'O horário inicial deve ser menor que o horário final.',
   DISPONIBILIDADE_INVALIDA:

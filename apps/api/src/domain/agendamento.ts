@@ -23,6 +23,11 @@ export function horarioIniciado(dataServico: string, horarioServico: string, ago
   return `${dataServico}T${horarioServico}` <= `${civil.data}T${civil.horario}`;
 }
 
+// Exatamente 24 horas ainda é o prazo padrão; abaixo disso, é exceção.
+export function cancelamentoClienteExcepcional(data: string, horario: string, agora = new Date()): boolean {
+  return horarioIniciado(data, horario, new Date(agora.getTime() + 24 * 60 * 60 * 1000 - 1));
+}
+
 export interface PeriodoAtendimento {
   readonly dataServico: string;
   readonly horarioServico: string;
