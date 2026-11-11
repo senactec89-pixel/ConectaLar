@@ -241,43 +241,69 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     final motivo = TextEditingController();
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cancelar solicitação'),
-        content: TextField(
-          controller: motivo,
-          key: const ValueKey('cancelamento-motivo'),
-          autofocus: true,
-          minLines: 3,
-          maxLines: 5,
-          maxLength: 400,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Motivo do cancelamento',
-            helperText: 'Explique em pelo menos 10 caracteres.',
-            alignLabelWithHint: true,
+      builder: (dialogContext) {
+        String? erro;
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) => AlertDialog(
+            title: const Text('Cancelar solicitação'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_clienteParticipante &&
+                      _atendimento.solicitacao.status ==
+                          StatusSolicitacao.aceitaAgendada) ...[
+                    const Text(
+                      'O prazo padrão é de 24 horas antes do atendimento. '
+                      'Se houve um imprevisto, você pode cancelar agora; '
+                      'explique o motivo para avisar o profissional.',
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  TextField(
+                    controller: motivo,
+                    key: const ValueKey('cancelamento-motivo'),
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 5,
+                    maxLength: 400,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: 'Motivo do cancelamento',
+                      helperText: 'Explique em pelo menos 10 caracteres.',
+                      errorText: erro,
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Voltar'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (motivo.text.trim().length < 10) {
+                    setDialogState(() {
+                      erro = 'Informe pelo menos 10 caracteres.';
+                    });
+                    return;
+                  }
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('Cancelar solicitação'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Voltar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Cancelar solicitação'),
-          ),
-        ],
-      ),
+        );
+      },
     );
     final texto = motivo.text.trim();
     motivo.dispose();
     if (confirmar != true) return;
-    if (texto.length < 10) {
-      _notificar(
-        'Informe o motivo do cancelamento com pelo menos 10 caracteres.',
-      );
-      return;
-    }
     if (AppServices.instance.emDemonstracao) {
       await _executarTransicao(
         (_) async => const {},

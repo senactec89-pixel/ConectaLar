@@ -15,5 +15,8 @@ export enum NotificacaoTipo {
   ReagendamentoRespondido = 'reagendamento_respondido',
   OrcamentoProposto = 'orcamento_proposto',
   OrcamentoRespondido = 'orcamento_respondido',
+  PropostaPreAceite = 'proposta_pre_aceite',
+  PropostaPreAceiteRespondida = 'proposta_pre_aceite_respondida',
+  PropostaPreAceiteExpirada = 'proposta_pre_aceite_expirada',
   DenunciaAtualizada = 'denuncia_atualizada',
 }

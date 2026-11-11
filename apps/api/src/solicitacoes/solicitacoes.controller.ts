@@ -46,6 +46,27 @@ export class SolicitacoesController {
     return this.solicitacoes.recusar(user, parseId(id));
   }
 
+  @Post(':id/propostas')
+  proporAntesAceite(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.proporAntesAceite(user, parseId(id), body);
+  }
+
+  @Patch(':id/propostas/:propostaId/responder')
+  responderPropostaAntesAceite(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('propostaId') propostaId: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.responderPropostaAntesAceite(
+      user, parseId(id), parseId(propostaId), body,
+    );
+  }
+
   @Patch(':id/cancelar')
   cancelar(
     @UsuarioAtual() user: AuthenticatedUser,

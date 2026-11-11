@@ -26,6 +26,10 @@ import {
   SolicitacaoReagendamentoEntity,
 } from '../database/entities/solicitacao-reagendamento.entity.js';
 import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
+import {
+  SolicitacaoPropostaEntity,
+  SolicitacaoPropostaStatus,
+} from '../database/entities/solicitacao-proposta.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
 import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
@@ -73,6 +77,8 @@ export class SolicitacoesService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly notificacoes: NotificacoesService,
+    @InjectRepository(SolicitacaoPropostaEntity)
+    private readonly propostas?: Repository<SolicitacaoPropostaEntity>,
   ) {}
 
   async criar(user: AuthenticatedUser, body: unknown) {
@@ -165,6 +171,8 @@ export class SolicitacoesService {
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       precoFinal: null,
       status: SolicitacaoStatus.AguardandoResposta,
+      prazoRespostaEm: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      prazoInatividadeEm: null,
     });
 
     const saved = await this.solicitacoes.manager.transaction(async (manager) => {
@@ -288,6 +296,147 @@ export class SolicitacoesService {
       recursoId: solicitacao.id,
     });
     return response;
+  }
+
+  async proporAntesAceite(user: AuthenticatedUser, id: number, body: unknown) {
+    const input = parsePropostaAntesAceite(body);
+    const solicitacao = await this.carregar(id);
+    assertProfissionalParticipante(user, solicitacao);
+    await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: solicitacao.profissionalId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const atual = await manager.findOne(SolicitacaoEntity, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const agora = new Date();
+      if (atual === null || atual.status !== SolicitacaoStatus.AguardandoResposta) {
+        throw new ConflictException({ code: 'TRANSICAO_INVALIDA' });
+      }
+      if (prazoPedidoEncerrado(atual, agora)) {
+        throw new ConflictException({ code: 'PRAZO_PEDIDO_ENCERRADO' });
+      }
+      exigirHabilitacao(perfil);
+      const data = input.dataServico ?? atual.dataServico;
+      const horario = input.horarioServico ?? atual.horarioServico;
+      assertAgendamentoFuturo(data, horario);
+      const pendentes = await manager.find(SolicitacaoPropostaEntity, {
+        where: { solicitacaoId: id, status: SolicitacaoPropostaStatus.Pendente },
+      });
+      for (const anterior of pendentes) {
+        anterior.status = SolicitacaoPropostaStatus.Substituida;
+        await manager.save(SolicitacaoPropostaEntity, anterior);
+      }
+      await manager.save(SolicitacaoPropostaEntity, manager.create(SolicitacaoPropostaEntity, {
+        solicitacaoId: id,
+        propostoPorId: user.id,
+        dataProposta: input.dataServico,
+        horarioProposto: input.horarioServico,
+        escopoProposto: input.escopo,
+        status: SolicitacaoPropostaStatus.Pendente,
+        venceEm: new Date(agora.getTime() + 48 * 60 * 60 * 1000),
+        respondidoEm: null,
+      }));
+      atual.prazoRespostaEm = null;
+      atual.prazoInatividadeEm = new Date(agora.getTime() + 96 * 60 * 60 * 1000);
+      await manager.save(SolicitacaoEntity, atual);
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId: id,
+        atorId: user.id,
+        tipo: 'proposta_pre_aceite_criada',
+        statusAnterior: atual.status,
+        statusNovo: atual.status,
+        // Guarda o texto original antes de qualquer aceite que altere o escopo.
+        motivo: input.escopo === null ? null : atual.descricao,
+      }));
+    });
+    await this.notificarSeguro({
+      usuarioId: solicitacao.clienteId,
+      tipo: NotificacaoTipo.PropostaPreAceite,
+      titulo: 'Nova proposta para seu pedido',
+      mensagem: 'O profissional enviou uma proposta. Responda em até 48 horas.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
+  }
+
+  async responderPropostaAntesAceite(
+    user: AuthenticatedUser,
+    id: number,
+    propostaId: number,
+    body: unknown,
+  ) {
+    const aceitar = parseRespostaPropostaAntesAceite(body);
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: solicitacao.profissionalId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const atual = await manager.findOne(SolicitacaoEntity, {
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const proposta = await manager.findOne(SolicitacaoPropostaEntity, {
+        where: { id: propostaId, solicitacaoId: id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const agora = new Date();
+      if (atual === null || atual.status !== SolicitacaoStatus.AguardandoResposta ||
+          proposta === null || proposta.status !== SolicitacaoPropostaStatus.Pendente) {
+        throw new ConflictException({ code: 'PROPOSTA_INDISPONIVEL' });
+      }
+      if (prazoPedidoEncerrado(atual, agora) || proposta.venceEm <= agora) {
+        throw new ConflictException({ code: 'PROPOSTA_EXPIRADA' });
+      }
+      if (aceitar) {
+        exigirHabilitacao(perfil);
+        if (perfil === null || !perfil.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
+        const data = proposta.dataProposta ?? atual.dataServico;
+        const horario = proposta.horarioProposto ?? atual.horarioServico;
+        assertAgendamentoFuturo(data, horario);
+        await this.validarAgendaComManager(
+          manager, perfil.id, data, horario, atual.duracaoMinutos,
+          atual.intervaloMinutos, atual.id,
+        );
+        atual.dataServico = data;
+        atual.horarioServico = horario;
+        if (proposta.escopoProposto !== null) atual.descricao = proposta.escopoProposto;
+        atual.status = SolicitacaoStatus.AceitaAgendada;
+        atual.prazoInatividadeEm = null;
+      } else {
+        atual.prazoInatividadeEm = new Date(agora.getTime() + 96 * 60 * 60 * 1000);
+      }
+      proposta.status = aceitar
+        ? SolicitacaoPropostaStatus.Aceita
+        : SolicitacaoPropostaStatus.Recusada;
+      proposta.respondidoEm = agora;
+      await manager.save(SolicitacaoPropostaEntity, proposta);
+      await manager.save(SolicitacaoEntity, atual);
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId: id,
+        atorId: user.id,
+        tipo: aceitar ? 'proposta_pre_aceite_aceita' : 'proposta_pre_aceite_recusada',
+        statusAnterior: SolicitacaoStatus.AguardandoResposta,
+        statusNovo: atual.status,
+        motivo: null,
+      }));
+    });
+    await this.notificarSeguro({
+      usuarioId: solicitacao.profissional.usuarioId,
+      tipo: NotificacaoTipo.PropostaPreAceiteRespondida,
+      titulo: aceitar ? 'Proposta aceita' : 'Proposta recusada',
+      mensagem: aceitar
+        ? 'O cliente aceitou sua proposta; o atendimento foi agendado.'
+        : 'O cliente recusou sua proposta. Você pode enviar outra enquanto o pedido estiver aberto.',
+      recursoTipo: 'solicitacao',
+      recursoId: id,
+    });
+    return this.responder(await this.carregar(id), user);
   }
 
   async cancelar(user: AuthenticatedUser, id: number, body: unknown) {
@@ -837,6 +986,13 @@ export class SolicitacoesService {
             message: 'A solicitação já foi atualizada.',
           });
         }
+        if (
+          atual.status === SolicitacaoStatus.AguardandoResposta &&
+          [SolicitacaoStatus.AceitaAgendada, SolicitacaoStatus.Recusada]
+            .includes(destino) && prazoPedidoEncerrado(atual, new Date())
+        ) {
+          throw new ConflictException({ code: 'PRAZO_PEDIDO_ENCERRADO' });
+        }
         if (destino === SolicitacaoStatus.AceitaAgendada) {
           exigirHabilitacao(perfil);
           if (perfil === null || !perfil.ativo)
@@ -860,6 +1016,20 @@ export class SolicitacoesService {
         }
         const statusAnterior = atual.status;
         atual.status = destino;
+        if (statusAnterior === SolicitacaoStatus.AguardandoResposta &&
+            destino !== SolicitacaoStatus.AguardandoResposta) {
+          atual.prazoRespostaEm = null;
+          atual.prazoInatividadeEm = null;
+          if (this.propostas !== undefined) {
+            const pendentes = await manager.find(SolicitacaoPropostaEntity, {
+              where: { solicitacaoId: atual.id, status: SolicitacaoPropostaStatus.Pendente },
+            });
+            for (const proposta of pendentes) {
+              proposta.status = SolicitacaoPropostaStatus.Substituida;
+              await manager.save(SolicitacaoPropostaEntity, proposta);
+            }
+          }
+        }
         atualizar?.(atual);
         await manager.save(SolicitacaoEntity, atual);
         await manager.save(
@@ -895,6 +1065,10 @@ export class SolicitacoesService {
       where: { solicitacaoId: solicitacao.id },
       order: { criadoEm: 'DESC' },
     });
+    const propostas = await this.propostas?.find({
+      where: { solicitacaoId: solicitacao.id },
+      order: { criadoEm: 'DESC', id: 'DESC' },
+    }) ?? [];
     const eventos = await this.solicitacoes.manager.getRepository(SolicitacaoEventoEntity).find({
       where: { solicitacaoId: solicitacao.id },
       relations: { ator: true },
@@ -913,6 +1087,10 @@ export class SolicitacoesService {
             ? null
             : orcamentoResponse(orcamentos[0]),
         orcamentos: orcamentos.map(orcamentoResponse),
+        propostaPreAceite: propostas[0] === undefined
+          ? null
+          : propostaPreAceiteResponse(propostas[0]),
+        propostasPreAceite: propostas.map(propostaPreAceiteResponse),
         eventos: eventos.map(eventoResponse),
       },
     };
@@ -1044,6 +1222,8 @@ function solicitacaoResponse(
     nomeServico: solicitacao.nomeServico,
     avaliado,
     status: solicitacao.status,
+    prazoRespostaEm: solicitacao.prazoRespostaEm?.toISOString() ?? null,
+    prazoInatividadeEm: solicitacao.prazoInatividadeEm?.toISOString() ?? null,
     descricao: solicitacao.descricao,
     bairroAtendimento: solicitacao.bairroAtendimento,
     enderecoId: solicitacao.enderecoId,
@@ -1232,6 +1412,48 @@ function parseRespostaOrcamento(body: unknown): boolean {
     throw badRequest('RESPOSTA_ORCAMENTO_INVALIDA');
   }
   return value.aceitar;
+}
+
+function parsePropostaAntesAceite(body: unknown) {
+  const value = objectBody(body);
+  const temData = value.dataServico !== undefined && value.dataServico !== null;
+  const temHorario = value.horarioServico !== undefined && value.horarioServico !== null;
+  if (temData !== temHorario) throw badRequest('PROPOSTA_HORARIO_INCOMPLETO');
+  const escopo = typeof value.escopo === 'string' ? value.escopo.trim() : '';
+  if (escopo !== '' && (escopo.length < 10 || escopo.length > 600)) {
+    throw badRequest('PROPOSTA_ESCOPO_INVALIDO');
+  }
+  if (!temData && escopo === '') throw badRequest('PROPOSTA_VAZIA');
+  return {
+    dataServico: temData ? dateField(value.dataServico) : null,
+    horarioServico: temHorario ? timeField(value.horarioServico) : null,
+    escopo: escopo === '' ? null : escopo,
+  };
+}
+
+function parseRespostaPropostaAntesAceite(body: unknown): boolean {
+  const value = objectBody(body);
+  if (typeof value.aceitar !== 'boolean') throw badRequest('RESPOSTA_PROPOSTA_INVALIDA');
+  return value.aceitar;
+}
+
+function prazoPedidoEncerrado(solicitacao: SolicitacaoEntity, agora: Date): boolean {
+  const prazo = solicitacao.prazoInatividadeEm ?? solicitacao.prazoRespostaEm;
+  return prazo !== null && prazo <= agora;
+}
+
+function propostaPreAceiteResponse(item: SolicitacaoPropostaEntity) {
+  return {
+    id: item.id,
+    propostoPorId: item.propostoPorId,
+    dataServico: item.dataProposta,
+    horarioServico: item.horarioProposto,
+    escopo: item.escopoProposto,
+    status: item.status,
+    venceEm: item.venceEm.toISOString(),
+    respondidoEm: item.respondidoEm?.toISOString() ?? null,
+    criadoEm: item.criadoEm.toISOString(),
+  };
 }
 
 function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {

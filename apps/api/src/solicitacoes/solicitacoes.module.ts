@@ -11,9 +11,12 @@ import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { SolicitacaoReagendamentoEntity } from '../database/entities/solicitacao-reagendamento.entity.js';
 import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
+import { SolicitacaoPropostaEntity } from '../database/entities/solicitacao-proposta.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
+import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
+import { PrazosSolicitacoesService } from './prazos-solicitacoes.service.js';
 import { SolicitacoesController } from './solicitacoes.controller.js';
 import { SolicitacoesService } from './solicitacoes.service.js';
 
@@ -32,11 +35,13 @@ import { SolicitacoesService } from './solicitacoes.service.js';
       SolicitacaoEventoEntity,
       SolicitacaoReagendamentoEntity,
       SolicitacaoOrcamentoEntity,
+      SolicitacaoPropostaEntity,
       ProfissionalBloqueioEntity,
       UsuarioEntity,
+      NotificacaoEntity,
     ]),
   ],
   controllers: [SolicitacoesController],
-  providers: [SolicitacoesService],
+  providers: [SolicitacoesService, PrazosSolicitacoesService],
 })
 export class SolicitacoesModule {}
