@@ -3,6 +3,26 @@ import { BadRequestException } from '@nestjs/common';
 export const fusoAgenda = 'America/Sao_Paulo';
 export const duracaoLegadaMinutos = 120;
 
+export function agoraCivil(data: Date = new Date()): { data: string; horario: string } {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: fusoAgenda,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(data).reduce<Record<string, string>>((resultado, parte) => {
+    resultado[parte.type] = parte.value;
+    return resultado;
+  }, {});
+  return {
+    data: `${partes.year}-${partes.month}-${partes.day}`,
+    horario: `${partes.hour}:${partes.minute}`,
+  };
+}
+
+export function horarioIniciado(dataServico: string, horarioServico: string, agora = new Date()): boolean {
+  const civil = agoraCivil(agora);
+  return `${dataServico}T${horarioServico}` <= `${civil.data}T${civil.horario}`;
+}
+
 export interface PeriodoAtendimento {
   readonly dataServico: string;
   readonly horarioServico: string;

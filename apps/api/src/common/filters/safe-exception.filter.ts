@@ -24,6 +24,20 @@ const publicErrors: Readonly<Record<string, string>> = {
     'Este horário não está mais disponível. Atualize a disponibilidade.',
   TRANSICAO_INVALIDA:
     'Esta solicitação já foi atualizada. Recarregue para conferir o estado atual.',
+  PRAZO_PEDIDO_ENCERRADO:
+    'O prazo desta negociação terminou. Atualize o pedido para consultar a situação.',
+  PROPOSTA_INDISPONIVEL:
+    'Esta proposta já foi atualizada. Recarregue o pedido para conferir.',
+  PROPOSTA_EXPIRADA:
+    'O prazo para responder à proposta terminou. Atualize o pedido.',
+  PROPOSTA_HORARIO_INCOMPLETO:
+    'Informe a data e o horário da proposta.',
+  PROPOSTA_ESCOPO_INVALIDO:
+    'Descreva o escopo em pelo menos 10 caracteres e no máximo 600.',
+  PROPOSTA_VAZIA:
+    'Sugira outro horário ou descreva o escopo proposto.',
+  RESPOSTA_PROPOSTA_INVALIDA:
+    'Escolha se deseja aceitar ou recusar a proposta.',
   OFERTA_INDISPONIVEL:
     'Este serviço não está mais disponível. Atualize o perfil do profissional.',
   OFERTA_INVALIDA:

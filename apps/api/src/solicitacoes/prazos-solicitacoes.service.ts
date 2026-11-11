@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThanOrEqual, Repository } from 'typeorm';
+import { IsNull, LessThan, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -10,6 +10,7 @@ import {
   SolicitacaoPropostaStatus,
 } from '../database/entities/solicitacao-proposta.entity.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
+import { agoraCivil, horarioIniciado } from '../domain/agendamento.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 
 @Injectable()
@@ -45,10 +46,13 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
     this.executando = true;
     try {
       const agora = new Date();
+      const civil = agoraCivil(agora);
       const pedidos = await this.solicitacoes.find({
         where: [
           { status: SolicitacaoStatus.AguardandoResposta, prazoRespostaEm: LessThanOrEqual(agora) },
           { status: SolicitacaoStatus.AguardandoResposta, prazoInatividadeEm: LessThanOrEqual(agora) },
+          { status: SolicitacaoStatus.AguardandoResposta, prazoRespostaEm: Not(IsNull()), dataServico: LessThan(civil.data) },
+          { status: SolicitacaoStatus.AguardandoResposta, prazoRespostaEm: Not(IsNull()), dataServico: civil.data, horarioServico: LessThanOrEqual(civil.horario) },
         ],
         order: { id: 'ASC' },
         take: 100,
@@ -91,11 +95,16 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
       });
       if (pedido === null || pedido.status !== SolicitacaoStatus.AguardandoResposta) return;
       const prazo = pedido.prazoInatividadeEm ?? pedido.prazoRespostaEm;
-      if (prazo === null || prazo > new Date()) return;
+      const agora = new Date();
+      const horarioChegou = pedido.prazoRespostaEm !== null &&
+        horarioIniciado(pedido.dataServico, pedido.horarioServico, agora);
+      if (!horarioChegou && (prazo === null || prazo > agora)) return;
       const porInatividade = pedido.prazoInatividadeEm !== null;
-      const motivo = !porInatividade
-        ? 'Prazo de 48 horas sem resposta formal do profissional encerrado.'
-        : 'Negociação encerrada após 96 horas sem ação formal.';
+      const motivo = horarioChegou
+        ? 'O horário solicitado chegou sem resposta formal do profissional.'
+        : porInatividade
+          ? 'Negociação encerrada após 96 horas sem ação formal.'
+          : 'Prazo de 48 horas sem resposta formal do profissional encerrado.';
       pedido.status = SolicitacaoStatus.Cancelada;
       pedido.cancelamentoMotivo = motivo;
       pedido.prazoRespostaEm = null;
@@ -111,9 +120,8 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
       await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
         solicitacaoId: pedido.id,
         atorId: null,
-        tipo: porInatividade
-          ? 'pedido_expirado_inatividade'
-          : 'pedido_expirado_sem_resposta',
+        tipo: horarioChegou ? 'pedido_expirado_horario' : porInatividade
+          ? 'pedido_expirado_inatividade' : 'pedido_expirado_sem_resposta',
         statusAnterior: SolicitacaoStatus.AguardandoResposta,
         statusNovo: SolicitacaoStatus.Cancelada,
         motivo,

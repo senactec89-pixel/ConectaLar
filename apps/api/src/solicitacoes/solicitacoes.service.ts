@@ -32,7 +32,7 @@ import {
 } from '../database/entities/solicitacao-proposta.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
-import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
+import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
@@ -997,6 +997,7 @@ export class SolicitacoesService {
           exigirHabilitacao(perfil);
           if (perfil === null || !perfil.ativo)
             throw badRequest('PROFISSIONAL_INDISPONIVEL');
+          assertAgendamentoFuturo(atual.dataServico, atual.horarioServico);
           const disponibilidade = await manager.find(
             ProfissionalDisponibilidadeEntity,
             {
@@ -1439,7 +1440,9 @@ function parseRespostaPropostaAntesAceite(body: unknown): boolean {
 
 function prazoPedidoEncerrado(solicitacao: SolicitacaoEntity, agora: Date): boolean {
   const prazo = solicitacao.prazoInatividadeEm ?? solicitacao.prazoRespostaEm;
-  return prazo !== null && prazo <= agora;
+  return (prazo != null && prazo <= agora) ||
+    (solicitacao.prazoRespostaEm != null &&
+      horarioIniciado(solicitacao.dataServico, solicitacao.horarioServico, agora));
 }
 
 function propostaPreAceiteResponse(item: SolicitacaoPropostaEntity) {
