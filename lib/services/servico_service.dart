@@ -28,6 +28,30 @@ class ServicoService {
     return _api.patch('solicitacoes/$solicitacaoId/recusar');
   }
 
+  Future<Map<String, dynamic>> proporAntesAceite(
+    int solicitacaoId, {
+    String? dataServico,
+    String? horarioServico,
+    String? escopo,
+  }) {
+    final body = <String, dynamic>{};
+    if (dataServico != null) body['dataServico'] = dataServico;
+    if (horarioServico != null) body['horarioServico'] = horarioServico;
+    if (escopo != null) body['escopo'] = escopo;
+    return _api.post('solicitacoes/$solicitacaoId/propostas', body: body);
+  }
+
+  Future<Map<String, dynamic>> responderPropostaAntesAceite(
+    int solicitacaoId,
+    int propostaId, {
+    required bool aceitar,
+  }) {
+    return _api.patch(
+      'solicitacoes/$solicitacaoId/propostas/$propostaId/responder',
+      body: {'aceitar': aceitar},
+    );
+  }
+
   Future<Map<String, dynamic>> cancelar(
     int solicitacaoId, {
     required String motivo,

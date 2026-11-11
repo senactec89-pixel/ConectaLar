@@ -150,6 +150,16 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     reagendamentos: (json['reagendamentos'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
+    propostaPreAceite: json['propostaPreAceite'] is Map<String, dynamic>
+        ? json['propostaPreAceite'] as Map<String, dynamic>
+        : null,
+    propostasPreAceite: (json['propostasPreAceite'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
+    prazoRespostaEm: DateTime.tryParse('${json['prazoRespostaEm'] ?? ''}'),
+    prazoInatividadeEm: DateTime.tryParse(
+      '${json['prazoInatividadeEm'] ?? ''}',
+    ),
     orcamento: json['orcamento'] is Map<String, dynamic>
         ? json['orcamento'] as Map<String, dynamic>
         : null,
