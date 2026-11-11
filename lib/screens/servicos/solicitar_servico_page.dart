@@ -225,6 +225,12 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         'categoriaId': _ofertaSelecionada?.categoriaId,
         if ((_ofertaSelecionada?.id ?? 0) > 0)
           'servicoId': _ofertaSelecionada!.id,
+        if ((_ofertaSelecionada?.id ?? 0) > 0)
+          'escopoEsperado': {
+            'inclui': _ofertaSelecionada!.inclui,
+            'naoInclui': _ofertaSelecionada!.naoInclui,
+            'opcionais': _ofertaSelecionada!.opcionais,
+          },
         'enderecoId': _enderecoSelecionadoId,
         'descricao': _descricaoController.text,
         'bairroAtendimento': _bairroController.text,

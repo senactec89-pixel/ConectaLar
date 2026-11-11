@@ -4129,6 +4129,9 @@ components:
           type: [integer, 'null']
           minimum: 1
           description: Oferta ativa do profissional; a API deriva categoria, nome e preço inicial desta oferta. Opcional para compatibilidade com pedidos antigos.
+        escopoEsperado:
+          $ref: '#/components/schemas/EscopoServico'
+          description: Escopo visto no app; a API rejeita o envio se a oferta tiver mudado.
         categoriaId:
           type:
             - integer

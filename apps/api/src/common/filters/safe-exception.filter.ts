@@ -40,6 +40,10 @@ const publicErrors: Readonly<Record<string, string>> = {
     'Escolha se deseja aceitar ou recusar a proposta.',
   OFERTA_INDISPONIVEL:
     'Este serviço não está mais disponível. Atualize o perfil do profissional.',
+  OFERTA_ALTERADA:
+    'Os detalhes deste serviço mudaram. Atualize o perfil e confira a oferta antes de enviar.',
+  ESCOPO_INVALIDO:
+    'Revise os detalhes do serviço: cada lista aceita até 10 itens de 160 caracteres.',
   OFERTA_INVALIDA:
     'Não foi possível atualizar esta oferta. Recarregue os serviços.',
   DISPONIBILIDADE_NAO_CADASTRADA:

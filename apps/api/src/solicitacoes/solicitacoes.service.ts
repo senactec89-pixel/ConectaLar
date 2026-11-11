@@ -18,7 +18,7 @@ import { ProfissionalServicoEntity } from '../database/entities/profissional-ser
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
-import { EnderecoAtendimentoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { EnderecoAtendimentoSnapshot, EscopoServicoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import {
@@ -36,7 +36,7 @@ import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodo
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
-import { snapshotEscopo } from '../domain/escopo-servico.js';
+import { escoposIguais, ofertasEquivalentes, snapshotEscopo } from '../domain/escopo-servico.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { exigirHabilitacao, podeAtender } from '../verificacao/habilitacao-profissional.js';
@@ -50,6 +50,7 @@ interface CriarSolicitacaoInput {
   readonly bairroAtendimento: string;
   readonly dataServico: string;
   readonly horarioServico: string;
+  readonly escopoEsperado: EscopoServicoSnapshot | null;
 }
 
 @Injectable()
@@ -124,6 +125,10 @@ export class SolicitacoesService {
     if (input.servicoId !== null && oferta === null) {
       throw badRequest('OFERTA_INDISPONIVEL');
     }
+    if (input.escopoEsperado !== null && (oferta === null ||
+      !escoposIguais(input.escopoEsperado, snapshotEscopo(oferta)!))) {
+      throw ofertaAlterada();
+    }
     const categoriaId =
       oferta === null ? input.categoriaId : oferta.categoriaId;
     if (categoriaId !== null) {
@@ -178,6 +183,13 @@ export class SolicitacoesService {
     });
 
     const saved = await this.solicitacoes.manager.transaction(async (manager) => {
+      if (oferta !== null) {
+        const atual = await manager.findOne(ProfissionalServicoEntity, {
+          where: { id: oferta.id, profissionalId: profissional.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (atual === null || !ofertasEquivalentes(oferta, atual)) throw ofertaAlterada();
+      }
       const criada = await manager.save(SolicitacaoEntity, solicitacao);
       await manager.save(
         SolicitacaoEventoEntity,
@@ -1384,7 +1396,26 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
     bairroAtendimento: textField(value, 'bairroAtendimento', 2, 120),
     dataServico: dateField(value.dataServico),
     horarioServico: timeField(value.horarioServico),
+    escopoEsperado: parseEscopoEsperado(value.escopoEsperado),
   };
+}
+
+function parseEscopoEsperado(value: unknown): EscopoServicoSnapshot | null {
+  if (value === undefined || value === null) return null;
+  const body = objectBody(value);
+  function lista(campo: string): string[] {
+    const items = body[campo];
+    if (!Array.isArray(items) || items.length > 10 ||
+      items.some((item) => typeof item !== 'string' || item.trim().length === 0 || item.length > 160)) {
+      throw badRequest('ESCOPO_INVALIDO');
+    }
+    return items as string[];
+  }
+  return { inclui: lista('inclui'), naoInclui: lista('naoInclui'), opcionais: lista('opcionais') };
+}
+
+function ofertaAlterada(): ConflictException {
+  return new ConflictException({ code: 'OFERTA_ALTERADA' });
 }
 
 function parseReagendamento(body: unknown) {

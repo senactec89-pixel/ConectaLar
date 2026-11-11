@@ -10,3 +10,16 @@ export function snapshotEscopo(oferta: ProfissionalServicoEntity | null): Escopo
     opcionais: [...(oferta.opcionais ?? [])],
   };
 }
+
+export function escoposIguais(a: EscopoServicoSnapshot, b: EscopoServicoSnapshot): boolean {
+  return (['inclui', 'naoInclui', 'opcionais'] as const).every((campo) =>
+    a[campo].length === b[campo].length && a[campo].every((item, i) => item === b[campo][i]),
+  );
+}
+
+export function ofertasEquivalentes(a: ProfissionalServicoEntity, b: ProfissionalServicoEntity): boolean {
+  return a.id === b.id && b.ativo && a.nome === b.nome &&
+    a.categoriaId === b.categoriaId && a.precoInicial === b.precoInicial &&
+    a.duracaoMinutos === b.duracaoMinutos && a.intervaloMinutos === b.intervaloMinutos &&
+    escoposIguais(snapshotEscopo(a)!, snapshotEscopo(b)!);
+}

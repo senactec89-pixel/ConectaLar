@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { test } from 'node:test';
 import { ProfissionaisService } from '../dist/profissionais/profissionais.service.js';
 import { snapshotEscopo } from '../dist/domain/escopo-servico.js';
 import { EscopoOfertas1760138000000 } from '../dist/database/migrations/1760138000000-EscopoOfertas.js';
+import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
+const require = createRequire(import.meta.url);
+const habilitacao = require('../dist/verificacao/habilitacao-profissional.js');
 
 function fixture() {
   const oferta = { id: 1, nome: 'Limpeza', categoriaId: null, ativo: true,
@@ -63,4 +67,36 @@ test('migration retoma criação parcial e impede perda de escopo no rollback', 
   await migration.up(runner);
   assert.equal(existing.size, 4);
   await assert.rejects(migration.down(runner), /preserve service scope/);
+});
+
+test('não cria pedido quando a oferta vista ou a oferta bloqueada mudou', async () => {
+  const original = habilitacao.exigirHabilitacao;
+  habilitacao.exigirHabilitacao = () => {};
+  try {
+    const oferta = { id: 1, profissionalId: 2, nome: 'Limpeza', categoriaId: null,
+      ativo: true, precoInicial: null, duracaoMinutos: 60, intervaloMinutos: 0,
+      inclui: ['Pisos'], naoInclui: [], opcionais: [] };
+    let mudouNaTransacao = false;
+    const manager = {
+      transaction: async (fn) => fn(manager),
+      findOne: async () => mudouNaTransacao ? { ...oferta, inclui: ['Outros'] } : oferta,
+      save: async () => assert.fail('pedido não deve ser gravado'),
+    };
+    const profissional = { id: 2, usuarioId: 3, ativo: true,
+      usuario: { ativo: true, tipo: 'profissional' } };
+    const service = new SolicitacoesService({}, { findOne: async () => oferta }, {}, {}, {},
+      { findOne: async () => profissional }, { manager, create: (value) => value },
+      {}, {}, {}, { findOne: async () => ({ id: 4 }) }, {});
+    service.validarDisponibilidade = async () => {};
+    const body = { profissionalId: 2, servicoId: 1, descricao: 'Limpeza residencial completa',
+      bairroAtendimento: 'Centro', dataServico: '2099-01-12', horarioServico: '14:00',
+      escopoEsperado: { inclui: ['Antigo'], naoInclui: [], opcionais: [] } };
+    const conflito = (e) => e?.getResponse?.().code === 'OFERTA_ALTERADA';
+    await assert.rejects(service.criar({ id: 4, tipo: 'cliente' }, body), conflito);
+    body.escopoEsperado.inclui = ['Pisos'];
+    mudouNaTransacao = true;
+    await assert.rejects(service.criar({ id: 4, tipo: 'cliente' }, body), conflito);
+  } finally {
+    habilitacao.exigirHabilitacao = original;
+  }
 });
