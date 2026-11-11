@@ -46,6 +46,7 @@
 ## Implantação e limitações
 
 - Aplicar as migrations `1760136000000` e `1760137000000` no ambiente apropriado antes de iniciar a API atualizada; elas não foram aplicadas automaticamente por este documento.
+- A apresentação do escopo das ofertas também requer a migration `1760138000000`. As três devem ser homologadas com MySQL isolado e backup antes de qualquer implantação; não há evidência de aplicação em banco real nesta etapa.
 - A API consulta os vencimentos em intervalos de aproximadamente um minuto e ao iniciar. Uma interrupção da API atrasa o processamento até o retorno; os endpoints recusam respostas fora do prazo mesmo que a rotina ainda não tenha atualizado o estado visual.
 - Os avisos de expiração são gravados como notificações internas. Entrega por push ou e-mail não é garantida por essa rotina.
 - O bloqueio de habilitação profissional continua ativo. A criação e o aceite de novos atendimentos, inclusive o aceite de proposta, dependem da conclusão da política e das verificações de segurança.
