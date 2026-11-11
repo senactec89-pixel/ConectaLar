@@ -5,8 +5,11 @@ import { ProfissionalPerfilEntity } from '../dist/database/entities/profissional
 import { SolicitacaoEntity } from '../dist/database/entities/solicitacao.entity.js';
 import { SolicitacaoPropostaEntity } from '../dist/database/entities/solicitacao-proposta.entity.js';
 import { SolicitacaoEventoEntity } from '../dist/database/entities/solicitacao-evento.entity.js';
+import { SolicitacaoOrcamentoEntity } from '../dist/database/entities/solicitacao-orcamento.entity.js';
+import { SolicitacaoReagendamentoEntity } from '../dist/database/entities/solicitacao-reagendamento.entity.js';
 import { NotificacaoEntity } from '../dist/database/entities/notificacao.entity.js';
 import { PrazosEPropostasPreAceite1760136000000 } from '../dist/database/migrations/1760136000000-PrazosEPropostasPreAceite.js';
+import { PrazosPropostasAgendadas1760137000000 } from '../dist/database/migrations/1760137000000-PrazosPropostasAgendadas.js';
 import { horarioIniciado } from '../dist/domain/agendamento.js';
 
 function fixture(pedido, propostas = []) {
@@ -105,6 +108,45 @@ test('vencimento da proposta mantém pedido aberto até o prazo de inatividade',
   assert.equal(notificacoes.length, 4);
 });
 
+test('vencimento de orçamento e reagendamento preserva atendimento e combinado', async () => {
+  const pedido = { id: 1, clienteId: 30, profissionalId: 10, status: 'aceita_agendada',
+    dataServico: '2099-01-01', horarioServico: '10:00', precoFinal: '90.00' };
+  const orcamento = { id: 2, solicitacaoId: 1, status: 'pendente', venceEm: new Date(Date.now() - 1) };
+  const reagendamento = { id: 3, solicitacaoId: 1, status: 'pendente', venceEm: new Date(Date.now() - 1) };
+  const eventos = [];
+  const notificacoes = [];
+  const manager = {
+    async transaction(_isolation, action) { return action(this); },
+    async findOne(entity) {
+      if (entity === SolicitacaoEntity) return pedido;
+      if (entity === SolicitacaoOrcamentoEntity) return orcamento;
+      if (entity === SolicitacaoReagendamentoEntity) return reagendamento;
+      if (entity === ProfissionalPerfilEntity) return { usuarioId: 20 };
+      throw new Error('Unexpected entity');
+    },
+    create(_entity, values) { return { ...values }; },
+    async save(entity, value) {
+      if (entity === SolicitacaoEventoEntity) eventos.push(value);
+      if (entity === NotificacaoEntity) notificacoes.push(value);
+      return value;
+    },
+  };
+  const repo = (item) => ({ async find() { return item.status === 'pendente' ? [item] : []; } });
+  const service = new PrazosSolicitacoesService(
+    { manager, async find() { return []; } }, { async find() { return []; } },
+    repo(orcamento), repo(reagendamento),
+  );
+  await service.processar();
+  await service.processar();
+  assert.equal(orcamento.status, 'expirado');
+  assert.equal(reagendamento.status, 'expirado');
+  assert.equal(pedido.status, 'aceita_agendada');
+  assert.equal(pedido.precoFinal, '90.00');
+  assert.equal(pedido.dataServico, '2099-01-01');
+  assert.deepEqual(eventos.map((item) => item.tipo), ['orcamento_expirado', 'reagendamento_expirado']);
+  assert.equal(notificacoes.length, 4);
+});
+
 test('migração retoma alteração parcial e bloqueia rollback com propostas', async () => {
   const colunas = new Set(['prazo_resposta_em']);
   const indices = new Set();
@@ -134,4 +176,44 @@ test('migração retoma alteração parcial e bloqueia rollback com propostas', 
   assert.equal(tabelaPropostas, true);
   await assert.rejects(migration.down(runner), /preserve request proposals/);
   assert.equal(tabelaPropostas, true);
+});
+
+test('migração de propostas agendadas retoma após falha no CHECK e protege dados', async () => {
+  const colunas = new Set();
+  const indices = new Set();
+  const checks = new Set(['chk_orcamentos_status', 'chk_reagendamentos_status']);
+  let falharUmaVez = true;
+  const runner = {
+    async hasColumn(table, column) { return colunas.has(`${table}.${column}`); },
+    async getTable(table) {
+      return { indices: [...indices].filter((item) => item.startsWith(`${table}.`))
+        .map((item) => ({ name: item.slice(table.length + 1) })) };
+    },
+    async query(sql, params) {
+      if (sql.includes('information_schema.TABLE_CONSTRAINTS')) {
+        return checks.has(params[1]) ? [{ CONSTRAINT_NAME: params[1] }] : [];
+      }
+      const table = /ALTER TABLE (\w+)/.exec(sql)?.[1];
+      if (sql.includes('ADD COLUMN vence_em')) colunas.add(`${table}.vence_em`);
+      const addIndex = /ADD INDEX (\w+)/.exec(sql)?.[1];
+      if (addIndex) indices.add(`${table}.${addIndex}`);
+      const drop = /DROP CONSTRAINT (\w+)/.exec(sql)?.[1];
+      if (drop) checks.delete(drop);
+      const add = /ADD CONSTRAINT (\w+)/.exec(sql)?.[1];
+      if (add === 'chk_reagendamentos_status' && falharUmaVez) {
+        falharUmaVez = false;
+        throw new Error('falha simulada');
+      }
+      if (add) checks.add(add);
+      if (sql.startsWith('SELECT COUNT(*) AS total')) return [{ total: 1 }];
+      return [];
+    },
+  };
+  const migration = new PrazosPropostasAgendadas1760137000000();
+  await assert.rejects(migration.up(runner), /falha simulada/);
+  await migration.up(runner);
+  assert.equal(colunas.size, 2);
+  assert.equal(indices.size, 2);
+  assert.equal(checks.size, 2);
+  await assert.rejects(migration.down(runner), /preserve proposal deadlines/);
 });

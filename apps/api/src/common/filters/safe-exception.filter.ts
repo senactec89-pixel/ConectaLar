@@ -46,6 +46,9 @@ const publicErrors: Readonly<Record<string, string>> = {
     'O profissional ainda não cadastrou disponibilidade para receber solicitações.',
   DATA_INVALIDA: 'Informe uma data válida para o atendimento.',
   HORARIO_INVALIDO: 'Informe o horário no formato HH:MM.',
+  HORARIO_PASSADO: 'Escolha uma data e um horário futuros para o atendimento.',
+  REAGENDAMENTO_APOS_INICIO:
+    'O atendimento já começou. Use a opção de ajuda ou registre uma ocorrência.',
   INTERVALO_INVALIDO:
     'O horário inicial deve ser menor que o horário final.',
   DISPONIBILIDADE_INVALIDA:

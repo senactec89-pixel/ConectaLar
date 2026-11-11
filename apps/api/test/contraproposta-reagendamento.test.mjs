@@ -166,6 +166,20 @@ test('cliente contrapropoe e somente o profissional pode confirmar', async () =>
   assert.equal(contexto.notificacoes[1].usuarioId, 30);
 });
 
+test('cliente não confirma reagendamento vencido e data anterior permanece', async () => {
+  const contexto = fixture();
+  await contexto.service.proporReagendamento(profissional, 1, {
+    dataServico: '2099-01-12', horarioServico: '14:00',
+    motivo: 'Necessito ajustar o horario do atendimento.',
+  });
+  assert.ok(contexto.propostas[0].venceEm instanceof Date);
+  contexto.propostas[0].venceEm = new Date(Date.now() - 1);
+  await assert.rejects(contexto.service.responderReagendamento(cliente, 1, { aceitar: true }),
+    (error) => error.getResponse?.().code === 'PROPOSTA_EXPIRADA');
+  assert.equal(contexto.solicitacao.dataServico, '2099-01-10');
+  assert.equal(contexto.solicitacao.horarioServico, '10:00');
+});
+
 test('contraproposta substitui a proposta pendente sem apagar o historico', async () => {
   const contexto = fixture();
   await contexto.service.proporReagendamento(profissional, 1, {

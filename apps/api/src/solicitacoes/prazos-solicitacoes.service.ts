@@ -5,6 +5,8 @@ import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
+import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
+import { ReagendamentoStatus, SolicitacaoReagendamentoEntity } from '../database/entities/solicitacao-reagendamento.entity.js';
 import {
   SolicitacaoPropostaEntity,
   SolicitacaoPropostaStatus,
@@ -12,6 +14,7 @@ import {
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { agoraCivil, horarioIniciado } from '../domain/agendamento.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
+import { OrcamentoStatus } from '../domain/orcamento-status.js';
 
 @Injectable()
 export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy {
@@ -24,6 +27,10 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
     @InjectRepository(SolicitacaoPropostaEntity)
     private readonly propostas: Repository<SolicitacaoPropostaEntity>,
+    @InjectRepository(SolicitacaoOrcamentoEntity)
+    private readonly orcamentos?: Repository<SolicitacaoOrcamentoEntity>,
+    @InjectRepository(SolicitacaoReagendamentoEntity)
+    private readonly reagendamentos?: Repository<SolicitacaoReagendamentoEntity>,
   ) {}
 
   onModuleInit(): void {
@@ -75,6 +82,25 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
           await this.expirarProposta(proposta);
         } catch {
           this.logger.error('expiracao_proposta_falhou');
+        }
+      }
+      const orcamentos = await this.orcamentos?.find({
+        where: { status: OrcamentoStatus.Pendente, venceEm: LessThanOrEqual(agora) },
+        order: { id: 'ASC' }, take: 100,
+      }) ?? [];
+      const reagendamentos = await this.reagendamentos?.find({
+        where: { status: ReagendamentoStatus.Pendente, venceEm: LessThanOrEqual(agora) },
+        order: { id: 'ASC' }, take: 100,
+      }) ?? [];
+      for (const [tipo, itens] of [
+        ['orcamento', orcamentos], ['reagendamento', reagendamentos],
+      ] as const) {
+        for (const item of itens) {
+          try {
+            await this.expirarPropostaAgendada(tipo, item.id, item.solicitacaoId);
+          } catch {
+            this.logger.error('expiracao_proposta_agendada_falhou');
+          }
         }
       }
     } finally {
@@ -174,6 +200,53 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
       await this.notificarNoManager(manager, perfil.usuarioId, atual.id,
         NotificacaoTipo.PropostaPreAceiteExpirada,
         'Proposta expirada', 'Sua proposta expirou sem resposta. O pedido ainda está aberto.');
+    });
+  }
+
+  private async expirarPropostaAgendada(
+    tipo: 'orcamento' | 'reagendamento', id: number, solicitacaoId: number,
+  ): Promise<void> {
+    await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const pedido = await manager.findOne(SolicitacaoEntity, {
+        where: { id: solicitacaoId }, lock: { mode: 'pessimistic_write' },
+      });
+      if (pedido === null) return;
+      const proposta = tipo === 'orcamento'
+        ? await manager.findOne(SolicitacaoOrcamentoEntity, {
+            where: { id, solicitacaoId }, lock: { mode: 'pessimistic_write' },
+          })
+        : await manager.findOne(SolicitacaoReagendamentoEntity, {
+            where: { id, solicitacaoId }, lock: { mode: 'pessimistic_write' },
+          });
+      if (proposta === null || proposta.status !== 'pendente' ||
+          proposta.venceEm == null || proposta.venceEm > new Date()) return;
+      if (tipo === 'orcamento') {
+        const item = proposta as SolicitacaoOrcamentoEntity;
+        item.status = OrcamentoStatus.Expirado;
+        await manager.save(SolicitacaoOrcamentoEntity, item);
+      } else {
+        const item = proposta as SolicitacaoReagendamentoEntity;
+        item.status = ReagendamentoStatus.Expirado;
+        await manager.save(SolicitacaoReagendamentoEntity, item);
+      }
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId, atorId: null,
+        tipo: tipo === 'orcamento' ? 'orcamento_expirado' : 'reagendamento_expirado',
+        statusAnterior: pedido.status, statusNovo: pedido.status,
+        motivo: 'O prazo de 48 horas para responder à proposta terminou.',
+      }));
+      if (pedido.status !== SolicitacaoStatus.AceitaAgendada) return;
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: pedido.profissionalId },
+      });
+      const titulo = tipo === 'orcamento' ? 'Orçamento expirado' : 'Reagendamento expirado';
+      const mensagem = 'O prazo da proposta terminou. O atendimento mantém o combinado anterior.';
+      const notificacaoTipo = tipo === 'orcamento'
+        ? NotificacaoTipo.OrcamentoRespondido : NotificacaoTipo.ReagendamentoRespondido;
+      await this.notificarNoManager(manager, pedido.clienteId, pedido.id, notificacaoTipo, titulo, mensagem);
+      if (perfil !== null) {
+        await this.notificarNoManager(manager, perfil.usuarioId, pedido.id, notificacaoTipo, titulo, mensagem);
+      }
     });
   }
 

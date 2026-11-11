@@ -696,6 +696,8 @@ export class SolicitacoesService {
             motivo: input.motivo,
             status: ReagendamentoStatus.Pendente,
             respondidoEm: null,
+            venceEm: user.id === atual.clienteId
+              ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
           }),
         );
         await manager.save(
@@ -761,7 +763,14 @@ export class SolicitacoesService {
           message: 'A proposta deve ser respondida pela outra parte.',
         });
       }
+      if (proposta.venceEm != null && proposta.venceEm <= new Date()) {
+        throw new ConflictException({ code: 'PROPOSTA_EXPIRADA' });
+      }
       if (aceitar) {
+        if (agendamentoJaIniciou(atual)) {
+          throw new ConflictException({ code: 'REAGENDAMENTO_APOS_INICIO' });
+        }
+        assertAgendamentoFuturo(proposta.dataProposta, proposta.horarioProposto);
         await this.validarAgendaComManager(
           manager,
           atual.profissionalId,
@@ -856,6 +865,7 @@ export class SolicitacoesService {
             descricao: input.descricao,
             status: OrcamentoStatus.Pendente,
             respondidoEm: null,
+            venceEm: new Date(Date.now() + 48 * 60 * 60 * 1000),
           }),
         );
         await manager.save(
@@ -914,6 +924,10 @@ export class SolicitacoesService {
             code: 'ORCAMENTO_INDISPONIVEL',
             message: 'Este orcamento nao esta mais disponivel para resposta.',
           });
+        }
+
+        if (orcamento.venceEm != null && orcamento.venceEm <= new Date()) {
+          throw new ConflictException({ code: 'PROPOSTA_EXPIRADA' });
         }
 
         if (aceitar) {
@@ -1420,6 +1434,9 @@ function parsePropostaAntesAceite(body: unknown) {
   const temData = value.dataServico !== undefined && value.dataServico !== null;
   const temHorario = value.horarioServico !== undefined && value.horarioServico !== null;
   if (temData !== temHorario) throw badRequest('PROPOSTA_HORARIO_INCOMPLETO');
+  if (value.escopo != null && typeof value.escopo !== 'string') {
+    throw badRequest('PROPOSTA_ESCOPO_INVALIDO');
+  }
   const escopo = typeof value.escopo === 'string' ? value.escopo.trim() : '';
   if (escopo !== '' && (escopo.length < 10 || escopo.length > 600)) {
     throw badRequest('PROPOSTA_ESCOPO_INVALIDO');
@@ -1467,6 +1484,7 @@ function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
     horarioServico: item.horarioProposto,
     motivo: item.motivo,
     status: item.status,
+    venceEm: item.venceEm?.toISOString() ?? null,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
     criadoEm: item.criadoEm.toISOString(),
   };
@@ -1479,6 +1497,7 @@ function orcamentoResponse(item: SolicitacaoOrcamentoEntity) {
     valor: numberOrNull(item.valor),
     descricao: item.descricao,
     status: item.status,
+    venceEm: item.venceEm?.toISOString() ?? null,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
     criadoEm: item.criadoEm.toISOString(),
   };
