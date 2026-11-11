@@ -230,9 +230,14 @@ export class PrivacidadeService {
             nome: 'Servico removido',
             precoInicial: null,
             categoriaId: null,
+            inclui: null,
+            naoInclui: null,
+            opcionais: null,
             ativo: false,
           },
         );
+        await manager.update(SolicitacaoEntity,
+          { profissionalId: profissional.id }, { escopoServicoSnapshot: null });
         await manager.update(
           ProfissionalPerfilEntity,
           { id: profissional.id },
@@ -531,7 +536,10 @@ export class PrivacidadeService {
           ? null
           : {
               ...semRelacoes(profissional),
-              servicos: servicos.map(semRelacoes),
+              servicos: servicos.map((servico) => ({
+                ...semRelacoes(servico), inclui: servico.inclui ?? [],
+                naoInclui: servico.naoInclui ?? [], opcionais: servico.opcionais ?? [],
+              })),
               disponibilidades: disponibilidades.map(semRelacoes),
               documentos: await Promise.all(
                 documentos.map((documento) =>
@@ -541,6 +549,7 @@ export class PrivacidadeService {
             },
       solicitacoes: solicitacoes.map((item) => ({
         ...semRelacoes(item),
+        escopoServicoSnapshot: item.escopoServicoSnapshot ?? null,
         papelDoTitular:
           item.clienteId === usuario.id ? 'cliente' : 'profissional',
         enderecoId: item.clienteId === usuario.id ? item.enderecoId : null,

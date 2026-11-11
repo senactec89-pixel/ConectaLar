@@ -27,6 +27,12 @@ export interface EnderecoAtendimentoSnapshot {
   readonly uf: string;
 }
 
+export interface EscopoServicoSnapshot {
+  inclui: string[];
+  naoInclui: string[];
+  opcionais: string[];
+}
+
 @Entity({ name: 'solicitacoes' })
 @Index('idx_solicitacoes_cliente', ['clienteId'])
 @Index('idx_solicitacoes_profissional', ['profissionalId'])
@@ -68,6 +74,9 @@ export class SolicitacaoEntity {
 
   @Column({ name: 'nome_servico', type: 'varchar', length: 90, nullable: true })
   nomeServico!: string | null;
+
+  @Column({ name: 'escopo_servico_snapshot', type: 'json', nullable: true })
+  escopoServicoSnapshot!: EscopoServicoSnapshot | null;
 
   @Column({ name: 'endereco_id', type: 'int', unsigned: true, nullable: true })
   enderecoId!: number | null;

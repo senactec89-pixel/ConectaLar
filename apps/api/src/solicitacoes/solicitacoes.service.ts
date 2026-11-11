@@ -36,6 +36,7 @@ import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodo
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
+import { snapshotEscopo } from '../domain/escopo-servico.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { exigirHabilitacao, podeAtender } from '../verificacao/habilitacao-profissional.js';
@@ -160,6 +161,7 @@ export class SolicitacoesService {
       categoriaId,
       servicoId: oferta?.id ?? null,
       nomeServico: oferta?.nome ?? null,
+      escopoServicoSnapshot: snapshotEscopo(oferta),
       enderecoId: input.enderecoId,
       enderecoSnapshot,
       descricao: input.descricao,
@@ -1235,6 +1237,7 @@ function solicitacaoResponse(
     id: solicitacao.id,
     servicoId: solicitacao.servicoId,
     nomeServico: solicitacao.nomeServico,
+    escopoServicoSnapshot: solicitacao.escopoServicoSnapshot ?? null,
     avaliado,
     status: solicitacao.status,
     prazoRespostaEm: solicitacao.prazoRespostaEm?.toISOString() ?? null,

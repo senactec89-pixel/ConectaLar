@@ -30,6 +30,9 @@ interface ProfissionalServicoInput {
   readonly ativo?: boolean;
   readonly duracaoMinutos: number;
   readonly intervaloMinutos: number;
+  readonly inclui?: string[];
+  readonly naoInclui?: string[];
+  readonly opcionais?: string[];
 }
 
 interface UpsertPerfilInput {
@@ -554,6 +557,9 @@ export class ProfissionaisService {
       oferta.precoInicial = decimalOrNull(input.precoInicial);
       oferta.duracaoMinutos = input.duracaoMinutos;
       oferta.intervaloMinutos = input.intervaloMinutos;
+      if (input.inclui !== undefined) oferta.inclui = input.inclui;
+      if (input.naoInclui !== undefined) oferta.naoInclui = input.naoInclui;
+      if (input.opcionais !== undefined) oferta.opcionais = input.opcionais;
       oferta.ativo = input.ativo ?? true;
       const saved = await manager.save(ProfissionalServicoEntity, oferta);
       usados.add(saved.id);
@@ -808,6 +814,9 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
     precoInicial: numberOrNull(servico.precoInicial),
     duracaoMinutos: servico.duracaoMinutos,
     intervaloMinutos: servico.intervaloMinutos,
+    inclui: servico.inclui ?? [],
+    naoInclui: servico.naoInclui ?? [],
+    opcionais: servico.opcionais ?? [],
     ativo: servico.ativo,
   };
 }
@@ -938,7 +947,21 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       ativo: optionalBoolean(body.ativo),
       duracaoMinutos: durationField(body.duracaoMinutos, 60),
       intervaloMinutos: durationField(body.intervaloMinutos, 30, true),
+      inclui: itensEscopo(body.inclui),
+      naoInclui: itensEscopo(body.naoInclui),
+      opcionais: itensEscopo(body.opcionais),
     };
+  });
+}
+
+function itensEscopo(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 10) throw badRequest('ESCOPO_INVALIDO');
+  return value.map((item) => {
+    if (typeof item !== 'string' || item.trim().length === 0 || item.trim().length > 160) {
+      throw badRequest('ESCOPO_INVALIDO');
+    }
+    return item.trim();
   });
 }
 

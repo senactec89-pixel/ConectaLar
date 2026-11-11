@@ -4198,6 +4198,11 @@ components:
         nomeServico:
           type: [string, 'null']
           description: Nome da oferta no envio do pedido, preservado após edições.
+        escopoServicoSnapshot:
+          anyOf:
+            - $ref: '#/components/schemas/EscopoServico'
+            - type: 'null'
+          description: Escopo da oferta ao criar o pedido; opcionais dependem de combinação entre as partes.
         avaliado:
           type: boolean
           description: O ator autenticado já enviou sua avaliação deste atendimento, inclusive se ainda não publicada.
@@ -4651,6 +4656,14 @@ components:
             limite: {type: integer, minimum: 1, maximum: 50}
             total: {type: integer, minimum: 0}
             totalPaginas: {type: integer, minimum: 1}
+    EscopoServico:
+      type: object
+      additionalProperties: false
+      required: [inclui, naoInclui, opcionais]
+      properties:
+        inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        opcionais: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
     ServicoProfissional:
       type: object
       additionalProperties: false
@@ -4675,6 +4688,9 @@ components:
           type: boolean
         duracaoMinutos: {type: integer, minimum: 15, maximum: 480}
         intervaloMinutos: {type: integer, minimum: 0, maximum: 480}
+        inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        opcionais: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
@@ -4695,6 +4711,9 @@ components:
           type: [number, 'null']
           minimum: 0
           maximum: 99999999.99
+        inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
+        naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
+        opcionais: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
         ativo:
           type: boolean
           description: Whether the offer is publicly available. Defaults to true for a new offer.
