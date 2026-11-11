@@ -48,6 +48,7 @@ class Solicitacao {
     this.profissionalUsuarioId = 0,
     this.servicoId,
     this.nomeServico,
+    this.escopoServicoSnapshot,
     this.duracaoMinutos = 60,
     this.intervaloMinutos = 30,
     this.reagendamento,
@@ -72,6 +73,7 @@ class Solicitacao {
   final int profissionalUsuarioId;
   final int? servicoId;
   final String? nomeServico;
+  final Map<String, dynamic>? escopoServicoSnapshot;
   final int categoriaId;
   final int? enderecoId;
   final String descricao;

@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/escopo_servico_view.dart';
 
 class SolicitarServicoPage extends StatefulWidget {
   const SolicitarServicoPage({super.key});
@@ -568,6 +569,13 @@ class _FormularioSolicitacao extends StatelessWidget {
                 onChanged: onOfertaChanged,
                 validator: (id) => id == null ? 'Selecione um serviço.' : null,
               ),
+              if (ofertaSelecionada case final oferta?)
+                EscopoServicoView(
+                  titulo: 'Detalhes da oferta',
+                  inclui: oferta.inclui,
+                  naoInclui: oferta.naoInclui,
+                  opcionais: oferta.opcionais,
+                ),
               const SizedBox(height: 12),
               if (enderecosFuture != null)
                 FutureBuilder<List<ClienteEndereco>>(

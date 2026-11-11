@@ -9,6 +9,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/escopo_servico_view.dart';
 
 class DetalhesServicoPage extends StatefulWidget {
   const DetalhesServicoPage({super.key});
@@ -1219,6 +1220,19 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                   label: 'Descrição',
                   value: solicitacao.descricao,
                 ),
+                if (solicitacao.escopoServicoSnapshot case final escopo?)
+                  EscopoServicoView(
+                    titulo: 'Oferta registrada ao criar o pedido',
+                    inclui: (escopo['inclui'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                    naoInclui: (escopo['naoInclui'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                    opcionais: (escopo['opcionais'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                  ),
                 _DetalheLinha(
                   icon: Icons.payments_outlined,
                   label: 'Preço inicial',

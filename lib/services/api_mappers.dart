@@ -101,6 +101,13 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
         intervaloMinutos: s['intervaloMinutos'] == null
             ? 30
             : intValue(s['intervaloMinutos']),
+        inclui: (s['inclui'] as List? ?? const []).whereType<String>().toList(),
+        naoInclui: (s['naoInclui'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
+        opcionais: (s['opcionais'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
       ),
     ),
     notaMedia: doubleValueOrNull(json['notaMedia']),
@@ -121,6 +128,9 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     profissionalUsuarioId: intValue(profissional?['usuarioId']),
     servicoId: json['servicoId'] == null ? null : intValue(json['servicoId']),
     nomeServico: nullableString(json['nomeServico']),
+    escopoServicoSnapshot: json['escopoServicoSnapshot'] is Map<String, dynamic>
+        ? json['escopoServicoSnapshot'] as Map<String, dynamic>
+        : null,
     categoriaId: categoria is Map<String, dynamic>
         ? intValue(categoria['id'])
         : 0,
