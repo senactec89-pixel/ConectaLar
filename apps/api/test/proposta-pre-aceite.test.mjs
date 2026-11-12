@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
 import { SolicitacaoEntity } from '../dist/database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../dist/database/entities/solicitacao-evento.entity.js';
@@ -8,8 +7,6 @@ import { SolicitacaoPropostaEntity } from '../dist/database/entities/solicitacao
 import { ProfissionalPerfilEntity } from '../dist/database/entities/profissional-perfil.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../dist/database/entities/profissional-disponibilidade.entity.js';
 
-const require = createRequire(import.meta.url);
-const habilitacao = require('../dist/verificacao/habilitacao-profissional.js');
 const profissional = { id: 20, tipo: 'profissional' };
 const cliente = { id: 30, tipo: 'cliente' };
 
@@ -17,7 +14,8 @@ function fixture() {
   const propostas = [];
   const eventos = [];
   const notificacoes = [];
-  const perfil = { id: 10, usuarioId: 20, ativo: true, usuario: { id: 20, nome: 'Profissional' } };
+  const perfil = { id: 10, usuarioId: 20, ativo: true,
+    usuario: { id: 20, nome: 'Profissional', tipo: 'profissional', ativo: true } };
   const pedido = {
     id: 1, clienteId: 30, cliente: { id: 30, nome: 'Cliente' }, profissionalId: 10,
     profissional: perfil, categoria: null, enderecoId: null, endereco: null,
@@ -74,10 +72,12 @@ function fixture() {
 }
 
 test('proposta formal preserva pedido pendente e aceite do cliente agenda o escopo acordado', async () => {
-  // A política atual bloqueia todos os profissionais em produção. A substituição
-  // isola apenas o fluxo futuro; os testes de habilitação mantêm o bloqueio real.
-  const original = habilitacao.exigirHabilitacao;
-  habilitacao.exigirHabilitacao = () => {};
+  const nomes = ['NODE_ENV', 'CONECTALAR_BETA_LOCAL', 'DB_HOST', 'DB_NAME',
+    'CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS'];
+  const anteriores = Object.fromEntries(nomes.map((nome) => [nome, process.env[nome]]));
+  Object.assign(process.env, { NODE_ENV: 'test', CONECTALAR_BETA_LOCAL: 'true',
+    DB_HOST: '127.0.0.1', DB_NAME: 'conectalar_beta_test',
+    CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS: '10' });
   try {
     const f = fixture();
     const proposta = await f.service.proporAntesAceite(profissional, 1, {
@@ -95,6 +95,9 @@ test('proposta formal preserva pedido pendente e aceite do cliente agenda o esco
     assert.equal(f.propostas[0].status, 'aceita');
     assert.deepEqual(f.notificacoes.map((item) => item.usuarioId), [30, 20]);
   } finally {
-    habilitacao.exigirHabilitacao = original;
+    for (const nome of nomes) {
+      if (anteriores[nome] === undefined) delete process.env[nome];
+      else process.env[nome] = anteriores[nome];
+    }
   }
 });

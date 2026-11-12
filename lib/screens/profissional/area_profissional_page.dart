@@ -960,9 +960,12 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     }
 
     var duracaoMinutos =
-        int.tryParse('${servico?['duracaoMinutos'] ?? 60}') ?? 60;
-    var intervaloMinutos =
-        int.tryParse('${servico?['intervaloMinutos'] ?? 30}') ?? 30;
+        int.tryParse('${servico?['duracaoMinutos'] ?? 120}') ?? 120;
+    const duracoesProntas = [30, 45, 60, 90, 120, 180, 240];
+    var duracaoEscolhida = duracoesProntas.contains(duracaoMinutos)
+        ? '$duracaoMinutos'
+        : 'personalizada';
+    final duracaoPersonalizada = TextEditingController(text: '$duracaoMinutos');
     final form = GlobalKey<FormState>();
     var enviando = false;
     String? erro;
@@ -1020,46 +1023,50 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: '$duracaoMinutos',
+                  initialValue: duracaoEscolhida,
                   isExpanded: true,
                   decoration: const InputDecoration(
                     labelText: 'Duração estimada',
                     prefixIcon: Icon(Icons.timer_outlined),
                   ),
-                  items: const [30, 45, 60, 90, 120, 180, 240]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
+                  items: [
+                    for (final value in duracoesProntas)
+                      DropdownMenuItem(
+                        value: '$value',
+                        child: Text('$value minutos'),
+                      ),
+                    const DropdownMenuItem(
+                      value: 'personalizada',
+                      child: Text('Personalizada'),
+                    ),
+                  ],
                   onChanged: enviando
                       ? null
-                      : (value) =>
-                            duracaoMinutos = int.tryParse(value ?? '') ?? 60,
+                      : (value) => setDialogState(() {
+                          duracaoEscolhida = value ?? '120';
+                          if (duracaoEscolhida != 'personalizada') {
+                            duracaoMinutos = int.parse(duracaoEscolhida);
+                          }
+                        }),
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: '$intervaloMinutos',
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Intervalo para deslocamento',
-                    prefixIcon: Icon(Icons.directions_car_outlined),
+                if (duracaoEscolhida == 'personalizada') ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const Key('duracao-personalizada'),
+                    controller: duracaoPersonalizada,
+                    enabled: !enviando,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Duração em minutos (1 a 1440)',
+                    ),
+                    validator: (value) {
+                      final minutos = int.tryParse((value ?? '').trim());
+                      return minutos == null || minutos < 1 || minutos > 1440
+                          ? 'Informe de 1 a 1440 minutos.'
+                          : null;
+                    },
                   ),
-                  items: const [0, 15, 30, 45, 60]
-                      .map(
-                        (value) => DropdownMenuItem(
-                          value: '$value',
-                          child: Text('$value minutos'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: enviando
-                      ? null
-                      : (value) =>
-                            intervaloMinutos = int.tryParse(value ?? '') ?? 30,
-                ),
+                ],
                 const SizedBox(height: 16),
                 const Text(
                   'Detalhes visíveis para o cliente. Escreva um item por linha e não inclua dados pessoais.',
@@ -1096,6 +1103,11 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   ? null
                   : () async {
                       if (!form.currentState!.validate()) return;
+                      if (duracaoEscolhida == 'personalizada') {
+                        duracaoMinutos = int.parse(
+                          duracaoPersonalizada.text.trim(),
+                        );
+                      }
                       setDialogState(() {
                         enviando = true;
                         erro = null;
@@ -1109,7 +1121,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'precoInicial': parsePrecoInicial(preco.text),
                           'ativo': servico?['ativo'] != false,
                           'duracaoMinutos': duracaoMinutos,
-                          'intervaloMinutos': intervaloMinutos,
+                          'intervaloMinutos': 0,
                           'inclui': itens(inclui.text),
                           'naoInclui': itens(naoInclui.text),
                           'opcionais': itens(opcionais.text),
@@ -1178,6 +1190,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     inclui.dispose();
     naoInclui.dispose();
     opcionais.dispose();
+    duracaoPersonalizada.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
@@ -1191,8 +1204,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'categoriaId': item['categoriaId'] ?? item['categoria']?['id'],
           'precoInicial': item['precoInicial'],
           'ativo': item['ativo'] != false,
-          'duracaoMinutos': item['duracaoMinutos'] ?? 60,
-          'intervaloMinutos': item['intervaloMinutos'] ?? 30,
+          'duracaoMinutos': item['duracaoMinutos'] ?? 120,
+          'intervaloMinutos': 0,
         },
       )
       .toList();
@@ -1429,7 +1442,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                                   : 'A partir de R\$ ${e['precoInicial']}',
                             ),
                             Text(
-                              '${e['duracaoMinutos'] ?? 60} min + ${e['intervaloMinutos'] ?? 30} min de intervalo',
+                              '${e['duracaoMinutos'] ?? 120} min de atendimento',
                             ),
                             Text(e['ativo'] == true ? 'Ativa' : 'Pausada'),
                           ],

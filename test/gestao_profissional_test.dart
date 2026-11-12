@@ -62,7 +62,7 @@ void main() {
     expect(oferta['nome'], 'Instalação elétrica');
     expect(oferta['ativo'], isFalse);
     expect(oferta['duracaoMinutos'], 90);
-    expect(oferta['intervaloMinutos'], 30);
+    expect(oferta['intervaloMinutos'], 0);
     expect(find.textContaining('Pausada'), findsOneWidget);
   });
 

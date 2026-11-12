@@ -30,6 +30,32 @@ test('sem fornecedores nao ha aprovacao, nem por selo legado, estado adulterado 
   assert.equal(habilitacaoProfissional(perfil(), 'confirmado', 'confirmado').podeAtender, false);
 });
 
+test('beta local libera somente perfil listado em banco de teste local', () => {
+  const nomes = ['NODE_ENV', 'CONECTALAR_BETA_LOCAL', 'DB_HOST', 'DB_NAME',
+    'CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS'];
+  const anteriores = Object.fromEntries(nomes.map((nome) => [nome, process.env[nome]]));
+  Object.assign(process.env, { NODE_ENV: 'test', CONECTALAR_BETA_LOCAL: 'true',
+    DB_HOST: '127.0.0.1', DB_NAME: 'conectalar_beta_test',
+    CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS: '10' });
+  try {
+    assert.equal(podeAtender(perfil()), true);
+    assert.doesNotThrow(() => exigirHabilitacao(perfil()));
+    assert.equal(podeAtender({ ...perfil(), habilitacaoEstado: 'suspenso' }), false);
+    assert.equal(podeAtender({ ...perfil(), ativo: false }), false);
+    assert.equal(podeAtender({ ...perfil(), id: 11 }), false);
+    process.env.DB_NAME = 'conectalar_dev';
+    assert.equal(podeAtender(perfil()), false);
+    process.env.DB_NAME = 'conectalar_beta_test';
+    process.env.NODE_ENV = 'production';
+    assert.equal(podeAtender(perfil()), false);
+  } finally {
+    for (const nome of nomes) {
+      if (anteriores[nome] === undefined) delete process.env[nome];
+      else process.env[nome] = anteriores[nome];
+    }
+  }
+});
+
 test('provider desabilitado nao simula identidade ou prova de vida', async () => {
   const provider = new IdentidadeNaoConfigurada();
   assert.equal(provider.disponivel, false);

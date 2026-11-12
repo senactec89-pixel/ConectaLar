@@ -99,7 +99,8 @@ Future<void> _sessaoAdministrativa() async {
                 },
                 'alvoTipo': 'documento_verificacao',
                 'alvoId': 8,
-                'detalhe': 'Registro de teste para conferência visual.',
+                'detalhe':
+                    '{"status":{"antes":"pendente","depois":"aprovado"}}',
                 'criadoEm': '2026-10-11T12:00:00Z',
               },
             ],
@@ -161,6 +162,23 @@ void main() {
       }
     });
   }
+
+  testWidgets('auditoria mostra resumo e recolhe detalhes técnicos', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _abrir(tester, AdminModulo.auditoria, 360);
+    expect(find.text('Documento analisado'), findsOneWidget);
+    expect(find.textContaining('Alvo: Documento #8'), findsOneWidget);
+    expect(find.textContaining('Detalhes técnicos'), findsNothing);
+    await tester.ensureVisible(find.text('Documento analisado'));
+    await tester.tap(find.text('Documento analisado'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Detalhes técnicos'), findsOneWidget);
+    expect(find.textContaining('"antes": "pendente"'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('busca administrativa continua utilizável com teclado aberto', (
     tester,

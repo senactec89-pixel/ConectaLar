@@ -31,6 +31,20 @@ test('public free windows exclude occupied time and handle a legacy previous-day
   ]), [{ horaInicio: '01:30', horaFim: '10:00' }, { horaInicio: '13:30', horaFim: '18:00' }]);
 });
 
+test('old booked intervals stay blocked, new adjacent appointments have no extra gap', () => {
+  const semana = [{ ativo: true, diaSemana: 1, horaInicio: '08:00', horaFim: '14:00' }];
+  assert.deepEqual(intervalosLivres('2027-10-18', semana, [
+    { ...periodo('10:00', 60), intervaloMinutos: 30 },
+  ]), [
+    { horaInicio: '08:00', horaFim: '10:00' },
+    { horaInicio: '11:30', horaFim: '14:00' },
+  ]);
+  assert.deepEqual(intervalosLivres('2027-10-18', semana, [periodo('10:00', 60)]), [
+    { horaInicio: '08:00', horaFim: '10:00' },
+    { horaInicio: '11:00', horaFim: '14:00' },
+  ]);
+});
+
 test('duration requires an explicit positive whole number within one day', () => {
   for (const invalid of [undefined, null, 0, -1, 1.5, '120', 1441]) {
     assert.throws(() => parseDuracao(invalid));

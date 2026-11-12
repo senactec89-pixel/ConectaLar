@@ -46,10 +46,11 @@ export function habilitacaoProfissional(
 ) {
   const estado = perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
+  const betaLocal = betaLocalAutorizada(perfil) && estado !== 'suspenso';
   return {
     estado,
-    // Identity checks alone cannot bypass the pending phone/background policy.
-    podeAtender: false,
+    // The synthetic local beta cannot be enabled in a production environment.
+    podeAtender: betaLocal,
     documentoAnalisado: perfil?.verificado === true,
     etapas: [
       { codigo: 'perfil', status: perfil ? 'cadastrado' : 'pendente' },
@@ -61,9 +62,21 @@ export function habilitacaoProfissional(
     ],
     mensagem: estado === 'suspenso'
       ? 'Habilitacao suspensa. Solicite revisao pela plataforma.'
+      : betaLocal
+        ? 'Beta local de testes: atendimentos simulados liberados para este perfil. Nao use dados reais.'
       : 'Atendimentos bloqueados ate a conclusao das verificacoes de seguranca. Documento aprovado nao libera atendimentos.',
     revisaoSolicitadaEm: perfil?.habilitacaoRevisaoEm?.toISOString() ?? null,
   };
+}
+
+function betaLocalAutorizada(perfil: ProfissionalPerfilEntity | null): boolean {
+  if (process.env.NODE_ENV !== 'test' || process.env.CONECTALAR_BETA_LOCAL !== 'true') return false;
+  if (!['127.0.0.1', 'localhost', '::1'].includes(process.env.DB_HOST ?? '')) return false;
+  if (process.env.DB_NAME !== 'conectalar_beta_test') return false;
+  if (!perfil?.ativo || !perfil.usuario?.ativo ||
+    !['profissional', 'empresa'].includes(perfil.usuario.tipo)) return false;
+  const ids = (process.env.CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS ?? '').split(',');
+  return ids.some((raw) => /^[1-9]\d*$/.test(raw.trim()) && Number(raw.trim()) === perfil.id);
 }
 
 export function podeAtender(perfil: ProfissionalPerfilEntity | null): boolean {

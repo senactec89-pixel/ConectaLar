@@ -12,7 +12,101 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
-  testWidgets('novo serviço permite escolher a duração e envia o valor selecionado', (
+  testWidgets(
+    'novo serviço permite escolher a duração e envia o valor selecionado',
+    (tester) async {
+      Map<String, dynamic>? enviado;
+      await configurarFrontend(
+        papel: 'profissional',
+        responder: (request) async {
+          if (request.url.path.endsWith('/me/servicos')) {
+            if (request.method == 'PUT') {
+              enviado = jsonDecode(request.body) as Map<String, dynamic>;
+            }
+            return jsonResponse({'servicos': []});
+          }
+          return null;
+        },
+      );
+      await abrirFrontend(
+        tester,
+        AppRoutes.servicosProfissional,
+        width: 360,
+        textScale: 2,
+      );
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do serviço'),
+        'Instalação de teste',
+      );
+      await tester.tap(find.text('120 minutos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('90 minutos').last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect((enviado!['servicos'] as List).single['duracaoMinutos'], 90);
+      expect((enviado!['servicos'] as List).single['intervaloMinutos'], 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'duração personalizada valida 1 a 1440 minutos e não cria intervalo',
+    (tester) async {
+      Map<String, dynamic>? enviado;
+      await configurarFrontend(
+        papel: 'profissional',
+        responder: (request) async {
+          if (request.url.path.endsWith('/me/servicos')) {
+            if (request.method == 'PUT') {
+              enviado = jsonDecode(request.body) as Map<String, dynamic>;
+            }
+            return jsonResponse({'servicos': []});
+          }
+          return null;
+        },
+      );
+      await abrirFrontend(
+        tester,
+        AppRoutes.servicosProfissional,
+        width: 360,
+        textScale: 2,
+      );
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nome do serviço'),
+        'Limpeza',
+      );
+      await tester.tap(find.text('120 minutos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Personalizada').last);
+      await tester.pumpAndSettle();
+      final campo = find.byKey(const Key('duracao-personalizada'));
+      await tester.enterText(campo, '1441');
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Informe de 1 a 1440 minutos.'), findsOneWidget);
+      expect(enviado, isNull);
+      await tester.enterText(campo, '1440');
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      expect((enviado!['servicos'] as List).single['duracaoMinutos'], 1440);
+      expect((enviado!['servicos'] as List).single['intervaloMinutos'], 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('edição de duração antiga fora dos atalhos preserva o valor', (
     tester,
   ) async {
     Map<String, dynamic>? enviado;
@@ -22,32 +116,40 @@ void main() {
         if (request.url.path.endsWith('/me/servicos')) {
           if (request.method == 'PUT') {
             enviado = jsonDecode(request.body) as Map<String, dynamic>;
+            return jsonResponse({'servicos': enviado!['servicos']});
           }
-          return jsonResponse({'servicos': []});
+          return jsonResponse({
+            'servicos': [
+              {
+                'id': 7,
+                'nome': 'Serviço legado',
+                'duracaoMinutos': 75,
+                'intervaloMinutos': 30,
+                'ativo': true,
+              },
+            ],
+          });
         }
         return null;
       },
     );
-    await abrirFrontend(
-      tester,
-      AppRoutes.servicosProfissional,
-      width: 360,
-      textScale: 2,
+    await abrirFrontend(tester, AppRoutes.servicosProfissional);
+    final acao = find.byTooltip('Ações da oferta');
+    await tester.ensureVisible(acao);
+    await tester.tap(acao);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Editar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Personalizada'), findsOneWidget);
+    final campo = tester.widget<TextFormField>(
+      find.byKey(const Key('duracao-personalizada')),
     );
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar serviço'));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Nome do serviço'),
-      'Instalação de teste',
-    );
-    await tester.tap(find.text('60 minutos'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('90 minutos').last);
-    await tester.pumpAndSettle();
+    expect(campo.controller!.text, '75');
     await tester.ensureVisible(find.text('Salvar'));
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
-    expect((enviado!['servicos'] as List).single['duracaoMinutos'], 90);
+    expect((enviado!['servicos'] as List).single['duracaoMinutos'], 75);
+    expect((enviado!['servicos'] as List).single['intervaloMinutos'], 0);
     expect(tester.takeException(), isNull);
   });
 

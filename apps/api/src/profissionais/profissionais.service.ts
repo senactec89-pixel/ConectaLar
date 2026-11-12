@@ -11,6 +11,7 @@ import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.j
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -28,7 +29,7 @@ interface ProfissionalServicoInput {
   readonly categoriaId?: number | null;
   readonly precoInicial?: number | null;
   readonly ativo?: boolean;
-  readonly duracaoMinutos: number;
+  readonly duracaoMinutos?: number;
   readonly intervaloMinutos: number;
   readonly inclui?: string[];
   readonly naoInclui?: string[];
@@ -64,6 +65,8 @@ export class ProfissionaisService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly localizacao: LocalizacaoService,
+    @InjectRepository(ProfissionalBloqueioEntity)
+    private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
   ) {}
 
   async listar(query: Record<string, unknown>) {
@@ -262,19 +265,25 @@ export class ProfissionaisService {
     });
     if (servicoId !== null && oferta === null) throw badRequest('OFERTA_INDISPONIVEL');
     const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
-    const [semanais, ocupados] = await Promise.all([
+    const [semanais, ocupados, bloqueio] = await Promise.all([
       this.disponibilidades.find({ where: { profissionalId: id, ativo: true } }),
       this.solicitacoes.find({ where: {
         profissionalId: id, status: SolicitacaoStatus.AceitaAgendada,
         dataServico: Between(diaAnterior(data), data),
       } }),
+      this.bloqueios.createQueryBuilder('bloqueio')
+        .where('bloqueio.profissional_id = :id', { id })
+        .andWhere(':data BETWEEN bloqueio.data_inicio AND bloqueio.data_fim', { data })
+        .getOne(),
     ]);
     // Only free windows are public: no customer, request IDs, address, or busy
     // appointment details leave this endpoint.
     return {
       data, fusoHorario: fusoAgenda, duracaoMinutos,
-      intervalos: intervalosLivres(data, semanais, ocupados).filter((item) =>
-        minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
+      intervalos: bloqueio === null
+        ? intervalosLivres(data, semanais, ocupados).filter((item) =>
+          minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos)
+        : [],
     };
   }
 
@@ -555,7 +564,7 @@ export class ProfissionaisService {
       oferta.nome = input.nome;
       oferta.categoriaId = input.categoriaId ?? null;
       oferta.precoInicial = decimalOrNull(input.precoInicial);
-      oferta.duracaoMinutos = input.duracaoMinutos;
+      oferta.duracaoMinutos = input.duracaoMinutos ?? oferta.duracaoMinutos ?? duracaoLegadaMinutos;
       oferta.intervaloMinutos = input.intervaloMinutos;
       if (input.inclui !== undefined) oferta.inclui = input.inclui;
       if (input.naoInclui !== undefined) oferta.naoInclui = input.naoInclui;
@@ -945,8 +954,8 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       categoriaId: optionalId(body.categoriaId),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
-      duracaoMinutos: durationField(body.duracaoMinutos, 60),
-      intervaloMinutos: durationField(body.intervaloMinutos, 30, true),
+      duracaoMinutos: durationField(body.duracaoMinutos),
+      intervaloMinutos: noAdditionalInterval(body.intervaloMinutos),
       inclui: itensEscopo(body.inclui),
       naoInclui: itensEscopo(body.naoInclui),
       opcionais: itensEscopo(body.opcionais),
@@ -965,14 +974,20 @@ function itensEscopo(value: unknown): string[] | undefined {
   });
 }
 
-function durationField(value: unknown, fallback: number, allowZero = false): number {
-  if (value === undefined || value === null || value === '') return fallback;
+function durationField(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
   const parsed = typeof value === 'string' ? Number(value) : value;
-  const minimum = allowZero ? 0 : 15;
-  if (!Number.isInteger(parsed) || Number(parsed) < minimum || Number(parsed) > 480) {
+  if (!Number.isInteger(parsed) || Number(parsed) < 1 || Number(parsed) > 1_440) {
     throw badRequest('DURACAO_INVALIDA');
   }
   return Number(parsed);
+}
+
+function noAdditionalInterval(value: unknown): 0 {
+  if (value !== undefined && value !== null && value !== 0) {
+    throw badRequest('INTERVALO_INDISPONIVEL');
+  }
+  return 0;
 }
 
 function optionalBoolean(value: unknown): boolean | undefined {

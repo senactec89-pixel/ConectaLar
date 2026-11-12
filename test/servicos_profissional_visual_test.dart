@@ -54,7 +54,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(acao.hitTestable(), findsOneWidget);
         expect(find.text('A partir de R\$ 1200'), findsOneWidget);
-        expect(find.text('120 min + 30 min de intervalo'), findsOneWidget);
+        expect(find.text('120 min de atendimento'), findsOneWidget);
         expect(find.text('Ativa'), findsOneWidget);
         await tester.tap(acao);
         await tester.pumpAndSettle();

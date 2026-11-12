@@ -576,7 +576,7 @@ void main() {
       );
       expect(ofertaEnviada, isNull);
       await tester.enterText(find.byType(TextFormField).at(1), '125,50');
-      await tester.tap(find.text('60 minutos'));
+      await tester.tap(find.text('120 minutos'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('90 minutos').last);
       await tester.pumpAndSettle();

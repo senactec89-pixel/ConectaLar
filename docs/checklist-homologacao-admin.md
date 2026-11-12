@@ -2,6 +2,8 @@
 
 Use uma conta administrativa de teste e banco descartável. Execute decisões apenas sobre registros fictícios; confirme o ator, o alvo e a auditoria de cada operação.
 
+**Contexto:** siga `homologacao-beta-local.md`. A liberação de perfis para a beta é feita somente pela lista de IDs no processo local de teste; a ação administrativa `aprovar` continua bloqueada enquanto faltarem as políticas de habilitação. Não marque caixas por teste automatizado.
+
 ## Acesso e painel
 
 - [ ] Convidar um administrador de teste e confirmar que nenhum token de convite aparece na resposta da API.
@@ -40,6 +42,9 @@ Use uma conta administrativa de teste e banco descartável. Execute decisões ap
 - [ ] Conferir avaliações pendentes e moderar uma avaliação de teste.
 - [ ] Conferir resultado público e trilha de auditoria.
 - [ ] Consultar auditoria e validar autor, tipo de ação, entidade alvo e horário.
+- [ ] Confirmar resumo legível antes de abrir os detalhes técnicos e fechar a expansão novamente.
+- [ ] Verificar após atualização da tela que decisão, aceite/recusa, expiração e cancelamento de pedidos de teste mantêm seus históricos nos módulos apropriados.
+- [ ] Confirmar que justificativas, relatos, CPF, telefone, e-mail, documento e tokens fictícios não aparecem no detalhe da auditoria, inclusive em registros antigos.
 - [ ] Conferir respostas para estados vazios, erro/retry, salvamento e falha de rede.
 
 ## Resultado

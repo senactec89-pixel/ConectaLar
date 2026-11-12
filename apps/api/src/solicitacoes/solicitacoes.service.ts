@@ -157,7 +157,7 @@ export class SolicitacoesService {
       input.dataServico,
       input.horarioServico,
       duracaoMinutos,
-      oferta?.intervaloMinutos ?? 30,
+      0,
     );
 
     const solicitacao = this.solicitacoes.create({
@@ -174,7 +174,7 @@ export class SolicitacoesService {
       dataServico: input.dataServico,
       horarioServico: input.horarioServico,
       duracaoMinutos,
-      intervaloMinutos: oferta?.intervaloMinutos ?? 30,
+      intervaloMinutos: 0,
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       precoFinal: null,
       status: SolicitacaoStatus.AguardandoResposta,

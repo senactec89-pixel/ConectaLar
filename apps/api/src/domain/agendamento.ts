@@ -32,6 +32,7 @@ export interface PeriodoAtendimento {
   readonly dataServico: string;
   readonly horarioServico: string;
   readonly duracaoMinutos: number;
+  readonly intervaloMinutos?: number;
 }
 
 export function parseDuracao(value: unknown): number {
@@ -79,7 +80,8 @@ export function intervalosLivres(
     .map((item) => [minutosHorario(item.horaInicio), minutosHorario(item.horaFim)] as const);
   for (const ocupado of ocupados) {
     const inicio = (inicioCivil(ocupado) - meiaNoite) / 60_000;
-    const fim = inicio + ocupado.duracaoMinutos;
+    // Pedidos antigos podem ter um intervalo gravado. Novos pedidos usam zero.
+    const fim = inicio + ocupado.duracaoMinutos + (ocupado.intervaloMinutos ?? 0);
     livres = livres.flatMap(([a, b]) => {
       if (inicio >= b || fim <= a) return [[a, b] as const];
       return [

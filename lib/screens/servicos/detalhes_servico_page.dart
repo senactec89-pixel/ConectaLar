@@ -1202,7 +1202,7 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                   icon: Icons.event_outlined,
                   label: 'Data e horário',
                   value:
-                      '$dataFormatada às ${solicitacao.horarioServico}\n${solicitacao.duracaoMinutos} min de serviço + ${solicitacao.intervaloMinutos} min de intervalo',
+                      '$dataFormatada às ${solicitacao.horarioServico}\n${solicitacao.duracaoMinutos} min de serviço${solicitacao.intervaloMinutos > 0 ? ' + ${solicitacao.intervaloMinutos} min de intervalo histórico' : ''}',
                 ),
                 _DetalheLinha(
                   icon: Icons.schedule_outlined,

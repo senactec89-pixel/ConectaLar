@@ -3420,7 +3420,9 @@ components:
       required: [estado, podeAtender, documentoAnalisado, etapas, mensagem, revisaoSolicitadaEm]
       properties:
         estado: { type: string, enum: [pendente, em_analise, suspenso] }
-        podeAtender: { type: boolean, const: false }
+        podeAtender:
+          type: boolean
+          description: Verdadeiro apenas na beta local isolada para perfil autorizado; em produção permanece falso até concluir as políticas pendentes.
         documentoAnalisado: { type: boolean }
         mensagem: { type: string }
         revisaoSolicitadaEm: { type: [string, 'null'], format: date-time }
@@ -4251,8 +4253,8 @@ components:
           type: string
         duracaoMinutos:
           type: integer
-          minimum: 15
-          maximum: 480
+          minimum: 1
+          maximum: 1440
         intervaloMinutos:
           type: integer
           minimum: 0
@@ -4689,7 +4691,7 @@ components:
           minimum: 0
         ativo:
           type: boolean
-        duracaoMinutos: {type: integer, minimum: 15, maximum: 480}
+        duracaoMinutos: {type: integer, minimum: 1, maximum: 1440}
         intervaloMinutos: {type: integer, minimum: 0, maximum: 480}
         inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
         naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
@@ -4697,7 +4699,7 @@ components:
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
-      required: [nome, duracaoMinutos]
+      required: [nome]
       properties:
         id:
           type: [integer, 'null']
@@ -4722,14 +4724,13 @@ components:
           description: Whether the offer is publicly available. Defaults to true for a new offer.
         duracaoMinutos:
           type: integer
-          minimum: 15
-          maximum: 480
-          default: 60
+          minimum: 1
+          maximum: 1440
+          description: Omitir preserva a duração da oferta existente; novas ofertas usam 120 minutos.
         intervaloMinutos:
           type: integer
-          minimum: 0
-          maximum: 480
-          default: 30
+          const: 0
+          default: 0
     ReagendamentoRequest:
       type: object
       additionalProperties: false

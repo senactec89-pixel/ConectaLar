@@ -2,6 +2,8 @@
 
 Use esta lista para validar a demo com API e MySQL locais. Marque somente quando o fluxo for testado no ambiente integrado atual.
 
+**Registro histórico:** as caixas marcadas abaixo referem-se apenas ao teste de 10/10/2026 no commit `4e303d0`. Não demonstram que pedidos estão liberados no código atual. Para a beta local atual, use `homologacao-beta-local.md` e os checklists por papel; o processo normal deve bloquear pedidos e aceites.
+
 ## Resultado em 2026-10-10
 
 Validacao automatizada via HTTP contra API local `127.0.0.1:3016` e MySQL `conectalar_dev`:

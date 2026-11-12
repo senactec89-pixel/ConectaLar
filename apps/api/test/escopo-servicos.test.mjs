@@ -44,6 +44,25 @@ test('valida e atualiza cada lista do escopo', async () => {
   }
 });
 
+test('duracao aceita limites de P06 e recusa intervalo adicional', async () => {
+  const { service, oferta } = fixture();
+  for (const duracaoMinutos of [1, 1440]) {
+    await service.salvarMeusServicos({ id: 3 }, {
+      servicos: [{ id: 1, nome: 'Limpeza', duracaoMinutos, intervaloMinutos: 0 }],
+    });
+    assert.equal(oferta.duracaoMinutos, duracaoMinutos);
+    assert.equal(oferta.intervaloMinutos, 0);
+  }
+  for (const duracaoMinutos of [0, 1441, 1.5]) {
+    await assert.rejects(service.salvarMeusServicos({ id: 3 }, {
+      servicos: [{ id: 1, nome: 'Limpeza', duracaoMinutos }],
+    }), (error) => error?.getResponse?.().code === 'DURACAO_INVALIDA');
+  }
+  await assert.rejects(service.salvarMeusServicos({ id: 3 }, {
+    servicos: [{ id: 1, nome: 'Limpeza', duracaoMinutos: 60, intervaloMinutos: 30 }],
+  }), (error) => error?.getResponse?.().code === 'INTERVALO_INDISPONIVEL');
+});
+
 test('snapshot não muda após alteração posterior da oferta', () => {
   const oferta = { inclui: ['Pisos'], naoInclui: null, opcionais: ['Janelas'] };
   const snapshot = snapshotEscopo(oferta);

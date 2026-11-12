@@ -1095,7 +1095,8 @@ class _AdminPageState extends State<AdminPage> {
         final alvo = _rotuloAlvoAuditoria(item['alvoTipo']?.toString());
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
-          child: ListTile(
+          child: ExpansionTile(
+            key: Key('auditoria-detalhes-${item['id']}'),
             leading: const Icon(Icons.history, color: AppColors.verde),
             title: Text(_rotuloAcaoAuditoria(item['acao']?.toString())),
             subtitle: Padding(
@@ -1107,12 +1108,21 @@ class _AdminPageState extends State<AdminPage> {
                     'Por ${ator['nome'] ?? 'Administrador'} • ${_rotuloTipoConta(ator['tipo'])}',
                   ),
                   Text('Alvo: $alvo #${item['alvoId'] ?? '—'}'),
-                  if (detalhe.isNotEmpty) Text(detalhe),
                   Text(_dataAuditoria(item['criadoEm'])),
                 ],
               ),
             ),
-            isThreeLine: true,
+            children: detalhe.isEmpty || detalhe == '{}'
+                ? const []
+                : [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SelectableText('Detalhes técnicos\n$detalhe'),
+                      ),
+                    ),
+                  ],
           ),
         );
       case AdminModulo.painel:

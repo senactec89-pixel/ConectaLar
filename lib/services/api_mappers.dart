@@ -96,10 +96,10 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
             : intValue(s['categoria']?['id']),
         precoInicial: doubleValueOrNull(s['precoInicial']),
         duracaoMinutos: s['duracaoMinutos'] == null
-            ? 60
+            ? 120
             : intValue(s['duracaoMinutos']),
         intervaloMinutos: s['intervaloMinutos'] == null
-            ? 30
+            ? 0
             : intValue(s['intervaloMinutos']),
         inclui: (s['inclui'] as List? ?? const []).whereType<String>().toList(),
         naoInclui: (s['naoInclui'] as List? ?? const [])
@@ -149,10 +149,10 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     dataServico: dateValue(json['dataServico']),
     horarioServico: stringValue(json['horarioServico']),
     duracaoMinutos: json['duracaoMinutos'] == null
-        ? 60
+        ? 120
         : intValue(json['duracaoMinutos']),
     intervaloMinutos: json['intervaloMinutos'] == null
-        ? 30
+        ? 0
         : intValue(json['intervaloMinutos']),
     reagendamento: json['reagendamento'] is Map<String, dynamic>
         ? json['reagendamento'] as Map<String, dynamic>
