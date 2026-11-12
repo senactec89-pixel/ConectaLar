@@ -10,10 +10,12 @@ import {
 } from 'typeorm';
 import { CategoriaEntity } from './categoria.entity.js';
 import { ProfissionalPerfilEntity } from './profissional-perfil.entity.js';
+import { ServicoCatalogoEntity } from './servico-catalogo.entity.js';
 
 @Entity({ name: 'profissional_servicos' })
 @Index('idx_profissional_servicos_profissional', ['profissionalId'])
 @Index('idx_profissional_servicos_categoria', ['categoriaId'])
+@Index('uq_oferta_profissional_catalogo', ['profissionalId', 'servicoCatalogoId'], { unique: true })
 @Index('idx_prof_servicos_categoria_ativo_profissional', [
   'categoriaId',
   'ativo',
@@ -32,6 +34,13 @@ export class ProfissionalServicoEntity {
   @ManyToOne(() => CategoriaEntity, { nullable: true })
   @JoinColumn({ name: 'categoria_id' })
   categoria!: CategoriaEntity | null;
+
+  @Column({ name: 'servico_catalogo_id', type: 'int', unsigned: true, nullable: true })
+  servicoCatalogoId!: number | null;
+
+  @ManyToOne(() => ServicoCatalogoEntity, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'servico_catalogo_id' })
+  servicoCatalogo!: ServicoCatalogoEntity | null;
 
   @ManyToOne(() => ProfissionalPerfilEntity, (perfil) => perfil.servicos, {
     nullable: false,

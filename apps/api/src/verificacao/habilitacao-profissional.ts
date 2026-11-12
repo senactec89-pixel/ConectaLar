@@ -1,7 +1,11 @@
 import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import type { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 
-export type EstadoHabilitacao = 'pendente' | 'em_analise' | 'suspenso';
+export type EstadoHabilitacao = 'pendente' | 'em_analise' | 'suspenso' | 'teste_local_aprovado';
+
+export function habilitacaoManualLocalAtiva(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.HABILITACAO_MANUAL_LOCAL === 'true';
+}
 
 // A future adapter must authenticate server-to-server results and bind them to
 // the account. The mobile client cannot submit a successful verification.
@@ -44,22 +48,29 @@ export function habilitacaoProfissional(
   identidadeStatus?: string | null,
   telefoneStatus?: string | null,
 ) {
-  const estado = perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
+  const estado = perfil?.habilitacaoEstado === 'teste_local_aprovado' && habilitacaoManualLocalAtiva()
+    ? 'teste_local_aprovado'
+    : perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
+  const testeLocalElegivel = habilitacaoManualLocalAtiva() && perfil !== null;
+  const podeAtender = estado === 'teste_local_aprovado' && habilitacaoManualLocalAtiva() && perfil?.ativo !== false;
   return {
     estado,
-    // Identity checks alone cannot bypass the pending phone/background policy.
-    podeAtender: false,
+    podeAtender,
+    testeLocalElegivel,
     documentoAnalisado: perfil?.verificado === true,
     etapas: [
       { codigo: 'perfil', status: perfil ? 'cadastrado' : 'pendente' },
       { codigo: 'email', status: perfil?.usuario?.emailVerificado === true ? 'confirmado' : 'pendente' },
+      { codigo: 'documentos', status: perfil?.verificado === true ? 'analisado' : 'pendente' },
       { codigo: 'telefone', status: telefoneStatus ?? 'aguardando_integracao' },
       { codigo: 'identidade', status: identidadeStatus ?? 'aguardando_integracao' },
       { codigo: 'antecedentes', status: 'aguardando_politica' },
       { codigo: 'aprovacao', status: estado },
     ],
-    mensagem: estado === 'suspenso'
+    mensagem: podeAtender
+      ? 'Habilitacao temporaria no ambiente local. Nao libera atendimento real.'
+      : estado === 'suspenso'
       ? 'Habilitacao suspensa. Solicite revisao pela plataforma.'
       : 'Atendimentos bloqueados ate a conclusao das verificacoes de seguranca. Documento aprovado nao libera atendimentos.',
     revisaoSolicitadaEm: perfil?.habilitacaoRevisaoEm?.toISOString() ?? null,

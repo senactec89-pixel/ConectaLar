@@ -187,8 +187,9 @@ test('e-mail outbox encrypts verification codes at rest and detects tampering', 
     const encrypted = criptografarCodigoOutbox('482901');
     assert.equal(encrypted.includes('482901'), false);
     assert.equal(descriptografarCodigoOutbox(encrypted), '482901');
+    const replacement = encrypted.endsWith('x') ? 'y' : 'x';
     assert.throws(() =>
-      descriptografarCodigoOutbox(`${encrypted.slice(0, -1)}x`),
+      descriptografarCodigoOutbox(`${encrypted.slice(0, -1)}${replacement}`),
     );
   } finally {
     if (previous === undefined) delete process.env.EMAIL_OUTBOX_ENCRYPTION_KEY;
@@ -204,7 +205,7 @@ test('registration commits user, current terms, verification and outbox together
     senha: 'SenhaSegura123!',
     tipo: 'cliente',
     aceitouTermos: true,
-    versaoTermos: '2026-10-24.v5',
+    versaoTermos: '2026-10-26.v6',
   });
 
   assert.equal(fixture.transacoes, 1);
@@ -232,7 +233,7 @@ test('registration does not attempt delivery when its transaction fails', async 
       senha: 'SenhaSegura123!',
       tipo: 'cliente',
       aceitouTermos: true,
-      versaoTermos: '2026-10-24.v5',
+      versaoTermos: '2026-10-26.v6',
     }),
     /simulated transaction failure/,
   );

@@ -62,6 +62,7 @@ class FrontendPreviewClient extends http.BaseClient {
           for (var i = 0; i < p.servicos.length; i++)
             {
               'id': p.id * 10 + i,
+              'servicoCatalogoId': p.id * 10 + i,
               'nome': p.servicos[i],
               'ativo': true,
               'categoriaId': p.categoriaIds.first,
@@ -82,8 +83,6 @@ class FrontendPreviewClient extends http.BaseClient {
   }
 
   List<Map<String, dynamic>> _buscarProfissionais(Map<String, String> query) {
-    // A prévia considera os dois perfis na área de cobertura do endereço demo.
-    if (query.containsKey('raioKm')) return profissionais;
     String normalizar(Object? value) => (value?.toString() ?? '')
         .toLowerCase()
         .replaceAll(RegExp('[áàãâä]'), 'a')
@@ -97,6 +96,7 @@ class FrontendPreviewClient extends http.BaseClient {
     final bairro = normalizar(query['bairro']);
     final cidade = normalizar(query['cidade']);
     final categoriaId = int.tryParse(query['categoriaId'] ?? '');
+    final servicoCatalogoId = int.tryParse(query['servicoCatalogoId'] ?? '');
     return profissionais.where((profissional) {
       final servicos = (profissional['servicos'] as List).whereType<Map>();
       return (bairro.isEmpty ||
@@ -106,6 +106,10 @@ class FrontendPreviewClient extends http.BaseClient {
           (categoriaId == null ||
               servicos.any(
                 (servico) => servico['categoriaId'] == categoriaId,
+              )) &&
+          (servicoCatalogoId == null ||
+              servicos.any(
+                (servico) => servico['servicoCatalogoId'] == servicoCatalogoId,
               )) &&
           (termo.isEmpty ||
               normalizar(profissional['nome']).contains(termo) ||
@@ -121,8 +125,8 @@ class FrontendPreviewClient extends http.BaseClient {
     'apelido': 'Endereço fictício',
     'logradouro': 'Rua de exemplo',
     'numero': '100',
-    'bairro': 'Centro',
-    'cidade': 'Cidade de exemplo',
+    'bairro': '',
+    'cidade': 'Belo Horizonte',
     'uf': 'MG',
     'cep': '00000-000',
     'principal': true,
@@ -205,6 +209,20 @@ class FrontendPreviewClient extends http.BaseClient {
       };
     } else if (request.method == 'POST' && path == '/auth/logout') {
       data = {'ok': true};
+    } else if (request.method == 'POST' &&
+        path == '/profissionais/busca' &&
+        request is http.Request) {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final query = body.map((key, value) => MapEntry(key, '$value'));
+      final encontrados = _buscarProfissionais(query);
+      data = {
+        'profissionais': encontrados,
+        'paginacao': {
+          'pagina': 1,
+          'total': encontrados.length,
+          'temMais': false,
+        },
+      };
     } else if (request.method != 'GET') {
       status = 409;
       data = {
@@ -232,6 +250,34 @@ class FrontendPreviewClient extends http.BaseClient {
   }
 
   Object? _consulta(String path, Map<String, String> query) {
+    if (RegExp(r'^/solicitacoes/\d+/opcoes$').hasMatch(path)) {
+      return {'opcoes': []};
+    }
+    final catalogoMatch = RegExp(
+      r'^/(?:admin/catalogo/)?categorias/(\d+)/servicos$',
+    ).firstMatch(path);
+    if (catalogoMatch != null) {
+      final categoriaId = int.parse(catalogoMatch.group(1)!);
+      return {
+        'servicos': [
+          for (final profissional in profissionais)
+            for (final servico
+                in (profissional['servicos'] as List)
+                    .whereType<Map<String, dynamic>>())
+              if (servico['categoriaId'] == categoriaId)
+                {
+                  'id': servico['servicoCatalogoId'],
+                  'categoriaId': categoriaId,
+                  'nome': servico['nome'],
+                  'ativo': true,
+                  'descricao': null,
+                  'inclusoes': null,
+                  'exclusoes': null,
+                },
+        ],
+        'paginacao': {'pagina': 1, 'temMais': false},
+      };
+    }
     if (RegExp(r'^/profissionais/\d+/horarios$').hasMatch(path)) {
       return {
         'data': query['data'],

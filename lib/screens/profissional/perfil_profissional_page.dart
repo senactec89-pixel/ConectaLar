@@ -549,7 +549,7 @@ class _CabecalhoPerfil extends StatelessWidget {
                     if (profissional.verificado)
                       const _ResumoChip(
                         icon: Icons.verified_rounded,
-                        text: 'Documentos verificados',
+                        text: 'Análise documental aprovada',
                       ),
                   ],
                 ),

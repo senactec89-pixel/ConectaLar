@@ -60,6 +60,11 @@ class _BuscaPageState extends State<BuscaPage> {
   int _raioKm = 25;
 
   List<Categoria> _categorias = const [];
+  List<Map<String, dynamic>> _servicosCatalogo = const [];
+  int? _servicoCatalogoId;
+  bool _carregandoCatalogo = false;
+  bool _erroCatalogo = false;
+  int _versaoCatalogo = 0;
   List<Profissional> _profissionais = const [];
   final List<Profissional> _comparacao = [];
 
@@ -75,6 +80,7 @@ class _BuscaPageState extends State<BuscaPage> {
     _bairroController.text = _memoria.bairro;
     _cidadeController.text = _memoria.cidade;
     _categoriaSelecionada = _memoria.categoria;
+    _servicoCatalogoId = _memoria.servicoCatalogoId;
     if (_memoria.latitude != null && _memoria.longitude != null) {
       _posicao = DevicePosition(
         latitude: _memoria.latitude!,
@@ -105,6 +111,7 @@ class _BuscaPageState extends State<BuscaPage> {
       _cidadeController.clear();
       _memoria.rolagem = 0;
       _categoriaSelecionada = arguments;
+      _servicoCatalogoId = null;
     } else if (arguments is CampoBuscaInicial) {
       if (arguments == CampoBuscaInicial.bairro) {
         _memoria.localizacaoExpandida = true;
@@ -119,6 +126,9 @@ class _BuscaPageState extends State<BuscaPage> {
       });
     }
     _argumentosLidos = true;
+    if (_categoriaSelecionada != null && !AppServices.instance.emDemonstracao) {
+      _carregarServicosCategoria(_categoriaSelecionada!);
+    }
     if (_temFiltros) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _agendarBuscaRemota(imediata: true);
@@ -134,6 +144,7 @@ class _BuscaPageState extends State<BuscaPage> {
         ..bairro = _bairroController.text
         ..cidade = _cidadeController.text
         ..categoria = _categoriaSelecionada
+        ..servicoCatalogoId = _servicoCatalogoId
         ..latitude = _posicao?.latitude
         ..longitude = _posicao?.longitude
         ..precisaoMetros = _posicao?.accuracyMeters
@@ -243,6 +254,7 @@ class _BuscaPageState extends State<BuscaPage> {
           ? await AppServices.instance.profissionais.buscar(
               termo: _termoController.text.trim(),
               categoriaId: _categoriaSelecionada?.id.toString(),
+              servicoCatalogoId: _servicoCatalogoId,
               bairro: _bairroController.text.trim(),
               cidade: _cidadeController.text.trim(),
               pagina: pagina,
@@ -254,6 +266,7 @@ class _BuscaPageState extends State<BuscaPage> {
               raioKm: _raioKm,
               termo: _termoController.text.trim(),
               categoriaId: _categoriaSelecionada?.id.toString(),
+              servicoCatalogoId: _servicoCatalogoId,
               pagina: pagina,
               limite: _limitePaginaBusca,
             );
@@ -325,8 +338,39 @@ class _BuscaPageState extends State<BuscaPage> {
       _categoriaSelecionada = _categoriaSelecionada?.id == categoria.id
           ? null
           : categoria;
+      _servicoCatalogoId = null;
+      _servicosCatalogo = const [];
+      _erroCatalogo = false;
+      _carregandoCatalogo = false;
+      _versaoCatalogo++;
     });
+    final selecionada = _categoriaSelecionada;
+    if (selecionada != null && !AppServices.instance.emDemonstracao) {
+      _carregarServicosCategoria(selecionada);
+    }
     _agendarBuscaRemota();
+  }
+
+  Future<void> _carregarServicosCategoria(Categoria categoria) async {
+    final versao = ++_versaoCatalogo;
+    setState(() { _carregandoCatalogo = true; _erroCatalogo = false; });
+    try {
+      final itens = await AppServices.instance.categorias.servicos(categoria.id);
+      if (!mounted || versao != _versaoCatalogo) return;
+      final selecionadoIndisponivel = _servicoCatalogoId != null &&
+          !itens.any((item) => item['id'] == _servicoCatalogoId);
+      setState(() {
+        _servicosCatalogo = itens;
+        _carregandoCatalogo = false;
+        if (selecionadoIndisponivel) {
+          _servicoCatalogoId = null;
+        }
+      });
+      if (selecionadoIndisponivel) _agendarBuscaRemota(imediata: true);
+    } catch (_) {
+      if (!mounted || versao != _versaoCatalogo) return;
+      setState(() { _carregandoCatalogo = false; _erroCatalogo = true; });
+    }
   }
 
   List<String> _servicosDaCategoria(List<Profissional> profissionais) {
@@ -370,6 +414,11 @@ class _BuscaPageState extends State<BuscaPage> {
       _bairroController.clear();
       _cidadeController.clear();
       _categoriaSelecionada = null;
+      _servicoCatalogoId = null;
+      _servicosCatalogo = const [];
+      _carregandoCatalogo = false;
+      _erroCatalogo = false;
+      _versaoCatalogo++;
       _posicao = null;
       _erroLocalizacao = null;
       _falhaLocalizacao = null;
@@ -618,7 +667,23 @@ class _BuscaPageState extends State<BuscaPage> {
                       const LinearProgressIndicator(),
                       const SizedBox(height: AppSpace.sm),
                     ],
-                    if (servicosDaCategoria.isNotEmpty) ...[
+                    if (_categoriaSelecionada != null && !AppServices.instance.emDemonstracao) ...[
+                      _CatalogoDaCategoria(
+                        servicos: _servicosCatalogo,
+                        selecionado: _servicoCatalogoId,
+                        carregando: _carregandoCatalogo,
+                        erro: _erroCatalogo,
+                        onRetry: () => _carregarServicosCategoria(_categoriaSelecionada!),
+                        onSelecionar: (id) {
+                          setState(() {
+                            _servicoCatalogoId = _servicoCatalogoId == id ? null : id;
+                            _termoController.clear();
+                          });
+                          _agendarBuscaRemota(imediata: true);
+                        },
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                    ] else if (servicosDaCategoria.isNotEmpty) ...[
                       _ServicosDaCategoria(
                         servicos: servicosDaCategoria,
                         onSelecionar: _buscarServicoDaCategoria,
@@ -1189,6 +1254,38 @@ class _GpsAtivo extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CatalogoDaCategoria extends StatelessWidget {
+  const _CatalogoDaCategoria({required this.servicos, required this.selecionado,
+    required this.carregando, required this.erro, required this.onRetry, required this.onSelecionar});
+  final List<Map<String, dynamic>> servicos;
+  final int? selecionado;
+  final bool carregando;
+  final bool erro;
+  final VoidCallback onRetry;
+  final ValueChanged<int> onSelecionar;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text('Serviços nesta categoria', style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: AppSpace.sm),
+      if (carregando) const LinearProgressIndicator()
+      else if (erro) SectionErrorView(message: 'Não foi possível carregar os serviços.', onRetry: onRetry)
+      else if (servicos.isEmpty) const Text('Nenhum serviço disponível nesta categoria.')
+      else Wrap(spacing: AppSpace.sm, runSpacing: AppSpace.xs, children: [
+        for (final servico in servicos)
+          ChoiceChip(
+            key: ValueKey('busca-catalogo-${servico['id']}'),
+            label: Text('${servico['nome']}'),
+            selected: selecionado == servico['id'],
+            onSelected: (_) => onSelecionar(int.parse('${servico['id']}')),
+          ),
+      ]),
+    ],
+  );
 }
 
 class _ServicosDaCategoria extends StatelessWidget {

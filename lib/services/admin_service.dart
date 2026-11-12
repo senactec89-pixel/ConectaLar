@@ -18,6 +18,12 @@ class AdminService {
     },
   );
 
+  Future<Map<String, dynamic>> dossieProfissional(int id, {int pagina = 1}) =>
+      _api.get(
+        'admin/profissionais/$id/dossie',
+        queryParameters: {'pagina': '$pagina'},
+      );
+
   Future<Map<String, dynamic>> analisarHabilitacao(
     int id,
     String acao,
@@ -25,6 +31,15 @@ class AdminService {
   ) => _api.patch(
     'admin/profissionais/$id/habilitacao',
     body: {'acao': acao, 'motivo': motivo},
+  );
+
+  Future<Map<String, dynamic>> confirmarTelefoneManual({
+    required int profissionalId,
+    required String codigo,
+    required String telefoneRemetente,
+  }) => _api.post(
+    'admin/profissionais/$profissionalId/habilitacao/telefone/confirmacao-manual',
+    body: {'codigo': codigo, 'telefoneRemetente': telefoneRemetente},
   );
 
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');
@@ -217,4 +232,48 @@ class AdminService {
           'categorias/$id',
           body: {'nome': nome, 'icone': icone, 'ativo': ativo},
         );
+
+  Future<Map<String, dynamic>> servicosCategoria(
+    int categoriaId, {
+    int pagina = 1,
+  }) => _api.get(
+    'admin/catalogo/categorias/$categoriaId/servicos',
+    queryParameters: {'pagina': '$pagina', 'limite': '20'},
+  );
+
+  Future<Map<String, dynamic>> salvarServicoCatalogo(
+    int categoriaId,
+    Map<String, dynamic> dados, {
+    int? id,
+  }) => id == null
+      ? _api.post(
+          'admin/catalogo/categorias/$categoriaId/servicos',
+          body: dados,
+        )
+      : _api.patch(
+          'admin/catalogo/categorias/$categoriaId/servicos/$id',
+          body: dados,
+        );
+
+  Future<Map<String, dynamic>> opcoesServico(
+    int categoriaId,
+    int servicoId, {
+    int pagina = 1,
+  }) => _api.get(
+    'admin/catalogo/categorias/$categoriaId/servicos/$servicoId/opcoes',
+    queryParameters: {'pagina': '$pagina', 'limite': '20'},
+  );
+
+  Future<Map<String, dynamic>> salvarOpcaoServico(
+    int categoriaId,
+    int servicoId,
+    Map<String, dynamic> dados, {
+    int? id,
+  }) {
+    final caminho =
+        'admin/catalogo/categorias/$categoriaId/servicos/$servicoId/opcoes';
+    return id == null
+        ? _api.post(caminho, body: dados)
+        : _api.patch('$caminho/$id', body: dados);
+  }
 }

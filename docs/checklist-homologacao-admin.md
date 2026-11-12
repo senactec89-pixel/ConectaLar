@@ -2,6 +2,8 @@
 
 Use uma conta administrativa de teste e banco descartável. Execute decisões apenas sobre registros fictícios; confirme o ator, o alvo e a auditoria de cada operação.
 
+**Política atual:** revisão documental, confirmação de telefone e ações administrativas de análise não habilitam contratação por si só. A contratação segue bloqueada até a política de habilitação completa ser formalmente definida e implementada. Não use moderação documental, SQL ou ação administrativa para contornar esse bloqueio.
+
 ## Acesso e painel
 
 - [ ] Convidar um administrador de teste e confirmar que nenhum token de convite aparece na resposta da API.
@@ -31,6 +33,8 @@ Use uma conta administrativa de teste e banco descartável. Execute decisões ap
 - [ ] Aprovar um documento de teste.
 - [ ] Rejeitar outro com justificativa.
 - [ ] Conferir status na área profissional e selo no perfil público.
+- [ ] Confirmar que aprovar documento (inclusive identidade) atualiza apenas o estado documental/selo e não libera solicitações.
+- [ ] Confirmar que a interface não apresenta profissional pendente como apto a receber pedidos.
 - [ ] Conferir se a auditoria registra ator, ação, alvo e data sem incluir conteúdo sensível.
 
 ## Denúncias, avaliações e auditoria

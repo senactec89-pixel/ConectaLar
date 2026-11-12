@@ -2,6 +2,8 @@
 
 Use aparelho Android real e ambiente de teste com API, MySQL e migrations atuais. Para empresa, use conta separada. Não use documentos ou dados pessoais reais.
 
+**Política atual:** profissionais e empresas permanecem indisponíveis para novas solicitações. Cadastro, perfil, ofertas, disponibilidade e envio documental podem ser homologados, mas não se deve esperar receber, aceitar ou recusar novos pedidos. Documento aprovado ou telefone confirmado isoladamente não libera atendimento. Não altere banco, flags ou fixtures para contornar o bloqueio.
+
 ## Cadastro e perfil
 
 - [ ] Ler e aceitar termos; cadastrar profissional autônomo.
@@ -9,26 +11,23 @@ Use aparelho Android real e ambiente de teste com API, MySQL e migrations atuais
 - [ ] Testar validação de senha forte.
 - [ ] Entrar, sair e entrar novamente.
 - [ ] Preencher/editar perfil, região, categoria e ofertas.
-- [ ] Salvar oferta com preço e oferta “a combinar”; confirmar que a solicitação preserva a oferta escolhida.
+- [ ] Salvar oferta com preço e oferta “a combinar”; confirmar persistência sem criar contratação.
 - [ ] Confirmar que editar uma oferta existente não cria duplicata.
 
 ## Disponibilidade e agenda
 
 - [ ] Criar, editar e remover horários semanais.
-- [ ] Conferir a agenda mensal e os pedidos agendados.
+- [ ] Conferir a agenda mensal e os bloqueios/disponibilidades configurados; pedidos existentes só podem ser registros legados de teste.
 - [ ] Testar horário fora da disponibilidade.
-- [ ] Tentar aceitar solicitações concorrentes para a mesma data/horário; confirmar que apenas uma operação conflitante é aceita.
+- [ ] Não aceitar pedidos novos: a API deve responder HTTP `409` sem mudança de estado; o log seguro deve registrar `PROFISSIONAL_HABILITACAO_PENDENTE`.
 - [ ] Registrar como o sistema se comporta em horários sobrepostos com durações diferentes; a regra final depende de decisão de produto.
 
 ## Pedidos, endereço e chat
 
-- [ ] Receber solicitação de cliente e confirmar estado inicial.
-- [ ] Antes do aceite, confirmar que o endereço completo está protegido.
-- [ ] Aceitar uma solicitação e conferir a liberação de endereço permitida.
-- [ ] Recusar outra solicitação e conferir estado/motivo visual.
-- [ ] Abrir chat, enviar e receber mensagens.
-- [ ] Concluir o fluxo com o cliente e confirmar histórico/avaliação.
-- [ ] Testar conversa de atendimento encerrado e registrar se a interface comunica que envio não está disponível.
+- [ ] Confirmar que não há ação para aceitar/recusar novos pedidos e que a indisponibilidade é explicada sem expor dados privados.
+- [ ] Tentar aceitar diretamente pela API um pedido pendente de fixture isolada, se disponível; confirmar bloqueio e ausência de mudança de estado.
+- [ ] Confirmar que a tentativa bloqueada não revela endereço completo nem cria acesso ao chat.
+- [ ] Chat, encerramento e histórico só podem ser testados em registros legados/fixtures isoladas; não simular habilitação nem criar pedido para alcançá-los.
 
 ## Documentos e avaliações
 

@@ -36,6 +36,32 @@ export class SolicitacoesController {
     return this.solicitacoes.obter(user, parseId(id));
   }
 
+  @Get(':id/opcoes')
+  opcoes(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.solicitacoes.opcoes(user, parseId(id));
+  }
+
+  @Post(':id/negociacao')
+  iniciarNegociacao(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.solicitacoes.iniciarNegociacao(user, parseId(id));
+  }
+
+  @Get(':id/propostas-atendimento')
+  listarPropostas(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string, @Query() query: Record<string, unknown>) {
+    return this.solicitacoes.listarPropostasAtendimento(user, parseId(id), query);
+  }
+
+  @Post(':id/propostas-atendimento')
+  proporAtendimento(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string, @Body() body: unknown) {
+    return this.solicitacoes.proporAtendimento(user, parseId(id), body);
+  }
+
+  @Patch(':id/propostas-atendimento/:propostaId/responder')
+  responderProposta(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string,
+    @Param('propostaId') propostaId: string, @Body() body: unknown) {
+    return this.solicitacoes.responderPropostaAtendimento(user, parseId(id), parseId(propostaId), body);
+  }
+
   @Patch(':id/aceitar')
   aceitar(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
     return this.solicitacoes.aceitar(user, parseId(id));
@@ -44,6 +70,15 @@ export class SolicitacoesController {
   @Patch(':id/recusar')
   recusar(@UsuarioAtual() user: AuthenticatedUser, @Param('id') id: string) {
     return this.solicitacoes.recusar(user, parseId(id));
+  }
+
+  @Patch(':id/encerrar-negociacao')
+  encerrarNegociacao(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.solicitacoes.encerrarNegociacao(user, parseId(id), body);
   }
 
   @Post(':id/propostas')

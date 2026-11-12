@@ -13,7 +13,7 @@ const cliente = { id: 30, tipo: 'cliente' };
 const codigo = (value) => (error) => error.getResponse?.().code === value;
 function perfil() {
   return { id: 10, usuarioId: 20, ativo: true, verificado: true, habilitacaoEstado: 'pendente',
-    usuario: { id: 20, tipo: 'profissional', nome: 'Teste', ativo: true, emailVerificado: true } };
+    usuario: { id: 20, tipo: 'profissional', nome: 'Teste', email: 'teste@example.invalid', ativo: true, emailVerificado: true } };
 }
 
 test('sem fornecedores nao ha aprovacao, nem por selo legado, estado adulterado ou flag', () => {
@@ -30,6 +30,26 @@ test('sem fornecedores nao ha aprovacao, nem por selo legado, estado adulterado 
   assert.equal(habilitacaoProfissional(perfil(), 'confirmado', 'confirmado').podeAtender, false);
 });
 
+test('habilitacao manual de teste exige ambiente local, flag e estado aprovado', () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousFlag = process.env.HABILITACAO_MANUAL_LOCAL;
+  try {
+    process.env.NODE_ENV = 'development';
+    process.env.HABILITACAO_MANUAL_LOCAL = 'true';
+    const p = { ...perfil(), habilitacaoEstado: 'teste_local_aprovado' };
+    assert.equal(habilitacaoProfissional(p).testeLocalElegivel, true);
+    assert.equal(podeAtender(p), true);
+    assert.equal(podeAtender({ ...p, ativo: false }), false);
+    process.env.NODE_ENV = 'production';
+    assert.equal(podeAtender(p), false);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousFlag === undefined) delete process.env.HABILITACAO_MANUAL_LOCAL;
+    else process.env.HABILITACAO_MANUAL_LOCAL = previousFlag;
+  }
+});
+
 test('provider desabilitado nao simula identidade ou prova de vida', async () => {
   const provider = new IdentidadeNaoConfigurada();
   assert.equal(provider.disponivel, false);
@@ -40,8 +60,9 @@ test('provider desabilitado nao simula identidade ou prova de vida', async () =>
 function habilitacaoFixture(mfaAtivo = true) {
   const p = perfil();
   const audit = [];
+  const filtrosAplicados = [];
   const manager = {
-    async findOne() { return p; },
+    async findOne(entity) { return entity.name === 'UsuarioEntity' ? p.usuario : p; },
     getRepository(entity) {
       if (entity.name === 'AdminAuditoriaEntity') {
         return {
@@ -58,7 +79,7 @@ function habilitacaoFixture(mfaAtivo = true) {
     orderBy() { return this; },
     skip() { return this; },
     take() { return this; },
-    andWhere() { return this; },
+    andWhere(clause, parameters) { filtrosAplicados.push({ clause, parameters }); return this; },
     async getManyAndCount() { return [[p], 1]; },
   };
   const repo = { async findOne() { return p; },
@@ -68,7 +89,7 @@ function habilitacaoFixture(mfaAtivo = true) {
   };
   const usuarios = { async findOneBy({ id }) { return id === 99
     ? { ...admin, ativo: true, mfaAtivo } : p.usuario; } };
-  return { p, audit, service: new HabilitacaoService(repo, usuarios) };
+  return { p, audit, filtrosAplicados, service: new HabilitacaoService(repo, usuarios) };
 }
 
 test('identidade recusa resultado declarado pelo app, CPF e selfie sem integracao', async () => {
@@ -118,8 +139,36 @@ test('admin nao aprova sem dependencias nem aceita detalhes criminais arbitrario
   assert.equal(audit.length, 2);
 });
 
+test('admin pode liberar perfil local somente no modo local e a acao fica auditada', async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousFlag = process.env.HABILITACAO_MANUAL_LOCAL;
+  const { service, p, audit } = habilitacaoFixture();
+  try {
+    process.env.NODE_ENV = 'development';
+    process.env.HABILITACAO_MANUAL_LOCAL = 'true';
+    const result = await service.analisar(admin, 10, {
+      acao: 'aprovar_teste_local', motivo: 'teste_fluxo_local',
+    });
+    assert.equal(p.habilitacaoEstado, 'teste_local_aprovado');
+    assert.equal(result.habilitacao.podeAtender, true);
+    assert.equal(audit.length, 1);
+    assert.equal(JSON.parse(audit[0].detalhe).somenteTesteLocal, true);
+
+    p.usuario.email = 'profissional.real@example.com';
+    p.habilitacaoEstado = 'pendente';
+    assert.equal((await service.analisar(admin, 10, {
+      acao: 'aprovar_teste_local', motivo: 'teste_fluxo_local',
+    })).habilitacao.podeAtender, true);
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousFlag === undefined) delete process.env.HABILITACAO_MANUAL_LOCAL;
+    else process.env.HABILITACAO_MANUAL_LOCAL = previousFlag;
+  }
+});
+
 test('paginacao administrativa valida limites', async () => {
-  const { service } = habilitacaoFixture();
+  const { service, filtrosAplicados } = habilitacaoFixture();
   for (const pagina of ['0', '-1', '100000', '1 OR 1', ['1']]) {
     await assert.rejects(service.listar(admin, { pagina }), codigo('HABILITACAO_DADOS_INVALIDOS'));
   }
@@ -134,6 +183,42 @@ test('paginacao administrativa valida limites', async () => {
     temMais: false,
   });
   assert.equal(result.profissionais[0].nome, 'Teste');
+  await service.listar(admin, { pagina: '1', limite: '20', estado: 'teste_local_aprovado' });
+  assert.ok(filtrosAplicados.some(({ parameters }) => parameters?.estado === 'teste_local_aprovado'));
+});
+
+test('dossie administrativo exige MFA, pagina documentos e nao expoe referencias privadas', async () => {
+  const p = { ...perfil(), cidade: 'Belo Horizonte', uf: 'MG', servicos: [
+    { id: 4, nome: 'Reparo', ativo: true, categoria: { nome: 'Manutencao' } },
+  ] };
+  const documentos = { async findAndCount(options) {
+    assert.equal(options.where.profissionalId, 10);
+    assert.equal(options.skip, 20);
+    assert.equal(options.take, 20);
+    return [[{
+      id: 2, tipoDocumento: 'documento_identidade', status: 'pendente',
+      referenciaArquivo: 'privado/segredo', observacao: 'nao expor',
+      motivoRejeicao: null, criadoEm: new Date(), analisadoEm: null,
+    }], 21];
+  } };
+  const perfis = { async findOne() { return p; } };
+  const usuarios = { async findOneBy() { return { ...admin, ativo: true, mfaAtivo: true }; } };
+  const service = new HabilitacaoService(perfis, usuarios, undefined, undefined, undefined, documentos);
+  await assert.rejects(service.dossie(cliente, 10, {}), (error) => error.getStatus() === 403);
+  await assert.rejects(service.dossie(admin, 0, {}), (error) => error.getStatus() === 400);
+  await assert.rejects(service.dossie(admin, 10, { pagina: '0' }), (error) => error.getStatus() === 400);
+  const result = await service.dossie(admin, 10, { pagina: '2' });
+  assert.equal(result.profissional.habilitacao.podeAtender, false);
+  assert.equal(result.profissional.ofertas[0].nome, 'Reparo');
+  assert.equal(result.paginacao.total, 21);
+  assert.equal(result.paginacao.temMais, false);
+  assert.equal(result.documentos[0].status, 'pendente');
+  assert.equal(JSON.stringify(result).includes('privado/segredo'), false);
+  assert.equal(JSON.stringify(result).includes('nao expor'), false);
+  const semMfa = new HabilitacaoService(perfis,
+    { async findOneBy() { return { ...admin, ativo: true, mfaAtivo: false }; } },
+    undefined, undefined, undefined, documentos);
+  await assert.rejects(semMfa.dossie(admin, 10, {}), codigo('MFA_ADMIN_OBRIGATORIO'));
 });
 
 function solicitacoesFixture(status = 'aguardando_resposta') {
@@ -143,6 +228,7 @@ function solicitacoesFixture(status = 'aguardando_resposta') {
     cliente: { id: 30, nome: 'Cliente' }, status, categoria: null, enderecoId: 1,
     endereco: { id: 1, logradouro: 'Privado', numero: '123' }, criadoEm: now, atualizadoEm: now };
   const manager = { async findOne(type) { return type === ProfissionalPerfilEntity ? p : solicitacao; },
+    async query() { return [{ negociacao: 0, mensagem_profissional: 0 }]; },
     async save() { assert.fail('Nao pode gravar aceite sem habilitacao'); } };
   const repo = { async findOne() { return solicitacao; },
     manager: {
@@ -184,10 +270,41 @@ test('agenda nao contorna protecao de endereco de pedidos antigos', async () => 
   const { p, solicitacao } = solicitacoesFixture('aceita_agendada');
   const builder = new Proxy({}, { get: (_, key) => key === 'getMany' ? async () => [solicitacao] : () => builder });
   const service = new ProfissionaisService({}, {}, { async find() { return []; } },
-    { async findOne() { return p; } }, {}, { createQueryBuilder() { return builder; } }, {}, {});
+    { async findOne() { return p; } }, {}, { createQueryBuilder() { return builder; } }, {}, {},
+    { async find() { return [{ dataInicio: '2026-10-12', dataFim: '2026-10-14' }]; } });
   const resposta = await service.minhaAgenda(profissional, { mes: '2026-10' });
   assert.equal(resposta.atendimentos[0].enderecoAtendimento, null);
   assert.equal(resposta.atendimentos[0].enderecoCompleto, null);
+  assert.deepEqual(resposta.bloqueios, [
+    { dataInicio: '2026-10-12', dataFim: '2026-10-14' },
+  ]);
+});
+
+test('horarios publicos nao oferecem intervalos em uma data bloqueada', async () => {
+  const service = new ProfissionaisService(
+    {},
+    {},
+    {
+      async find() {
+        return [{ diaSemana: 0, horaInicio: '08:00', horaFim: '18:00', ativo: true }];
+      },
+    },
+    {},
+    { async findOne() { return { duracaoMinutos: 60, ativo: true }; } },
+    { async find() { return []; } },
+    {},
+    {},
+    { async findOne() { return { dataInicio: '2026-10-18', dataFim: '2026-10-18' }; } },
+  );
+  service.obter = async () => ({ profissional: { id: 10 } });
+
+  const resposta = await service.horariosLivres(10, {
+    data: '2026-10-18',
+    servicoId: '5',
+  });
+
+  assert.equal(resposta.bloqueado, true);
+  assert.deepEqual(resposta.intervalos, []);
 });
 
 test('upload nao pode ser usado para coletar antecedentes ou biometria sem politica', async () => {

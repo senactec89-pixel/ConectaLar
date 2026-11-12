@@ -4,7 +4,35 @@
 
 **Atualizado em:** 02/11/2026.
 
-**Base de produto:** [diretrizes da fase 1](proposta-politica-habilitacao-profissional.md). Comparar com `handoff-habilitacao-profissional.md` quando o arquivo estiver disponível neste checkout.
+## Atualizacao de politica — 05/11/2026
+
+Esta nota acompanha a atualizacao posterior da [politica de habilitacao](proposta-politica-habilitacao-profissional.md)
+e do [plano de privacidade](plano-lgpd-habilitacao-profissional.md). Onde esta
+proposta de 02/11 divergir deles, prevalece a direcao mais recente abaixo. Isto
+nao aprova o contrato definitivo nem altera a API.
+
+- A evidencia profissional e definida por tarefa; nao presumir um certificado
+  uniforme para todas as categorias.
+- Nao tornar selfie, prova de vida, biometria, comparacao facial ou consulta de
+  CPF/nome pre-requisito implementado nesta fase. Antecedentes e pesquisas
+  abertas permanecem fora do fluxo, pendentes de decisao juridica especifica.
+- A conta pode existir sem telefone confirmado, mas o profissional nao pode
+  receber nem aceitar solicitacoes ate concluir o desafio WhatsApp. A confirmacao
+  atesta acesso ao canal naquele momento, nao identidade. Mudanca do numero deve
+  invalidar a confirmacao; nenhuma acao administrativa deve contornar o desafio.
+- Usar auditoria minima, com ator, alvo, versao, transicao, motivo codificado e
+  horario; nao registrar documentos, OTP, CPF completo ou narrativa criminal.
+  A exigencia de dois pareceres para liberar segue como proposta anterior e deve
+  ser confirmada quanto a capacidade, impedimentos e recurso antes de implementar.
+- R2 e o destino planejado, ainda nao homologado para dados reais. O contrato
+  precisa exigir bucket privado, credenciais restritas no servidor, contas
+  individuais/MFA, exclusao verificavel e revisao de operador/localizacao e
+  transferencia internacional.
+- D4 (antecedentes) e D7 (retencao) seguem pendentes. Enquanto qualquer gate
+  necessario estiver aberto, nao pode haver transicao para habilitado nem acesso
+  profissional ao endereco do cliente.
+
+**Base de produto:** [diretrizes da fase 1](proposta-politica-habilitacao-profissional.md), atualizadas pela [matriz de tarefas](proposta-politica-habilitacao-piloto.md), pelo [plano de privacidade](plano-lgpd-habilitacao-profissional.md) e por [handoff-habilitacao-profissional.md](handoff-habilitacao-profissional.md).
 
 O bloqueio atual deve permanecer: `podeAtender` continua `false` e a ação administrativa `aprovar` continua indisponível até a política de antecedentes, a retenção, o contrato, a implementação e os testes receberem as aprovações necessárias. Esta proposta não altera os estados formais das solicitações nem a capacidade já decidida de **um atendimento simultâneo por perfil**, inclusive empresa.
 

@@ -18,6 +18,7 @@ import { NotificacoesModule } from '../notificacoes/notificacoes.module.js';
 import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
 import { PrazosSolicitacoesService } from './prazos-solicitacoes.service.js';
 import { SolicitacoesController } from './solicitacoes.controller.js';
+import { PropostaAtendimentoCleanupService } from './proposta-atendimento-cleanup.service.js';
 import { SolicitacoesService } from './solicitacoes.service.js';
 
 @Module({
@@ -42,6 +43,6 @@ import { SolicitacoesService } from './solicitacoes.service.js';
     ]),
   ],
   controllers: [SolicitacoesController],
-  providers: [SolicitacoesService, PrazosSolicitacoesService],
+  providers: [SolicitacoesService, PrazosSolicitacoesService, PropostaAtendimentoCleanupService],
 })
 export class SolicitacoesModule {}

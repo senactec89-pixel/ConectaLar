@@ -9,6 +9,45 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('solicitações expiradas aparecem no histórico sem ação de chat', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/solicitacoes/me') {
+          return jsonResponse({
+            'solicitacoes': [
+              {
+                ...FrontendPreviewClient().pedidos.first,
+                'id': 301,
+                'status': 'expirada',
+              },
+              {
+                ...FrontendPreviewClient().pedidos.first,
+                'id': 302,
+                'status': 'negociacao_expirada',
+              },
+            ],
+          });
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.meusServicos);
+    final filtroHistorico = find.byKey(
+      const ValueKey('servicos-filtro-historico'),
+    );
+    await tester.ensureVisible(filtroHistorico);
+    await tester.tap(filtroHistorico);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Expirada'), findsOneWidget);
+    expect(find.text('Negociação encerrada'), findsOneWidget);
+    expect(find.text('Conversar'), findsNothing);
+    expect(find.text('Ver detalhes'), findsNWidgets(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('meus serviços recarrega status ao retornar e preserva filtro', (
     tester,
   ) async {
@@ -223,6 +262,9 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(carregar);
+    await tester.pumpAndSettle();
+    expect(carregar.hitTestable(), findsOneWidget);
     await tester.tap(carregar);
     await tester.pumpAndSettle();
 

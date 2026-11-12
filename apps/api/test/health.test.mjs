@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { dirname, join } from 'node:path';
 import { createApp } from '../dist/app.factory.js';
 import { ConfigurationError, loadConfig } from '../dist/config/environment.js';
 import { HealthService } from '../dist/health/health.service.js';
@@ -127,6 +128,42 @@ test('production rejects incomplete runtime configuration without exposing value
       );
     }
   }
+});
+
+test('production local file storage requires an absolute directory outside the release', () => {
+  const complete = {
+    NODE_ENV: 'production',
+    DB_HOST: 'private-host',
+    DB_USER: 'private-user',
+    DB_NAME: 'private-database',
+    AUTH_TOKEN_SECRET: 'private-auth-secret-at-least-thirty-two-characters',
+    MFA_SECRET_ENCRYPTION_KEY: 'private-mfa-secret-at-least-thirty-two-characters',
+    EMAIL_OUTBOX_ENCRYPTION_KEY: 'private-outbox-secret-at-least-thirty-two-chars',
+    SMTP_HOST: 'smtp.example.invalid',
+    SMTP_FROM: 'ConectaLar <mail@example.invalid>',
+    SMTP_USER: 'smtp-user',
+    SMTP_PASSWORD: 'smtp-password',
+    FILE_STORAGE_DRIVER: 'local',
+  };
+  const error = (environment) => assert.throws(
+    () => loadConfig(environment),
+    (exception) => exception instanceof ConfigurationError &&
+      exception.code === 'INVALID_FILE_STORAGE_CONFIGURATION',
+  );
+
+  error(complete);
+  error({ ...complete, FILE_STORAGE_LOCAL_DIR: 'relative/path' });
+  error({
+    ...complete,
+    FILE_STORAGE_LOCAL_DIR: join(process.cwd(), 'private-files'),
+  });
+  assert.equal(
+    loadConfig({
+      ...complete,
+      FILE_STORAGE_LOCAL_DIR: join(dirname(process.cwd()), 'conectalar-private-files'),
+    }).nodeEnv,
+    'production',
+  );
 });
 
 test('readiness checks MySQL and recovers after a failure without leaking errors', async () => {

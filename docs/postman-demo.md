@@ -2,6 +2,8 @@
 
 Este roteiro prepara dados locais para testar os fluxos principais da API no Postman. Use apenas em ambiente local/desenvolvimento.
 
+**Política atual:** novas solicitações e aceites estão deliberadamente bloqueados enquanto a habilitação profissional não for concluída. A coleção espera HTTP `409` no passo de aceite. Os pedidos que o seed grava diretamente no banco são fixtures históricas para leitura/moderação de módulos, não demonstram que novas contratações podem ser abertas. Não use o seed nem SQL para contornar a regra.
+
 ## Dados criados
 
 O comando de seed cria ou atualiza:
@@ -54,7 +56,7 @@ Os logins salvam automaticamente os tokens nas variaveis da colecao.
 - Painel profissional.
 - Servicos/ofertas do profissional.
 - Solicitacoes do cliente.
-- Aceite de uma solicitacao pelo profissional, mudando para `aceita_agendada`.
+- Bloqueio de aceite de um pedido pendente com HTTP `409`.
 - Painel administrativo.
 - Listagem administrativa de usuarios.
 - Bloqueios de permissao:

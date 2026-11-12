@@ -27,9 +27,14 @@ class ClienteEndereco {
   final String uf;
   final bool principal;
 
-  String get resumo => '$bairro, $cidade/$uf';
+  String get resumo => '${_localidade()}/$uf';
   String get completo {
     final extra = complemento == null ? '' : ' - $complemento';
-    return '$logradouro, $numero$extra - $bairro, $cidade/$uf';
+    return '$logradouro, $numero$extra - ${_localidade()}/$uf';
   }
+
+  String _localidade() => [
+    bairro,
+    cidade,
+  ].map((parte) => parte.trim()).where((parte) => parte.isNotEmpty).join(', ');
 }

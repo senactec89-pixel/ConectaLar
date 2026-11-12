@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,7 +13,10 @@ import {
   parsePaginationQuery,
 } from '../common/pagination.js';
 import { MensagemAtendimentoEntity } from '../database/entities/mensagem-atendimento.entity.js';
+import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { expirarPedidoSemResposta } from '../solicitacoes/pedido-prazo.js';
+import { calcularExpiracaoNegociacao, expirarNegociacaoInativa } from '../solicitacoes/negociacao-prazo.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
@@ -52,36 +56,82 @@ export class MensagensService {
   }
 
   async enviar(user: AuthenticatedUser, solicitacaoId: number, body: unknown) {
-    const solicitacao = await this.carregarSolicitacao(solicitacaoId);
-    assertParticipanteOperacional(user, solicitacao);
-    if (
-      ![
+    const conteudo = parseConteudo(body);
+    const resultado = await this.mensagens.manager.transaction('READ COMMITTED', async (manager) => {
+      const solicitacao = await manager.findOne(SolicitacaoEntity, {
+        where: { id: solicitacaoId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (solicitacao === null) throw new NotFoundException({
+        code: 'SOLICITACAO_NAO_ENCONTRADA',
+        message: 'Solicitacao nao encontrada.',
+      });
+      const profissional = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: solicitacao.profissionalId },
+      });
+      if (profissional === null) throw new NotFoundException({
+        code: 'PROFISSIONAL_NAO_ENCONTRADO',
+        message: 'Profissional nao encontrado.',
+      });
+      const participante =
+        (user.tipo === UsuarioTipo.Cliente && solicitacao.clienteId === user.id) ||
+        ([UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(user.tipo) && profissional.usuarioId === user.id);
+      if (!participante) throw forbidden();
+      if (![
         SolicitacaoStatus.AguardandoResposta,
         SolicitacaoStatus.AceitaAgendada,
         SolicitacaoStatus.ConclusaoPendente,
         SolicitacaoStatus.ConclusaoContestada,
         SolicitacaoStatus.NaoComparecimentoInformado,
-      ].includes(solicitacao.status)
-    ) {
-      throw badRequest('CHAT_INDISPONIVEL');
-    }
+      ].includes(solicitacao.status)) throw badRequest('CHAT_INDISPONIVEL');
 
-    const conteudo = parseConteudo(body);
-    const mensagem = await this.mensagens.save(
-      this.mensagens.create({
+      let negociacaoIniciada = false;
+      if (solicitacao.status === SolicitacaoStatus.AguardandoResposta) {
+        if (await expirarPedidoSemResposta(manager, solicitacao)) {
+          return { expirou: true, negociacaoExpirada: false, mensagemId: null };
+        }
+        const rows = await manager.query(`SELECT
+          EXISTS(SELECT 1 FROM solicitacao_opcoes WHERE solicitacao_id = ?) AS fluxo_novo,
+          EXISTS(SELECT 1 FROM solicitacao_eventos WHERE solicitacao_id = ? AND tipo = 'negociacao_iniciada') AS iniciada`,
+        [solicitacaoId, solicitacaoId]) as Array<{ fluxo_novo: number; iniciada: number }>;
+        negociacaoIniciada = Number(rows[0]?.iniciada) === 1;
+        if (Number(rows[0]?.fluxo_novo) === 1 && !negociacaoIniciada) throw badRequest('CHAT_AGUARDA_PROFISSIONAL');
+        if (await expirarNegociacaoInativa(manager, solicitacao)) {
+          return { expirou: false, negociacaoExpirada: true, mensagemId: null };
+        }
+      }
+
+      const mensagem = await manager.save(MensagemAtendimentoEntity, manager.create(MensagemAtendimentoEntity, {
         solicitacaoId,
         autorId: user.id,
         conteudo,
-      }),
-    );
+      }));
+      if (
+        solicitacao.status === SolicitacaoStatus.AguardandoResposta &&
+        (negociacaoIniciada || solicitacao.prazoInatividadeEm != null || user.tipo !== UsuarioTipo.Cliente)
+      ) {
+        solicitacao.prazoInatividadeEm = calcularExpiracaoNegociacao(new Date());
+        await manager.save(SolicitacaoEntity, solicitacao);
+      }
+      return { expirou: false, negociacaoExpirada: false, mensagemId: mensagem.id };
+    });
+    if (resultado.expirou) throw new ConflictException({
+      code: 'SOLICITACAO_EXPIRADA',
+      message: 'O prazo para responder a esta solicitacao terminou.',
+    });
+    if (resultado.negociacaoExpirada) throw new ConflictException({
+      code: 'NEGOCIACAO_EXPIRADA',
+      message: 'A negociacao foi encerrada apos 96 horas sem atividade.',
+    });
 
     const saved = await this.mensagens.findOne({
-      where: { id: mensagem.id },
+      where: { id: resultado.mensagemId! },
       relations: { autor: true },
     });
     if (saved === null) {
       throw new Error('Saved message could not be reloaded.');
     }
+    const solicitacao = await this.carregarSolicitacao(solicitacaoId);
 
     const destinatarioId =
       user.id === solicitacao.clienteId

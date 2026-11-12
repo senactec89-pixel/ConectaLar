@@ -5,6 +5,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/avaliacao_fotos_view.dart';
 
 class AvaliacoesRecebidasPage extends StatelessWidget {
   const AvaliacoesRecebidasPage({super.key});
@@ -242,6 +243,11 @@ class _AvaliacoesPublicadasViewState extends State<AvaliacoesPublicadasView> {
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
+                        AvaliacaoFotosView(
+                          fotos: avaliacao['fotos'] is List
+                              ? List<dynamic>.from(avaliacao['fotos'] as List)
+                              : const [],
+                        ),
                         const SizedBox(height: AppSpace.sm),
                         Text(
                           _data(avaliacao['criadoEm']),

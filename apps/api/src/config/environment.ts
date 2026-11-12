@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import { isAuthRuntimeConfigured } from './runtime.js';
 
 export type RuntimeEnvironment = 'development' | 'test' | 'production';
@@ -19,6 +20,7 @@ export class ConfigurationError extends Error {
       | 'INVALID_HOST'
       | 'INVALID_PORT'
       | 'INVALID_TRUST_PROXY_HOPS'
+      | 'INVALID_FILE_STORAGE_CONFIGURATION'
       | 'INCOMPLETE_PRODUCTION_RUNTIME',
   ) {
     super(`Invalid application configuration (${code}).`);
@@ -54,12 +56,42 @@ export function loadConfig(environment: Environment = process.env): AppConfig {
   }
 
   const trustProxyHops = parseTrustProxyHops(environment.TRUST_PROXY_HOPS);
+  validateFileStorage(environment, nodeEnv as RuntimeEnvironment);
 
   if (nodeEnv === 'production' && !isAuthRuntimeConfigured(environment)) {
     throw new ConfigurationError('INCOMPLETE_PRODUCTION_RUNTIME');
   }
 
   return { nodeEnv: nodeEnv as RuntimeEnvironment, host, port, trustProxyHops };
+}
+
+function validateFileStorage(
+  environment: Environment,
+  nodeEnv: RuntimeEnvironment,
+): void {
+  const driver = environment.FILE_STORAGE_DRIVER?.trim().toLowerCase();
+  if (driver !== undefined && driver !== '' && driver !== 'local' && driver !== 'r2') {
+    throw new ConfigurationError('INVALID_FILE_STORAGE_CONFIGURATION');
+  }
+
+  const configuredDirectory = environment.FILE_STORAGE_LOCAL_DIR?.trim();
+  if (configuredDirectory && !isAbsolute(configuredDirectory)) {
+    throw new ConfigurationError('INVALID_FILE_STORAGE_CONFIGURATION');
+  }
+  if (nodeEnv !== 'production' || driver !== 'local') return;
+  if (!configuredDirectory) {
+    throw new ConfigurationError('INVALID_FILE_STORAGE_CONFIGURATION');
+  }
+
+  const relativeToApp = relative(resolve(process.cwd()), resolve(configuredDirectory));
+  if (
+    relativeToApp === '' ||
+    (relativeToApp !== '..' &&
+      !relativeToApp.startsWith(`..${sep}`) &&
+      !isAbsolute(relativeToApp))
+  ) {
+    throw new ConfigurationError('INVALID_FILE_STORAGE_CONFIGURATION');
+  }
 }
 
 function parseTrustProxyHops(value: string | undefined): number {

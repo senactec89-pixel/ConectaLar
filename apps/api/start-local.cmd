@@ -6,7 +6,10 @@ set "NODE_HOME=%ROOT%\tools\node-v24.20.0-win-x64"
 set "MYSQL_HOME=%ROOT%\tools\mysql-8.4.9-winx64\bin"
 set "PATH=%NODE_HOME%;%MYSQL_HOME%;%PATH%"
 
+pushd "%~dp0"
+
 set "NODE_ENV=development"
+set "HABILITACAO_MANUAL_LOCAL=true"
 set "HOST=0.0.0.0"
 set "PORT=3012"
 set "DB_HOST=127.0.0.1"

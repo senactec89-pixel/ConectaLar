@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
@@ -20,6 +21,7 @@ import { ProfissionaisService } from './profissionais.service.js';
       CategoriaEntity,
       AvaliacaoEntity,
       ProfissionalDisponibilidadeEntity,
+      ProfissionalBloqueioEntity,
       ProfissionalPerfilEntity,
       ProfissionalServicoEntity,
       SolicitacaoEntity,

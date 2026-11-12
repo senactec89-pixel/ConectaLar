@@ -291,7 +291,7 @@
       ]
     },
     {
-      "name": "09 Profissional aceita solicitacao aguardando",
+      "name": "09 Bloqueio: profissional nao pode aceitar novo pedido",
       "request": {
         "method": "PATCH",
         "header": [
@@ -307,8 +307,9 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('aceite valido vira aceita_agendada', function () { pm.response.to.have.status(200); });",
-              "pm.expect(pm.response.json().solicitacao.status).to.eql('aceita_agendada');"
+              "pm.test('habilitacao pendente bloqueia o aceite', function () { pm.response.to.have.status(409); });",
+              "pm.expect(pm.response.json().statusCode).to.eql(409);",
+              "pm.expect(pm.response.json()).not.to.have.property('solicitacao');"
             ]
           }
         }

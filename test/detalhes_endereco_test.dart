@@ -21,7 +21,7 @@ void main() {
     await abrirFrontend(tester, AppRoutes.detalhesServico, arguments: 1002);
 
     expect(
-      find.text('Rua de exemplo, 100 - Centro, Cidade de exemplo/MG'),
+      find.text('Rua de exemplo, 100 - Belo Horizonte/MG'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

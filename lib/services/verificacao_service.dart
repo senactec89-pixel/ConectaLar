@@ -21,6 +21,11 @@ class VerificacaoService {
     body: {'consentimento': true},
   );
 
+  Future<Map<String, dynamic>> iniciarDesafioManualWhatsApp() => _api.post(
+    'profissionais/me/habilitacao/telefone/manual',
+    body: {'consentimento': true},
+  );
+
   Future<Map<String, dynamic>> consultarPosseTelefone() =>
       _api.get('profissionais/me/habilitacao/telefone');
 

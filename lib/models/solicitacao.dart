@@ -2,6 +2,8 @@ import 'cliente_endereco.dart';
 
 enum StatusSolicitacao {
   aguardandoResposta('aguardando_resposta'),
+  expirada('expirada'),
+  negociacaoExpirada('negociacao_expirada'),
   aceitaAgendada('aceita_agendada'),
   recusada('recusada'),
   cancelada('cancelada'),
@@ -16,6 +18,8 @@ enum StatusSolicitacao {
 
   String get rotulo => switch (this) {
     StatusSolicitacao.aguardandoResposta => 'Aguardando resposta',
+    StatusSolicitacao.expirada => 'Expirada',
+    StatusSolicitacao.negociacaoExpirada => 'Negociação encerrada',
     StatusSolicitacao.aceitaAgendada => 'Aceita e agendada',
     StatusSolicitacao.recusada => 'Recusada',
     StatusSolicitacao.cancelada => 'Cancelada',
@@ -47,6 +51,7 @@ class Solicitacao {
     this.enderecoAtendimento,
     this.profissionalUsuarioId = 0,
     this.servicoId,
+    this.servicoCatalogoId,
     this.nomeServico,
     this.duracaoMinutos = 120,
     this.intervaloMinutos = 0,
@@ -59,6 +64,7 @@ class Solicitacao {
     this.naoComparecimentoMotivo,
     this.naoComparecimentoPorId,
     this.eventos = const [],
+    this.negociacaoIniciada = false,
     this.precoFinal,
   });
 
@@ -67,6 +73,7 @@ class Solicitacao {
   final int profissionalId;
   final int profissionalUsuarioId;
   final int? servicoId;
+  final int? servicoCatalogoId;
   final String? nomeServico;
   final int categoriaId;
   final int? enderecoId;
@@ -88,6 +95,7 @@ class Solicitacao {
   final String? naoComparecimentoMotivo;
   final int? naoComparecimentoPorId;
   final List<Map<String, dynamic>> eventos;
+  final bool negociacaoIniciada;
   final double? precoInicial;
   final double? precoFinal;
   final StatusSolicitacao status;

@@ -1,6 +1,9 @@
 export enum NotificacaoTipo {
   SolicitacaoCriada = 'solicitacao_criada',
   SolicitacaoAceita = 'solicitacao_aceita',
+  NegociacaoIniciada = 'negociacao_iniciada',
+  PropostaAtendimentoEnviada = 'proposta_atendimento_enviada',
+  PropostaAtendimentoRecusada = 'proposta_atendimento_recusada',
   SolicitacaoRecusada = 'solicitacao_recusada',
   SolicitacaoCancelada = 'solicitacao_cancelada',
   SolicitacaoConcluida = 'solicitacao_concluida',

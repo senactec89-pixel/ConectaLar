@@ -4,14 +4,18 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Repository } from 'typeorm';
+import sharp from 'sharp';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { registrarAuditoriaAdmin } from '../common/admin-auditoria.js';
 import { optionalEnumFilter, optionalSearchTerm } from '../common/admin-list-query.js';
 import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
+import { AvaliacaoFotoEntity } from '../database/entities/avaliacao-foto.entity.js';
+import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
@@ -19,6 +23,17 @@ import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
+import { MalwareScannerService } from '../verificacao/malware-scanner.service.js';
+import { AvaliacaoFotoStorageService } from './avaliacao-foto-storage.service.js';
+
+const maxFotoBytes = 5 * 1024 * 1024;
+const maxFotosPorAvaliacao = 3;
+const validadeUploadMs = 24 * 60 * 60 * 1000;
+
+export interface ArquivoFotoAvaliacao {
+  readonly buffer: Buffer;
+  readonly mimetype: string;
+}
 
 @Injectable()
 export class AvaliacoesService {
@@ -27,7 +42,11 @@ export class AvaliacoesService {
     private readonly avaliacoes: Repository<AvaliacaoEntity>,
     @InjectRepository(SolicitacaoEntity)
     private readonly solicitacoes: Repository<SolicitacaoEntity>,
+    @InjectRepository(AvaliacaoFotoEntity)
+    private readonly fotos: Repository<AvaliacaoFotoEntity>,
     private readonly notificacoes: NotificacoesService,
+    private readonly fotoStorage: AvaliacaoFotoStorageService,
+    private readonly malwareScanner: MalwareScannerService,
   ) {}
 
   async listarDaSolicitacao(user: AuthenticatedUser, solicitacaoId: number) {
@@ -36,11 +55,19 @@ export class AvaliacoesService {
 
     const avaliacoes = await this.avaliacoes.find({
       where: { solicitacaoId },
-      relations: { avaliador: true, avaliado: true },
+      relations: { avaliador: true, avaliado: true, fotos: true },
       order: { criadoEm: 'ASC' },
     });
 
-    return { avaliacoes: avaliacoes.map(avaliacaoResponse) };
+    return {
+      avaliacoes: avaliacoes
+        .filter((avaliacao) =>
+          user.tipo === UsuarioTipo.Administrador ||
+          avaliacao.avaliadorId === user.id ||
+          avaliacao.moderacaoStatus === AvaliacaoModeracaoStatus.Aprovada,
+        )
+        .map(avaliacaoResponse),
+    };
   }
 
   async avaliarProfissional(
@@ -55,6 +82,7 @@ export class AvaliacoesService {
       user.id,
       solicitacao.profissional.usuarioId,
       body,
+      true,
     );
   }
 
@@ -65,7 +93,171 @@ export class AvaliacoesService {
   ) {
     const solicitacao = await this.carregarSolicitacao(solicitacaoId);
     assertProfissionalParticipante(user, solicitacao);
-    return this.criarAvaliacao(solicitacao, user.id, solicitacao.clienteId, body);
+    return this.criarAvaliacao(
+      solicitacao,
+      user.id,
+      solicitacao.clienteId,
+      body,
+      false,
+    );
+  }
+
+  async adicionarFoto(
+    user: AuthenticatedUser,
+    solicitacaoId: number,
+    arquivo: ArquivoFotoAvaliacao | undefined,
+  ) {
+    if (user.tipo !== UsuarioTipo.Cliente) throw forbidden();
+    const solicitacao = await this.carregarSolicitacao(solicitacaoId);
+    assertClienteParticipante(user, solicitacao);
+    if (solicitacao.status !== SolicitacaoStatus.ConclusaoConfirmada) {
+      throw badRequest('AVALIACAO_INDISPONIVEL');
+    }
+    if (
+      (await this.avaliacoes.count({ where: { solicitacaoId, avaliadorId: user.id } })) > 0
+    ) {
+      throw new ConflictException({
+        code: 'AVALIACAO_JA_REGISTRADA',
+        message: 'A avaliacao ja foi enviada para este atendimento.',
+      });
+    }
+    if (
+      arquivo === undefined ||
+      !Buffer.isBuffer(arquivo.buffer) ||
+      arquivo.buffer.length === 0 ||
+      arquivo.buffer.length > maxFotoBytes ||
+      !assinaturaImagemValida(arquivo.buffer, arquivo.mimetype)
+    ) {
+      throw badRequest('FOTO_AVALIACAO_INVALIDA');
+    }
+
+    await this.verificarImagemMaliciosa(arquivo.buffer);
+    const normalizada = await normalizarImagem(arquivo.buffer);
+    await this.verificarImagemMaliciosa(normalizada);
+
+    const referenciaArquivo = this.fotoStorage.novaReferencia(solicitacaoId);
+    try {
+      const foto = await this.fotos.manager.transaction(async (manager) => {
+        const pedidos = manager.getRepository(SolicitacaoEntity);
+        const atual = await pedidos.findOne({
+          where: { id: solicitacaoId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (
+          atual === null ||
+          atual.clienteId !== user.id ||
+          atual.status !== SolicitacaoStatus.ConclusaoConfirmada
+        ) {
+          throw forbidden();
+        }
+        const avaliacoes = manager.getRepository(AvaliacaoEntity);
+        if (
+          (await avaliacoes.count({
+            where: { solicitacaoId, avaliadorId: user.id },
+          })) > 0
+        ) {
+          throw new ConflictException({
+            code: 'AVALIACAO_JA_REGISTRADA',
+            message: 'A avaliacao ja foi enviada para este atendimento.',
+          });
+        }
+        const fotos = manager.getRepository(AvaliacaoFotoEntity);
+        const pendentes = await fotos.count({
+          where: {
+            solicitacaoId,
+            enviadoPorId: user.id,
+            avaliacaoId: IsNull(),
+            expiraEm: MoreThan(new Date()),
+          },
+        });
+        if (pendentes >= maxFotosPorAvaliacao) {
+          throw new ConflictException({
+            code: 'LIMITE_FOTOS_AVALIACAO',
+            message: 'Voce pode anexar ate tres fotos por avaliacao.',
+          });
+        }
+        const registro = await fotos.save(
+          fotos.create({
+            solicitacaoId,
+            enviadoPorId: user.id,
+            avaliacaoId: null,
+            referenciaArquivo,
+            mimeType: 'image/jpeg',
+            tamanhoBytes: normalizada.length,
+            pronto: false,
+            expiraEm: new Date(Date.now() + validadeUploadMs),
+          }),
+        );
+        return registro;
+      });
+      await this.fotoStorage.salvar(referenciaArquivo, normalizada);
+      const ativacao = await this.fotos.update(
+        { id: foto.id, avaliacaoId: IsNull() },
+        { pronto: true },
+      );
+      if (ativacao.affected !== 1) {
+        throw new ConflictException({
+          code: 'FOTO_AVALIACAO_INDISPONIVEL',
+          message: 'Nao foi possivel concluir o envio da foto.',
+        });
+      }
+      return { foto: { id: foto.id, mimeType: foto.mimeType } };
+    } catch (error) {
+      try {
+        await this.fotoStorage.remover(referenciaArquivo);
+        await this.fotos.delete({ referenciaArquivo, avaliacaoId: IsNull() });
+      } catch {
+        await this.fotos.update(
+          { referenciaArquivo, avaliacaoId: IsNull() },
+          { expiraEm: new Date(Date.now() + 60_000) },
+        );
+      }
+      throw error;
+    }
+  }
+
+  async removerFotoTemporaria(
+    user: AuthenticatedUser,
+    solicitacaoId: number,
+    fotoId: number,
+  ) {
+    if (user.tipo !== UsuarioTipo.Cliente) throw forbidden();
+    await this.fotos.manager.transaction(async (manager) => {
+      const fotos = manager.getRepository(AvaliacaoFotoEntity);
+      const foto = await fotos.findOne({
+        where: {
+          id: fotoId,
+          solicitacaoId,
+          enviadoPorId: user.id,
+          avaliacaoId: IsNull(),
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (foto === null) throw fotoNaoEncontrada();
+      await this.fotoStorage.remover(foto.referenciaArquivo);
+      await fotos.delete({ id: foto.id });
+    });
+    return { ok: true };
+  }
+
+  async carregarFoto(
+    user: AuthenticatedUser | null,
+    avaliacaoId: number,
+    fotoId: number,
+  ) {
+    const foto = await this.fotos.findOne({
+      where: { id: fotoId, avaliacaoId },
+      relations: { avaliacao: true },
+    });
+    if (foto === null || foto.avaliacao === null) throw fotoNaoEncontrada();
+    const avaliacao = foto.avaliacao;
+    const podeVer =
+      avaliacao.moderacaoStatus === AvaliacaoModeracaoStatus.Aprovada ||
+      (user !== null &&
+        (avaliacao.avaliadorId === user.id ||
+          user.tipo === UsuarioTipo.Administrador));
+    if (!podeVer) throw fotoNaoEncontrada();
+    return this.fotoStorage.carregar(foto.referenciaArquivo);
   }
 
   async listarModeracao(query: Record<string, unknown>) {
@@ -81,6 +273,7 @@ export class AvaliacoesService {
       .leftJoinAndSelect('avaliacao.avaliador', 'avaliador')
       .leftJoinAndSelect('avaliacao.avaliado', 'avaliado')
       .leftJoinAndSelect('avaliacao.solicitacao', 'solicitacao')
+      .leftJoinAndSelect('avaliacao.fotos', 'foto')
       .orderBy('avaliacao.criadoEm', 'DESC')
       .addOrderBy('avaliacao.id', 'DESC')
       .skip(pagination.skip)
@@ -137,7 +330,7 @@ export class AvaliacoesService {
 
     const saved = await this.avaliacoes.findOne({
       where: { id },
-      relations: { avaliador: true, avaliado: true },
+      relations: { avaliador: true, avaliado: true, fotos: true },
     });
     if (saved === null) {
       throw new NotFoundException({
@@ -153,26 +346,88 @@ export class AvaliacoesService {
     avaliadorId: number,
     avaliadoId: number,
     body: unknown,
+    aceitarFotos: boolean,
   ) {
     if (solicitacao.status !== SolicitacaoStatus.ConclusaoConfirmada) {
       throw badRequest('AVALIACAO_INDISPONIVEL');
     }
 
     const input = parseAvaliacao(body);
-    const avaliacao = this.avaliacoes.create({
-      solicitacaoId: solicitacao.id,
-      avaliadorId,
-      avaliadoId,
-      nota: input.nota,
-      comentario: input.comentario,
-      moderacaoStatus: AvaliacaoModeracaoStatus.Pendente,
-    });
+    if (!aceitarFotos && input.fotoIds.length > 0) {
+      throw badRequest('FOTOS_AVALIACAO_NAO_PERMITIDAS');
+    }
 
     try {
-      const saved = await this.avaliacoes.save(avaliacao);
+      const savedId = await this.avaliacoes.manager.transaction(async (manager) => {
+        const pedidos = manager.getRepository(SolicitacaoEntity);
+        const atual = await pedidos.findOne({
+          where: { id: solicitacao.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const perfilProfissional = atual === null
+          ? null
+          : await manager.getRepository(ProfissionalPerfilEntity).findOne({
+              where: { id: atual.profissionalId },
+            });
+        const ehClienteAvaliandoProfissional =
+          atual !== null &&
+          perfilProfissional !== null &&
+          avaliadorId === atual.clienteId &&
+          avaliadoId === perfilProfissional.usuarioId;
+        const ehProfissionalAvaliandoCliente =
+          atual !== null &&
+          perfilProfissional !== null &&
+          perfilProfissional.usuarioId === avaliadorId &&
+          avaliadoId === atual.clienteId;
+        if (
+          atual === null ||
+          atual.status !== SolicitacaoStatus.ConclusaoConfirmada ||
+          (!ehClienteAvaliandoProfissional && !ehProfissionalAvaliandoCliente) ||
+          (input.fotoIds.length > 0 && !ehClienteAvaliandoProfissional)
+        ) {
+          throw badRequest('AVALIACAO_INDISPONIVEL');
+        }
+
+        const avaliacoes = manager.getRepository(AvaliacaoEntity);
+        const criada = await avaliacoes.save(
+          avaliacoes.create({
+            solicitacaoId: solicitacao.id,
+            avaliadorId,
+            avaliadoId,
+            nota: input.nota,
+            comentario: input.comentario,
+            moderacaoStatus: AvaliacaoModeracaoStatus.Pendente,
+          }),
+        );
+
+        if (input.fotoIds.length > 0) {
+          const fotos = manager.getRepository(AvaliacaoFotoEntity);
+          const anexos = await fotos.find({
+            where: {
+              id: In(input.fotoIds),
+              solicitacaoId: solicitacao.id,
+              enviadoPorId: avaliadorId,
+              avaliacaoId: IsNull(),
+              expiraEm: MoreThan(new Date()),
+            },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (
+            anexos.length !== input.fotoIds.length ||
+            anexos.some((foto) => foto.mimeType !== 'image/jpeg' || !foto.pronto)
+          ) {
+            throw badRequest('FOTOS_AVALIACAO_INVALIDAS');
+          }
+          await fotos.update(
+            { id: In(input.fotoIds), avaliacaoId: IsNull() },
+            { avaliacaoId: criada.id, expiraEm: null },
+          );
+        }
+        return criada.id;
+      });
       const reloaded = await this.avaliacoes.findOne({
-        where: { id: saved.id },
-        relations: { avaliador: true, avaliado: true },
+        where: { id: savedId },
+        relations: { avaliador: true, avaliado: true, fotos: true },
       });
       if (reloaded === null) {
         throw new Error('Saved review could not be reloaded.');
@@ -194,6 +449,19 @@ export class AvaliacoesService {
         });
       }
       throw error;
+    }
+  }
+
+  private async verificarImagemMaliciosa(bytes: Buffer): Promise<void> {
+    try {
+      const resultado = await this.malwareScanner.scanBuffer(bytes);
+      if (!resultado.clean) throw badRequest('AMEACA_FOTO_AVALIACAO_DETECTADA');
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new ServiceUnavailableException({
+        code: 'VERIFICACAO_SEGURANCA_INDISPONIVEL',
+        message: 'A verificacao de seguranca esta indisponivel.',
+      });
     }
   }
 
@@ -237,10 +505,70 @@ function avaliacaoResponse(avaliacao: AvaliacaoEntity) {
     },
     nota: avaliacao.nota,
     comentario: avaliacao.comentario,
+    fotos: (avaliacao.fotos ?? []).map((foto) => ({
+      id: foto.id,
+      url: `avaliacoes/${avaliacao.id}/fotos/${foto.id}`,
+    })),
     moderacaoStatus: avaliacao.moderacaoStatus,
     criadoEm: avaliacao.criadoEm.toISOString(),
     atualizadoEm: avaliacao.atualizadoEm.toISOString(),
   };
+}
+
+function assinaturaImagemValida(bytes: Buffer, mimetype: string): boolean {
+  const tipoDeclarado =
+    mimetype === 'application/octet-stream' ||
+    ['image/jpeg', 'image/png', 'image/webp'].includes(mimetype);
+  if (!tipoDeclarado) return false;
+  const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const png =
+    bytes.length >= 8 &&
+    bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  const webp =
+    bytes.length >= 12 &&
+    bytes.toString('ascii', 0, 4) === 'RIFF' &&
+    bytes.toString('ascii', 8, 12) === 'WEBP';
+  if (mimetype === 'image/jpeg') return jpeg;
+  if (mimetype === 'image/png') return png;
+  if (mimetype === 'image/webp') return webp;
+  return jpeg || png || webp;
+}
+
+async function normalizarImagem(bytes: Buffer): Promise<Buffer> {
+  try {
+    const opcoes = { limitInputPixels: 16_000_000, failOn: 'warning' as const };
+    const metadata = await sharp(bytes, opcoes).metadata();
+    if (
+      !['jpeg', 'png', 'webp'].includes(metadata.format ?? '') ||
+      (metadata.pages ?? 1) !== 1 ||
+      metadata.width === undefined ||
+      metadata.height === undefined ||
+      metadata.width < 1 ||
+      metadata.height < 1
+    ) {
+      throw badRequest('FOTO_AVALIACAO_INVALIDA');
+    }
+    const normalized = await sharp(bytes, opcoes)
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: '#ffffff' })
+      .jpeg({ quality: 82, mozjpeg: true })
+      .toBuffer();
+    if (normalized.length === 0 || normalized.length > 2 * 1024 * 1024) {
+      throw badRequest('FOTO_AVALIACAO_INVALIDA');
+    }
+    return normalized;
+  } catch (error) {
+    if (error instanceof BadRequestException) throw error;
+    throw badRequest('FOTO_AVALIACAO_INVALIDA');
+  }
+}
+
+function fotoNaoEncontrada(): NotFoundException {
+  return new NotFoundException({
+    code: 'FOTO_AVALIACAO_INDISPONIVEL',
+    message: 'Foto da avaliacao indisponivel.',
+  });
 }
 
 function assertParticipante(
@@ -291,6 +619,7 @@ function assertProfissionalParticipante(
 function parseAvaliacao(body: unknown): {
   readonly nota: number;
   readonly comentario: string | null;
+  readonly fotoIds: number[];
 } {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw badRequest('CORPO_INVALIDO');
@@ -301,10 +630,25 @@ function parseAvaliacao(body: unknown): {
   if (typeof nota !== 'number' || !Number.isInteger(nota) || nota < 1 || nota > 5) {
     throw badRequest('NOTA_INVALIDA');
   }
+  const fotoIds = value.fotoIds ?? [];
+  if (
+    !Array.isArray(fotoIds) ||
+    fotoIds.length > maxFotosPorAvaliacao ||
+    fotoIds.some(
+      (id) =>
+        typeof id !== 'number' ||
+        !Number.isSafeInteger(id) ||
+        id < 1 ||
+        id > 2_147_483_647,
+    ) ||
+    new Set(fotoIds).size !== fotoIds.length
+  ) {
+    throw badRequest('FOTOS_AVALIACAO_INVALIDAS');
+  }
 
   const comentario = value.comentario;
   if (comentario === undefined || comentario === null || comentario === '') {
-    return { nota, comentario: null };
+    return { nota, comentario: null, fotoIds };
   }
   if (typeof comentario !== 'string') {
     throw badRequest('COMENTARIO_INVALIDO');
@@ -315,7 +659,7 @@ function parseAvaliacao(body: unknown): {
     throw badRequest('COMENTARIO_INVALIDO');
   }
 
-  return { nota, comentario: text.length === 0 ? null : text };
+  return { nota, comentario: text.length === 0 ? null : text, fotoIds };
 }
 
 function parseModeracaoStatus(body: unknown): AvaliacaoModeracaoStatus {

@@ -90,7 +90,11 @@ function fixture() {
       async transaction(_isolation, action) { return action(manager); },
       getRepository(type) {
         assert.equal(type, SolicitacaoEventoEntity);
-        return { async find() { return [...eventos].reverse(); } };
+        return { async find(options) {
+          const encontrados = [...eventos].reverse().filter((evento) =>
+            options?.where?.tipo === undefined || evento.tipo === options.where.tipo);
+          return options?.take === undefined ? encontrados : encontrados.slice(0, options.take);
+        } };
       },
     },
   };
@@ -103,6 +107,18 @@ function fixture() {
   );
   return { service, solicitacao, orcamentos, eventos, notificacoes };
 }
+
+test('estado da negociacao nao depende dos 100 eventos mais recentes', async () => {
+  const contexto = fixture();
+  contexto.eventos.push({ tipo: 'negociacao_iniciada', criadoEm: new Date(), ator: null });
+  for (let i = 0; i < 101; i++) {
+    contexto.eventos.push({ tipo: 'teste_ficticio', criadoEm: new Date(), ator: null });
+  }
+  const resposta = await contexto.service.obter(cliente, 1);
+  assert.equal(resposta.solicitacao.eventos.length, 100);
+  assert.equal(resposta.solicitacao.eventos.some((evento) => evento.tipo === 'negociacao_iniciada'), false);
+  assert.equal(resposta.solicitacao.negociacaoIniciada, true);
+});
 
 test('profissional propoe e somente aceite do cliente define preco final', async () => {
   const contexto = fixture();

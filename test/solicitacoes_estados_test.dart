@@ -21,6 +21,7 @@ Future<void> _mostrar(WidgetTester tester, Finder finder) async {
 Future<void> _preencherSolicitacao(WidgetTester tester) async {
   final data = DateTime.now().add(const Duration(days: 30));
   final campos = {
+    'solicitar-bairro': 'Centro',
     'solicitar-data':
         '${data.day.toString().padLeft(2, '0')}/'
         '${data.month.toString().padLeft(2, '0')}/${data.year}',
@@ -183,9 +184,23 @@ void main() {
       var consultas = 0;
       var envios = 0;
       Map<String, dynamic>? enviado;
+      final profissionalElegivel = profissionalFromApi({
+        ..._previa.profissionais.first,
+        'podeReceberSolicitacoes': true,
+      });
       final respostaEndereco = Completer<http.Response>();
       await configurarFrontend(
         responder: (request) async {
+          if (RegExp(
+            r'^/categorias/\d+/servicos/\d+/opcoes$',
+          ).hasMatch(request.url.path)) {
+            return jsonResponse({
+              'opcoes': [
+                {'id': 88, 'nome': 'Tarefa fictícia'},
+              ],
+              'paginacao': {'temMais': false},
+            });
+          }
           if (request.url.path == '/clientes/me/enderecos') {
             consultas++;
             return consultas == 1
@@ -206,16 +221,20 @@ void main() {
       await abrirFrontend(
         tester,
         AppRoutes.solicitarServico,
-        arguments: profissionalFromApi(_previa.profissionais.first),
+        arguments: profissionalElegivel,
       );
       expect(
         find.text('Não foi possível carregar seus endereços.'),
         findsOneWidget,
       );
       expect(find.text('Cadastrar endereco'), findsNothing);
+      await _mostrar(tester, find.byKey(const ValueKey('solicitar-opcao-88')));
+      await tester.tap(find.byKey(const ValueKey('solicitar-opcao-88')));
+      await tester.pumpAndSettle();
       await _preencherSolicitacao(tester);
       final enviar = find.byKey(const ValueKey('solicitar-enviar'));
-      await _mostrar(tester, enviar);
+      tester.view.physicalSize = const Size(390, 1200);
+      await tester.pumpAndSettle();
       await tester.tap(enviar);
       await tester.pumpAndSettle();
       expect(envios, 0);
@@ -243,7 +262,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       respostaEndereco.complete(
         jsonResponse({
-          'enderecos': [_previa.endereco],
+          'enderecos': [
+            {..._previa.endereco, 'bairro': 'Centro'},
+          ],
         }),
       );
       await tester.pumpAndSettle();
@@ -259,6 +280,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(envios, 1);
       expect(enviado?['enderecoId'], _previa.endereco['id']);
+      expect(enviado?['opcoesIds'], [88]);
       expect(enviado?['descricao'], 'Instalar o chuveiro do banheiro social.');
       expect(find.text('Solicitação enviada'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -266,7 +288,7 @@ void main() {
   );
 
   testWidgets(
-    'avisos, retry e campos cabem em 360, 390 e 412 com texto 200% e teclado',
+    'avisos e campos cabem em 320, 360, 390 e 412 com texto 200% e teclado',
     (tester) async {
       await configurarFrontend(
         responder: (request) async {
@@ -278,7 +300,7 @@ void main() {
         },
       );
       addTearDown(tester.view.resetViewInsets);
-      for (final width in [360.0, 390.0, 412.0]) {
+      for (final width in [320.0, 360.0, 390.0, 412.0]) {
         await tester.pumpWidget(const SizedBox.shrink());
         await abrirFrontend(
           tester,
@@ -287,6 +309,8 @@ void main() {
           width: width,
           textScale: 2,
         );
+        tester.view.physicalSize = Size(width, 640);
+        await tester.pumpAndSettle();
         for (final key in [
           'enderecos-tentar-novamente',
           'disponibilidade-tentar-novamente',

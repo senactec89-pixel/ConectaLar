@@ -20,7 +20,7 @@ class HabilitacaoResumo extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       const Text(
-        'Novos atendimentos bloqueados. A aprovação de documentos não substitui as verificações de segurança.',
+        'Novos atendimentos continuam bloqueados. Uma etapa confirmada não substitui as demais verificações nem libera o perfil.',
       ),
       const SizedBox(height: 12),
       for (final etapa
@@ -31,8 +31,11 @@ class HabilitacaoResumo extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                etapa['status'] == 'confirmado' ||
-                        etapa['status'] == 'cadastrado'
+                const {
+                      'confirmado',
+                      'cadastrado',
+                      'analisado',
+                    }.contains(etapa['status'])
                     ? Icons.check_circle_outline
                     : Icons.pending_outlined,
                 size: 20,
@@ -48,7 +51,7 @@ class HabilitacaoResumo extends StatelessWidget {
         ),
       const SizedBox(height: 8),
       const Text(
-        'Identidade e telefone aguardam integração. Antecedentes aguardam definição da política de análise. Não envie selfies, CPF ou certidões para essas etapas por enquanto.',
+        'Telefone confirmado significa acesso ao WhatsApp naquele momento, não identidade ou prova de vida. Antecedentes aguardam uma política aprovada; não envie certidões ou dados biométricos por enquanto.',
       ),
       if (dados['revisaoSolicitadaEm'] != null) ...[
         const SizedBox(height: 8),
@@ -61,18 +64,21 @@ class HabilitacaoResumo extends StatelessWidget {
 String _etapa(Object? value) => switch (value) {
   'perfil' => 'Perfil',
   'email' => 'E-mail',
+  'documentos' => 'Documento de identidade',
   'telefone' => 'Telefone',
   'identidade' => 'Identidade e prova de vida',
   'antecedentes' => 'Antecedentes',
-  'aprovacao' => 'Análise administrativa',
+  'aprovacao' => 'Habilitação final',
   _ => 'Verificação',
 };
+
 String _status(Object? value) => switch (value) {
-  'confirmado' => 'Confirmado',
+  'confirmado' => 'Acesso ao canal confirmado',
   'cadastrado' => 'Cadastrado',
-  'aguardando_integracao' => 'Ainda indisponível',
-  'revisao_necessaria' => 'Precisa de revisão manual',
-  'aguardando_politica' => 'Aguardando política de análise',
+  'analisado' => 'Documento analisado',
+  'aguardando_integracao' => 'Ainda não disponível',
+  'revisao_necessaria' => 'Precisa de revisão',
+  'aguardando_politica' => 'Aguardando definição da política',
   'em_analise' => 'Em análise',
   'suspenso' => 'Suspensa',
   _ => 'Pendente',

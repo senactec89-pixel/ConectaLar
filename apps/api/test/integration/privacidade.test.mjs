@@ -44,7 +44,7 @@ test(
         senha,
         tipo: 'cliente',
         aceitouTermos: true,
-        versaoTermos: '2026-10-24.v5',
+        versaoTermos: '2026-10-26.v6',
       },
       201,
     );

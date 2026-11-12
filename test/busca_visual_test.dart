@@ -81,6 +81,14 @@ void main() {
     final buscas = <Uri>[];
     await configurarFrontend(
       responder: (request) async {
+        if (request.url.path == '/categorias/4/servicos') {
+          return jsonResponse({
+            'servicos': [
+              {'id': 12, 'nome': 'Limpeza pós-obra'},
+            ],
+            'paginacao': {'temMais': false},
+          });
+        }
         if (request.url.path == '/profissionais') {
           buscas.add(request.url);
           return jsonResponse({
@@ -116,9 +124,7 @@ void main() {
         textScale: 2,
       );
 
-      final servico = find.byKey(
-        const ValueKey('busca-servico-Limpeza pós-obra'),
-      );
+      final servico = find.byKey(const ValueKey('busca-catalogo-12'));
       await tester.scrollUntilVisible(
         servico,
         200,
@@ -132,11 +138,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(buscas.last.queryParameters['categoriaId'], '4');
-      expect(buscas.last.queryParameters['termo'], 'Limpeza pós-obra');
-      expect(
-        find.byKey(const ValueKey('busca-servico-Limpeza pós-obra')),
-        findsNothing,
-      );
+      expect(buscas.last.queryParameters['servicoCatalogoId'], '12');
+      expect(tester.widget<ChoiceChip>(servico).selected, isTrue);
       expect(tester.takeException(), isNull, reason: '$width px');
     }
   });

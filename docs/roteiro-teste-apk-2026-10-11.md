@@ -2,6 +2,8 @@
 
 Data: 11/10/2026
 
+> **Roteiro historico, substituido.** Este procedimento foi escrito antes do bloqueio deliberado de contratacoes e contem passos de criar/aceitar pedidos que nao se aplicam ao produto atual. Nao o use para homologar a versao atual. Use `checklist-homologacao-cliente.md` e `checklist-homologacao-profissional.md`; hoje o resultado esperado da tentativa de contratar e HTTP `409`.
+
 Use este roteiro para testar o APK debug gerado para a API local.
 
 ## Preparacao

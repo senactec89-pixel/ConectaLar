@@ -46,6 +46,9 @@ Map<String, dynamic> _dados() => {
       'ativo': false,
     },
   ],
+  'bloqueios': [
+    {'dataInicio': '$_mes-10', 'dataFim': '$_mes-12'},
+  ],
 };
 
 Future<void> _abrir(
@@ -138,6 +141,30 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('blocked date is identified and hides weekly availability', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async =>
+          request.url.path.endsWith('/agenda') ? jsonResponse(_dados()) : null,
+    );
+    await _abrir(tester);
+
+    expect(
+      tester.widget<Semantics>(_dia(10)).properties.label,
+      contains('data bloqueada'),
+    );
+    await tester.tap(_dia(10));
+    await tester.pumpAndSettle();
+    await _mostrar(
+      tester,
+      find.text('Este dia esta bloqueado para ferias ou imprevisto.'),
+    );
+    expect(find.text('08:00 Ã s 18:00'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('agenda alterna para lista compacta e oferece atalho Hoje', (
@@ -275,7 +302,7 @@ void main() {
           await _mostrar(tester, find.text('Atendimento 2'));
           await _mostrar(
             tester,
-            find.textContaining('Antes de aceitar outro pedido'),
+            find.textContaining('Os horários livres consideram'),
           );
           expect(
             tester.takeException(),

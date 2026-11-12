@@ -8,7 +8,19 @@ juridica permanecem pendentes. Esta versao
 bloqueia novas solicitacoes, aceites e acesso profissional ao endereco completo;
 documento aprovado nao libera atendimento. Ver [impacto e implantacao](habilitacao-profissional.md).
 
-Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos de demonstracao; as pendencias abaixo separam ajustes tecnicos, decisoes de produto e preparacao para producao.
+Os checklists atuais tratam esse bloqueio como comportamento esperado. As linhas
+concluídas em `checklist-demo.md` são evidência histórica de commit anterior, não
+aprovação da contratação no estado atual. Não use SQL, flags, conta admin ou fixtures
+compartilhadas para contornar a proteção; testes de módulos posteriores devem usar
+registros sintéticos isolados.
+
+Status revisado em 27/10/2026 para bloqueio de contratacao e validacao de storage. Os demais itens abaixo continuam sendo uma lista de trabalho e podem conter registros historicos; confirme cada item antes de usa-lo como estado atual.
+
+Validacao tecnica complementar em 27/10/2026: as 3 suites MySQL descartaveis,
+incluindo migrations e bloqueio de contratacao, passaram; ClamAV local detectou a
+assinatura EICAR em memoria; os testes de storage exercitaram PUT/GET/DELETE contra
+um endpoint S3 local isolado. Isso nao substitui homologacao no Cloudflare R2 real,
+que permanece pendente de bucket e credenciais exclusivos de teste.
 
 ## Correcoes recentes incorporadas
 
@@ -34,7 +46,7 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 ## Ajustes tecnicos ainda pendentes
 
 - Instalar, configurar e homologar ClamAV no ambiente de hospedagem com `MALWARE_SCAN_MODE=required`.
-- Criar bucket Cloudflare R2 real, configurar credenciais de producao e homologar upload/download na hospedagem.
+- Criar bucket Cloudflare R2 real, configurar credenciais de homologacao/producao e testar upload/download/exclusao no bucket de teste antes de qualquer promocao a producao. O teste local com endpoint S3 simulado nao homologa o servico Cloudflare.
 - Migrar fotos de perfil para storage privado/gerenciado ou definir se continuarao em storage local/publico por rota da API.
 - Definir e implementar politica de retencao, expiracao e descarte de documentos.
 - Trocar rate limit em memoria por solucao adequada se houver multiplas instancias.
@@ -73,6 +85,8 @@ Estado revisado em 16/10/2026. O app e a API ja implementam o nucleo dos fluxos 
 - [Progresso](progresso.md)
 - [Seguranca](seguranca.md)
 - [Operacao e producao](operacao-producao.md)
+- [Piloto do Cloudflare R2](piloto-r2.md)
+- [Proposta provisoria de revisao manual profissional](verificacao-manual-profissional.md)
 - [Checklist cliente](checklist-homologacao-cliente.md)
 - [Checklist profissional](checklist-homologacao-profissional.md)
 - [Checklist admin](checklist-homologacao-admin.md)

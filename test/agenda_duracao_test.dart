@@ -19,6 +19,8 @@ void main() {
       await configurarFrontend(
         papel: 'profissional',
         responder: (request) async {
+          if (request.url.path == '/categorias') return jsonResponse({'categorias': [{'id': 2, 'nome': 'Manutenção'}]});
+          if (request.url.path == '/categorias/2/servicos') return jsonResponse({'servicos': [{'id': 12, 'nome': 'Montagem de cadeira'}], 'paginacao': {'temMais': false}});
           if (request.url.path.endsWith('/me/servicos')) {
             if (request.method == 'PUT') {
               enviado = jsonDecode(request.body) as Map<String, dynamic>;
@@ -38,10 +40,7 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Nome do serviço'),
-        'Instalação de teste',
-      );
+      await selecionarServicoCatalogo(tester, categoria: 'Manutenção', servico: 'Montagem de cadeira');
       await tester.enterText(
         find.widgetWithText(TextFormField, 'Duração estimada (minutos)'),
         '90',
@@ -60,6 +59,8 @@ void main() {
     await configurarFrontend(
       papel: 'profissional',
       responder: (request) async {
+        if (request.url.path == '/categorias') return jsonResponse({'categorias': [{'id': 2, 'nome': 'Manutenção'}]});
+        if (request.url.path == '/categorias/2/servicos') return jsonResponse({'servicos': [{'id': 12, 'nome': 'Montagem de cadeira'}], 'paginacao': {'temMais': false}});
         if (request.url.path.endsWith('/me/servicos')) {
           if (request.method == 'PUT') {
             enviado = jsonDecode(request.body) as Map<String, dynamic>;
@@ -77,10 +78,7 @@ void main() {
     );
     await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar serviço'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Nome do serviço'),
-      'Serviço padrão',
-    );
+    await selecionarServicoCatalogo(tester, categoria: 'Manutenção', servico: 'Montagem de cadeira');
     await tester.ensureVisible(find.text('Salvar'));
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();

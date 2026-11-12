@@ -91,6 +91,9 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
       (s) => OfertaProfissional(
         id: intValue(s['id']),
         nome: stringValue(s['nome']),
+        servicoCatalogoId: s['servicoCatalogoId'] == null
+            ? null
+            : intValue(s['servicoCatalogoId']),
         categoriaId: s['categoria']?['id'] == null
             ? null
             : intValue(s['categoria']?['id']),
@@ -120,6 +123,11 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         : 0,
     profissionalUsuarioId: intValue(profissional?['usuarioId']),
     servicoId: json['servicoId'] == null ? null : intValue(json['servicoId']),
+    servicoCatalogoId:
+        json['servicoSnapshot'] is Map &&
+            json['servicoSnapshot']['servicoCatalogoId'] != null
+        ? intValue(json['servicoSnapshot']['servicoCatalogoId'])
+        : null,
     nomeServico: nullableString(json['nomeServico']),
     categoriaId: categoria is Map<String, dynamic>
         ? intValue(categoria['id'])
@@ -167,6 +175,7 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     eventos: (json['eventos'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
+    negociacaoIniciada: json['negociacaoIniciada'] == true,
     precoInicial: doubleValueOrNull(json['precoInicial']),
     precoFinal: doubleValueOrNull(json['precoFinal']),
     status: statusSolicitacaoFromApi(stringValue(json['status'])),

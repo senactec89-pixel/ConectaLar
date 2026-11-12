@@ -9,6 +9,99 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('negociacao em andamento nao mostra aceitar nem recusar', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/solicitacoes/me') {
+          return jsonResponse({
+            'solicitacoes': [
+              {
+                'id': 990,
+                'status': 'aguardando_resposta',
+                'negociacaoIniciada': true,
+                'nomeServico': 'Montagem de cadeira',
+                'cliente': {'nome': 'Cliente de teste'},
+                'dataServico': '2030-04-12',
+                'horarioServico': '09:00',
+              },
+            ],
+          });
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.areaProfissional,
+      overrides: {
+        AppRoutes.areaProfissional: (_) =>
+            const AreaProfissionalPage(initialTab: 1),
+      },
+    );
+
+    expect(find.text('Negociação em andamento'), findsOneWidget);
+    expect(find.text('Continuar negociação'), findsOneWidget);
+    expect(find.text('Aceitar'), findsNothing);
+    expect(find.byTooltip('Recusar solicitação'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pedidos expirados ficam no histórico sem ações de decisão', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/solicitacoes/me') {
+          return jsonResponse({
+            'solicitacoes': [
+              {
+                'id': 901,
+                'status': 'expirada',
+                'nomeServico': 'Limpeza residencial',
+                'cliente': {'nome': 'Cliente de teste'},
+                'dataServico': '2030-04-12',
+                'horarioServico': '09:00',
+              },
+              {
+                'id': 902,
+                'status': 'negociacao_expirada',
+                'nomeServico': 'Pintura interna',
+                'cliente': {'nome': 'Cliente de teste'},
+                'dataServico': '2030-04-12',
+                'horarioServico': '13:00',
+              },
+            ],
+          });
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.areaProfissional,
+      overrides: {
+        AppRoutes.areaProfissional: (_) =>
+            const AreaProfissionalPage(initialTab: 1),
+      },
+    );
+    final historico = find.byKey(
+      const ValueKey('profissional-filtro-Histórico'),
+    );
+    await tester.ensureVisible(historico);
+    await tester.tap(historico);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Expirada'), findsOneWidget);
+    expect(find.text('Negociação encerrada'), findsOneWidget);
+    expect(find.text('Aceitar'), findsNothing);
+    expect(find.byTooltip('Recusar solicitação'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('filtros de pedidos profissionais indicam que podem deslizar', (
     tester,
   ) async {
@@ -31,10 +124,12 @@ void main() {
         await tester.scrollUntilVisible(
           filtros,
           100,
-          scrollable: find.descendant(
-            of: find.byType(ListView).first,
-            matching: find.byType(Scrollable),
-          ).first,
+          scrollable: find
+              .descendant(
+                of: find.byType(ListView).first,
+                matching: find.byType(Scrollable),
+              )
+              .first,
         );
         await tester.pumpAndSettle();
         final historico = find.byKey(

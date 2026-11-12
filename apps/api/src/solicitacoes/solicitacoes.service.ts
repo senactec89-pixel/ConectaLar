@@ -15,6 +15,9 @@ import {
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
+import { criarSnapshotServico } from './servico-snapshot.js';
+import { bloquearOfertaCatalogo } from './oferta-catalogo.js';
+import { calcularExpiracaoProposta, propostaExpirada } from './proposta-prazo.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
@@ -38,7 +41,9 @@ import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
-import { exigirHabilitacao, podeAtender } from '../verificacao/habilitacao-profissional.js';
+import { exigirHabilitacao, habilitacaoManualLocalAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
+import { calcularExpiracaoPedido, expirarPedidoSemResposta } from './pedido-prazo.js';
+import { calcularExpiracaoNegociacao, expirarNegociacaoInativa } from './negociacao-prazo.js';
 
 interface CriarSolicitacaoInput {
   readonly profissionalId: number;
@@ -49,6 +54,7 @@ interface CriarSolicitacaoInput {
   readonly bairroAtendimento: string;
   readonly dataServico: string;
   readonly horarioServico: string;
+  readonly opcoesIds: number[];
 }
 
 @Injectable()
@@ -109,6 +115,7 @@ export class SolicitacoesService {
     }
 
     exigirHabilitacao(profissional);
+    if (input.opcoesIds.length === 0) throw badRequest('OPCOES_OBRIGATORIAS');
 
     const oferta =
       input.servicoId === null
@@ -119,8 +126,12 @@ export class SolicitacoesService {
               profissionalId: profissional.id,
               ativo: true,
             },
+            relations: { categoria: true, servicoCatalogo: true },
           });
-    if (input.servicoId !== null && oferta === null) {
+    if (oferta === null || oferta.servicoCatalogoId == null ||
+      !oferta.servicoCatalogo?.ativo || !oferta.categoria?.ativo ||
+      oferta.servicoCatalogo.categoriaId !== oferta.categoriaId ||
+      (input.categoriaId !== null && input.categoriaId !== oferta.categoriaId)) {
       throw badRequest('OFERTA_INDISPONIVEL');
     }
     const categoriaId =
@@ -154,12 +165,14 @@ export class SolicitacoesService {
       0,
     );
 
+    const servicoSnapshot = criarSnapshotServico(oferta);
     const solicitacao = this.solicitacoes.create({
       clienteId: cliente.id,
       profissionalId: profissional.id,
       categoriaId,
       servicoId: oferta?.id ?? null,
-      nomeServico: oferta?.nome ?? null,
+      nomeServico: servicoSnapshot?.nomeServico ?? null,
+      servicoSnapshot,
       enderecoId: input.enderecoId,
       enderecoSnapshot,
       descricao: input.descricao,
@@ -171,12 +184,28 @@ export class SolicitacoesService {
       precoInicial: oferta === null ? profissional.precoInicial : oferta.precoInicial,
       precoFinal: null,
       status: SolicitacaoStatus.AguardandoResposta,
-      prazoRespostaEm: new Date(Date.now() + 48 * 60 * 60 * 1000),
+      prazoRespostaEm: calcularExpiracaoPedido(new Date()),
       prazoInatividadeEm: null,
     });
 
     const saved = await this.solicitacoes.manager.transaction(async (manager) => {
+      const perfilAtual = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: profissional.id }, lock: { mode: 'pessimistic_write' },
+      });
+      exigirHabilitacao(perfilAtual);
+      if (perfilAtual === null || !perfilAtual.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
+      const ofertaAtual = await bloquearOfertaCatalogo(manager, profissional.id, oferta.id);
+      const opcoes = await carregarOpcoesAtivas(manager, ofertaAtual.servicoCatalogoId!, input.opcoesIds);
+      if (ofertaAtual.duracaoMinutos !== duracaoMinutos) throw badRequest('OFERTA_ATUALIZADA');
+      const snapshotAtual = criarSnapshotServico(ofertaAtual);
+      solicitacao.categoriaId = ofertaAtual.categoriaId;
+      solicitacao.nomeServico = snapshotAtual?.nomeServico ?? null;
+      solicitacao.servicoSnapshot = snapshotAtual;
+      solicitacao.precoInicial = ofertaAtual.precoInicial;
       const criada = await manager.save(SolicitacaoEntity, solicitacao);
+      for (const opcao of opcoes) {
+        await manager.query('INSERT INTO solicitacao_opcoes (solicitacao_id, opcao_id, nome_snapshot) VALUES (?, ?, ?)', [criada.id, opcao.id, opcao.nome]);
+      }
       await manager.save(
         SolicitacaoEventoEntity,
         manager.create(SolicitacaoEventoEntity, {
@@ -238,15 +267,23 @@ export class SolicitacoesService {
             select: { solicitacaoId: true },
           });
     const idsAvaliados = new Set(avaliadas.map((a) => a.solicitacaoId));
+    const idsNegociacaoIniciada = solicitacoes.length === 0
+      ? new Set<number>()
+      : new Set<number>((await this.solicitacoes.manager.query(
+          `SELECT DISTINCT solicitacao_id FROM solicitacao_eventos
+           WHERE tipo = 'negociacao_iniciada' AND solicitacao_id IN (${solicitacoes.map(() => '?').join(',')})`,
+          solicitacoes.map((item) => item.id),
+        ) as Array<{ solicitacao_id: number }>).map((item) => Number(item.solicitacao_id)));
     return {
       paginacao: paginationMetadata(pagination, total),
-      solicitacoes: solicitacoes.map((solicitacao) =>
-        solicitacaoResponse(
+      solicitacoes: solicitacoes.map((solicitacao) => ({
+        ...solicitacaoResponse(
           solicitacao,
           user,
           idsAvaliados.has(solicitacao.id),
         ),
-      ),
+        negociacaoIniciada: idsNegociacaoIniciada.has(solicitacao.id),
+      })),
     };
   }
 
@@ -254,6 +291,288 @@ export class SolicitacoesService {
     const solicitacao = await this.carregar(id);
     assertParticipante(user, solicitacao);
     return this.responder(solicitacao, user);
+  }
+
+  async opcoes(user: AuthenticatedUser, id: number) {
+    const solicitacao = await this.carregar(id);
+    assertParticipante(user, solicitacao);
+    const rows = await this.solicitacoes.manager.query(
+      'SELECT opcao_id AS id, nome_snapshot AS nome FROM solicitacao_opcoes WHERE solicitacao_id = ? ORDER BY id', [id],
+    ) as Array<{ id: number; nome: string }>;
+    return { opcoes: rows };
+  }
+
+  async iniciarNegociacao(user: AuthenticatedUser, id: number) {
+    const solicitacao = await this.carregar(id);
+    assertProfissionalParticipante(user, solicitacao);
+    const resultado = await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, { where: { id: solicitacao.profissionalId }, lock: { mode: 'pessimistic_write' } });
+      const atual = await manager.findOne(SolicitacaoEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (perfil === null || !perfil.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
+      if (perfil.usuarioId !== user.id) throw forbidden();
+      if (atual === null || atual.status !== SolicitacaoStatus.AguardandoResposta) throw conflitoNegociacao();
+      const opcoes = await manager.query('SELECT id FROM solicitacao_opcoes WHERE solicitacao_id = ? LIMIT 1', [id]) as unknown[];
+      if (opcoes.length === 0) throw conflitoNegociacao();
+      if (await expirarPedidoSemResposta(manager, atual)) return 'expirada' as const;
+      if (await expirarNegociacaoInativa(manager, atual)) return 'expirada' as const;
+      const iniciada = await manager.findOne(SolicitacaoEventoEntity, { where: { solicitacaoId: id, tipo: 'negociacao_iniciada' } });
+      if (iniciada !== null) return 'ja_iniciada' as const;
+      exigirHabilitacao(perfil);
+      atual.prazoInatividadeEm = calcularExpiracaoNegociacao(new Date());
+      await manager.save(SolicitacaoEntity, atual);
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId: id, atorId: user.id, tipo: 'negociacao_iniciada',
+        statusAnterior: atual.status, statusNovo: atual.status, motivo: null,
+      }));
+      return 'iniciada' as const;
+    });
+    if (resultado === 'expirada') throw conflitoPedidoExpirado();
+    if (resultado === 'iniciada') {
+      await this.notificarSeguro({ usuarioId: solicitacao.clienteId, tipo: NotificacaoTipo.NegociacaoIniciada,
+        titulo: 'Negociacao iniciada', mensagem: 'O profissional respondeu ao pedido e pode conversar com voce.',
+        recursoTipo: 'solicitacao', recursoId: id });
+    }
+    return { ...(await this.responder(await this.carregar(id), user)), negociacaoIniciada: true };
+  }
+
+  async listarPropostasAtendimento(user: AuthenticatedUser, id: number, query: Record<string, unknown> = {}) {
+    const solicitacao = await this.carregar(id);
+    assertParticipante(user, solicitacao);
+    const paginacao = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
+    await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const atual = await manager.findOne(SolicitacaoEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (atual?.status === SolicitacaoStatus.AguardandoResposta) {
+        await this.expirarPropostasPendentes(manager, atual);
+      }
+    });
+    const rows = await this.solicitacoes.manager.query(`SELECT id, versao, proposto_por_id, valor, data_servico,
+      horario_servico, duracao_minutos, status, respondido_por_id, respondido_em, criado_em, expira_em
+      FROM solicitacao_propostas_atendimento WHERE solicitacao_id = ? ORDER BY versao DESC LIMIT ? OFFSET ?`,
+    [id, paginacao.limite, paginacao.skip]) as PropostaAtendimentoRow[];
+    const counts = await this.solicitacoes.manager.query('SELECT COUNT(*) total FROM solicitacao_propostas_atendimento WHERE solicitacao_id = ?', [id]) as Array<{ total: number | string }>;
+    const itens = rows.length === 0 ? [] : await this.solicitacoes.manager.query(
+      `SELECT proposta_id, opcao_id, nome_snapshot FROM proposta_atendimento_opcoes WHERE proposta_id IN (${rows.map(() => '?').join(',')}) ORDER BY id`,
+      rows.map((row) => row.id),
+    ) as PropostaOpcaoRow[];
+    return { paginacao: paginationMetadata(paginacao, Number(counts[0]?.total ?? 0)),
+      propostas: rows.map((row) => propostaAtendimentoResponse(row, itens.filter((item) => item.proposta_id === row.id))) };
+  }
+
+  async proporAtendimento(user: AuthenticatedUser, id: number, body: unknown) {
+    const input = parsePropostaAtendimento(body);
+    assertAgendamentoFuturo(input.dataServico, input.horarioServico);
+    const solicitacao = await this.carregar(id);
+    assertProfissionalParticipante(user, solicitacao);
+    const propostaId = await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, { where: { id: solicitacao.profissionalId }, lock: { mode: 'pessimistic_write' } });
+      const atual = await manager.findOne(SolicitacaoEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (perfil === null || !perfil.ativo || perfil.habilitacaoEstado === 'suspenso' || atual === null || atual.status !== SolicitacaoStatus.AguardandoResposta) throw conflitoNegociacao();
+      if (perfil.usuarioId !== user.id) throw forbidden();
+      const evento = await manager.findOne(SolicitacaoEventoEntity, { where: { solicitacaoId: id, tipo: 'negociacao_iniciada' } });
+      if (evento === null || atual.servicoId === null) throw conflitoNegociacao();
+      if (await expirarNegociacaoInativa(manager, atual)) return 'expirada' as const;
+      const oferta = await bloquearOfertaCatalogo(manager, atual.profissionalId, atual.servicoId);
+      const opcoes = await carregarOpcoesAtivas(manager, oferta.servicoCatalogoId!, input.opcoesIds);
+      await this.expirarPropostasPendentes(manager, atual);
+      await manager.query("UPDATE solicitacao_propostas_atendimento SET status='substituida' WHERE solicitacao_id=? AND status='pendente'", [id]);
+      const versions = await manager.query('SELECT COALESCE(MAX(versao), 0) AS versao FROM solicitacao_propostas_atendimento WHERE solicitacao_id=?', [id]) as Array<{ versao: number | string }>;
+      const versao = Number(versions[0]?.versao ?? 0) + 1;
+      const expiraEm = calcularExpiracaoProposta(new Date(), input.dataServico, input.horarioServico);
+      const result = await manager.query(`INSERT INTO solicitacao_propostas_atendimento
+        (solicitacao_id, versao, proposto_por_id, valor, data_servico, horario_servico, duracao_minutos, expira_em)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, versao, user.id, input.valor, input.dataServico, input.horarioServico, input.duracaoMinutos, expiraEm]) as { insertId: number };
+      for (const opcao of opcoes) {
+        await manager.query('INSERT INTO proposta_atendimento_opcoes (proposta_id, opcao_id, nome_snapshot) VALUES (?, ?, ?)', [result.insertId, opcao.id, opcao.nome]);
+      }
+      atual.prazoInatividadeEm = calcularExpiracaoNegociacao(new Date());
+      await manager.save(SolicitacaoEntity, atual);
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId: id, atorId: user.id, tipo: 'proposta_atendimento_enviada',
+        statusAnterior: atual.status, statusNovo: atual.status, motivo: null,
+      }));
+      return result.insertId as number;
+    });
+    if (propostaId === 'expirada') throw conflitoNegociacaoExpirada();
+    await this.notificarSeguro({ usuarioId: solicitacao.clienteId, tipo: NotificacaoTipo.PropostaAtendimentoEnviada,
+      titulo: 'Proposta para analisar', mensagem: 'O profissional enviou uma proposta para voce conferir.',
+      recursoTipo: 'solicitacao', recursoId: id });
+    return { propostaId };
+  }
+
+  async responderPropostaAtendimento(user: AuthenticatedUser, id: number, propostaId: number, body: unknown) {
+    const value = objectBody(body);
+    if (Object.keys(value).length !== 1 || typeof value.aceitar !== 'boolean') throw badRequest('RESPOSTA_INVALIDA');
+    const solicitacao = await this.carregar(id);
+    assertClienteParticipante(user, solicitacao);
+    const expirada = await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, { where: { id: solicitacao.profissionalId }, lock: { mode: 'pessimistic_write' } });
+      const atual = await manager.findOne(SolicitacaoEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (atual === null || atual.status !== SolicitacaoStatus.AguardandoResposta) throw conflitoNegociacao();
+      if (atual.clienteId !== user.id) throw forbidden();
+      await this.expirarPropostasPendentes(manager, atual);
+    const rows = await manager.query(`SELECT p.id, p.status, p.valor, p.data_servico, p.horario_servico, p.duracao_minutos FROM solicitacao_propostas_atendimento p
+        WHERE p.id=? AND p.solicitacao_id=? AND p.versao=(SELECT MAX(ultima.versao) FROM solicitacao_propostas_atendimento ultima WHERE ultima.solicitacao_id=?) FOR UPDATE`,
+      [propostaId, id, id]) as Array<{
+        id: number; status: string; valor: string; data_servico: string;
+        horario_servico: string; duracao_minutos: number;
+      }>;
+      if (rows[0]?.status === 'expirada') return true;
+      if (rows[0]?.status !== 'pendente') throw new ConflictException({ code: 'PROPOSTA_DESATUALIZADA', message: 'A proposta nao esta mais disponivel.' });
+      if (value.aceitar) {
+        if (!habilitacaoManualLocalAtiva()) {
+          throw new ConflictException({ code: 'CONFIRMACAO_ATENDIMENTO_PENDENTE', message: 'A confirmacao de atendimento ainda nao esta disponivel.' });
+        }
+        exigirHabilitacao(perfil);
+        if (perfil === null || !perfil.ativo) throw new ConflictException({ code: 'PROFISSIONAL_INDISPONIVEL' });
+        assertAgendamentoFuturo(rows[0].data_servico, rows[0].horario_servico);
+        await this.validarAgendaComManager(
+          manager, perfil.id, rows[0].data_servico, rows[0].horario_servico,
+          rows[0].duracao_minutos, 0, atual.id,
+        );
+        await manager.query("UPDATE solicitacao_propostas_atendimento SET status='aceita', respondido_por_id=?, respondido_em=CURRENT_TIMESTAMP(6) WHERE id=? AND status='pendente'", [user.id, propostaId]);
+        atual.dataServico = rows[0].data_servico;
+        atual.horarioServico = rows[0].horario_servico;
+        atual.duracaoMinutos = rows[0].duracao_minutos;
+        atual.precoFinal = String(rows[0].valor);
+        atual.status = SolicitacaoStatus.AceitaAgendada;
+        atual.prazoInatividadeEm = null;
+        await manager.save(SolicitacaoEntity, atual);
+        await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+          solicitacaoId: id, atorId: user.id, tipo: 'proposta_atendimento_aceita',
+          statusAnterior: SolicitacaoStatus.AguardandoResposta,
+          statusNovo: SolicitacaoStatus.AceitaAgendada, motivo: null,
+        }));
+        return false;
+      }
+      await manager.query("UPDATE solicitacao_propostas_atendimento SET status='recusada', respondido_por_id=?, respondido_em=CURRENT_TIMESTAMP(6) WHERE id=?", [user.id, propostaId]);
+      atual.prazoInatividadeEm = calcularExpiracaoNegociacao(new Date());
+      await manager.save(SolicitacaoEntity, atual);
+      await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+        solicitacaoId: id, atorId: user.id, tipo: 'proposta_atendimento_recusada',
+        statusAnterior: atual.status, statusNovo: atual.status, motivo: null,
+      }));
+      return false;
+    });
+    if (expirada) throw new ConflictException({ code: 'PROPOSTA_EXPIRADA', message: 'O prazo para responder esta proposta terminou.' });
+    const atualizada = await this.carregar(id);
+    const aceita = atualizada.status === SolicitacaoStatus.AceitaAgendada;
+    await this.notificarSeguro({ usuarioId: solicitacao.profissional.usuarioId,
+      tipo: aceita ? NotificacaoTipo.SolicitacaoAceita : NotificacaoTipo.PropostaAtendimentoRecusada,
+      titulo: aceita ? 'Atendimento confirmado' : 'Proposta recusada',
+      mensagem: aceita ? 'O cliente confirmou a proposta. O horario foi reservado.' : 'O cliente recusou a proposta. Voces podem conversar novamente.',
+      recursoTipo: 'solicitacao', recursoId: id });
+    return { propostaId, status: aceita ? 'aceita' : 'recusada', solicitacao: atualizada };
+  }
+
+  async expirarPropostasVencidas(agora = new Date(), limite = 100): Promise<number> {
+    const candidatas = await this.solicitacoes.manager.query(`SELECT DISTINCT solicitacao_id
+      FROM solicitacao_propostas_atendimento
+      WHERE status='pendente' AND (expira_em IS NULL OR expira_em <= ?)
+      ORDER BY solicitacao_id ASC LIMIT ?`, [agora, limite]) as Array<{ solicitacao_id: number }>;
+    let expiradas = 0;
+
+    for (const candidata of candidatas) {
+      expiradas += await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+        const solicitacao = await manager.findOne(SolicitacaoEntity, {
+          where: { id: candidata.solicitacao_id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (solicitacao === null || solicitacao.status !== SolicitacaoStatus.AguardandoResposta) return 0;
+        return this.expirarPropostasPendentes(manager, solicitacao, agora);
+      });
+    }
+
+    return expiradas;
+  }
+
+  async expirarPedidosSemResposta(agora = new Date(), limite = 100): Promise<number> {
+    const candidatas = await this.solicitacoes.manager.query(`SELECT pedido.id
+      FROM solicitacoes pedido
+      WHERE pedido.status='aguardando_resposta'
+        AND (pedido.prazo_resposta_em IS NULL OR pedido.prazo_resposta_em <= ?)
+        AND NOT EXISTS (
+          SELECT 1 FROM solicitacao_eventos evento
+          WHERE evento.solicitacao_id=pedido.id AND evento.tipo='negociacao_iniciada'
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM mensagens_atendimento mensagem
+          INNER JOIN profissionais profissional ON profissional.usuario_id=mensagem.autor_id
+          WHERE mensagem.solicitacao_id=pedido.id AND profissional.id=pedido.profissional_id
+        )
+      ORDER BY COALESCE(pedido.prazo_resposta_em, pedido.criado_em), pedido.id
+      LIMIT ?`, [agora, limite]) as Array<{ id: number }>;
+    let expirados = 0;
+
+    for (const candidata of candidatas) {
+      expirados += await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+        const solicitacao = await manager.findOne(SolicitacaoEntity, {
+          where: { id: candidata.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (solicitacao === null || solicitacao.status !== SolicitacaoStatus.AguardandoResposta) return 0;
+        return Number(await expirarPedidoSemResposta(manager, solicitacao, agora));
+      });
+    }
+
+    return expirados;
+  }
+
+  async expirarNegociacoesInativas(agora = new Date(), limite = 100): Promise<number> {
+    const candidatas = await this.solicitacoes.manager.query(`SELECT pedido.id
+      FROM solicitacoes pedido
+      WHERE pedido.status='aguardando_resposta'
+        AND pedido.prazo_inatividade_em IS NOT NULL
+        AND pedido.prazo_inatividade_em <= ?
+        AND NOT EXISTS (SELECT 1 FROM solicitacao_propostas_atendimento proposta
+          WHERE proposta.solicitacao_id=pedido.id AND proposta.status='pendente')
+      ORDER BY pedido.prazo_inatividade_em, pedido.id
+      LIMIT ?`, [agora, limite]) as Array<{ id: number }>;
+    let expiradas = 0;
+
+    for (const candidata of candidatas) {
+      expiradas += await this.solicitacoes.manager.transaction('READ COMMITTED', async (manager) => {
+        const solicitacao = await manager.findOne(SolicitacaoEntity, {
+          where: { id: candidata.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (solicitacao === null) return 0;
+        return Number(await expirarNegociacaoInativa(manager, solicitacao, agora));
+      });
+    }
+    return expiradas;
+  }
+
+  private async expirarPropostasPendentes(
+    manager: EntityManager,
+    solicitacao: SolicitacaoEntity,
+    agora = new Date(),
+  ): Promise<number> {
+    const rows = await manager.query(`SELECT id, criado_em, data_servico, horario_servico, expira_em
+      FROM solicitacao_propostas_atendimento WHERE solicitacao_id=? AND status='pendente' ORDER BY id FOR UPDATE`,
+    [solicitacao.id]) as Array<{ id: number; criado_em: Date; data_servico: string; horario_servico: string; expira_em: Date | null }>;
+    let expiradas = 0;
+    for (const proposta of rows) {
+      const calculada = calcularExpiracaoProposta(proposta.criado_em, proposta.data_servico, proposta.horario_servico);
+      const expiraEm = proposta.expira_em === null
+        ? calculada
+        : new Date(Math.min(proposta.expira_em.getTime(), calculada.getTime()));
+      if (propostaExpirada(expiraEm, agora)) {
+        await manager.query("UPDATE solicitacao_propostas_atendimento SET status='expirada', expira_em=? WHERE id=? AND status='pendente'", [expiraEm, proposta.id]);
+        await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
+          solicitacaoId: solicitacao.id, atorId: null, tipo: 'proposta_atendimento_expirada',
+          statusAnterior: solicitacao.status, statusNovo: solicitacao.status, motivo: null,
+        }));
+        expiradas++;
+      } else if (proposta.expira_em === null) {
+        await manager.query(`UPDATE solicitacao_propostas_atendimento SET expira_em=? WHERE id=? AND status='pendente'`, [expiraEm, proposta.id]);
+      }
+    }
+    if (expiradas > 0) {
+      solicitacao.prazoInatividadeEm = calcularExpiracaoNegociacao(agora);
+      await manager.save(SolicitacaoEntity, solicitacao);
+    }
+    return expiradas;
   }
 
   async aceitar(user: AuthenticatedUser, id: number) {
@@ -292,6 +611,35 @@ export class SolicitacoesService {
       tipo: NotificacaoTipo.SolicitacaoRecusada,
       titulo: 'Solicitacao recusada',
       mensagem: 'O profissional recusou sua solicitacao.',
+      recursoTipo: 'solicitacao',
+      recursoId: solicitacao.id,
+    });
+    return response;
+  }
+
+  async encerrarNegociacao(user: AuthenticatedUser, id: number, body: unknown) {
+    const motivo = textField(objectBody(body), 'motivo', 10, 600);
+    const solicitacao = await this.carregar(id);
+    assertParticipante(user, solicitacao);
+    if (user.tipo === UsuarioTipo.Administrador) throw forbidden();
+    const response = await this.transicionar(
+      solicitacao,
+      SolicitacaoStatus.AguardandoResposta,
+      SolicitacaoStatus.Recusada,
+      user,
+      'negociacao_encerrada',
+      motivo,
+      undefined,
+      true,
+    );
+    const destinatarioId = user.id === solicitacao.clienteId
+      ? solicitacao.profissional.usuarioId
+      : solicitacao.clienteId;
+    await this.notificarSeguro({
+      usuarioId: destinatarioId,
+      tipo: NotificacaoTipo.SolicitacaoRecusada,
+      titulo: 'Negociacao encerrada',
+      mensagem: 'A outra parte encerrou a negociacao do atendimento.',
       recursoTipo: 'solicitacao',
       recursoId: solicitacao.id,
     });
@@ -965,8 +1313,9 @@ export class SolicitacoesService {
     eventoTipo: string,
     motivo: string | null = null,
     atualizar?: (solicitacao: SolicitacaoEntity) => void,
+    encerrarNegociacao = false,
   ) {
-    await this.solicitacoes.manager.transaction(
+    const expirou = await this.solicitacoes.manager.transaction(
       'READ COMMITTED',
       async (manager) => {
         // Todas as transições adquirem os locks na mesma ordem. O perfil serializa
@@ -986,17 +1335,27 @@ export class SolicitacoesService {
             message: 'A solicitação já foi atualizada.',
           });
         }
-        if (
-          atual.status === SolicitacaoStatus.AguardandoResposta &&
-          [SolicitacaoStatus.AceitaAgendada, SolicitacaoStatus.Recusada]
-            .includes(destino) && prazoPedidoEncerrado(atual, new Date())
-        ) {
-          throw new ConflictException({ code: 'PRAZO_PEDIDO_ENCERRADO' });
+        if (await expirarPedidoSemResposta(manager, atual)) return 'pedido' as const;
+        if (await expirarNegociacaoInativa(manager, atual)) return 'negociacao' as const;
+        if (destino === SolicitacaoStatus.Recusada) {
+          const negociacao = await manager.findOne(SolicitacaoEventoEntity, {
+            where: { solicitacaoId: atual.id, tipo: 'negociacao_iniciada' },
+          });
+          if (encerrarNegociacao !== (negociacao !== null)) {
+            throw new ConflictException({
+              code: negociacao === null ? 'NEGOCIACAO_NAO_INICIADA' : 'NEGOCIACAO_EXIGE_ENCERRAMENTO',
+              message: negociacao === null
+                ? 'A negociacao ainda nao foi iniciada.'
+                : 'Use a acao de encerrar negociacao e informe o motivo.',
+            });
+          }
         }
         if (destino === SolicitacaoStatus.AceitaAgendada) {
           exigirHabilitacao(perfil);
           if (perfil === null || !perfil.ativo)
             throw badRequest('PROFISSIONAL_INDISPONIVEL');
+          const opcoes = await manager.query('SELECT id FROM solicitacao_opcoes WHERE solicitacao_id = ? LIMIT 1', [atual.id]) as unknown[];
+          if (opcoes.length > 0) throw new ConflictException({ code: 'USE_PROPOSTA_ATENDIMENTO', message: 'Este pedido deve ser negociado e confirmado por proposta.' });
           const disponibilidade = await manager.find(
             ProfissionalDisponibilidadeEntity,
             {
@@ -1029,6 +1388,12 @@ export class SolicitacoesService {
               await manager.save(SolicitacaoPropostaEntity, proposta);
             }
           }
+          await manager.query(
+            `UPDATE solicitacao_propostas_atendimento
+             SET status = 'substituida'
+             WHERE solicitacao_id = ? AND status = 'pendente'`,
+            [atual.id],
+          );
         }
         atualizar?.(atual);
         await manager.save(SolicitacaoEntity, atual);
@@ -1043,8 +1408,11 @@ export class SolicitacoesService {
             motivo,
           }),
         );
+        return null;
       },
     );
+    if (expirou === 'pedido') throw conflitoPedidoExpirado();
+    if (expirou === 'negociacao') throw conflitoNegociacaoExpirada();
     return this.responder(await this.carregar(solicitacao.id), user);
   }
 
@@ -1075,6 +1443,10 @@ export class SolicitacoesService {
       order: { criadoEm: 'DESC' },
       take: 100,
     });
+    const negociacaoIniciada = eventos.some((evento) => evento.tipo === 'negociacao_iniciada') ||
+      (await this.solicitacoes.manager.getRepository(SolicitacaoEventoEntity).find({
+        where: { solicitacaoId: solicitacao.id, tipo: 'negociacao_iniciada' }, take: 1,
+      })).some((evento) => evento.tipo === 'negociacao_iniciada');
     return {
       solicitacao: {
         ...solicitacaoResponse(solicitacao, user, avaliado),
@@ -1092,6 +1464,7 @@ export class SolicitacoesService {
           : propostaPreAceiteResponse(propostas[0]),
         propostasPreAceite: propostas.map(propostaPreAceiteResponse),
         eventos: eventos.map(eventoResponse),
+        negociacaoIniciada,
       },
     };
   }
@@ -1220,10 +1593,13 @@ function solicitacaoResponse(
     id: solicitacao.id,
     servicoId: solicitacao.servicoId,
     nomeServico: solicitacao.nomeServico,
+    servicoSnapshot: solicitacao.servicoSnapshot ?? null,
     avaliado,
     status: solicitacao.status,
     prazoRespostaEm: solicitacao.prazoRespostaEm?.toISOString() ?? null,
     prazoInatividadeEm: solicitacao.prazoInatividadeEm?.toISOString() ?? null,
+    expiraEm: solicitacao.prazoRespostaEm?.toISOString() ?? null,
+    negociacaoExpiraEm: solicitacao.prazoInatividadeEm?.toISOString() ?? null,
     descricao: solicitacao.descricao,
     bairroAtendimento: solicitacao.bairroAtendimento,
     enderecoId: solicitacao.enderecoId,
@@ -1258,7 +1634,9 @@ function solicitacaoResponse(
       verificado: solicitacao.profissional.verificado,
     },
     categoria:
-      solicitacao.categoria === null
+      solicitacao.servicoSnapshot?.nomeCategoria != null
+        ? { id: solicitacao.servicoSnapshot.categoriaId, nome: solicitacao.servicoSnapshot.nomeCategoria }
+        : solicitacao.categoria === null
         ? null
         : {
             id: solicitacao.categoria.id,
@@ -1366,6 +1744,7 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
     bairroAtendimento: textField(value, 'bairroAtendimento', 2, 120),
     dataServico: dateField(value.dataServico),
     horarioServico: timeField(value.horarioServico),
+    opcoesIds: parseOpcoesIds(value.opcoesIds, false),
   };
 }
 
@@ -1456,6 +1835,50 @@ function propostaPreAceiteResponse(item: SolicitacaoPropostaEntity) {
   };
 }
 
+interface PropostaAtendimentoRow {
+  id: number; versao: number; proposto_por_id: number; valor: string;
+  data_servico: string; horario_servico: string; duracao_minutos: number;
+  status: string; respondido_por_id: number | null; respondido_em: Date | null;
+  criado_em: Date; expira_em: Date | null;
+}
+interface PropostaOpcaoRow { proposta_id: number; opcao_id: number; nome_snapshot: string }
+
+function propostaAtendimentoResponse(row: PropostaAtendimentoRow, itens: PropostaOpcaoRow[]) {
+  const expiraEmCalculada = calcularExpiracaoProposta(row.criado_em, row.data_servico, row.horario_servico);
+  const expiraEm = row.expira_em === null
+    ? expiraEmCalculada
+    : new Date(Math.min(row.expira_em.getTime(), expiraEmCalculada.getTime()));
+  return {
+    id: row.id, versao: row.versao, propostoPorId: row.proposto_por_id,
+    valor: numberOrNull(row.valor), dataServico: row.data_servico, horarioServico: row.horario_servico,
+    duracaoMinutos: row.duracao_minutos, status: row.status, respondidoPorId: row.respondido_por_id,
+    respondidoEm: row.respondido_em?.toISOString() ?? null, criadoEm: row.criado_em.toISOString(),
+    expiraEm: expiraEm.toISOString(),
+    opcoes: itens.map((item) => ({ id: item.opcao_id, nome: item.nome_snapshot })),
+  };
+}
+
+function parsePropostaAtendimento(body: unknown) {
+  const value = objectBody(body);
+  if (Object.keys(value).some((key) => !['opcoesIds', 'valor', 'dataServico', 'horarioServico', 'duracaoMinutos'].includes(key))) throw badRequest('CAMPO_INVALIDO');
+  const raw = typeof value.valor === 'number' ? String(value.valor) : typeof value.valor === 'string' ? value.valor.trim().replace(',', '.') : '';
+  if (!/^\d{1,8}(\.\d{1,2})?$/.test(raw) || Number(raw) <= 0 || Number(raw) > 99_999_999.99) throw badRequest('VALOR_ORCAMENTO_INVALIDO');
+  if (typeof value.duracaoMinutos !== 'number' || !Number.isInteger(value.duracaoMinutos) || value.duracaoMinutos < 1 || value.duracaoMinutos > 1440) throw badRequest('DURACAO_INVALIDA');
+  return { opcoesIds: parseOpcoesIds(value.opcoesIds, true), valor: Number(raw).toFixed(2),
+    dataServico: dateField(value.dataServico), horarioServico: timeField(value.horarioServico), duracaoMinutos: value.duracaoMinutos };
+}
+
+function conflitoNegociacao(): ConflictException {
+  return new ConflictException({ code: 'NEGOCIACAO_INDISPONIVEL', message: 'Este pedido nao aceita esta acao de negociacao.' });
+}
+
+function conflitoNegociacaoExpirada(): ConflictException {
+  return new ConflictException({
+    code: 'NEGOCIACAO_EXPIRADA',
+    message: 'A negociação foi encerrada após 96 horas sem atividade.',
+  });
+}
+
 function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
   return {
     id: item.id,
@@ -1516,6 +1939,26 @@ function objectBody(body: unknown): Record<string, unknown> {
   }
 
   return body as Record<string, unknown>;
+}
+
+interface OpcaoAtiva { id: number; nome: string }
+
+function parseOpcoesIds(value: unknown, obrigatorio: boolean): number[] {
+  if (value === undefined && !obrigatorio) return [];
+  if (!Array.isArray(value) || value.length < 1 || value.length > 30) throw badRequest('OPCOES_INVALIDAS');
+  const ids = value.map((item) => requiredId(item));
+  if (ids.some((id) => id > 4_294_967_295) || new Set(ids).size !== ids.length) throw badRequest('OPCOES_INVALIDAS');
+  return ids.sort((a, b) => a - b);
+}
+
+async function carregarOpcoesAtivas(manager: EntityManager, servicoId: number, ids: readonly number[]): Promise<OpcaoAtiva[]> {
+  if (ids.length === 0) throw badRequest('OPCOES_OBRIGATORIAS');
+  const rows = await manager.query(
+    `SELECT id, nome FROM servico_catalogo_opcoes WHERE servico_catalogo_id = ? AND ativo = 1 AND id IN (${ids.map(() => '?').join(',')}) ORDER BY id FOR UPDATE`,
+    [servicoId, ...ids],
+  ) as OpcaoAtiva[];
+  if (rows.length !== ids.length) throw badRequest('OPCOES_INDISPONIVEIS');
+  return rows;
 }
 
 function textField(
@@ -1694,6 +2137,13 @@ function forbidden(): ForbiddenException {
   return new ForbiddenException({
     code: 'ACESSO_NEGADO',
     message: 'Usuario sem permissao para este recurso.',
+  });
+}
+
+function conflitoPedidoExpirado(): ConflictException {
+  return new ConflictException({
+    code: 'SOLICITACAO_EXPIRADA',
+    message: 'O prazo para responder a esta solicitacao terminou.',
   });
 }
 

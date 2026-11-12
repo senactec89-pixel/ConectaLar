@@ -99,7 +99,11 @@ Future<void> _sessaoAdministrativa() async {
                 },
                 'alvoTipo': 'documento_verificacao',
                 'alvoId': 8,
-                'detalhe': 'Registro de teste para conferência visual.',
+                'detalhe': jsonEncode({
+                  'status': {'antes': 'pendente', 'depois': 'aprovado'},
+                  'telefoneMascarado': '(11) 99999-1111',
+                  'motivoRejeicao': 'Texto privado que não deve aparecer',
+                }),
                 'criadoEm': '2026-10-11T12:00:00Z',
               },
             ],
@@ -161,6 +165,31 @@ void main() {
       }
     });
   }
+
+  testWidgets('auditoria resume mudanças e restringe detalhes técnicos', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _abrir(tester, AdminModulo.auditoria, 390);
+
+    expect(
+      find.textContaining('Situação: Pendente → Aprovado'),
+      findsOneWidget,
+    );
+    expect(find.text('Detalhes técnicos'), findsOneWidget);
+    expect(find.textContaining('99999-1111'), findsNothing);
+    expect(find.textContaining('Texto privado'), findsNothing);
+
+    await tester.ensureVisible(find.text('Detalhes técnicos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Detalhes técnicos'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('"status"'), findsOneWidget);
+    expect(find.textContaining('99999-1111'), findsNothing);
+    expect(find.textContaining('motivoRejeicao'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('busca administrativa continua utilizável com teclado aberto', (
     tester,

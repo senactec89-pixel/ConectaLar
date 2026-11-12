@@ -15,6 +15,7 @@ class ProfissionalService {
   Future<Map<String, dynamic>> buscar({
     String? termo,
     String? categoriaId,
+    int? servicoCatalogoId,
     String? bairro,
     String? cidade,
     String? uf,
@@ -34,6 +35,7 @@ class ProfissionalService {
       if (raioKm != null) 'raioKm': '$raioKm',
       if (categoriaId != null && categoriaId.isNotEmpty)
         'categoriaId': categoriaId,
+      if (servicoCatalogoId != null) 'servicoCatalogoId': '$servicoCatalogoId',
       'pagina': '$pagina',
       'limite': '$limite',
     };
@@ -46,6 +48,7 @@ class ProfissionalService {
     required int raioKm,
     String? termo,
     String? categoriaId,
+    int? servicoCatalogoId,
     int pagina = 1,
     int limite = 20,
   }) {
@@ -58,6 +61,7 @@ class ProfissionalService {
         if (termo != null && termo.isNotEmpty) 'termo': termo,
         if (categoriaId != null && categoriaId.isNotEmpty)
           'categoriaId': categoriaId,
+        'servicoCatalogoId': ?servicoCatalogoId,
         'pagina': pagina,
         'limite': limite,
       },

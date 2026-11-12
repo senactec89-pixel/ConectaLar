@@ -385,7 +385,8 @@ class _FotoProfissional extends StatelessWidget {
               right: 4,
               bottom: 4,
               child: Tooltip(
-                message: 'Documentos verificados',
+                message:
+                    'Análise documental aprovada; não confirma identidade.',
                 child: Container(
                   width: 28,
                   height: 28,

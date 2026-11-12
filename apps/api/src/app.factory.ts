@@ -41,6 +41,7 @@ const authRatePolicies: Readonly<Record<string, { key: string; limit: number; wi
   '/auth/email/verificacao/confirmar': { key: 'email-verification-confirm', limit: 6, windowMs: 60_000 },
   '/auth/mfa/admin/setup': { key: 'admin-mfa-enroll', limit: 6, windowMs: 60_000 },
   '/auth/mfa/admin/confirmar': { key: 'admin-mfa-enroll-confirm', limit: 6, windowMs: 60_000 },
+  '/profissionais/me/habilitacao/telefone/manual': { key: 'phone-manual-challenge', limit: 4, windowMs: 60_000 },
 };
 
 interface HttpRequestLike {
@@ -156,6 +157,12 @@ function authenticationRatePolicy(request: HttpRequestLike): {
 } | null {
   if (request.method !== 'POST') return null;
   const path = (request.path ?? '').replace(/\/+$/u, '') || '/';
+  if (/^\/admin\/profissionais\/[1-9]\d{0,9}\/habilitacao\/telefone\/confirmacao-manual$/.test(path)) {
+    return { key: 'phone-manual-confirm', limit: 8, windowMs: 60_000 };
+  }
+  if (/^\/solicitacoes\/[1-9]\d{0,9}\/avaliacoes\/fotos$/.test(path)) {
+    return { key: 'review-photo-upload', limit: 8, windowMs: 60_000 };
+  }
   return authRatePolicies[path] ?? null;
 }
 

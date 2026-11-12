@@ -58,7 +58,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final selo = find.text('Documentos verificados');
+        final selo = find.text('Análise documental aprovada');
         expect(selo, findsOneWidget);
         expect(
           tester.renderObject<RenderParagraph>(selo).didExceedMaxLines,
@@ -179,7 +179,8 @@ void main() {
           expect(tester.getSize(botao).height, greaterThanOrEqualTo(48));
           await tester.tap(botao);
           await tester.pumpAndSettle();
-          expect(find.text(atalho.$2).hitTestable(), findsOneWidget);
+          final tituloSecao = atalho.$1 == 'sobre' ? 'Apresentação' : atalho.$2;
+          expect(find.text(tituloSecao).hitTestable(), findsOneWidget);
           expect(
             tester.takeException(),
             isNull,
@@ -233,7 +234,7 @@ void main() {
         textScale: 2,
       );
       expect(find.text('N'), findsOneWidget);
-      expect(find.text('Documentos verificados'), findsNothing);
+      expect(find.text('Análise documental aprovada'), findsNothing);
       expect(find.text('Preço inicial sob consulta'), findsNWidgets(2));
       expect(find.text('A partir de R\$ 80,00'), findsOneWidget);
       expect(tester.takeException(), isNull);

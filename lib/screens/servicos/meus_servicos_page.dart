@@ -589,6 +589,8 @@ enum _FiltroServicos {
     StatusSolicitacao.naoComparecimentoInformado,
   ]),
   historico('historico', 'Histórico', [
+    StatusSolicitacao.expirada,
+    StatusSolicitacao.negociacaoExpirada,
     StatusSolicitacao.recusada,
     StatusSolicitacao.cancelada,
     StatusSolicitacao.conclusaoConfirmada,

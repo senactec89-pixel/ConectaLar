@@ -1,5 +1,7 @@
 export enum SolicitacaoStatus {
   AguardandoResposta = 'aguardando_resposta',
+  Expirada = 'expirada',
+  NegociacaoExpirada = 'negociacao_expirada',
   AceitaAgendada = 'aceita_agendada',
   Recusada = 'recusada',
   Cancelada = 'cancelada',

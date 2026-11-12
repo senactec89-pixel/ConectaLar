@@ -112,7 +112,7 @@ test('new Google account records current terms and starts verified', async () =>
     idToken: 'valid-token',
     tipo: 'profissional',
     aceitouTermos: true,
-    versaoTermos: '2026-10-24.v5',
+    versaoTermos: '2026-10-26.v6',
     senha: 'SenhaGoogle123!',
   });
 
@@ -132,7 +132,7 @@ test('new Google account requires a strong ConectaLar recovery password', async 
       idToken: 'valid-token',
       tipo: 'cliente',
       aceitouTermos: true,
-      versaoTermos: '2026-10-24.v5',
+      versaoTermos: '2026-10-26.v6',
     }),
     (error) => error?.getStatus?.() === 400,
   );

@@ -19,6 +19,8 @@ export type EstadoVerificacaoTelefone =
   | 'falha'
   | 'invalidada';
 
+export type MetodoVerificacaoTelefone = 'id_zapsign' | 'whatsapp_manual';
+
 @Entity({ name: 'profissional_telefone_verificacoes' })
 @Index('idx_telefone_verificacoes_usuario_criado', ['usuarioId', 'criadoEm'])
 @Index('uq_telefone_verificacoes_referencia', ['referencia'], { unique: true })
@@ -37,6 +39,12 @@ export class ProfissionalTelefoneVerificacaoEntity {
 
   @Column({ name: 'telefone_vinculado', type: 'varchar', length: 16 })
   telefoneVinculado!: string;
+
+  @Column({ name: 'metodo', type: 'varchar', length: 24, default: 'id_zapsign' })
+  metodo!: MetodoVerificacaoTelefone;
+
+  @Column({ name: 'codigo_hash', type: 'char', length: 64, nullable: true })
+  codigoHash!: string | null;
 
   @Column({ name: 'referencia', type: 'varchar', length: 40, nullable: true })
   referencia!: string | null;

@@ -137,6 +137,62 @@ paths:
         '409': { description: No active verification, expired flow, changed phone, or another attempt is running }
         '503': { description: Provider integration is disabled or unavailable }
         default: { $ref: '#/components/responses/ApiErrorResponse' }
+  /profissionais/me/habilitacao/telefone/manual:
+    post:
+      operationId: postIniciarDesafioManualWhatsApp
+      summary: Creates a one-time challenge for manual WhatsApp sender review
+      description: Requires explicit consent and WHATSAPP_MANUAL_ENABLED plus the official number. The code is shown only once, stored as a keyed digest, expires in ten minutes, and can only be confirmed by an MFA-enabled administrator. Confirmation proves access to the WhatsApp account at that time, not identity or eligibility.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [consentimento]
+              properties:
+                consentimento: { type: boolean, const: true }
+      responses:
+        '201':
+          description: One-time challenge and WhatsApp link, or existing challenge status without re-exposing its code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [telefone]
+                properties:
+                  telefone: { $ref: '#/components/schemas/TelefoneProfissionalVerificacao' }
+        '429': { description: Persistent daily challenge limit reached }
+        '503': { description: Manual WhatsApp number or server secret not configured }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
+  /admin/profissionais/{id}/habilitacao/telefone/confirmacao-manual:
+    post:
+      operationId: postConfirmarDesafioManualWhatsApp
+      summary: Confirms a WhatsApp challenge after checking sender in the official account
+      description: Requires administrator MFA. The API checks the sender against the professional's current normalized phone, consumes the challenge, and commits an audit record atomically. Codes and full phone numbers are excluded from audit details.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [codigo, telefoneRemetente]
+              properties:
+                codigo: { type: string, pattern: '^\d{8}$' }
+                telefoneRemetente: { type: string, minLength: 10, maxLength: 24 }
+      responses:
+        '200': { description: WhatsApp access confirmed; no identity or attendance approval is granted }
+        '403': { description: Administrator MFA required; self-confirmation forbidden }
+        '409': { description: Challenge invalid, expired, exhausted, mismatched, or already consumed }
+        default: { $ref: '#/components/responses/ApiErrorResponse' }
   /profissionais/me/habilitacao/revisao:
     post:
       operationId: postSolicitarRevisaoHabilitacao
@@ -195,12 +251,43 @@ paths:
                         id: { type: integer }
                         nome: { type: string }
                         habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
+                        telefoneVerificacao:
+                          type: [object, 'null']
+                          properties:
+                            metodo: { type: string, enum: [id_zapsign, whatsapp_manual] }
+                            estado: { type: string }
+                            expiraEm: { type: [string, 'null'], format: date-time }
+                            tentativasRestantes: { type: [integer, 'null'], minimum: 0, maximum: 5 }
+                            telefoneMascarado: { type: [string, 'null'] }
         '403':
           description: Administrator role and active MFA required
+  /admin/profissionais/{id}/dossie:
+    get:
+      operationId: getDossieProfissionalAdmin
+      summary: Read-only professional review dossier; does not grant eligibility
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: pagina
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limite
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Profile, offers and paginated document metadata; no file references
+        '403':
+          description: Administrator role and active MFA required
+        '404':
+          description: Professional not found
   /admin/profissionais/{id}/habilitacao:
     patch:
       operationId: patchHabilitacaoAdmin
-      summary: Audits suspension or review; cannot approve identity or antecedents
+      summary: Reviews or suspends habilitation; local-only synthetic-account approval is separately gated
       security: [{ bearerAuth: [] }]
       parameters:
         - in: path
@@ -216,11 +303,11 @@ paths:
               additionalProperties: false
               required: [acao, motivo]
               properties:
-                acao: { type: string, enum: [iniciar_analise, suspender, reabrir] }
-                motivo: { type: string, enum: [revisao_cadastral, suspeita_fraude, solicitacao_titular] }
+                acao: { type: string, enum: [iniciar_analise, suspender, reabrir, aprovar_teste_local] }
+                motivo: { type: string, enum: [revisao_cadastral, suspeita_fraude, solicitacao_titular, teste_fluxo_local] }
       responses:
         '200':
-          description: Decision and audit committed atomically; still blocked for attendance
+          description: Decision and audit committed atomically; test approval is available only outside production with the local flag enabled
           content:
             application/json:
               schema:
@@ -228,7 +315,7 @@ paths:
         '403':
           description: Administrator MFA required; self-review forbidden
         '409':
-          description: Approval unavailable while integrations and legal policy are pending, or suspended review not reopened
+          description: Production approval unavailable; local test approval disabled or account not eligible; or suspended review not reopened
   /health:
     get:
       operationId: getHealth
@@ -953,6 +1040,11 @@ paths:
           schema:
             type: integer
             minimum: 1
+        - name: servicoCatalogoId
+          in: query
+          required: false
+          schema: {type: integer, minimum: 1}
+          description: Filtra ofertas ativas de um servico ativo do catalogo.
         - name: cidade
           in: query
           required: false
@@ -1033,6 +1125,9 @@ paths:
                   type: string
                   maxLength: 80
                 categoriaId:
+                  type: integer
+                  minimum: 1
+                servicoCatalogoId:
                   type: integer
                   minimum: 1
                 pagina:
@@ -1450,6 +1545,149 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /categorias/{categoriaId}/servicos/{servicoId}/opcoes:
+    parameters:
+      - { name: categoriaId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      - { name: servicoId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listarOpcoesServicoPublicas
+      summary: Lista opcoes ativas de um servico e categoria ativos
+      parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
+      responses:
+        '200': { description: Lista paginada de opcoes }
+        '404': { description: Categoria ou servico indisponivel }
+  /admin/catalogo/categorias/{categoriaId}/servicos/{servicoId}/opcoes:
+    parameters:
+      - { name: categoriaId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      - { name: servicoId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listarOpcoesServicoAdmin
+      summary: Lista opcoes do servico para administrador
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
+        - { name: ativo, in: query, schema: { type: boolean } }
+      responses:
+        '200': { description: Lista paginada de opcoes }
+    post:
+      operationId: criarOpcaoServicoAdmin
+      summary: Cria opcao pausada e registra auditoria
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        '201': { description: Opcao criada desativada }
+  /admin/catalogo/categorias/{categoriaId}/servicos/{servicoId}/opcoes/{opcaoId}:
+    parameters:
+      - { name: categoriaId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      - { name: servicoId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      - { name: opcaoId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    patch:
+      operationId: atualizarOpcaoServicoAdmin
+      summary: Altera nome ou estado da opcao com auditoria
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              additionalProperties: false
+              properties:
+                nome: { type: string, minLength: 2, maxLength: 120 }
+                ativo: { type: boolean }
+      responses:
+        '200': { description: Opcao atualizada }
+  /solicitacoes/{id}/opcoes:
+    get:
+      operationId: listarOpcoesPedido
+      summary: Lista as tarefas solicitadas com os nomes preservados no pedido
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      responses:
+        '200': { description: Opcoes do pedido }
+        '403': { description: Conta nao participa do pedido }
+  /solicitacoes/{id}/negociacao:
+    post:
+      operationId: iniciarNegociacaoAtendimento
+      summary: Profissional inicia negociacao sem agendar atendimento
+      description: A habilitacao ainda bloqueia esta operacao; nao libera contratacao.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      responses:
+        '201': { description: Negociacao iniciada sem reserva de horario }
+        '409': { description: Habilitacao pendente, negociacao indisponivel ou prazo inicial de 48 horas expirado (SOLICITACAO_EXPIRADA) }
+  /solicitacoes/{id}/propostas-atendimento:
+    parameters:
+      - $ref: '#/components/parameters/SolicitacaoId'
+    get:
+      operationId: listarPropostasAtendimento
+      summary: Lista versoes do resumo e tarefas com nomes preservados
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/PaginaQuery'
+        - $ref: '#/components/parameters/LimiteQuery'
+      responses:
+        '200': { description: Propostas paginadas em ordem decrescente de versao; inclui expiraEm e status expirada quando o prazo venceu }
+    post:
+      operationId: criarPropostaAtendimento
+      summary: Profissional envia nova versao da proposta
+      description: Substitui versao pendente sem confirmar ou reservar horario. Cada versao expira em 48 horas ou no inicio do atendimento, o que ocorrer primeiro. Equipe e endereco versionados ainda nao implementados.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [opcoesIds, valor, dataServico, horarioServico, duracaoMinutos]
+              properties:
+                opcoesIds: { type: array, minItems: 1, maxItems: 30, uniqueItems: true, items: { type: integer, minimum: 1 } }
+                valor: { type: [number, string], description: Valor positivo com ate duas casas decimais }
+                dataServico: { type: string, format: date }
+                horarioServico: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$' }
+                duracaoMinutos: { type: integer, minimum: 1, maximum: 1440 }
+      responses:
+        '201': { description: Identificador da nova proposta }
+        '409': { description: Negociacao indisponivel }
+  /solicitacoes/{id}/propostas-atendimento/{propostaId}/responder:
+    parameters:
+      - $ref: '#/components/parameters/SolicitacaoId'
+      - { name: propostaId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    patch:
+      operationId: responderPropostaAtendimento
+      summary: Cliente recusa proposta atual; aceite continua bloqueado
+      description: So a ultima versao pendente pode ser respondida. Aceitar permanece indisponivel ate a politica, equipe e controles serem homologados.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [aceitar]
+              properties:
+                aceitar: { type: boolean }
+      responses:
+        '200': { description: Proposta recusada }
+        '403': { description: Somente o cliente participante pode responder }
+        '409': { description: Proposta desatualizada, expirada ou confirmacao bloqueada }
   /solicitacoes:
     post:
       operationId: postSolicitacao
@@ -1562,6 +1800,7 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/SolicitacaoResponse'
+        '409': { description: Habilitacao pendente ou prazo inicial expirado (SOLICITACAO_EXPIRADA) }
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /solicitacoes/{id}/recusar:
@@ -1577,6 +1816,7 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/SolicitacaoResponse'
+        '409': { description: Prazo inicial de 48 horas expirado (SOLICITACAO_EXPIRADA) }
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /solicitacoes/{id}/cancelar:
@@ -2709,7 +2949,7 @@ paths:
                   maxLength: 1000
       responses:
         '201':
-          description: Message created
+          description: Message created; during negotiation, any participant message resets the 96-hour inactivity deadline.
           content:
             application/json:
               schema:
@@ -2747,6 +2987,108 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Avaliacao'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/fotos:
+    post:
+      operationId: postFotoAvaliacaoTemporaria
+      summary: Uploads an optional customer review photo for a completed request
+      description: Accepts one JPEG, PNG, or WebP image up to 5 MiB. The API scans and re-encodes it as JPEG, strips metadata, and keeps the upload private until the review is approved. Unattached uploads expire after 24 hours.
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [arquivo]
+              properties:
+                arquivo:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Private staged photo upload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [foto]
+                properties:
+                  foto:
+                    type: object
+                    required: [id, mimeType]
+                    properties:
+                      id: { type: integer, minimum: 1 }
+                      mimeType: { type: string, enum: [image/jpeg] }
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{solicitacaoId}/avaliacoes/fotos/{fotoId}:
+    delete:
+      operationId: deleteFotoAvaliacaoTemporaria
+      summary: Deletes an unattached staged review photo owned by the authenticated client
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: solicitacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: fotoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Staged photo deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /avaliacoes/{avaliacaoId}/fotos/{fotoId}:
+    get:
+      operationId: getFotoAvaliacaoPrivada
+      summary: Streams an approved public review photo or an authorized private review photo
+      description: Approved photos are public. Pending or rejected photos require the authenticated uploader or an administrator; the evaluated user cannot see them before approval.
+      tags: [Avaliacoes]
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: avaliacaoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: fotoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Normalized JPEG review photo. Approved reviews are public; pending or rejected reviews require an authorized uploader or administrator.
+          headers:
+            Cache-Control:
+              schema: { type: string, example: 'private, no-store' }
+            X-Content-Type-Options:
+              schema: { type: string, example: nosniff }
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
         default:
           $ref: '#/components/responses/ApiErrorResponse'
   /solicitacoes/{solicitacaoId}/avaliacoes/profissional:
@@ -3384,8 +3726,8 @@ components:
           items:
             type: object
             properties:
-              codigo: { type: string, enum: [perfil, email, telefone, identidade, antecedentes, aprovacao] }
-              status: { type: string, enum: [cadastrado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
+              codigo: { type: string, enum: [perfil, email, documentos, telefone, identidade, antecedentes, aprovacao] }
+              status: { type: string, enum: [cadastrado, analisado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
     TelefoneProfissionalVerificacao:
       type: object
       additionalProperties: false
@@ -3398,6 +3740,12 @@ components:
         tentativasRestantes: { type: [integer, 'null'], minimum: 0, maximum: 3 }
         expiraEm: { type: [string, 'null'], format: date-time }
         resolvidaEm: { type: [string, 'null'], format: date-time }
+        metodo: { type: string, enum: [id_zapsign, whatsapp_manual] }
+        whatsAppManualDisponivel: { type: boolean }
+        numeroWhatsAppManual: { type: [string, 'null'], description: Public official ConectaLar WhatsApp number; never the professional's phone. }
+        codigo: { type: string, pattern: '^\d{8}$', description: One-time challenge returned only by manual challenge creation; never returned by status queries. }
+        codigoExibidoUmaVez: { type: boolean }
+        linkWhatsApp: { type: string, format: uri, description: Opens the official WhatsApp chat without embedding the challenge code in the URL. }
     IdentidadeProfissional:
       type: object
       required: [estado, disponivel, url, expiraEm, resolvidaEm]
@@ -3646,56 +3994,56 @@ components:
         expiresIn:
           type: integer
           const: 300
-  AuthMfaSetupChallenge:
-    type: object
-    additionalProperties: false
-    required: [mfaSetupRequired, mfaSetupToken, expiresIn]
-    properties:
-      conviteAceito:
-        type: boolean
-      mfaSetupRequired:
-        type: boolean
-        const: true
-      mfaSetupToken:
-        type: string
-      expiresIn:
-        type: integer
-        const: 600
-  AuthMfaSetupRequest:
-    type: object
-    additionalProperties: false
-    required: [setupToken]
-    properties:
-      setupToken:
-        type: string
-  AuthMfaSetupConfirmRequest:
-    type: object
-    additionalProperties: false
-    required: [setupToken, codigo]
-    properties:
-      setupToken:
-        type: string
-      codigo:
-        type: string
-        pattern: '^\d{6}$'
-  AdminInviteAcceptRequest:
-    type: object
-    additionalProperties: false
-    required: [token, senha, aceitouTermos, versaoTermos]
-    properties:
-      token:
-        type: string
-        pattern: '^[A-Za-z0-9_-]{43}$'
-      senha:
-        type: string
-        minLength: 8
-        maxLength: 128
-        writeOnly: true
-      aceitouTermos:
-        type: boolean
-        const: true
-      versaoTermos:
-        type: string
+    AuthMfaSetupChallenge:
+      type: object
+      additionalProperties: false
+      required: [mfaSetupRequired, mfaSetupToken, expiresIn]
+      properties:
+        conviteAceito:
+          type: boolean
+        mfaSetupRequired:
+          type: boolean
+          const: true
+        mfaSetupToken:
+          type: string
+        expiresIn:
+          type: integer
+          const: 600
+    AuthMfaSetupRequest:
+      type: object
+      additionalProperties: false
+      required: [setupToken]
+      properties:
+        setupToken:
+          type: string
+    AuthMfaSetupConfirmRequest:
+      type: object
+      additionalProperties: false
+      required: [setupToken, codigo]
+      properties:
+        setupToken:
+          type: string
+        codigo:
+          type: string
+          pattern: '^\d{6}$'
+    AdminInviteAcceptRequest:
+      type: object
+      additionalProperties: false
+      required: [token, senha, aceitouTermos, versaoTermos]
+      properties:
+        token:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+        senha:
+          type: string
+          minLength: 8
+          maxLength: 128
+          writeOnly: true
+        aceitouTermos:
+          type: boolean
+          const: true
+        versaoTermos:
+          type: string
     AuthMfaLoginRequest:
       type: object
       additionalProperties: false
@@ -4072,10 +4420,12 @@ components:
       additionalProperties: false
       required:
         - profissionalId
+        - servicoId
         - descricao
         - bairroAtendimento
         - dataServico
         - horarioServico
+        - opcoesIds
       properties:
         profissionalId:
           type: integer
@@ -4083,7 +4433,7 @@ components:
         servicoId:
           type: [integer, 'null']
           minimum: 1
-          description: Oferta ativa do profissional; a API deriva categoria, nome e preço inicial desta oferta. Opcional para compatibilidade com pedidos antigos.
+          description: Oferta ativa vinculada ao catalogo do profissional; obrigatoria para novos pedidos.
         categoriaId:
           type:
             - integer
@@ -4108,6 +4458,13 @@ components:
         horarioServico:
           type: string
           pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        opcoesIds:
+          type: array
+          minItems: 1
+          maxItems: 30
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+          description: Opcoes ativas do servico; obrigatorias apos aprovacao da habilitacao.
     Solicitacao:
       type: object
       additionalProperties: false
@@ -4115,8 +4472,10 @@ components:
         - id
         - servicoId
         - nomeServico
+        - servicoSnapshot
         - avaliado
         - status
+        - expiraEm
         - descricao
         - bairroAtendimento
         - enderecoId
@@ -4153,11 +4512,33 @@ components:
         nomeServico:
           type: [string, 'null']
           description: Nome da oferta no envio do pedido, preservado após edições.
+        negociacaoIniciada:
+          type: boolean
+          description: Estado da negociacao na resposta detalhada, independentemente do limite de eventos.
+        servicoSnapshot:
+          type: [object, 'null']
+          description: Categoria, nome e escopo registrados no pedido; nulo para pedidos antigos sem snapshot.
+          properties:
+            categoriaId: {type: [integer, 'null']}
+            nomeCategoria: {type: [string, 'null']}
+            servicoCatalogoId: {type: [integer, 'null']}
+            nomeServico: {type: string}
+            descricao: {type: [string, 'null']}
+            inclusoes: {type: [string, 'null']}
+            exclusoes: {type: [string, 'null']}
         avaliado:
           type: boolean
           description: O ator autenticado já enviou sua avaliação deste atendimento, inclusive se ainda não publicada.
         status:
           $ref: '#/components/schemas/SolicitacaoStatus'
+        expiraEm:
+          type: [string, 'null']
+          format: date-time
+          description: Prazo de resposta inicial do profissional; apos 48 horas sem resposta, o pedido expira.
+        negociacaoExpiraEm:
+          type: [string, 'null']
+          format: date-time
+          description: Prazo da negociacao; mensagens reiniciam 96 horas. Proposta pendente usa seu prazo proprio.
         descricao:
           type: string
         bairroAtendimento:
@@ -4185,7 +4566,7 @@ components:
         intervaloMinutos:
           type: integer
           const: 0
-          description: P06 sets no additional interval between appointments.
+          description: P06 não prevê intervalo adicional entre atendimentos.
         reagendamento:
           oneOf:
             - $ref: '#/components/schemas/Reagendamento'
@@ -4272,6 +4653,8 @@ components:
       type: string
       enum:
         - aguardando_resposta
+        - expirada
+        - negociacao_expirada
         - aceita_agendada
         - recusada
         - cancelada
@@ -4573,11 +4956,14 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [id, nota, comentario, criadoEm]
+            required: [id, nota, comentario, fotos, criadoEm]
             properties:
               id: {type: integer, minimum: 1}
               nota: {type: integer, minimum: 1, maximum: 5}
               comentario: {type: [string, 'null']}
+              fotos:
+                type: array
+                items: { $ref: '#/components/schemas/AvaliacaoFoto' }
               criadoEm: {type: string, format: date-time}
         paginacao:
           type: object
@@ -4591,7 +4977,7 @@ components:
     ServicoProfissional:
       type: object
       additionalProperties: false
-      required: [id, nome, categoria, categoriaId, precoInicial, duracaoMinutos, intervaloMinutos, ativo]
+      required: [id, nome, categoria, categoriaId, servicoCatalogoId, disponivelNoCatalogo, precoInicial, duracaoMinutos, intervaloMinutos, ativo]
       properties:
         id:
           type: integer
@@ -4605,6 +4991,11 @@ components:
         categoriaId:
           type: [integer, 'null']
           minimum: 1
+        servicoCatalogoId:
+          type: [integer, 'null']
+          minimum: 1
+        disponivelNoCatalogo:
+          type: [boolean, 'null']
         precoInicial:
           type: [number, 'null']
           minimum: 0
@@ -4615,11 +5006,11 @@ components:
           type: integer
           const: 0
           default: 0
-          description: P06 sets no additional interval between appointments.
+          description: P06 não prevê intervalo adicional entre atendimentos.
     ServicoProfissionalInput:
       type: object
       additionalProperties: false
-      required: [nome, duracaoMinutos]
+      description: Novas ofertas exigem servicoCatalogoId; ofertas antigas podem ser atualizadas pelo ID existente.
       properties:
         id:
           type: [integer, 'null']
@@ -4629,6 +5020,9 @@ components:
           type: string
           minLength: 2
           maxLength: 90
+        servicoCatalogoId:
+          type: [integer, 'null']
+          minimum: 1
         categoriaId:
           type: [integer, 'null']
           minimum: 1
@@ -4645,7 +5039,7 @@ components:
           type: integer
           minimum: 0
           maximum: 1440
-          description: Legacy input accepted for compatibility; the API ignores it and persists zero per P06.
+          description: Campo legado aceito para compatibilidade; a API ignora o valor e persiste zero conforme P06.
     ReagendamentoRequest:
       type: object
       additionalProperties: false
@@ -4877,10 +5271,15 @@ components:
         comentario:
           type: [string, 'null']
           maxLength: 600
+        fotoIds:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
     Avaliacao:
       type: object
       additionalProperties: false
-      required: [id, solicitacaoId, avaliador, avaliado, nota, comentario, moderacaoStatus, criadoEm, atualizadoEm]
+      required: [id, solicitacaoId, avaliador, avaliado, nota, comentario, fotos, moderacaoStatus, criadoEm, atualizadoEm]
       properties:
         id:
           type: integer
@@ -4898,6 +5297,10 @@ components:
           maximum: 5
         comentario:
           type: [string, 'null']
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvaliacaoFoto'
         moderacaoStatus:
           type: string
           enum: [pendente, aprovada, rejeitada]
@@ -4907,6 +5310,17 @@ components:
         atualizadoEm:
           type: string
           format: date-time
+    AvaliacaoFoto:
+      type: object
+      additionalProperties: false
+      required: [id, url]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          description: Authenticated API route; not a public object-storage URL.
     Denuncia:
       type: object
       additionalProperties: false

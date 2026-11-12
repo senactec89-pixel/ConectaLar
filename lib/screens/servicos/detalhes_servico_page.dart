@@ -1,4 +1,8 @@
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'propostas_atendimento_panel.dart';
 
 import '../../app/routes.dart';
 import '../../app/theme.dart';
@@ -135,9 +139,12 @@ class _DetalhesSolicitacao extends StatefulWidget {
 
 class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   final _comentarioController = TextEditingController();
+  final List<_FotoAvaliacaoSelecionada> _fotosAvaliacao = [];
   int _nota = 5;
   late AtendimentoResumo _atendimento;
   bool _enviando = false;
+  bool _selecionandoFotos = false;
+  late Future<List<Map<String, dynamic>>> _opcoesFuture;
 
   Map<String, dynamic> get _ator =>
       AppServices.instance.auth.usuarioAtual ??
@@ -173,6 +180,16 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
   void initState() {
     super.initState();
     _atendimento = widget.atendimento;
+    _opcoesFuture = _carregarOpcoes();
+    _opcoesFuture.ignore();
+  }
+
+  Future<List<Map<String, dynamic>>> _carregarOpcoes() {
+    if (AppServices.instance.emDemonstracao ||
+        !(_clienteParticipante || _profissionalParticipante)) {
+      return Future.value([]);
+    }
+    return AppServices.instance.servicos.opcoes(_atendimento.solicitacao.id);
   }
 
   @override
@@ -238,72 +255,15 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
 
   Future<void> _cancelar() async {
     if (_enviando) return;
-    final motivo = TextEditingController();
-    final confirmar = await showDialog<bool>(
+    final texto = await showDialog<String>(
       context: context,
-      builder: (dialogContext) {
-        String? erro;
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) => AlertDialog(
-            title: const Text('Cancelar solicitação'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_clienteParticipante &&
-                      _atendimento.solicitacao.status ==
-                          StatusSolicitacao.aceitaAgendada) ...[
-                    const Text(
-                      'O prazo padrão é de 24 horas antes do atendimento. '
-                      'Se houve um imprevisto, você pode cancelar agora; '
-                      'explique o motivo para avisar o profissional.',
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  TextField(
-                    controller: motivo,
-                    key: const ValueKey('cancelamento-motivo'),
-                    autofocus: true,
-                    minLines: 3,
-                    maxLines: 5,
-                    maxLength: 400,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      labelText: 'Motivo do cancelamento',
-                      helperText: 'Explique em pelo menos 10 caracteres.',
-                      errorText: erro,
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Voltar'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  if (motivo.text.trim().length < 10) {
-                    setDialogState(() {
-                      erro = 'Informe pelo menos 10 caracteres.';
-                    });
-                    return;
-                  }
-                  Navigator.pop(dialogContext, true);
-                },
-                child: const Text('Cancelar solicitação'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => _DialogoCancelamento(
+        exibirAvisoPrazo:
+            _clienteParticipante &&
+            _atendimento.solicitacao.status == StatusSolicitacao.aceitaAgendada,
+      ),
     );
-    final texto = motivo.text.trim();
-    motivo.dispose();
-    if (confirmar != true) return;
+    if (texto == null || !mounted) return;
     if (AppServices.instance.emDemonstracao) {
       await _executarTransicao(
         (_) async => const {},
@@ -321,11 +281,13 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     );
   }
 
-  Future<void> _aceitar() {
+  Future<void> _aceitar(bool novoFluxo) {
     return _executarTransicao(
-      AppServices.instance.servicos.aceitar,
+      novoFluxo
+          ? AppServices.instance.servicos.iniciarNegociacao
+          : AppServices.instance.servicos.aceitar,
       widget.store.aceitarSolicitacaoComoProfissional,
-      'Solicitação aceita e agendada.',
+      novoFluxo ? 'Negociação iniciada.' : 'Solicitação aceita e agendada.',
       'Aceite não permitido para este status.',
     );
   }
@@ -336,6 +298,22 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       widget.store.recusarSolicitacaoComoProfissional,
       'Solicitação recusada.',
       'Recusa não permitida para este status.',
+    );
+  }
+
+  Future<void> _encerrarNegociacao() async {
+    final motivo = await _pedirMotivo(
+      titulo: 'Encerrar negociação',
+      label: 'Por que a negociação será encerrada?',
+      ajuda: 'A outra parte será avisada e o motivo ficará no histórico.',
+    );
+    if (motivo == null) return;
+    await _executarTransicao(
+      (id) =>
+          AppServices.instance.servicos.encerrarNegociacao(id, motivo: motivo),
+      (_) => false,
+      'Negociação encerrada.',
+      'Não foi possível encerrar a negociação.',
     );
   }
 
@@ -830,14 +808,46 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     setState(() => _enviando = true);
     try {
       if (AppServices.instance.auth.autenticado) {
-        final avaliar = _profissionalParticipante
-            ? AppServices.instance.avaliacoes.avaliarCliente
-            : AppServices.instance.avaliacoes.avaliarProfissional;
-        await avaliar(
-          solicitacaoId: _atendimento.solicitacao.id,
-          nota: _nota,
-          comentario: _comentarioController.text,
-        );
+        final fotoIds = <int>[];
+        try {
+          if (!_profissionalParticipante) {
+            for (final foto in _fotosAvaliacao) {
+              fotoIds.add(
+                await AppServices.instance.avaliacoes.enviarFoto(
+                  solicitacaoId: _atendimento.solicitacao.id,
+                  nomeArquivo: foto.nomeArquivo,
+                  bytes: foto.bytes,
+                ),
+              );
+            }
+          }
+          if (_profissionalParticipante) {
+            await AppServices.instance.avaliacoes.avaliarCliente(
+              solicitacaoId: _atendimento.solicitacao.id,
+              nota: _nota,
+              comentario: _comentarioController.text,
+            );
+          } else {
+            await AppServices.instance.avaliacoes.avaliarProfissional(
+              solicitacaoId: _atendimento.solicitacao.id,
+              nota: _nota,
+              comentario: _comentarioController.text,
+              fotoIds: fotoIds,
+            );
+          }
+          fotoIds.clear();
+          if (mounted) setState(() => _fotosAvaliacao.clear());
+        } catch (_) {
+          for (final fotoId in fotoIds) {
+            try {
+              await AppServices.instance.avaliacoes.removerFotoTemporaria(
+                solicitacaoId: _atendimento.solicitacao.id,
+                fotoId: fotoId,
+              );
+            } catch (_) {}
+          }
+          rethrow;
+        }
         if (!mounted) return;
         await _atualizarAvaliacaoRegistrada();
         _notificar('Avaliação registrada e enviada para moderação.');
@@ -864,6 +874,52 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       if (mounted) _notificar('Avaliação indisponível para este status.');
     } finally {
       if (mounted) setState(() => _enviando = false);
+    }
+  }
+
+  Future<void> _selecionarFotosAvaliacao() async {
+    if (_selecionandoFotos || _enviando || _fotosAvaliacao.length >= 3) return;
+    setState(() => _selecionandoFotos = true);
+    try {
+      final selecionados = await openFiles(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'JPEG, PNG ou WebP',
+            extensions: ['jpg', 'jpeg', 'png', 'webp'],
+            uniformTypeIdentifiers: [
+              'public.jpeg',
+              'public.png',
+              'org.webmproject.webp',
+            ],
+          ),
+        ],
+        confirmButtonText: 'Selecionar',
+      );
+      if (!mounted || selecionados.isEmpty) return;
+      if (selecionados.length + _fotosAvaliacao.length > 3) {
+        _notificar('Adicione no máximo três fotos à avaliação.');
+        return;
+      }
+      final novas = <_FotoAvaliacaoSelecionada>[];
+      for (final arquivo in selecionados) {
+        if (await arquivo.length() > 5 * 1024 * 1024) {
+          _notificar('Cada foto precisa ter no máximo 5 MB.');
+          continue;
+        }
+        novas.add(
+          _FotoAvaliacaoSelecionada(
+            nomeArquivo: arquivo.name,
+            bytes: await arquivo.readAsBytes(),
+          ),
+        );
+      }
+      if (mounted && novas.isNotEmpty) {
+        setState(() => _fotosAvaliacao.addAll(novas));
+      }
+    } catch (_) {
+      if (mounted) _notificar('Não foi possível selecionar as fotos.');
+    } finally {
+      if (mounted) setState(() => _selecionandoFotos = false);
     }
   }
 
@@ -1037,27 +1093,83 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           const SizedBox(height: 16),
         ],
         if (solicitacao.status != StatusSolicitacao.recusada &&
-            solicitacao.status != StatusSolicitacao.cancelada) ...[
-          _AcoesAtendimento(
-            solicitacao: solicitacao,
-            avaliado: atendimento.avaliado,
-            cliente: _clienteParticipante,
-            profissional: _profissionalParticipante,
-            ocupada: _enviando,
-            onConversar: () => Navigator.pushNamed(
-              context,
-              AppRoutes.conversa,
-              arguments: solicitacao.id,
-            ),
-            onCancelar: () => _cancelar(),
-            onAceitar: () => _aceitar(),
-            onRecusar: () => _recusar(),
-            onConcluir: () => _concluir(),
-            onConfirmarConclusao: () => _confirmarConclusao(),
-            onContestarConclusao: () => _contestarConclusao(),
-            onInformarNaoComparecimento: () => _informarNaoComparecimento(),
-            onContestarNaoComparecimento: () => _contestarNaoComparecimento(),
-            atorId: intValue(_ator['id']),
+            solicitacao.status != StatusSolicitacao.cancelada &&
+            solicitacao.status != StatusSolicitacao.expirada &&
+            solicitacao.status != StatusSolicitacao.negociacaoExpirada) ...[
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _opcoesFuture,
+            builder: (context, snapshot) {
+              final carregado =
+                  snapshot.connectionState == ConnectionState.done &&
+                  !snapshot.hasError;
+              final opcoes = carregado
+                  ? snapshot.data ?? <Map<String, dynamic>>[]
+                  : <Map<String, dynamic>>[];
+              final novoFluxo = opcoes.isNotEmpty;
+              final iniciada =
+                  solicitacao.negociacaoIniciada ||
+                  solicitacao.eventos.any(
+                    (evento) => evento['tipo'] == 'negociacao_iniciada',
+                  );
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!carregado) ...[
+                    if (snapshot.hasError)
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _opcoesFuture = _carregarOpcoes();
+                          _opcoesFuture.ignore();
+                        }),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text(
+                          'Não foi possível consultar o pedido. Tentar novamente',
+                        ),
+                      )
+                    else
+                      const Center(child: CircularProgressIndicator()),
+                    const SizedBox(height: 12),
+                  ],
+                  _AcoesAtendimento(
+                    solicitacao: solicitacao,
+                    avaliado: atendimento.avaliado,
+                    cliente: _clienteParticipante,
+                    profissional: _profissionalParticipante,
+                    ocupada: _enviando,
+                    onConversar: () => Navigator.pushNamed(
+                      context,
+                      AppRoutes.conversa,
+                      arguments: solicitacao.id,
+                    ),
+                    onCancelar: () => _cancelar(),
+                    onAceitar: () => _aceitar(novoFluxo),
+                    bloqueioFluxo: !carregado,
+                    novoFluxo: novoFluxo,
+                    negociacaoIniciada: iniciada,
+                    onRecusar: () => _recusar(),
+                    onEncerrarNegociacao: () => _encerrarNegociacao(),
+                    onConcluir: () => _concluir(),
+                    onConfirmarConclusao: () => _confirmarConclusao(),
+                    onContestarConclusao: () => _contestarConclusao(),
+                    onInformarNaoComparecimento: () =>
+                        _informarNaoComparecimento(),
+                    onContestarNaoComparecimento: () =>
+                        _contestarNaoComparecimento(),
+                    atorId: intValue(_ator['id']),
+                  ),
+                  if (novoFluxo) ...[
+                    const SizedBox(height: 16),
+                    PropostasAtendimentoPanel(
+                      solicitacao: solicitacao,
+                      opcoesSolicitadas: opcoes,
+                      cliente: _clienteParticipante,
+                      profissional: _profissionalParticipante,
+                      negociacaoIniciada: iniciada,
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
         if (solicitacao.eventos.isNotEmpty) ...[
@@ -1074,9 +1186,27 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                 : 'Avaliar profissional',
             nota: _nota,
             controller: _comentarioController,
+            fotos: _fotosAvaliacao,
+            permiteFotos:
+                !_profissionalParticipante &&
+                AppServices.instance.auth.autenticado &&
+                !AppServices.instance.emDemonstracao,
+            selecionandoFotos: _selecionandoFotos,
             onNotaChanged: (nota) => setState(() => _nota = nota),
-            onAvaliar: _enviando ? null : () => _avaliar(),
+            onSelecionarFotos: _selecionarFotosAvaliacao,
+            onRemoverFoto: (indice) => setState(() {
+              _fotosAvaliacao.removeAt(indice);
+            }),
+            onAvaliar: _enviando || _selecionandoFotos
+                ? null
+                : () => _avaliar(),
           ),
+        ],
+        if (solicitacao.status == StatusSolicitacao.conclusaoConfirmada &&
+            atendimento.avaliado &&
+            (_clienteParticipante || _profissionalParticipante)) ...[
+          const SizedBox(height: 16),
+          const _AvaliacaoRegistradaCard(),
         ],
         if (_clienteParticipante || _profissionalParticipante) ...[
           const SizedBox(height: 16),
@@ -1096,6 +1226,80 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       ],
     );
   }
+}
+
+class _DialogoCancelamento extends StatefulWidget {
+  const _DialogoCancelamento({required this.exibirAvisoPrazo});
+
+  final bool exibirAvisoPrazo;
+
+  @override
+  State<_DialogoCancelamento> createState() => _DialogoCancelamentoState();
+}
+
+class _DialogoCancelamentoState extends State<_DialogoCancelamento> {
+  final _motivo = TextEditingController();
+  String? _erro;
+
+  @override
+  void dispose() {
+    _motivo.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    final texto = _motivo.text.trim();
+    if (texto.length < 10) {
+      setState(() => _erro = 'Informe pelo menos 10 caracteres.');
+      return;
+    }
+    Navigator.pop(context, texto);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    scrollable: true,
+    title: const Text('Cancelar solicitação'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.exibirAvisoPrazo) ...[
+          const Text(
+            'O prazo padrão é de 24 horas antes do atendimento. '
+            'Se houve um imprevisto, você pode cancelar agora; '
+            'explique o motivo para avisar o profissional.',
+          ),
+          const SizedBox(height: 16),
+        ],
+        TextField(
+          controller: _motivo,
+          key: const ValueKey('cancelamento-motivo'),
+          autofocus: true,
+          minLines: 3,
+          maxLines: 5,
+          maxLength: 400,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            labelText: 'Motivo do cancelamento',
+            helperText: 'Explique em pelo menos 10 caracteres.',
+            errorText: _erro,
+            alignLabelWithHint: true,
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Voltar'),
+      ),
+      FilledButton(
+        onPressed: _confirmar,
+        child: const Text('Cancelar solicitação'),
+      ),
+    ],
+  );
 }
 
 class _OrcamentoCard extends StatelessWidget {
@@ -1646,6 +1850,7 @@ class _EventoAtendimento extends StatelessWidget {
 }
 
 String _eventoTitulo(String tipo) => switch (tipo) {
+  'negociacao_encerrada' => 'Negociação encerrada',
   'solicitacao_criada' => 'Solicitação criada',
   'solicitacao_aceita' => 'Solicitação aceita',
   'solicitacao_recusada' => 'Solicitação recusada',
@@ -1673,6 +1878,7 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.onCancelar,
     required this.onAceitar,
     required this.onRecusar,
+    required this.onEncerrarNegociacao,
     required this.onConcluir,
     required this.onConfirmarConclusao,
     required this.onContestarConclusao,
@@ -1682,6 +1888,9 @@ class _AcoesAtendimento extends StatelessWidget {
     required this.cliente,
     required this.profissional,
     required this.ocupada,
+    required this.bloqueioFluxo,
+    required this.novoFluxo,
+    required this.negociacaoIniciada,
   });
 
   final Solicitacao solicitacao;
@@ -1690,6 +1899,7 @@ class _AcoesAtendimento extends StatelessWidget {
   final VoidCallback onCancelar;
   final VoidCallback onAceitar;
   final VoidCallback onRecusar;
+  final VoidCallback onEncerrarNegociacao;
   final VoidCallback onConcluir;
   final VoidCallback onConfirmarConclusao;
   final VoidCallback onContestarConclusao;
@@ -1699,6 +1909,9 @@ class _AcoesAtendimento extends StatelessWidget {
   final bool cliente;
   final bool profissional;
   final bool ocupada;
+  final bool bloqueioFluxo;
+  final bool novoFluxo;
+  final bool negociacaoIniciada;
 
   @override
   Widget build(BuildContext context) {
@@ -1716,13 +1929,19 @@ class _AcoesAtendimento extends StatelessWidget {
     final participante = cliente || profissional;
     final podeConversar =
         participante &&
-        (aguardando ||
+        ((aguardando && !bloqueioFluxo && (!novoFluxo || negociacaoIniciada)) ||
             agendada ||
             conclusaoPendente ||
             conclusaoContestada ||
             naoComparecimento);
-    final podeAceitar = profissional && aguardando;
-    final podeRecusar = profissional && aguardando;
+    final podeAceitar =
+        profissional &&
+        aguardando &&
+        !bloqueioFluxo &&
+        (!novoFluxo || !negociacaoIniciada);
+    final podeRecusar = profissional && aguardando && !negociacaoIniciada;
+    final podeEncerrarNegociacao =
+        participante && aguardando && negociacaoIniciada;
     final podeCancelar =
         (cliente && (aguardando || agendada)) || (profissional && agendada);
     final podeMarcarRealizado = profissional && agendada;
@@ -1739,6 +1958,7 @@ class _AcoesAtendimento extends StatelessWidget {
     final temAcoesSecundarias =
         podeConversar ||
         podeRecusar ||
+        podeEncerrarNegociacao ||
         podeCancelar ||
         podeContestarConclusao ||
         podeInformarNaoComparecimento ||
@@ -1778,7 +1998,11 @@ class _AcoesAtendimento extends StatelessWidget {
                         key: const ValueKey('detalhes-aceitar'),
                         onPressed: ocupada ? null : onAceitar,
                         icon: const Icon(Icons.check_rounded),
-                        label: const Text('Aceitar solicitação'),
+                        label: Text(
+                          novoFluxo
+                              ? 'Iniciar negociação'
+                              : 'Aceitar solicitação',
+                        ),
                       )
                     : podeConfirmarConclusao
                     ? FilledButton.icon(
@@ -1833,6 +2057,12 @@ class _AcoesAtendimento extends StatelessWidget {
                       onPressed: ocupada ? null : onRecusar,
                       icon: const Icon(Icons.close_rounded),
                       label: const Text('Recusar'),
+                    ),
+                  if (podeEncerrarNegociacao)
+                    OutlinedButton.icon(
+                      onPressed: ocupada ? null : onEncerrarNegociacao,
+                      icon: const Icon(Icons.close_rounded),
+                      label: const Text('Encerrar negociação'),
                     ),
                   if (podeCancelar)
                     OutlinedButton.icon(
@@ -1911,18 +2141,38 @@ class _AjudaSegurancaAtendimento extends StatelessWidget {
   }
 }
 
+class _FotoAvaliacaoSelecionada {
+  const _FotoAvaliacaoSelecionada({
+    required this.nomeArquivo,
+    required this.bytes,
+  });
+
+  final String nomeArquivo;
+  final Uint8List bytes;
+}
+
 class _FormularioAvaliacao extends StatelessWidget {
   const _FormularioAvaliacao({
     required this.nota,
     required this.controller,
+    required this.fotos,
+    required this.permiteFotos,
+    required this.selecionandoFotos,
     required this.onNotaChanged,
+    required this.onSelecionarFotos,
+    required this.onRemoverFoto,
     required this.onAvaliar,
     required this.titulo,
   });
 
   final int nota;
   final TextEditingController controller;
+  final List<_FotoAvaliacaoSelecionada> fotos;
+  final bool permiteFotos;
+  final bool selecionandoFotos;
   final ValueChanged<int> onNotaChanged;
+  final VoidCallback onSelecionarFotos;
+  final ValueChanged<int> onRemoverFoto;
   final VoidCallback? onAvaliar;
   final String titulo;
 
@@ -1970,6 +2220,71 @@ class _FormularioAvaliacao extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (permiteFotos) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('avaliacao-adicionar-fotos'),
+                onPressed: selecionandoFotos || fotos.length >= 3
+                    ? null
+                    : onSelecionarFotos,
+                icon: selecionandoFotos
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  selecionandoFotos
+                      ? 'Abrindo arquivos...'
+                      : 'Adicionar fotos (${fotos.length}/3)',
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'JPEG, PNG ou WebP, até 5 MB cada. As imagens são analisadas antes de aparecer no perfil.',
+                style: TextStyle(color: AppColors.textoSuave),
+              ),
+              if (fotos.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (var index = 0; index < fotos.length; index++)
+                      SizedBox(
+                        width: 88,
+                        height: 88,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.memory(
+                                fotos[index].bytes,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => const ColoredBox(
+                                  color: Color(0xFFF1F4F2),
+                                  child: Icon(Icons.broken_image_outlined),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: IconButton.filledTonal(
+                                tooltip: 'Remover foto',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: () => onRemoverFoto(index),
+                                icon: const Icon(Icons.close_rounded, size: 18),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ],
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -1978,6 +2293,44 @@ class _FormularioAvaliacao extends StatelessWidget {
                 onPressed: onAvaliar,
                 icon: const Icon(Icons.star_rounded),
                 label: const Text('Enviar avaliação'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvaliacaoRegistradaCard extends StatelessWidget {
+  const _AvaliacaoRegistradaCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.fact_check_outlined, color: AppColors.verdeEscuro),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Avaliação registrada',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'As avaliações só aparecem no perfil público após análise da equipe.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
               ),
             ),
           ],

@@ -9,6 +9,7 @@ class BuscaEstado {
   String bairro = '';
   String cidade = '';
   Categoria? categoria;
+  int? servicoCatalogoId;
   bool localizacaoExpandida = false;
   double? latitude;
   double? longitude;
@@ -22,6 +23,7 @@ class BuscaEstado {
   void limpar() {
     termo = bairro = cidade = '';
     categoria = null;
+    servicoCatalogoId = null;
     localizacaoExpandida = false;
     latitude = longitude = precisaoMetros = null;
     raioKm = 25;

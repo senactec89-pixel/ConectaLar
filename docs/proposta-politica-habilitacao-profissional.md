@@ -4,9 +4,42 @@
 
 **Atualizado em:** 02/11/2026.
 
+## Atualizacao posterior — 05/11/2026
+
+Esta atualizacao registra a direcao de produto mais recente e prevalece sobre
+qualquer diretriz de 02/11 que seja conflitante. Nao e aprovacao juridica,
+autorizacao para coleta real nem liberacao de atendimentos.
+
+- **Evidencias (D1/D2):** usar evidencia pertinente a cada tarefa, em vez de um
+  requisito documental identico para todas as categorias. A matriz de tarefas,
+  alternativas para experiencia informal e limites esta em
+  [proposta-politica-habilitacao-piloto.md](proposta-politica-habilitacao-piloto.md).
+- **Identidade:** prova de vida, selfie/biometria e comparacao facial nao estao
+  aprovadas para a fase inicial. Validar formato ou situacao de CPF nao prova que
+  a pessoa cadastrada e seu titular. Metodo de identidade e eventual consulta de
+  CPF/nome dependem de necessidade, fonte, base legal, aviso, contestacao e
+  revisao especializada antes de qualquer coleta real.
+- **Antecedentes (D4):** nao fazer buscas abertas nem verificacoes de antecedentes
+  na fase inicial. Permanecem fora do fluxo ate decisao juridica especifica por
+  tarefa; resultados nao podem reprovar automaticamente.
+- **Telefone:** a conta pode ser criada, mas o perfil nao recebe nem aceita
+  solicitacoes ate confirmar acesso ao numero por WhatsApp. A confirmacao nao
+  prova identidade civil; mudanca do numero invalida a confirmacao.
+- **Auditoria:** seguir a trilha minima de decisao e acesso descrita em
+  [plano-lgpd-habilitacao-profissional.md](plano-lgpd-habilitacao-profissional.md),
+  sem copiar documentos, OTP, CPF completo ou dados de antecedentes para logs.
+- **Armazenamento:** Cloudflare R2 foi escolhido como destino planejado para
+  arquivos privados, mas configuracao, contratos, localizacao/transferencia,
+  controles e homologacao ainda estao pendentes. Nao enviar documentos reais.
+- **Retencao (D7):** continua pendente de justificativa por finalidade e revisao;
+  prazos candidatos nao sao aprovacao.
+
+Enquanto os gates juridicos, operacionais e tecnicos nao forem cumpridos, `podeAtender`
+deve permanecer `false`, e pedidos/aceites devem continuar bloqueados.
+
 **Escopo:** profissionais individuais e empresas no ConectaLar. Referências: [habilitação atual](habilitacao-profissional.md), [decisões registradas](decisoes.md), [segurança](seguranca.md) e P10/P11/P12/P13/P15 em `.agents/skills/conectalar/references/decisoes-pendentes.md`.
 
-Este documento prepara a fase de política do briefing de habilitação. O arquivo `handoff-habilitacao-profissional.md` citado pela equipe ainda não está neste checkout; conferir as propostas com ele quando estiver disponível. As diretrizes D1, D2, D3, D5, D6 e D8 foram escolhidas pelo usuário em 02/11/2026, mas sua implementação e o início dos atendimentos continuam condicionados às demais decisões e à revisão adequada. **Não é contrato de API nem autorização jurídica.**
+Este documento prepara a fase de política do briefing de habilitação. A equipe também mantém a análise consolidada em [handoff-habilitacao-profissional.md](handoff-habilitacao-profissional.md); usar os dois documentos em conjunto e aplicar a atualização posterior acima quando houver divergência. As escolhas registradas em 02/11/2026 são históricas onde a atualização de 05/11 as substitui. **Não é contrato de API nem autorização jurídica.**
 
 ## Ponto de partida confirmado
 
@@ -31,6 +64,10 @@ Cada decisão precisa de responsável, data, versão, critérios aprovados e imp
 | **D8 — Comunicação ao usuário** | **Escolha do usuário:** cliente vê apenas status genérico; titular vê etapas e motivos permitidos; administrador autorizado vê o dossiê. | Definir os textos e motivos permitidos em cada papel e canal. Nenhum aviso ou selo deve prometer segurança absoluta, divulgar dados privados ou revelar a outro usuário o motivo de uma suspensão. | P10, P18, RB15 |
 
 ## Registro de aprovação
+
+**Nota de leitura:** a tabela abaixo preserva o registro historico de 02/11/2026.
+Para D1, D2 e D4, aplicar a atualizacao de 05/11 acima; o texto antigo nao deve
+ser usado como requisito atual quando houver conflito.
 
 | Decisão | Estado | Responsável | Data | Versão/observação |
 | --- | --- | --- | --- | --- |

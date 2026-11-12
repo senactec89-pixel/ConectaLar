@@ -79,6 +79,9 @@ void main() {
             ],
           });
         }
+        if (request.url.path == '/categorias/2/servicos') {
+          return jsonResponse({'servicos': [{'id': 12, 'nome': 'Troca de tomada'}], 'paginacao': {'temMais': false}});
+        }
         if (request.url.path == '/profissionais/me/servicos' &&
             request.method == 'GET') {
           return jsonResponse({'servicos': []});
@@ -96,10 +99,7 @@ void main() {
     await abrirFrontend(tester, AppRoutes.servicosProfissional);
     await tester.tap(find.widgetWithText(OutlinedButton, 'Adicionar serviço'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Nome do serviço'),
-      'Troca de tomada',
-    );
+    await selecionarServicoCatalogo(tester, categoria: 'Elétrica', servico: 'Troca de tomada');
     await tester.enterText(
       find.widgetWithText(TextFormField, 'Preço inicial (R\$)'),
       '80',

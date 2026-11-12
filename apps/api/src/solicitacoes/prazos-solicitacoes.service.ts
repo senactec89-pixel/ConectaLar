@@ -96,8 +96,9 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
       const motivo = !porInatividade
         ? 'Prazo de 48 horas sem resposta formal do profissional encerrado.'
         : 'Negociação encerrada após 96 horas sem ação formal.';
-      pedido.status = SolicitacaoStatus.Cancelada;
-      pedido.cancelamentoMotivo = motivo;
+      pedido.status = porInatividade
+        ? SolicitacaoStatus.NegociacaoExpirada
+        : SolicitacaoStatus.Expirada;
       pedido.prazoRespostaEm = null;
       pedido.prazoInatividadeEm = null;
       await manager.save(SolicitacaoEntity, pedido);
@@ -111,11 +112,9 @@ export class PrazosSolicitacoesService implements OnModuleInit, OnModuleDestroy 
       await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
         solicitacaoId: pedido.id,
         atorId: null,
-        tipo: porInatividade
-          ? 'pedido_expirado_inatividade'
-          : 'pedido_expirado_sem_resposta',
+        tipo: porInatividade ? 'negociacao_expirada' : 'solicitacao_expirada',
         statusAnterior: SolicitacaoStatus.AguardandoResposta,
-        statusNovo: SolicitacaoStatus.Cancelada,
+        statusNovo: pedido.status,
         motivo,
       }));
       await this.notificarNoManager(manager, pedido.clienteId, pedido.id,

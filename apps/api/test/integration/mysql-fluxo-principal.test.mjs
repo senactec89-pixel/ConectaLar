@@ -116,7 +116,7 @@ test(
             senha: 'ConectaLarTeste123!',
             tipo,
             aceitouTermos: true,
-            versaoTermos: '2026-10-24.v5',
+            versaoTermos: '2026-10-26.v6',
             ...(telefone ? { telefone } : {}),
           },
           201,
@@ -155,7 +155,7 @@ test(
           senha: 'ConectaLarTeste123!',
           tipo: 'cliente',
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         409,
       );
@@ -170,7 +170,7 @@ test(
           tipo: 'cliente',
           telefone: `+55 ${customerPhone.slice(0, 2)} 9${customerPhone.slice(3)}`,
           aceitouTermos: true,
-          versaoTermos: '2026-10-24.v5',
+          versaoTermos: '2026-10-26.v6',
         },
         409,
       );
@@ -216,6 +216,12 @@ test(
       const categorias = (await request('GET', 'categorias', null, undefined, 200))
         .categorias;
       assert.ok(categorias.length > 0, 'As migrations devem carregar categorias base.');
+      await migrationDataSource.query(
+        "INSERT INTO servicos_catalogo (categoria_id, nome, ativo) VALUES (?, 'Servico de teste', 1), (?, 'Outro servico de teste', 1), (?, 'Segundo servico de teste', 1)",
+        [categorias[0].id, categorias[0].id, categorias[0].id],
+      );
+      const catalogo = await migrationDataSource.query('SELECT id, nome FROM servicos_catalogo WHERE categoria_id = ?', [categorias[0].id]);
+      const catalogoId = (nome) => Number(catalogo.find((item) => item.nome === nome).id);
       const profissional = await request(
         'PUT',
         'profissionais/me',
@@ -228,12 +234,14 @@ test(
           servicos: [
             {
               nome: 'Servico de teste',
+              servicoCatalogoId: catalogoId('Servico de teste'),
               categoriaId: categorias[0].id,
               duracaoMinutos: 60,
               precoInicial: 100,
             },
             {
               nome: 'Outro servico de teste',
+              servicoCatalogoId: catalogoId('Outro servico de teste'),
               categoriaId: categorias[0].id,
               duracaoMinutos: 90,
               precoInicial: 140,
@@ -259,6 +267,7 @@ test(
           servicos: [
             {
               nome: 'Segundo servico de teste',
+              servicoCatalogoId: catalogoId('Segundo servico de teste'),
               categoriaId: categorias[0].id,
               duracaoMinutos: 60,
               precoInicial: 120,

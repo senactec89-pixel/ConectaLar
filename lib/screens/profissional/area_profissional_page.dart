@@ -122,13 +122,17 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
     setState(() => _decidindo.add(id));
     try {
       final api = AppServices.instance.servicos;
-      await (aceitar ? api.aceitar(id) : api.recusar(id));
+      final resposta = await (aceitar
+          ? api.aceitarOuNegociar(id)
+          : api.recusar(id));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             aceitar
-                ? 'Solicitação aceita e agendada.'
+                ? resposta['negociacaoIniciada'] == true
+                      ? 'Negociação iniciada.'
+                      : 'Solicitação aceita e agendada.'
                 : 'Solicitação recusada.',
           ),
         ),
@@ -607,12 +611,14 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                             }),
                             onAccept:
                                 !_decidindo.contains(_id(pedido)) &&
-                                    pedido['status'] == 'aguardando_resposta'
+                                    pedido['status'] == 'aguardando_resposta' &&
+                                    pedido['negociacaoIniciada'] != true
                                 ? () => _decidir(_id(pedido), true)
                                 : null,
                             onDecline:
                                 !_decidindo.contains(_id(pedido)) &&
-                                    pedido['status'] == 'aguardando_resposta'
+                                    pedido['status'] == 'aguardando_resposta' &&
+                                    pedido['negociacaoIniciada'] != true
                                 ? () => _decidir(_id(pedido), false)
                                 : null,
                           ),
@@ -654,6 +660,8 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
           pedidos
               .where(
                 (p) => [
+                  'expirada',
+                  'negociacao_expirada',
                   'recusada',
                   'cancelada',
                   'conclusao_confirmada',
@@ -791,6 +799,16 @@ class _DetalheSolicitacaoProfissionalPageState
                         value: enderecoTexto,
                       ),
                     const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.detalhesServico,
+                        arguments: id,
+                      ),
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Ver atendimento e propostas'),
+                    ),
+                    const SizedBox(height: 8),
                     if (_decidindo) const LinearProgressIndicator(),
                     if (p['status'] == 'aguardando_resposta')
                       Row(
@@ -861,7 +879,7 @@ class _DetalheSolicitacaoProfissionalPageState
     setState(() => _decidindo = true);
     try {
       if (aceitar) {
-        await AppServices.instance.servicos.aceitar(id);
+        await AppServices.instance.servicos.aceitarOuNegociar(id);
       } else {
         await AppServices.instance.servicos.recusar(id);
       }
@@ -937,6 +955,10 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
       '${servico?['categoriaId'] ?? servico?['categoria']?['id'] ?? ''}',
     );
     if (!categorias.any((c) => c['id'] == categoriaId)) categoriaId = null;
+    int? servicoCatalogoId = int.tryParse(
+      '${servico?['servicoCatalogoId'] ?? ''}',
+    );
+    Future<List<Map<String, dynamic>>>? catalogoFuture;
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
@@ -958,35 +980,97 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
-                  controller: nome,
-                  enabled: !enviando,
-                  decoration: const InputDecoration(
-                    labelText: 'Nome do serviço',
-                  ),
-                  maxLength: 90,
-                  validator: (v) =>
-                      (v ?? '').trim().length < 2 ? 'Informe o nome.' : null,
-                ),
-                DropdownButtonFormField<int>(
-                  initialValue: categoriaId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Categoria (opcional)',
-                  ),
-                  items: [
-                    const DropdownMenuItem<int>(
-                      value: null,
-                      child: Text('Sem categoria'),
+                if (servico != null)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('${servico['nome']}'),
+                    subtitle: Text(
+                      servicoCatalogoId == null
+                          ? 'Oferta anterior'
+                          : 'Serviço do catálogo',
                     ),
-                    for (final categoria in categorias)
-                      DropdownMenuItem(
-                        value: int.tryParse('${categoria['id']}'),
-                        child: Text('${categoria['nome']}'),
-                      ),
-                  ],
-                  onChanged: enviando ? null : (value) => categoriaId = value,
-                ),
+                  )
+                else ...[
+                  DropdownButtonFormField<int>(
+                    initialValue: categoriaId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Categoria'),
+                    items: [
+                      for (final categoria in categorias)
+                        DropdownMenuItem(
+                          value: int.tryParse('${categoria['id']}'),
+                          child: Text('${categoria['nome']}'),
+                        ),
+                    ],
+                    validator: (value) =>
+                        value == null ? 'Escolha uma categoria.' : null,
+                    onChanged: enviando
+                        ? null
+                        : (value) => setDialogState(() {
+                            categoriaId = value;
+                            servicoCatalogoId = null;
+                            catalogoFuture = value == null
+                                ? null
+                                : AppServices.instance.categorias.servicos(
+                                    value,
+                                  );
+                          }),
+                  ),
+                  const SizedBox(height: 12),
+                  if (catalogoFuture != null)
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      future: catalogoFuture,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState != ConnectionState.done) {
+                          return const LinearProgressIndicator();
+                        }
+                        if (snapshot.hasError) {
+                          return TextButton.icon(
+                            onPressed: () => setDialogState(() {
+                              catalogoFuture = AppServices.instance.categorias
+                                  .servicos(categoriaId!);
+                            }),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text(
+                              'Tentar carregar serviços novamente',
+                            ),
+                          );
+                        }
+                        final opcoes = snapshot.data ?? const [];
+                        if (opcoes.isEmpty) {
+                          return const Text(
+                            'Nenhum serviço disponível nesta categoria.',
+                          );
+                        }
+                        return DropdownButtonFormField<int>(
+                          key: ValueKey('catalogo-categoria-$categoriaId'),
+                          initialValue: servicoCatalogoId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Serviço',
+                          ),
+                          items: [
+                            for (final item in opcoes)
+                              DropdownMenuItem(
+                                value: int.parse('${item['id']}'),
+                                child: Text(
+                                  '${item['nome']}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          validator: (value) =>
+                              value == null ? 'Escolha um serviço.' : null,
+                          onChanged: enviando
+                              ? null
+                              : (value) => setDialogState(
+                                  () => servicoCatalogoId = value,
+                                ),
+                        );
+                      },
+                    ),
+                ],
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: preco,
                   enabled: !enviando,
@@ -1005,7 +1089,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   keyboardType: TextInputType.number,
                   maxLength: 4,
                   decoration: const InputDecoration(
-                    labelText: 'Duração estimada',
+                    labelText: 'Duração estimada (minutos)',
                     prefixIcon: Icon(Icons.timer_outlined),
                   ),
                   validator: (value) {
@@ -1037,6 +1121,12 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   ? null
                   : () async {
                       if (!form.currentState!.validate()) return;
+                      if (servico == null && servicoCatalogoId == null) {
+                        setDialogState(
+                          () => erro = 'Escolha um serviço disponível.',
+                        );
+                        return;
+                      }
                       setDialogState(() {
                         enviando = true;
                         erro = null;
@@ -1045,20 +1135,32 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         final servicos = _servicosParaSalvar(atual);
                         final novo = <String, dynamic>{
                           if (servico != null) 'id': servico['id'],
-                          'nome': nome.text.trim(),
-                          'categoriaId': categoriaId,
+                          if (servico != null) 'nome': nome.text.trim(),
+                          if (servico != null)
+                            'categoriaId':
+                                servico['categoriaId'] ??
+                                servico['categoria']?['id'],
+                          'servicoCatalogoId': ?servicoCatalogoId,
                           'precoInicial': parsePrecoInicial(preco.text),
                           'ativo': servico?['ativo'] != false,
                           'duracaoMinutos': int.parse(duracao.text.trim()),
                           'intervaloMinutos': 0,
                         };
                         if (servico == null) {
-                          if (servicos.length >= 12) {
+                          final existente = servicos.indexWhere(
+                            (item) =>
+                                item['servicoCatalogoId'] == servicoCatalogoId,
+                          );
+                          if (existente >= 0) {
+                            novo['id'] = servicos[existente]['id'];
+                            servicos[existente] = novo;
+                          } else if (servicos.length >= 12) {
                             throw const ApiException(
                               'Você pode cadastrar até 12 serviços.',
                             );
+                          } else {
+                            servicos.add(novo);
                           }
-                          servicos.add(novo);
                         } else {
                           final index = servicos.indexWhere(
                             (item) => item['id'] == servico['id'],
@@ -1113,6 +1215,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     nome.dispose();
     preco.dispose();
+    duracao.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
@@ -1124,6 +1227,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'id': item['id'],
           'nome': item['nome'],
           'categoriaId': item['categoriaId'] ?? item['categoria']?['id'],
+          'servicoCatalogoId': item['servicoCatalogoId'],
           'precoInicial': item['precoInicial'],
           'ativo': item['ativo'] != false,
           'duracaoMinutos': item['duracaoMinutos'] ?? 120,
@@ -1363,9 +1467,7 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                                   ? 'Preço a informar'
                                   : 'A partir de R\$ ${e['precoInicial']}',
                             ),
-                            Text(
-                              '${e['duracaoMinutos'] ?? 120} min',
-                            ),
+                            Text('${e['duracaoMinutos'] ?? 120} min'),
                             Text(e['ativo'] == true ? 'Ativa' : 'Pausada'),
                           ],
                         ),
@@ -1649,6 +1751,8 @@ String _inicialNome(Object? value) {
 
 String _status(Object? value) => switch (value) {
   'aguardando_resposta' => 'Aguardando resposta',
+  'expirada' => 'Expirada',
+  'negociacao_expirada' => 'Negociação encerrada',
   'aceita_agendada' => 'Aceita e agendada',
   'recusada' => 'Recusada',
   'cancelada' => 'Cancelada',
@@ -1685,6 +1789,7 @@ class _PedidoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = int.tryParse('${pedido['id']}') ?? 0;
     final aguardando = pedido['status'] == 'aguardando_resposta';
+    final negociacaoIniciada = pedido['negociacaoIniciada'] == true;
     final enderecoLiberado = pedido['enderecoCompletoLiberado'] == true;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpace.md),
@@ -1716,7 +1821,9 @@ class _PedidoCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: StatusBadge.solicitacaoValor(
                     pedido['status'],
-                    label: _status(pedido['status']),
+                    label: negociacaoIniciada
+                        ? 'Negociação em andamento'
+                        : _status(pedido['status']),
                   ),
                 ),
               ],
@@ -1754,10 +1861,12 @@ class _PedidoCard extends StatelessWidget {
                       );
                       onChanged?.call();
                     },
-                    child: const Text('Ver detalhes'),
+                    child: Text(
+                      negociacaoIniciada ? 'Continuar negociação' : 'Ver detalhes',
+                    ),
                   ),
                 ),
-                if (aguardando) ...[
+                if (aguardando && !negociacaoIniciada) ...[
                   const SizedBox(width: 8),
                   IconButton.outlined(
                     tooltip: 'Recusar solicitação',

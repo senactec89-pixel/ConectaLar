@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/frontend_helpers.dart' show selecionarServicoCatalogo;
 
 const _perfil = <String, dynamic>{
   'id': 7,
@@ -26,6 +27,7 @@ const _perfil = <String, dynamic>{
   'servicos': [
     {
       'id': 31,
+      'servicoCatalogoId': 101,
       'nome': 'Instalação',
       'categoriaId': 1,
       'categoria': {'id': 1, 'nome': 'Elétrica'},
@@ -33,6 +35,7 @@ const _perfil = <String, dynamic>{
     },
     {
       'id': 32,
+      'servicoCatalogoId': 102,
       'nome': 'Reparo',
       'categoriaId': 2,
       'categoria': {'id': 2, 'nome': 'Manutenção'},
@@ -88,6 +91,10 @@ Future<void> _sessao(
             },
           });
         }
+        if (request.method == 'GET' &&
+            RegExp(r'^/solicitacoes/\d+/opcoes$').hasMatch(request.url.path)) {
+          return _json({'opcoes': []});
+        }
         return handler(request);
       }),
     ),
@@ -103,10 +110,11 @@ Future<void> _abrir(
   String route, {
   Object? arguments,
   double width = 390,
+  double height = 844,
   double scale = 1,
 }) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = Size(width, 844);
+  tester.view.physicalSize = Size(width, height);
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
@@ -243,6 +251,36 @@ void main() {
     },
   );
 
+  testWidgets('diálogo de cancelamento rola com teclado e texto ampliado', (
+    tester,
+  ) async {
+    await _sessao('cliente', (_) async => _json({'solicitacao': _pedido()}));
+    await _abrir(
+      tester,
+      AppRoutes.detalhesServico,
+      arguments: 45,
+      width: 360,
+      height: 2500,
+      scale: 1.6,
+    );
+    final cancelar = find.text('Cancelar');
+    expect(cancelar.hitTestable(), findsOneWidget);
+    await tester.tap(cancelar);
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    await tester.pumpAndSettle();
+
+    final motivo = find.byKey(const ValueKey('cancelamento-motivo'));
+    await tester.enterText(motivo, 'Cliente alterou a data do atendimento.');
+    final confirmar = find.byType(FilledButton);
+    await tester.ensureVisible(confirmar);
+    expect(confirmar.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.text('Voltar'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets(
     'cliente envia contraproposta e não pode confirmar a própria sugestão',
     (tester) async {
@@ -366,6 +404,13 @@ void main() {
       await tester.drag(find.byType(ListView), const Offset(0, -700));
       await tester.pumpAndSettle();
       expect(find.text('Avaliado'), findsOneWidget);
+      expect(find.text('Avaliação registrada'), findsOneWidget);
+      expect(
+        find.text(
+          'As avaliações só aparecem no perfil público após análise da equipe.',
+        ),
+        findsOneWidget,
+      );
       expect(find.byKey(const ValueKey('avaliacao-enviar')), findsNothing);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -443,6 +488,14 @@ void main() {
     (tester) async {
       Map<String, dynamic>? enviado;
       await _sessao('cliente', (request) async {
+        if (request.url.path == '/categorias/2/servicos/102/opcoes') {
+          return _json({
+            'opcoes': [
+              {'id': 88, 'nome': 'Tarefa fictícia'},
+            ],
+            'paginacao': {'temMais': false},
+          });
+        }
         if (request.method == 'POST') {
           enviado = jsonDecode(request.body) as Map<String, dynamic>;
           return _json({'solicitacao': _pedido()});
@@ -474,6 +527,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Reparo').last);
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('solicitar-opcao-88')));
+      await tester.pumpAndSettle();
       await tester.enterText(
         find.byKey(const ValueKey('solicitar-data')),
         '15/10/2027',
@@ -497,6 +552,7 @@ void main() {
       expect(enviado?['servicoId'], 32);
       expect(enviado?['categoriaId'], 2);
       expect(enviado?['enderecoId'], 90);
+      expect(enviado?['opcoesIds'], [88]);
       expect(find.text('Solicitação enviada'), findsOneWidget);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -543,6 +599,14 @@ void main() {
             ],
           });
         }
+        if (path.endsWith('/categorias/2/servicos')) {
+          return _json({
+            'servicos': [
+              {'id': 12, 'nome': 'Reparo'},
+            ],
+            'paginacao': {'temMais': false},
+          });
+        }
         return _json({'solicitacoes': []});
       });
       await _abrir(tester, AppRoutes.cadastroProfissional);
@@ -562,12 +626,15 @@ void main() {
         find.widgetWithText(OutlinedButton, 'Adicionar serviço'),
       );
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField).at(0), 'Reparo');
-      await tester.tap(find.byType(DropdownButtonFormField<int>));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Manutenção').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField).at(1), '-1');
+      await selecionarServicoCatalogo(
+        tester,
+        categoria: 'Manutenção',
+        servico: 'Reparo',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Preço inicial (R\$)'),
+        '-1',
+      );
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       expect(
@@ -575,15 +642,18 @@ void main() {
         findsOneWidget,
       );
       expect(ofertaEnviada, isNull);
-      await tester.enterText(find.byType(TextFormField).at(1), '125,50');
-      await tester.tap(find.text('60 minutos'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('90 minutos').last);
-      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Preço inicial (R\$)'),
+        '125,50',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Duração estimada (minutos)'),
+        '90',
+      );
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       final oferta = (ofertaEnviada?['servicos'] as List).single;
-      expect(oferta['categoriaId'], 2);
+      expect(oferta['servicoCatalogoId'], 12);
       expect(oferta['precoInicial'], 125.5);
       expect(oferta['duracaoMinutos'], 90);
     },

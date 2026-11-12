@@ -151,9 +151,13 @@ void main() {
     },
   );
 
-  testWidgets('formulário isolado de demonstração inicia aguardando resposta', (
+  testWidgets('formulário de demonstração sem opções não simula envio', (
     tester,
   ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     final amanha = DateTime.now().add(const Duration(days: 1));
     final dataAtendimento =
         '${amanha.day.toString().padLeft(2, '0')}/'
@@ -203,10 +207,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('solicitar-enviar')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Solicitação enviada'), findsOneWidget);
-    expect(find.text('Status: Aguardando resposta'), findsOneWidget);
+    expect(find.text('Solicitação enviada'), findsNothing);
     expect(
-      find.textContaining('Ainda não há agendamento confirmado'),
+      find.text('Selecione pelo menos uma opção disponível para o serviço.'),
       findsOneWidget,
     );
   });

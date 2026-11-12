@@ -4,15 +4,25 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Brackets, EntityManager, In, Repository } from 'typeorm';
+import {
+  Between,
+  Brackets,
+  EntityManager,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { AvaliacaoEntity } from '../database/entities/avaliacao.entity.js';
 import { AvaliacaoModeracaoStatus } from '../domain/avaliacao-moderacao-status.js';
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
+import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
+import { ServicoCatalogoEntity } from '../database/entities/servico-catalogo.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
@@ -24,8 +34,9 @@ import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, intervalosLivres, minuto
 
 interface ProfissionalServicoInput {
   readonly id?: number | null;
-  readonly nome: string;
+  readonly nome?: string;
   readonly categoriaId?: number | null;
+  readonly servicoCatalogoId?: number | null;
   readonly precoInicial?: number | null;
   readonly ativo?: boolean;
   readonly duracaoMinutos: number;
@@ -40,7 +51,7 @@ interface UpsertPerfilInput {
   readonly uf: string | null;
   readonly raioAtendimentoKm: number;
   readonly precoInicial?: number | null;
-  readonly servicos: readonly ProfissionalServicoInput[];
+  readonly servicos: readonly ProfissionalServicoInput[] | null;
 }
 
 @Injectable()
@@ -61,6 +72,8 @@ export class ProfissionaisService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly localizacao: LocalizacaoService,
+    @InjectRepository(ProfissionalBloqueioEntity)
+    private readonly bloqueios: Repository<ProfissionalBloqueioEntity>,
   ) {}
 
   async listar(query: Record<string, unknown>) {
@@ -79,6 +92,7 @@ export class ProfissionaisService {
     const termo = optionalText(query.termo, 80);
     const bairro = optionalText(query.bairro, 80);
     const categoriaId = optionalId(query.categoriaId);
+    const servicoCatalogoId = optionalId(query.servicoCatalogoId);
     const cidade = optionalText(query.cidade, 120);
     const uf = optionalText(query.uf, 2)?.toUpperCase() ?? null;
     const latitude = optionalCoordinate(query.latitude, -90, 90);
@@ -99,11 +113,16 @@ export class ProfissionaisService {
       .leftJoinAndSelect(
         'perfil.servicos',
         'servico',
-        'servico.ativo = :ativo',
+        `servico.ativo = :ativo AND (servico.servico_catalogo_id IS NULL OR EXISTS (
+          SELECT 1 FROM servicos_catalogo sc JOIN categorias cat ON cat.id = sc.categoria_id
+          WHERE sc.id = servico.servico_catalogo_id AND sc.ativo = 1 AND cat.ativo = 1))`,
         { ativo: true },
       )
       .leftJoinAndSelect('servico.categoria', 'categoria')
-      .leftJoin('perfil.servicos', 'servicoFiltro', 'servicoFiltro.ativo = :ativo', {
+      .leftJoinAndSelect('servico.servicoCatalogo', 'catalogo')
+      .leftJoin('perfil.servicos', 'servicoFiltro', `servicoFiltro.ativo = :ativo AND (servicoFiltro.servico_catalogo_id IS NULL OR EXISTS (
+        SELECT 1 FROM servicos_catalogo scf JOIN categorias catf ON catf.id = scf.categoria_id
+        WHERE scf.id = servicoFiltro.servico_catalogo_id AND scf.ativo = 1 AND catf.ativo = 1))`, {
         ativo: true,
       })
       .leftJoin('servicoFiltro.categoria', 'categoriaFiltro')
@@ -131,6 +150,9 @@ export class ProfissionaisService {
       builder.andWhere('servicoFiltro.categoriaId = :categoriaId', {
         categoriaId,
       });
+    }
+    if (servicoCatalogoId !== null) {
+      builder.andWhere('servicoFiltro.servicoCatalogoId = :servicoCatalogoId', { servicoCatalogoId });
     }
     if (latitude === null && (bairro !== null || cidade !== null || uf !== null)) {
       builder.andWhere(
@@ -192,8 +214,11 @@ export class ProfissionaisService {
         const distanciaKm = latitude === null || longitude === null
           ? null
           : distanciaDoPerfil(perfil, latitude, longitude);
+        const publico = perfilPublico(perfil);
         return {
-          ...perfilPublico(perfil),
+          ...publico,
+          servicos: servicoCatalogoId === null ? publico.servicos :
+            publico.servicos.filter((servico) => servico.servicoCatalogoId === servicoCatalogoId),
           ...resumos.get(perfil.usuarioId),
           distanciaKm:
             distanciaKm === null ? null : Math.round(distanciaKm * 10) / 10,
@@ -212,7 +237,7 @@ export class ProfissionaisService {
   async obter(id: number) {
     const perfil = await this.perfis.findOne({
       where: { id, ativo: true },
-      relations: { usuario: true, servicos: { categoria: true } },
+      relations: { usuario: true, servicos: { categoria: true, servicoCatalogo: true } },
     });
     if (
       perfil === null ||
@@ -233,7 +258,7 @@ export class ProfissionaisService {
   async meuPerfil(user: AuthenticatedUser) {
     const perfil = await this.perfis.findOne({
       where: { usuarioId: user.id },
-      relations: { usuario: true, servicos: { categoria: true } },
+      relations: { usuario: true, servicos: { categoria: true, servicoCatalogo: true } },
     });
 
     if (perfil === null) return { profissional: null };
@@ -256,29 +281,39 @@ export class ProfissionaisService {
     const servicoId = optionalId(query.servicoId);
     const oferta = servicoId === null ? null : await this.servicos.findOne({
       where: { id: servicoId, profissionalId: id, ativo: true },
+      relations: { categoria: true, servicoCatalogo: true },
     });
-    if (servicoId !== null && oferta === null) throw badRequest('OFERTA_INDISPONIVEL');
+    if (servicoId !== null && (oferta === null || !ofertaDisponivel(oferta))) throw badRequest('OFERTA_INDISPONIVEL');
     const duracaoMinutos = oferta?.duracaoMinutos ?? duracaoLegadaMinutos;
-    const [semanais, ocupados] = await Promise.all([
+    const [semanais, ocupados, bloqueio] = await Promise.all([
       this.disponibilidades.find({ where: { profissionalId: id, ativo: true } }),
       this.solicitacoes.find({ where: {
         profissionalId: id, status: SolicitacaoStatus.AceitaAgendada,
         dataServico: Between(diaAnterior(data), data),
       } }),
+      this.bloqueios.findOne({
+        where: {
+          profissionalId: id,
+          dataInicio: LessThanOrEqual(data),
+          dataFim: MoreThanOrEqual(data),
+        },
+      }),
     ]);
     // Only free windows are public: no customer, request IDs, address, or busy
     // appointment details leave this endpoint.
     return {
       data, fusoHorario: fusoAgenda, duracaoMinutos,
-      intervalos: intervalosLivres(data, semanais, ocupados).filter((item) =>
-        minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
+      bloqueado: bloqueio !== null,
+      intervalos: bloqueio !== null
+        ? []
+        : intervalosLivres(data, semanais, ocupados).filter((item) =>
+            minutosHorario(item.horaFim) - minutosHorario(item.horaInicio) >= duracaoMinutos),
     };
   }
 
   async salvarMeuPerfil(user: AuthenticatedUser, body: unknown) {
     const input = parseUpsertPerfil(body);
     await this.carregarUsuarioProfissional(user);
-    await this.validarCategorias(input.servicos);
     const geo = await this.localizacao.geocodificar(input);
 
     const saved = await this.perfis.manager.transaction(async (manager) => {
@@ -303,13 +338,13 @@ export class ProfissionaisService {
       perfil.precoInicial = decimalOrNull(input.precoInicial);
       perfil.ativo = true;
       const saved = await manager.save(ProfissionalPerfilEntity, perfil);
-      await this.persistirServicos(manager, saved.id, input.servicos);
+      if (input.servicos !== null) await this.persistirServicos(manager, saved.id, input.servicos);
       return saved;
     });
 
     const reloaded = await this.perfis.findOne({
       where: { id: saved.id },
-      relations: { usuario: true, servicos: { categoria: true } },
+      relations: { usuario: true, servicos: { categoria: true, servicoCatalogo: true } },
     });
     if (reloaded === null) {
       throw new Error('Saved professional profile could not be reloaded.');
@@ -345,6 +380,14 @@ export class ProfissionaisService {
       take: 50,
     });
     const hoje = new Date().toISOString().slice(0, 10);
+    const recentes = solicitacoes.slice(0, 8);
+    const negociacoesIniciadas = recentes.length === 0
+      ? new Set<number>()
+      : new Set<number>((await this.solicitacoes.manager.query(
+          `SELECT DISTINCT solicitacao_id FROM solicitacao_eventos
+           WHERE tipo = 'negociacao_iniciada' AND solicitacao_id IN (${recentes.map(() => '?').join(',')})`,
+          recentes.map((item) => item.id),
+        ) as Array<{ solicitacao_id: number }>).map((item) => Number(item.solicitacao_id)));
     const proximosAtendimentos = solicitacoes
       .filter(
         (solicitacao) =>
@@ -379,9 +422,10 @@ export class ProfissionaisService {
       proximosAtendimentos: proximosAtendimentos.map(
         solicitacaoProfissionalResumo,
       ),
-      solicitacoesRecentes: solicitacoes
-        .slice(0, 8)
-        .map(solicitacaoProfissionalResumo),
+      solicitacoesRecentes: recentes.map((item) => ({
+        ...solicitacaoProfissionalResumo(item),
+        negociacaoIniciada: negociacoesIniciadas.has(item.id),
+      })),
     };
   }
 
@@ -389,11 +433,17 @@ export class ProfissionaisService {
     const perfil = await this.carregarMeuPerfil(user);
     const mes = parseMes(query.mes);
     if (perfil === null) {
-      return { mes, fusoHorario: fusoAgenda, disponibilidade: [], atendimentos: [] };
+      return {
+        mes,
+        fusoHorario: fusoAgenda,
+        disponibilidade: [],
+        atendimentos: [],
+        bloqueios: [],
+      };
     }
 
     const [inicio, fim] = intervaloMes(mes);
-    const [disponibilidade, atendimentos] = await Promise.all([
+    const [disponibilidade, atendimentos, bloqueios] = await Promise.all([
       this.disponibilidades.find({
         where: { profissionalId: perfil.id, ativo: true },
         order: { diaSemana: 'ASC', horaInicio: 'ASC' },
@@ -414,6 +464,14 @@ export class ProfissionaisService {
         .orderBy('solicitacao.dataServico', 'ASC')
         .addOrderBy('solicitacao.horarioServico', 'ASC')
         .getMany(),
+      this.bloqueios.find({
+        where: {
+          profissionalId: perfil.id,
+          dataInicio: LessThanOrEqual(fim),
+          dataFim: MoreThanOrEqual(inicio),
+        },
+        order: { dataInicio: 'ASC' },
+      }),
     ]);
 
     return {
@@ -421,6 +479,10 @@ export class ProfissionaisService {
       fusoHorario: fusoAgenda,
       disponibilidade: disponibilidade.map(disponibilidadeResponse),
       atendimentos: atendimentos.map((item) => agendaAtendimentoResponse(item, podeAtender(perfil))),
+      bloqueios: bloqueios.map((item) => ({
+        dataInicio: item.dataInicio,
+        dataFim: item.dataFim,
+      })),
     };
   }
 
@@ -437,7 +499,6 @@ export class ProfissionaisService {
   async salvarMeusServicos(user: AuthenticatedUser, body: unknown) {
     await this.carregarUsuarioProfissional(user);
     const input = parseServicosBody(body);
-    await this.validarCategorias(input);
     const perfil = await this.carregarMeuPerfil(user);
     if (perfil === null) {
       throw new BadRequestException({
@@ -487,29 +548,9 @@ export class ProfissionaisService {
   private carregarMeuPerfil(user: AuthenticatedUser) {
     return this.perfis.findOne({
       where: { usuarioId: user.id },
-      relations: { usuario: true, servicos: { categoria: true } },
+      relations: { usuario: true, servicos: { categoria: true, servicoCatalogo: true } },
       order: { servicos: { nome: 'ASC' } },
     });
-  }
-
-  private async validarCategorias(
-    servicos: readonly ProfissionalServicoInput[],
-  ) {
-    const categoriaIds = [
-      ...new Set(
-        servicos
-          .map((servico) => servico.categoriaId)
-          .filter((id): id is number => id !== null && id !== undefined),
-      ),
-    ];
-    if (categoriaIds.length === 0) return;
-
-    const categoriasAtivas = await this.categorias.find({
-      where: { id: In(categoriaIds), ativo: true },
-    });
-    if (categoriasAtivas.length !== categoriaIds.length) {
-      throw badRequest('CATEGORIA_INVALIDA');
-    }
   }
 
   private async salvarServicos(
@@ -533,24 +574,62 @@ export class ProfissionaisService {
     const existentes = await manager.find(ProfissionalServicoEntity, {
       where: { profissionalId },
     });
+    const catalogoIds = [...new Set(inputs.map((input) => input.servicoCatalogoId ??
+      existentes.find((item) => item.id === input.id)?.servicoCatalogoId)
+      .filter((id): id is number => id != null))].sort((a, b) => a - b);
+    const catalogoInicial = catalogoIds.length === 0 ? [] : await manager.find(ServicoCatalogoEntity, {
+      where: { id: In(catalogoIds) },
+    });
+    if (catalogoInicial.length !== catalogoIds.length) throw badRequest('SERVICO_CATALOGO_INVALIDO');
+    const categorias = new Map<number, CategoriaEntity>();
+    for (const id of [...new Set(catalogoInicial.map((item) => item.categoriaId))].sort((a, b) => a - b)) {
+      const categoria = await manager.findOne(CategoriaEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (categoria === null) throw badRequest('CATEGORIA_INVALIDA');
+      categorias.set(id, categoria);
+    }
+    const catalogo = new Map<number, ServicoCatalogoEntity>();
+    for (const id of catalogoIds) {
+      const item = await manager.findOne(ServicoCatalogoEntity, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (item === null) throw badRequest('SERVICO_CATALOGO_INVALIDO');
+      catalogo.set(id, item);
+    }
     const usados = new Set<number>();
+    const catalogosUsados = new Set<number>();
     for (const input of inputs) {
       let oferta =
         input.id == null
-          ? existentes.find(
-              (s) =>
-                !usados.has(s.id) &&
-                s.ativo &&
-                s.nome === input.nome &&
-                s.categoriaId === (input.categoriaId ?? null),
-            )
+          ? existentes.find((s) => input.servicoCatalogoId != null && s.servicoCatalogoId === input.servicoCatalogoId)
           : existentes.find((s) => s.id === input.id);
       if (input.id != null && (oferta === undefined || usados.has(input.id))) {
         throw badRequest('OFERTA_INVALIDA');
       }
+      const catalogoId = input.servicoCatalogoId ?? oferta?.servicoCatalogoId ?? null;
+      if (oferta !== undefined && input.servicoCatalogoId != null && oferta.servicoCatalogoId !== input.servicoCatalogoId) {
+        throw badRequest('OFERTA_CATALOGO_IMUTAVEL');
+      }
+      if (oferta !== undefined && usados.has(oferta.id)) throw badRequest('OFERTA_INVALIDA');
+      const item = catalogoId === null ? null : catalogo.get(catalogoId);
+      if (catalogoId !== null && (item === undefined || catalogosUsados.has(catalogoId))) throw badRequest('SERVICO_CATALOGO_INVALIDO');
+      if (catalogoId === null) {
+        if (oferta === undefined || oferta.servicoCatalogoId != null ||
+          (input.nome !== undefined && input.nome !== oferta.nome) ||
+          (input.categoriaId != null && input.categoriaId !== oferta.categoriaId)) {
+          throw badRequest('SERVICO_CATALOGO_OBRIGATORIO');
+        }
+      } else if (item != null) {
+        if (input.categoriaId != null && input.categoriaId !== item.categoriaId) throw badRequest('CATEGORIA_INVALIDA');
+        if ((!item.ativo || !categorias.get(item.categoriaId)?.ativo) &&
+          (oferta === undefined || (!oferta.ativo && (input.ativo ?? true)))) {
+          throw badRequest('SERVICO_CATALOGO_INDISPONIVEL');
+        }
+        catalogosUsados.add(catalogoId);
+      }
       oferta ??= manager.create(ProfissionalServicoEntity, { profissionalId });
-      oferta.nome = input.nome;
-      oferta.categoriaId = input.categoriaId ?? null;
+      if (item != null) {
+        oferta.nome = item.nome;
+        oferta.categoriaId = item.categoriaId;
+      }
+      oferta.servicoCatalogoId = catalogoId;
       oferta.precoInicial = decimalOrNull(input.precoInicial);
       oferta.duracaoMinutos = input.duracaoMinutos;
       oferta.intervaloMinutos = input.intervaloMinutos;
@@ -625,6 +704,7 @@ export class ProfissionaisService {
     const filtros = parseAvaliacoesQuery(query);
     const consulta = this.avaliacoes
       .createQueryBuilder('avaliacao')
+      .leftJoinAndSelect('avaliacao.fotos', 'foto')
       .where('avaliacao.avaliadoId = :usuarioId', { usuarioId })
       .andWhere('avaliacao.moderacaoStatus = :status', {
         status: AvaliacaoModeracaoStatus.Aprovada,
@@ -656,6 +736,10 @@ export class ProfissionaisService {
         id: a.id,
         nota: a.nota,
         comentario: a.comentario,
+        fotos: (a.fotos ?? []).map((foto) => ({
+          id: foto.id,
+          url: `avaliacoes/${a.id}/fotos/${foto.id}`,
+        })),
         criadoEm: a.criadoEm.toISOString(),
       })),
     };
@@ -763,7 +847,7 @@ function enderecoResponse(endereco: ClienteEnderecoEntity) {
 
 function perfilPublico(perfil: ProfissionalPerfilEntity) {
   const servicos = (perfil.servicos ?? [])
-    .filter((servico) => servico.ativo)
+    .filter(ofertaDisponivel)
     .map(servicoResponse);
 
   const disponivelParaAtendimento = podeAtender(perfil);
@@ -793,10 +877,16 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
   };
 }
 
+function ofertaDisponivel(servico: ProfissionalServicoEntity): boolean {
+  return servico.ativo && (servico.servicoCatalogoId == null ||
+    (servico.servicoCatalogo?.ativo === true && servico.categoria?.ativo === true));
+}
+
 function servicoResponse(servico: ProfissionalServicoEntity) {
   return {
     id: servico.id,
-    nome: servico.nome,
+    nome: servico.servicoCatalogo?.nome ?? servico.nome,
+    servicoCatalogoId: servico.servicoCatalogoId ?? null,
     categoria:
       servico.categoria === null || servico.categoria === undefined
         ? null
@@ -809,6 +899,8 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
     duracaoMinutos: servico.duracaoMinutos,
     intervaloMinutos: servico.intervaloMinutos,
     ativo: servico.ativo,
+    disponivelNoCatalogo: servico.servicoCatalogoId == null ? null :
+      servico.servicoCatalogo?.ativo === true && servico.categoria?.ativo === true,
   };
 }
 
@@ -817,7 +909,7 @@ function parseUpsertPerfil(body: unknown): UpsertPerfilInput {
   const descricao = textField(value, 'descricao', 20, 280);
   const bairro = textField(value, 'bairro', 2, 120);
   const precoInicial = optionalMoney(value.precoInicial);
-  const servicos = parseServicos(value.servicos);
+  const servicos = value.servicos === undefined ? null : parseServicos(value.servicos);
   const cep = optionalCep(value.cep);
   const cidade = optionalText(value.cidade, 120);
   const uf = optionalUf(value.uf);
@@ -932,8 +1024,9 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
     const body = objectBody(item);
     return {
       id: optionalId(body.id),
-      nome: textField(body, 'nome', 2, 90),
+      nome: body.nome === undefined ? undefined : textField(body, 'nome', 2, 90),
       categoriaId: optionalId(body.categoriaId),
+      servicoCatalogoId: optionalId(body.servicoCatalogoId),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
       duracaoMinutos: durationField(body.duracaoMinutos, 120),
@@ -959,6 +1052,7 @@ function optionalBoolean(value: unknown): boolean | undefined {
 
 function parseServicosBody(body: unknown): readonly ProfissionalServicoInput[] {
   const value = objectBody(body);
+  if (value.servicos === undefined) throw badRequest('SERVICOS_INVALIDOS');
   return parseServicos(value.servicos);
 }
 

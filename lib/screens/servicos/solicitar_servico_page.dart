@@ -51,6 +51,10 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
   List<Disponibilidade> _disponibilidades = const [];
   bool _enderecosCarregados = false;
   bool _erroEnderecos = false;
+  Future<List<Map<String, dynamic>>>? _opcoesFuture;
+  final Set<int> _opcoesSelecionadas = {};
+  bool _opcoesCarregadas = false;
+  int _consultaOpcoes = 0;
 
   ClienteEndereco? get _enderecoSelecionado {
     for (final endereco in _enderecos) {
@@ -75,9 +79,35 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
           arguments.podeReceberSolicitacoes) {
         _enderecosFuture = _carregarEnderecos();
         _disponibilidadeFuture = _carregarDisponibilidade(arguments.id);
+        _iniciarConsultaOpcoes();
       }
     }
     _argumentosLidos = true;
+  }
+
+  void _iniciarConsultaOpcoes() {
+    final consulta = ++_consultaOpcoes;
+    _opcoesCarregadas = false;
+    _opcoesSelecionadas.clear();
+    final oferta = _ofertaSelecionada;
+    Future<List<Map<String, dynamic>>> carregar() async {
+      final categoriaId = oferta?.categoriaId;
+      final servicoId = oferta?.servicoCatalogoId;
+      if (categoriaId == null || servicoId == null) {
+        throw const FormatException('Oferta sem vinculo ao catalogo.');
+      }
+      final itens = await AppServices.instance.categorias.opcoes(
+        categoriaId,
+        servicoId,
+      );
+      if (mounted && consulta == _consultaOpcoes) {
+        setState(() => _opcoesCarregadas = true);
+      }
+      return itens;
+    }
+
+    _opcoesFuture = carregar();
+    _opcoesFuture!.ignore();
   }
 
   Future<List<ClienteEndereco>> _carregarEnderecos() async {
@@ -162,12 +192,27 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
 
   Future<void> _enviarSolicitacao() async {
     if (_enviando) return;
+    if (_ofertaSelecionada?.categoriaId == null ||
+        _ofertaSelecionada?.servicoCatalogoId == null) {
+      _mostrarErro(
+        'Este servico ainda nao esta vinculado ao catalogo. Peca ao profissional para atualizar a oferta antes de solicitar.',
+      );
+      return;
+    }
     if (AppServices.instance.auth.autenticado && !_enderecosCarregados) {
       _mostrarErro(
         _erroEnderecos
             ? 'Não foi possível consultar seus endereços. Tente novamente antes de enviar.'
             : 'Aguarde o carregamento dos seus endereços antes de enviar.',
       );
+      return;
+    }
+    if (!_opcoesCarregadas || _opcoesSelecionadas.isEmpty) {
+      _mostrarErro('Selecione pelo menos uma opção disponível para o serviço.');
+      return;
+    }
+    if (_opcoesSelecionadas.length > 30) {
+      _mostrarErro('Selecione no máximo 30 opções.');
       return;
     }
     if (!_formKey.currentState!.validate()) return;
@@ -226,6 +271,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
           'servicoId': _ofertaSelecionada!.id,
         'enderecoId': _enderecoSelecionadoId,
         'descricao': _descricaoController.text,
+        'opcoesIds': _opcoesSelecionadas.toList()..sort(),
         'bairroAtendimento': _bairroController.text,
         'dataServico': _dataApi(data),
         'horarioServico': horario,
@@ -276,6 +322,7 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
       _horarioController.text.trim().isNotEmpty ||
       _bairroController.text.trim() != _bairroInicial.trim() ||
       _ofertaSelecionadaId != _ofertaInicialId ||
+      _opcoesSelecionadas.isNotEmpty ||
       _enderecoSelecionadoId != _enderecoInicialId;
 
   Future<void> _confirmarSaida() async {
@@ -398,8 +445,22 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
                       enderecoSelecionado: _enderecoSelecionado,
                       enderecosFuture: _enderecosFuture,
                       disponibilidadeFuture: _disponibilidadeFuture,
-                      onOfertaChanged: (id) =>
-                          setState(() => _ofertaSelecionadaId = id),
+                      opcoesFuture: _opcoesFuture,
+                      opcoesSelecionadas: _opcoesSelecionadas,
+                      onOpcaoChanged: (id, selecionada) => setState(() {
+                        if (selecionada) {
+                          _opcoesSelecionadas.add(id);
+                        } else {
+                          _opcoesSelecionadas.remove(id);
+                        }
+                      }),
+                      onRetryOpcoes: () => setState(_iniciarConsultaOpcoes),
+                      onOfertaChanged: (id) => setState(() {
+                        if (id != _ofertaSelecionadaId) {
+                          _ofertaSelecionadaId = id;
+                          _iniciarConsultaOpcoes();
+                        }
+                      }),
                       onEnderecoChanged: (endereco) => setState(() {
                         _enderecoSelecionadoId = endereco.id;
                         _bairroController.text = endereco.bairro;
@@ -493,6 +554,10 @@ class _FormularioSolicitacao extends StatelessWidget {
     required this.enderecoSelecionado,
     required this.enderecosFuture,
     required this.disponibilidadeFuture,
+    required this.opcoesFuture,
+    required this.opcoesSelecionadas,
+    required this.onOpcaoChanged,
+    required this.onRetryOpcoes,
     required this.onOfertaChanged,
     required this.onEnderecoChanged,
     required this.onCadastrarEndereco,
@@ -514,6 +579,10 @@ class _FormularioSolicitacao extends StatelessWidget {
   final ClienteEndereco? enderecoSelecionado;
   final Future<List<ClienteEndereco>>? enderecosFuture;
   final Future<List<Disponibilidade>>? disponibilidadeFuture;
+  final Future<List<Map<String, dynamic>>>? opcoesFuture;
+  final Set<int> opcoesSelecionadas;
+  final void Function(int, bool) onOpcaoChanged;
+  final VoidCallback onRetryOpcoes;
   final ValueChanged<int?> onOfertaChanged;
   final ValueChanged<ClienteEndereco> onEnderecoChanged;
   final Future<void> Function() onCadastrarEndereco;
@@ -525,6 +594,9 @@ class _FormularioSolicitacao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ofertas = profissional.ofertasParaSolicitacao;
+    final ofertaConfigurada =
+        ofertaSelecionada?.categoriaId != null &&
+        ofertaSelecionada?.servicoCatalogoId != null;
 
     return Form(
       key: formKey,
@@ -568,6 +640,64 @@ class _FormularioSolicitacao extends StatelessWidget {
                 onChanged: onOfertaChanged,
                 validator: (id) => id == null ? 'Selecione um serviço.' : null,
               ),
+              const SizedBox(height: 12),
+              if (!ofertaConfigurada)
+                const _ConsultaAviso(
+                  titulo: 'Servico indisponivel para pedidos.',
+                  mensagem:
+                      'Esta oferta antiga ainda nao esta vinculada ao catalogo. O profissional precisa atualiza-la antes de receber solicitacoes.',
+                )
+              else
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: opcoesFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const _ConsultaAviso(
+                        titulo: 'Carregando opções...',
+                        carregando: true,
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return _ConsultaAviso(
+                        titulo: 'Não foi possível consultar as opções.',
+                        onRetry: onRetryOpcoes,
+                      );
+                    }
+                    final opcoes =
+                        snapshot.data ?? const <Map<String, dynamic>>[];
+                    if (opcoes.isEmpty) {
+                      return const _ConsultaAviso(
+                        titulo: 'Nenhuma opção disponível para este serviço.',
+                      );
+                    }
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'O que precisa ser feito?',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        for (final opcao in opcoes)
+                          Material(
+                            color: Colors.transparent,
+                            child: CheckboxListTile(
+                              key: ValueKey('solicitar-opcao-${opcao['id']}'),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              title: Text(opcao['nome'] as String),
+                              value: opcoesSelecionadas.contains(opcao['id']),
+                              onChanged: enviando
+                                  ? null
+                                  : (value) => onOpcaoChanged(
+                                      opcao['id'] as int,
+                                      value == true,
+                                    ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               const SizedBox(height: 12),
               if (enderecosFuture != null)
                 FutureBuilder<List<ClienteEndereco>>(
@@ -808,7 +938,9 @@ class _FormularioSolicitacao extends StatelessWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   key: const ValueKey('solicitar-enviar'),
-                  onPressed: enviando ? null : () => onSubmit(),
+                  onPressed: enviando || !ofertaConfigurada
+                      ? null
+                      : () => onSubmit(),
                   icon: enviando
                       ? const SizedBox.square(
                           dimension: 18,
@@ -1006,23 +1138,36 @@ class _ResumoLinha extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: AppSpace.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.texto,
-                fontWeight: FontWeight.w700,
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final empilhar =
+              constraints.maxWidth < 300 ||
+              MediaQuery.textScalerOf(context).scale(14) >= 21;
+          final textoLabel = Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall,
+          );
+          final textoValor = Text(
+            value,
+            style: const TextStyle(
+              color: AppColors.texto,
+              fontWeight: FontWeight.w700,
             ),
-          ),
-        ],
+          );
+          if (empilhar) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [textoLabel, const SizedBox(height: 2), textoValor],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 92, child: textoLabel),
+              Expanded(child: textoValor),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1462,8 +1607,8 @@ class _SolicitacaoEnviada extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Ainda não há agendamento confirmado. Aguarde o aceite do '
-              'profissional para que o atendimento fique aceito e agendado.',
+              'Ainda não há agendamento confirmado. A resposta do profissional '
+              'inicia a negociação.',
               style: TextStyle(color: AppColors.textoSuave),
             ),
             const SizedBox(height: 16),

@@ -78,6 +78,7 @@ test('mudanca de telefone invalida estados anteriores sem gravar OTP', async () 
   assert.equal(update[1].usuarioId, 42);
   assert.deepEqual(update[2], {
     estado: 'invalidada',
+    codigoHash: null,
     resolvidaEm: update[2].resolvidaEm,
     tentativaEmAndamento: false,
   });

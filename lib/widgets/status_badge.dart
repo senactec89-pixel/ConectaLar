@@ -26,6 +26,8 @@ class StatusBadge extends StatelessWidget {
       StatusSolicitacao.conclusaoContestada ||
       StatusSolicitacao.naoComparecimentoInformado => AppColors.erro,
       StatusSolicitacao.cancelada => AppColors.textoSuave,
+      StatusSolicitacao.expirada => AppColors.textoSuave,
+      StatusSolicitacao.negociacaoExpirada => AppColors.textoSuave,
       StatusSolicitacao.conclusaoConfirmada => AppColors.verdeEscuro,
     };
     return StatusBadge(

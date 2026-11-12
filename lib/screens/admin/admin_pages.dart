@@ -9,12 +9,14 @@ import '../../app/theme.dart';
 import '../../services/service_registry.dart';
 import '../../utils/categoria_icons.dart';
 import 'categoria_form_page.dart';
+import 'catalogo_categoria_page.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/adaptive_navigation_bar.dart';
 import '../../widgets/async_state_view.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/page_intro.dart';
 import '../../widgets/responsive_action_row.dart';
+import '../../widgets/avaliacao_fotos_view.dart';
 
 enum AdminModulo {
   painel,
@@ -616,12 +618,17 @@ class _AdminPageState extends State<AdminPage> {
       value is Map<String, dynamic> ? value : const {};
 
   Future<void> _criarAdministrador() async {
-    final criado = await Navigator.pushNamed<bool>(
+    final resultado = await Navigator.pushNamed<Object?>(
       context,
       AppRoutes.adminCriarAdministrador,
     );
-    if (!mounted || criado != true) return;
-    _avisar('Convite administrativo registrado. Confira a entrega do e-mail.');
+    if (!mounted || resultado is! Map) return;
+    if (resultado['criado'] != true) return;
+    _avisar(
+      resultado['emailEnviado'] == true
+          ? 'Convite enviado. A pessoa deve conferir o e-mail para continuar.'
+          : 'Convite registrado, mas o envio do e-mail esta pendente. Verifique o servico de e-mail antes de tentar novamente.',
+    );
     setState(() {
       _future = _carregar(_modulo);
       _future.ignore();
@@ -1083,7 +1090,11 @@ class _AdminPageState extends State<AdminPage> {
             leading: Icon(categoriaIconData('${item['icone'] ?? ''}')),
             title: Text('${item['nome']}'),
             subtitle: Text(item['ativo'] == true ? 'Ativa' : 'Inativa'),
+            onTap: _mutando ? null : () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => CatalogoCategoriaPage(categoria: item)),
+            ),
             trailing: IconButton(
+              tooltip: 'Editar categoria',
               icon: const Icon(Icons.edit_outlined),
               onPressed: _mutando ? null : () => _editarCategoria(item),
             ),
@@ -1091,7 +1102,9 @@ class _AdminPageState extends State<AdminPage> {
         );
       case AdminModulo.auditoria:
         final ator = _map(item['ator']);
-        final detalhe = _formatarDetalheAuditoria(item['detalhe']);
+        final detalhe = _dadosDetalheAuditoria(item['detalhe']);
+        final resumo = _resumoDetalheAuditoria(detalhe);
+        final detalheTecnico = _detalheTecnicoAuditoria(detalhe);
         final alvo = _rotuloAlvoAuditoria(item['alvoTipo']?.toString());
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
@@ -1107,8 +1120,25 @@ class _AdminPageState extends State<AdminPage> {
                     'Por ${ator['nome'] ?? 'Administrador'} • ${_rotuloTipoConta(ator['tipo'])}',
                   ),
                   Text('Alvo: $alvo #${item['alvoId'] ?? '—'}'),
-                  if (detalhe.isNotEmpty) Text(detalhe),
+                  if (resumo.isNotEmpty) Text(resumo),
                   Text(_dataAuditoria(item['criadoEm'])),
+                  if (detalheTecnico.isNotEmpty)
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: const EdgeInsets.only(
+                        bottom: AppSpace.sm,
+                      ),
+                      title: const Text('Detalhes técnicos'),
+                      children: [
+                        SelectableText(
+                          const JsonEncoder.withIndent(
+                            '  ',
+                          ).convert(detalheTecnico),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(fontFamily: 'monospace'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -1262,7 +1292,7 @@ class _AdminPageState extends State<AdminPage> {
           contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
           actionsPadding: AppInsets.card,
           title: const Text('Arquivo do documento'),
-          content: _DocumentoPreview(
+          content: DocumentoPreview(
             bytes: arquivo.bytes,
             contentType: arquivo.contentType,
             fileName:
@@ -1370,13 +1400,27 @@ class _AdminPageState extends State<AdminPage> {
 
   Future<void> _analisarAvaliacao(Map<String, dynamic> item) async {
     if (_mutando) return;
+    final fotos = item['fotos'] is List
+        ? List<dynamic>.from(item['fotos'] as List)
+        : const <dynamic>[];
     final status = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         scrollable: true,
         title: Text('Avaliação #${item['id']}'),
-        content: Text(
-          '“${item['comentario'] ?? 'Sem comentário'}”\n\nAção preserva o registro histórico.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '“${item['comentario'] ?? 'Sem comentário'}”\n\nAção preserva o registro histórico.',
+            ),
+            if (fotos.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text('Fotos anexadas'),
+              AvaliacaoFotosView(fotos: fotos),
+            ],
+          ],
         ),
         actions: [
           TextButton(
@@ -1866,8 +1910,8 @@ class _StatusDocumentoChip extends StatelessWidget {
   }
 }
 
-class _DocumentoPreview extends StatelessWidget {
-  const _DocumentoPreview({
+class DocumentoPreview extends StatelessWidget {
+  const DocumentoPreview({
     required this.bytes,
     required this.contentType,
     required this.fileName,
@@ -1999,18 +2043,120 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
   _ => 'Ação administrativa',
 };
 
-String _formatarDetalheAuditoria(Object? value) {
-  final texto = '$value'.trim();
-  if (texto.isEmpty || value is! String) return texto;
+Map<String, dynamic> _dadosDetalheAuditoria(Object? value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  final texto = value is String ? value.trim() : '';
+  if (texto.isEmpty) return const {};
   try {
     final decoded = jsonDecode(texto);
-    if (decoded is Map<String, dynamic>) {
-      return const JsonEncoder.withIndent('  ').convert(decoded);
-    }
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
   } on FormatException {
-    return texto;
+    return const {};
   }
-  return texto;
+  return const {};
+}
+
+String _resumoDetalheAuditoria(Map<String, dynamic> detalhe) {
+  final partes = <String>[];
+  final operacao = detalhe['operacao'];
+  if (operacao is String) {
+    final rotulo = switch (operacao) {
+      'opcao_criada' => 'Opção de serviço criada',
+      'opcao_atualizada' => 'Opção de serviço atualizada',
+      _ => null,
+    };
+    if (rotulo != null) partes.add(rotulo);
+  }
+
+  final tipoDocumento = detalhe['tipoDocumento'];
+  if (tipoDocumento is String) {
+    partes.add('Tipo: ${_rotuloTipoDocumento(tipoDocumento)}');
+  }
+
+  for (final chave in ['status', 'estado', 'selo']) {
+    final mudanca = detalhe[chave];
+    if (mudanca is Map) {
+      final antes = mudanca['antes'];
+      final depois = mudanca['depois'];
+      if (antes != null || depois != null) {
+        partes.add(
+          '${_rotuloCampoAuditoria(chave)}: ${_valorAuditoria(antes)} → ${_valorAuditoria(depois)}',
+        );
+      }
+    }
+  }
+
+  final depois = detalhe['depois'];
+  if (depois is Map && depois['ativo'] is bool) {
+    partes.add('Registro ${depois['ativo'] == true ? 'ativo' : 'inativo'}');
+  }
+  if (detalhe['aprovacaoConcedida'] == true &&
+      detalhe['somenteTesteLocal'] == true) {
+    partes.add('Aprovação concedida somente em teste local');
+  }
+  if (detalhe['mfaObrigatorio'] == true) {
+    partes.add('Autenticação em duas etapas obrigatória');
+  }
+
+  return partes.join(' • ');
+}
+
+String _rotuloCampoAuditoria(String chave) => switch (chave) {
+  'status' => 'Situação',
+  'estado' => 'Estado',
+  'selo' => 'Selo documental',
+  _ => 'Alteração',
+};
+
+String _valorAuditoria(Object? value) {
+  if (value is bool) return value ? 'Sim' : 'Não';
+  if (value == null) return '—';
+  final texto = '$value';
+  return switch (texto) {
+    'pendente' => 'Pendente',
+    'aprovado' || 'aprovada' => 'Aprovado',
+    'rejeitado' || 'rejeitada' => 'Rejeitado',
+    'em_analise' => 'Em análise',
+    'confirmada' => 'Confirmada',
+    'suspensa' || 'suspenso' => 'Suspenso',
+    _ => 'Outro',
+  };
+}
+
+Map<String, dynamic> _detalheTecnicoAuditoria(Map<String, dynamic> detalhe) {
+  const permitidas = {
+    'antes',
+    'depois',
+    'estado',
+    'status',
+    'selo',
+    'ativo',
+    'verificado',
+    'icone',
+    'operacao',
+    'tipoDocumento',
+    'metodo',
+    'mfaObrigatorio',
+    'telefoneRemetenteConferido',
+    'aprovacaoConcedida',
+    'somenteTesteLocal',
+    'comentarioPresente',
+    'efeito',
+  };
+
+  Map<String, dynamic> filtrar(Map<String, dynamic> origem) => {
+    for (final entry in origem.entries)
+      if (permitidas.contains(entry.key))
+        entry.key: entry.value is Map
+            ? filtrar(Map<String, dynamic>.from(entry.value as Map))
+            : entry.value is bool || entry.value is num || entry.value is String
+            ? entry.value
+            : null,
+  }..removeWhere((_, value) => value == null);
+
+  return filtrar(detalhe);
 }
 
 String _rotuloAlvoAuditoria(String? alvo) => switch (alvo) {

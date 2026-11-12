@@ -18,6 +18,19 @@ http.Response jsonResponse(Object data, [int status = 200]) => http.Response(
   headers: {'content-type': 'application/json; charset=utf-8'},
 );
 
+Future<void> selecionarServicoCatalogo(WidgetTester tester, {required String categoria, required String servico}) async {
+  await tester.ensureVisible(find.text('Categoria'));
+  await tester.tap(find.text('Categoria'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(categoria).last);
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.text('Serviço'));
+  await tester.tap(find.text('Serviço'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(servico).last);
+  await tester.pumpAndSettle();
+}
+
 /// Sessão e transporte simulados somente em testes, com desvios específicos.
 Future<MemorySessionStorage> configurarFrontend({
   String papel = 'cliente',
