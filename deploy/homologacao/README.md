@@ -71,8 +71,10 @@ Replace every `CHANGE_ME_...` value. Generate the three encryption/token keys
 separately, each with `openssl rand -base64 48`. Make the DB passwords unique.
 Configure SMTP before launch; the API intentionally refuses production-mode
 startup without it. If Google sign-in is being tested, set the OAuth Web client
-ID expected by the API; it is not the Android Maps API key. Never send secrets
-in chat or commit `.env`.
+ID expected by both the Flutter build and API; the accepted API audience falls
+back to `GOOGLE_WEB_CLIENT_ID` when `GOOGLE_OAUTH_CLIENT_IDS` is blank. It is not
+the Android Maps API key. `GOOGLE_MAPS_SERVER_API_KEY` is only for API-side
+address geocoding. Never send secrets in chat or commit `.env`.
 
 ## First deployment
 
