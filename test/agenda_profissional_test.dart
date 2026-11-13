@@ -47,7 +47,11 @@ Map<String, dynamic> _dados() => {
     },
   ],
   'bloqueios': [
-    {'dataInicio': '$_mes-10', 'dataFim': '$_mes-12'},
+    {
+      'dataInicio': '$_mes-10',
+      'dataFim': '$_mes-12',
+      'motivo': 'Férias de teste',
+    },
   ],
 };
 
@@ -153,16 +157,15 @@ void main() {
     );
     await _abrir(tester);
 
+    await _mostrar(tester, _dia(10));
     expect(
       tester.widget<Semantics>(_dia(10)).properties.label,
-      contains('data bloqueada'),
+      contains('indisponível por férias ou imprevisto'),
     );
     await tester.tap(_dia(10));
     await tester.pumpAndSettle();
-    await _mostrar(
-      tester,
-      find.text('Este dia esta bloqueado para ferias ou imprevisto.'),
-    );
+    await _mostrar(tester, find.text('Indisponível: férias ou imprevisto'));
+    expect(find.text('Motivo: Férias de teste'), findsOneWidget);
     expect(find.text('08:00 Ã s 18:00'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -300,10 +303,6 @@ void main() {
           await tester.pumpWidget(const SizedBox.shrink());
           await _abrir(tester, width: width, escala: escala);
           await _mostrar(tester, find.text('Atendimento 2'));
-          await _mostrar(
-            tester,
-            find.textContaining('Os horários livres consideram'),
-          );
           expect(
             tester.takeException(),
             isNull,

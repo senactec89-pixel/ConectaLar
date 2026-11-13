@@ -76,6 +76,42 @@ test('beta local libera somente perfil listado em banco de teste local', () => {
   }
 });
 
+test('homologation test approval requires production runtime, explicit flags, and isolated database', () => {
+  const keys = [
+    'NODE_ENV',
+    'HABILITACAO_MANUAL_LOCAL',
+    'CONECTALAR_STAGE',
+    'HABILITACAO_MANUAL_HOMOLOGACAO',
+    'DB_NAME',
+  ];
+  const previous = new Map(keys.map((key) => [key, process.env[key]]));
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.HABILITACAO_MANUAL_LOCAL = 'true';
+    process.env.CONECTALAR_STAGE = 'homologacao';
+    process.env.HABILITACAO_MANUAL_HOMOLOGACAO = 'true';
+    process.env.DB_NAME = 'conectalar_homologacao';
+    const p = { ...perfil(), habilitacaoEstado: 'teste_local_aprovado' };
+    assert.equal(habilitacaoProfissional(p).testeLocalElegivel, true);
+    assert.equal(habilitacaoProfissional(p).podeAtender, true);
+    assert.match(habilitacaoProfissional(p).mensagem, /homologacao/i);
+
+    process.env.DB_NAME = 'conectalar_producao';
+    assert.equal(habilitacaoProfissional(p).podeAtender, false);
+    process.env.DB_NAME = 'conectalar_homologacao';
+    process.env.CONECTALAR_STAGE = 'production';
+    assert.equal(habilitacaoProfissional(p).podeAtender, false);
+    process.env.CONECTALAR_STAGE = 'homologacao';
+    process.env.HABILITACAO_MANUAL_HOMOLOGACAO = 'false';
+    assert.equal(habilitacaoProfissional(p).podeAtender, false);
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test('provider desabilitado nao simula identidade ou prova de vida', async () => {
   const provider = new IdentidadeNaoConfigurada();
   assert.equal(provider.disponivel, false);
@@ -165,9 +201,15 @@ test('admin nao aprova sem dependencias nem aceita detalhes criminais arbitrario
   assert.equal(audit.length, 2);
 });
 
-test('admin pode liberar perfil local somente no modo local e a acao fica auditada', async () => {
-  const previousNodeEnv = process.env.NODE_ENV;
-  const previousFlag = process.env.HABILITACAO_MANUAL_LOCAL;
+test('admin libera perfis de teste somente em ambiente de teste ou homologacao isolada', async () => {
+  const keys = [
+    'NODE_ENV',
+    'HABILITACAO_MANUAL_LOCAL',
+    'CONECTALAR_STAGE',
+    'HABILITACAO_MANUAL_HOMOLOGACAO',
+    'DB_NAME',
+  ];
+  const previous = new Map(keys.map((key) => [key, process.env[key]]));
   const { service, p, audit } = habilitacaoFixture();
   try {
     process.env.NODE_ENV = 'development';
@@ -186,11 +228,24 @@ test('admin pode liberar perfil local somente no modo local e a acao fica audita
     assert.equal((await service.analisar(admin, 10, {
       acao: 'aprovar_teste_local', motivo: 'teste_fluxo_local',
     })).habilitacao.podeAtender, true);
+
+    process.env.NODE_ENV = 'production';
+    process.env.HABILITACAO_MANUAL_LOCAL = 'false';
+    process.env.CONECTALAR_STAGE = 'homologacao';
+    process.env.HABILITACAO_MANUAL_HOMOLOGACAO = 'true';
+    process.env.DB_NAME = 'conectalar_homologacao';
+    p.habilitacaoEstado = 'pendente';
+    const stagingResult = await service.analisar(admin, 10, {
+      acao: 'aprovar_teste_local', motivo: 'teste_fluxo_local',
+    });
+    assert.equal(stagingResult.habilitacao.podeAtender, true);
+    assert.match(stagingResult.habilitacao.mensagem, /homologacao/i);
+    assert.equal(audit.length, 3);
   } finally {
-    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
-    else process.env.NODE_ENV = previousNodeEnv;
-    if (previousFlag === undefined) delete process.env.HABILITACAO_MANUAL_LOCAL;
-    else process.env.HABILITACAO_MANUAL_LOCAL = previousFlag;
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   }
 });
 
@@ -298,12 +353,12 @@ test('agenda nao contorna protecao de endereco de pedidos antigos', async () => 
   const builder = new Proxy({}, { get: (_, key) => key === 'getMany' ? async () => [solicitacao] : () => builder });
   const service = new ProfissionaisService({}, {}, { async find() { return []; } },
     { async findOne() { return p; } }, {}, { createQueryBuilder() { return builder; } }, {}, {},
-    { async find() { return [{ dataInicio: '2026-10-12', dataFim: '2026-10-14' }]; } });
+    { async find() { return [{ dataInicio: '2026-10-12', dataFim: '2026-10-14', motivo: 'Férias' }]; } });
   const resposta = await service.minhaAgenda(profissional, { mes: '2026-10' });
   assert.equal(resposta.atendimentos[0].enderecoAtendimento, null);
   assert.equal(resposta.atendimentos[0].enderecoCompleto, null);
   assert.deepEqual(resposta.bloqueios, [
-    { dataInicio: '2026-10-12', dataFim: '2026-10-14' },
+    { dataInicio: '2026-10-12', dataFim: '2026-10-14', motivo: 'Férias' },
   ]);
 });
 

@@ -42,7 +42,7 @@ import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
 import { escoposIguais, ofertasEquivalentes, snapshotEscopo } from '../domain/escopo-servico.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
-import { exigirHabilitacao, habilitacaoManualLocalAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
+import { exigirHabilitacao, habilitacaoManualTesteAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
 import { calcularExpiracaoPedido, expirarPedidoSemResposta } from './pedido-prazo.js';
 import { calcularExpiracaoNegociacao, expirarNegociacaoInativa } from './negociacao-prazo.js';
 
@@ -429,7 +429,7 @@ export class SolicitacoesService {
       if (rows[0]?.status === 'expirada') return true;
       if (rows[0]?.status !== 'pendente') throw new ConflictException({ code: 'PROPOSTA_DESATUALIZADA', message: 'A proposta nao esta mais disponivel.' });
       if (value.aceitar) {
-        if (!habilitacaoManualLocalAtiva()) {
+        if (!habilitacaoManualTesteAtiva()) {
           throw new ConflictException({ code: 'CONFIRMACAO_ATENDIMENTO_PENDENTE', message: 'A confirmacao de atendimento ainda nao esta disponivel.' });
         }
         exigirHabilitacao(perfil);

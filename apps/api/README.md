@@ -6,6 +6,14 @@ This is the active NestJS API used by the Flutter app. It includes MySQL-backed 
 
 Use Node.js 22.13 or newer in the 22.x line, or 24.15 or newer. Install dependencies from this directory, then run `npm run typecheck`, `npm run build`, `npm test`, and `npm start`. The API reads environment variables from the process and does not load a `.env` file. Supply deployment values through the local shell or a secret manager.
 
+For an isolated staging deployment, keep `NODE_ENV=production` so production
+security defaults remain active. Test-only professional approval is available
+only when `CONECTALAR_STAGE=homologacao`,
+`HABILITACAO_MANUAL_HOMOLOGACAO=true`, and `DB_NAME=conectalar_homologacao` are
+all set. It permits test requests and proposal confirmation only with that
+dedicated database; it does not verify identity or enable production attendance.
+Never copy production data into this database.
+
 | Variable | Default | Validation |
 | --- | --- | --- |
 | `NODE_ENV` | `development` | `development`, `test`, or `production` |

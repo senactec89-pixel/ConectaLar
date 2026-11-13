@@ -251,6 +251,12 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
               ifAbsent: () => 1,
             );
           }
+          final bloqueios = data['bloqueios'] is List
+              ? (data['bloqueios'] as List)
+                    .whereType<Map<String, dynamic>>()
+                    .toList()
+              : <Map<String, dynamic>>[];
+          final diasBloqueados = _diasBloqueadosNoMes(_mesAgenda, bloqueios);
           final disponibilidade = data['disponibilidade'] is List
               ? (data['disponibilidade'] as List)
                     .whereType<Map<String, dynamic>>()
@@ -264,6 +270,13 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
               ? DateTime.now()
               : _mesAgenda;
           final diaSelecionado = _diaSelecionado ?? diaInicial;
+          Map<String, dynamic>? bloqueioDoDia;
+          for (final bloqueio in bloqueios) {
+            if (_bloqueioContemDia(bloqueio, diaSelecionado)) {
+              bloqueioDoDia = bloqueio;
+              break;
+            }
+          }
           final horariosDoDia =
               disponibilidade
                   .where(
@@ -472,6 +485,7 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                       mes: _mesAgenda,
                       diaSelecionado: diaSelecionado,
                       atendimentosPorDia: atendimentosPorDia,
+                      diasBloqueados: diasBloqueados,
                       diasSemanaComDisponibilidade: disponibilidade
                           .map((item) => int.tryParse('${item['diaSemana']}'))
                           .whereType<int>()
@@ -554,10 +568,13 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppSpace.sm),
-                  _DisponibilidadeDoDia(
-                    itens: horariosDoDia,
-                    dia: diaSelecionado,
-                  ),
+                  if (bloqueioDoDia != null)
+                    _BloqueioDoDia(motivo: bloqueioDoDia['motivo'])
+                  else
+                    _DisponibilidadeDoDia(
+                      itens: horariosDoDia,
+                      dia: diaSelecionado,
+                    ),
                   const SizedBox(height: AppSpace.sm),
                   OutlinedButton.icon(
                     onPressed: () async {
@@ -1944,7 +1961,9 @@ class _PedidoCard extends StatelessWidget {
                       onChanged?.call();
                     },
                     child: Text(
-                      negociacaoIniciada ? 'Continuar negociação' : 'Ver detalhes',
+                      negociacaoIniciada
+                          ? 'Continuar negociação'
+                          : 'Ver detalhes',
                     ),
                   ),
                 ),
@@ -2180,6 +2199,7 @@ class _CalendarioAgenda extends StatelessWidget {
     required this.mes,
     required this.diaSelecionado,
     required this.atendimentosPorDia,
+    required this.diasBloqueados,
     required this.diasSemanaComDisponibilidade,
     required this.onDiaSelecionado,
     required this.onMudarMes,
@@ -2188,6 +2208,7 @@ class _CalendarioAgenda extends StatelessWidget {
   final DateTime mes;
   final DateTime diaSelecionado;
   final Map<DateTime, int> atendimentosPorDia;
+  final Set<DateTime> diasBloqueados;
   final Set<int> diasSemanaComDisponibilidade;
   final ValueChanged<DateTime> onDiaSelecionado;
   final ValueChanged<int> onMudarMes;
@@ -2279,6 +2300,7 @@ class _CalendarioAgenda extends StatelessWidget {
                 final selecionado = _mesmoDia(dia, diaSelecionado);
                 final quantidade = atendimentosPorDia[dia] ?? 0;
                 final temAtendimento = quantidade > 0;
+                final bloqueado = diasBloqueados.contains(dia);
                 final horarioSemanal = diasSemanaComDisponibilidade.contains(
                   dia.weekday % 7,
                 );
@@ -2293,6 +2315,7 @@ class _CalendarioAgenda extends StatelessWidget {
                           : quantidade == 1
                           ? '1 atendimento agendado'
                           : '$quantidade atendimentos agendados'}'
+                      '${bloqueado ? ', indisponível por férias ou imprevisto' : ''}'
                       ', ${horarioSemanal ? 'com horário semanal cadastrado' : 'sem horário semanal cadastrado'}',
                   child: InkWell(
                     customBorder: const CircleBorder(),
@@ -2310,7 +2333,15 @@ class _CalendarioAgenda extends StatelessWidget {
                                   radius: 19,
                                   backgroundColor: AppColors.verde,
                                 ),
+                              if (!selecionado && bloqueado)
+                                CircleAvatar(
+                                  radius: 19,
+                                  backgroundColor: Theme.of(
+                                    context,
+                                  ).colorScheme.errorContainer,
+                                ),
                               if (!selecionado &&
+                                  !bloqueado &&
                                   (horarioSemanal || temAtendimento))
                                 Positioned.fill(
                                   child: DecoratedBox(
@@ -2338,14 +2369,16 @@ class _CalendarioAgenda extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              if (temAtendimento)
+                              if (temAtendimento || bloqueado)
                                 Positioned(
                                   bottom: 2,
                                   child: Container(
                                     width: 6,
                                     height: 6,
                                     decoration: BoxDecoration(
-                                      color: selecionado
+                                      color: bloqueado
+                                          ? AppColors.erro
+                                          : selecionado
                                           ? AppColors.branco
                                           : AppColors.verde,
                                       shape: BoxShape.circle,
@@ -2372,6 +2405,11 @@ class _CalendarioAgenda extends StatelessWidget {
                     _LegendaAgenda(label: 'Selecionado'),
                     _LegendaAgenda(label: 'Com atendimento', ponto: true),
                     _LegendaAgenda(
+                      label: 'Indisponível',
+                      ponto: true,
+                      cor: AppColors.erro,
+                    ),
+                    _LegendaAgenda(
                       label: 'Horário semanal sem agendamento',
                       contorno: true,
                     ),
@@ -2396,11 +2434,13 @@ class _LegendaAgenda extends StatelessWidget {
     required this.label,
     this.ponto = false,
     this.contorno = false,
+    this.cor,
   });
 
   final String label;
   final bool ponto;
   final bool contorno;
+  final Color? cor;
 
   @override
   Widget build(BuildContext context) {
@@ -2411,7 +2451,7 @@ class _LegendaAgenda extends StatelessWidget {
           width: ponto ? 6 : 12,
           height: ponto ? 6 : 12,
           decoration: BoxDecoration(
-            color: contorno ? AppColors.verdeClaro : AppColors.verde,
+            color: contorno ? AppColors.verdeClaro : cor ?? AppColors.verde,
             shape: BoxShape.circle,
             border: contorno ? Border.all(color: AppColors.verde) : null,
           ),
@@ -2421,6 +2461,33 @@ class _LegendaAgenda extends StatelessWidget {
           child: Text(label, style: Theme.of(context).textTheme.bodySmall),
         ),
       ],
+    );
+  }
+}
+
+class _BloqueioDoDia extends StatelessWidget {
+  const _BloqueioDoDia({required this.motivo});
+
+  final Object? motivo;
+
+  @override
+  Widget build(BuildContext context) {
+    final textoMotivo = motivo?.toString().trim() ?? '';
+    return Card(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+        leading: Icon(
+          Icons.event_busy_outlined,
+          color: Theme.of(context).colorScheme.error,
+        ),
+        title: const Text('Indisponível: férias ou imprevisto'),
+        subtitle: Text(
+          textoMotivo.isEmpty
+              ? 'Este dia está bloqueado na sua agenda.'
+              : 'Motivo: $textoMotivo',
+        ),
+      ),
     );
   }
 }
@@ -2515,6 +2582,43 @@ bool _mesmoDia(DateTime primeira, DateTime segunda) =>
     primeira.year == segunda.year &&
     primeira.month == segunda.month &&
     primeira.day == segunda.day;
+
+DateTime? _dataBloqueio(Object? valor) {
+  final texto = valor?.toString() ?? '';
+  if (texto.length < 10) return null;
+  final data = DateTime.tryParse(texto.substring(0, 10));
+  if (data == null) return null;
+  return DateTime(data.year, data.month, data.day);
+}
+
+bool _bloqueioContemDia(Map<String, dynamic> bloqueio, DateTime dia) {
+  final inicio = _dataBloqueio(bloqueio['dataInicio']);
+  final fim = _dataBloqueio(bloqueio['dataFim']);
+  if (inicio == null || fim == null || inicio.isAfter(fim)) return false;
+  final data = DateTime(dia.year, dia.month, dia.day);
+  return !data.isBefore(inicio) && !data.isAfter(fim);
+}
+
+Set<DateTime> _diasBloqueadosNoMes(
+  DateTime mes,
+  List<Map<String, dynamic>> bloqueios,
+) {
+  final primeiroDia = DateTime(mes.year, mes.month, 1);
+  final ultimoDia = DateTime(mes.year, mes.month + 1, 0);
+  final dias = <DateTime>{};
+  for (final bloqueio in bloqueios) {
+    final inicio = _dataBloqueio(bloqueio['dataInicio']);
+    final fim = _dataBloqueio(bloqueio['dataFim']);
+    if (inicio == null || fim == null || inicio.isAfter(fim)) continue;
+    var dia = inicio.isBefore(primeiroDia) ? primeiroDia : inicio;
+    final ultimoDiaBloqueado = fim.isAfter(ultimoDia) ? ultimoDia : fim;
+    while (!dia.isAfter(ultimoDiaBloqueado)) {
+      dias.add(dia);
+      dia = DateTime(dia.year, dia.month, dia.day + 1);
+    }
+  }
+  return dias;
+}
 
 String _nomeMes(DateTime data) {
   const nomes = [

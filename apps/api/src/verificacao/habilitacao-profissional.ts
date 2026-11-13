@@ -3,8 +3,13 @@ import type { ProfissionalPerfilEntity } from '../database/entities/profissional
 
 export type EstadoHabilitacao = 'pendente' | 'em_analise' | 'suspenso' | 'teste_local_aprovado';
 
-export function habilitacaoManualLocalAtiva(): boolean {
-  return process.env.NODE_ENV !== 'production' && process.env.HABILITACAO_MANUAL_LOCAL === 'true';
+export function habilitacaoManualTesteAtiva(): boolean {
+  if (process.env.NODE_ENV !== 'production') {
+    return process.env.HABILITACAO_MANUAL_LOCAL === 'true';
+  }
+  return process.env.CONECTALAR_STAGE === 'homologacao' &&
+    process.env.HABILITACAO_MANUAL_HOMOLOGACAO === 'true' &&
+    process.env.DB_NAME === 'conectalar_homologacao';
 }
 
 // A future adapter must authenticate server-to-server results and bind them to
@@ -48,13 +53,16 @@ export function habilitacaoProfissional(
   identidadeStatus?: string | null,
   telefoneStatus?: string | null,
 ) {
-  const estado = perfil?.habilitacaoEstado === 'teste_local_aprovado' && habilitacaoManualLocalAtiva()
+  const habilitacaoDeTesteAtiva = habilitacaoManualTesteAtiva();
+  const estado = perfil?.habilitacaoEstado === 'teste_local_aprovado' && habilitacaoDeTesteAtiva
     ? 'teste_local_aprovado'
     : perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
-  const testeLocalElegivel = habilitacaoManualLocalAtiva() && perfil !== null;
+  const testeLocalElegivel = habilitacaoDeTesteAtiva && perfil !== null;
   const betaLocal = betaLocalAutorizada(perfil) && estado !== 'suspenso';
-  const podeAtender = (estado === 'teste_local_aprovado' && testeLocalElegivel && perfil?.ativo !== false) || betaLocal;
+  const podeAtender =
+    (estado === 'teste_local_aprovado' && testeLocalElegivel && perfil?.ativo !== false) ||
+    betaLocal;
   return {
     estado,
     podeAtender,
@@ -70,8 +78,10 @@ export function habilitacaoProfissional(
       { codigo: 'aprovacao', status: estado },
     ],
     mensagem: podeAtender
-      ? betaLocal
-        ? 'Beta local de testes: atendimentos simulados liberados para este perfil. Nao use dados reais.'
+      ? process.env.NODE_ENV === 'production'
+        ? 'Habilitacao temporaria de homologacao. Nao libera atendimento em producao.'
+        : betaLocal
+          ? 'Beta local de testes: atendimentos simulados liberados para este perfil. Nao use dados reais.'
         : 'Habilitacao temporaria no ambiente local. Nao libera atendimento real.'
       : estado === 'suspenso'
       ? 'Habilitacao suspensa. Solicite revisao pela plataforma.'

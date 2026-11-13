@@ -184,7 +184,7 @@ test(
     assert.equal(pedidos.solicitacoes.length, 0);
     assert.equal(agenda.atendimentos.length, 0);
     assert.deepEqual(agenda.bloqueios, [
-      { dataInicio: dataServico, dataFim: dataServico },
+      { dataInicio: dataServico, dataFim: dataServico, motivo: 'Bloqueio de teste' },
     ]);
     await request(
       'DELETE',

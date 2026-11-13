@@ -82,7 +82,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                             dados['podeAtender'] != true)
                           const DropdownMenuItem(
                             value: 'aprovar_teste_local',
-                            child: Text('Liberar somente para teste local'),
+                            child: Text('Liberar somente para teste'),
                           ),
                         if (dados['estado'] != 'suspenso')
                           const DropdownMenuItem(
@@ -129,7 +129,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     if (acao == 'aprovar_teste_local') ...[
                       const SizedBox(height: 8),
                       const Text(
-                        'Libera este perfil apenas no ambiente local de teste. Não use para atendimento real.',
+                        'Libera este perfil apenas para testar os fluxos. Não habilita atendimentos em produção.',
                       ),
                     ],
                     const SizedBox(height: 16),
@@ -306,7 +306,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                         ),
                         DropdownMenuItem(
                           value: 'teste_local_aprovado',
-                          child: Text('Habilitados (teste local)'),
+                          child: Text('Habilitados (teste)'),
                         ),
                       ],
                       onChanged: (value) {
@@ -317,7 +317,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                                  'A habilitação local de teste não valida identidade nem libera atendimentos reais.',
+                      'A habilitação de teste não valida identidade nem libera atendimentos reais.',
                     ),
                     const SizedBox(height: 16),
                     if (itens.isEmpty)
@@ -432,7 +432,7 @@ bool _aguardaConfirmacaoManual(Map<String, dynamic> item) {
 String _rotuloEstado(Map<String, dynamic> item) {
   final habilitacao = item['habilitacao'];
   if (habilitacao is Map && habilitacao['podeAtender'] == true) {
-    return 'Habilitado somente para teste local';
+    return 'Habilitado somente para teste';
   }
   if (habilitacao is Map && habilitacao['revisaoSolicitadaEm'] != null) {
     return 'RevisÃ£o solicitada pelo profissional';

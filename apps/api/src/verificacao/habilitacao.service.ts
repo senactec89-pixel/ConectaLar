@@ -13,7 +13,7 @@ import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/prof
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
-import { habilitacaoManualLocalAtiva, habilitacaoProfissional } from './habilitacao-profissional.js';
+import { habilitacaoManualTesteAtiva, habilitacaoProfissional } from './habilitacao-profissional.js';
 import { IdZapSignProvider } from './id-zapsign.provider.js';
 
 @Injectable()
@@ -757,7 +757,7 @@ export class HabilitacaoService {
   async analisar(user: AuthenticatedUser, id: number, body: unknown) {
     await this.exigirAdminMfa(user);
     const input = corpo(body, ['acao', 'motivo']);
-    if (input.acao === 'aprovar_teste_local' && !habilitacaoManualLocalAtiva()) {
+    if (input.acao === 'aprovar_teste_local' && !habilitacaoManualTesteAtiva()) {
       throw new ConflictException({ code: 'HABILITACAO_TESTE_LOCAL_INDISPONIVEL',
         message: 'A habilitacao manual de teste esta desativada neste ambiente.' });
     }
@@ -774,7 +774,7 @@ export class HabilitacaoService {
       });
       if (!perfil) throw naoEncontrado();
       if (perfil.usuarioId === user.id) throw new ForbiddenException();
-      if (input.acao === 'aprovar_teste_local' && !habilitacaoManualLocalAtiva()) {
+      if (input.acao === 'aprovar_teste_local' && !habilitacaoManualTesteAtiva()) {
         throw new ConflictException({ code: 'HABILITACAO_TESTE_LOCAL_INDISPONIVEL',
           message: 'A habilitacao manual de teste esta desativada neste ambiente.' });
       }

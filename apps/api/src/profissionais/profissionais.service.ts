@@ -485,6 +485,7 @@ export class ProfissionaisService {
       bloqueios: bloqueios.map((item) => ({
         dataInicio: item.dataInicio,
         dataFim: item.dataFim,
+        motivo: item.motivo,
       })),
     };
   }

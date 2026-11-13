@@ -1090,9 +1090,13 @@ class _AdminPageState extends State<AdminPage> {
             leading: Icon(categoriaIconData('${item['icone'] ?? ''}')),
             title: Text('${item['nome']}'),
             subtitle: Text(item['ativo'] == true ? 'Ativa' : 'Inativa'),
-            onTap: _mutando ? null : () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => CatalogoCategoriaPage(categoria: item)),
-            ),
+            onTap: _mutando
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CatalogoCategoriaPage(categoria: item),
+                    ),
+                  ),
             trailing: IconButton(
               tooltip: 'Editar categoria',
               icon: const Icon(Icons.edit_outlined),
@@ -2094,7 +2098,7 @@ String _resumoDetalheAuditoria(Map<String, dynamic> detalhe) {
   }
   if (detalhe['aprovacaoConcedida'] == true &&
       detalhe['somenteTesteLocal'] == true) {
-    partes.add('Aprovação concedida somente em teste local');
+    partes.add('Aprovação concedida somente para teste; não habilita produção');
   }
   if (detalhe['mfaObrigatorio'] == true) {
     partes.add('Autenticação em duas etapas obrigatória');

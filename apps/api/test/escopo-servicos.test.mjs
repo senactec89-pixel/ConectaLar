@@ -5,6 +5,10 @@ import { ProfissionaisService } from '../dist/profissionais/profissionais.servic
 import { snapshotEscopo } from '../dist/domain/escopo-servico.js';
 import { EscopoOfertas1760138000000 } from '../dist/database/migrations/1760138000000-EscopoOfertas.js';
 import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
+import { CategoriaEntity } from '../dist/database/entities/categoria.entity.js';
+import { ProfissionalPerfilEntity } from '../dist/database/entities/profissional-perfil.entity.js';
+import { ProfissionalServicoEntity } from '../dist/database/entities/profissional-servico.entity.js';
+import { ServicoCatalogoEntity } from '../dist/database/entities/servico-catalogo.entity.js';
 const require = createRequire(import.meta.url);
 const habilitacao = require('../dist/verificacao/habilitacao-profissional.js');
 
@@ -92,23 +96,37 @@ test('não cria pedido quando a oferta vista ou a oferta bloqueada mudou', async
   const original = habilitacao.exigirHabilitacao;
   habilitacao.exigirHabilitacao = () => {};
   try {
-    const oferta = { id: 1, profissionalId: 2, nome: 'Limpeza', categoriaId: null,
+    const categoria = { id: 5, nome: 'Limpeza', ativo: true };
+    const catalogo = { id: 9, nome: 'Limpeza residencial', categoriaId: 5, ativo: true };
+    const oferta = { id: 1, profissionalId: 2, nome: 'Limpeza', categoriaId: 5,
+      servicoCatalogoId: 9, categoria, servicoCatalogo: catalogo,
       ativo: true, precoInicial: null, duracaoMinutos: 60, intervaloMinutos: 0,
       inclui: ['Pisos'], naoInclui: [], opcionais: [] };
+    const perfil = { id: 2, ativo: true };
     let mudouNaTransacao = false;
     const manager = {
       transaction: async (fn) => fn(manager),
-      findOne: async () => mudouNaTransacao ? { ...oferta, inclui: ['Outros'] } : oferta,
+      findOne: async (entity) => {
+        if (entity === ProfissionalPerfilEntity) return perfil;
+        if (entity === CategoriaEntity) return categoria;
+        if (entity === ServicoCatalogoEntity) return catalogo;
+        if (entity === ProfissionalServicoEntity) {
+          return mudouNaTransacao ? { ...oferta, inclui: ['Outros'] } : oferta;
+        }
+        return null;
+      },
+      query: async (sql) => sql.startsWith('SELECT') ? [{ id: 10, nome: 'Pisos' }] : [],
       save: async () => assert.fail('pedido não deve ser gravado'),
     };
     const profissional = { id: 2, usuarioId: 3, ativo: true,
       usuario: { ativo: true, tipo: 'profissional' } };
-    const service = new SolicitacoesService({}, { findOne: async () => oferta }, {}, {}, {},
+    const service = new SolicitacoesService({}, { findOne: async () => oferta },
+      { findOne: async () => categoria }, {}, {},
       { findOne: async () => profissional }, { manager, create: (value) => value },
       {}, {}, {}, { findOne: async () => ({ id: 4 }) }, {});
     service.validarDisponibilidade = async () => {};
     const body = { profissionalId: 2, servicoId: 1, descricao: 'Limpeza residencial completa',
-      bairroAtendimento: 'Centro', dataServico: '2099-01-12', horarioServico: '14:00',
+      bairroAtendimento: 'Centro', dataServico: '2099-01-12', horarioServico: '14:00', opcoesIds: [10],
       escopoEsperado: { inclui: ['Antigo'], naoInclui: [], opcionais: [] } };
     const conflito = (e) => e?.getResponse?.().code === 'OFERTA_ALTERADA';
     await assert.rejects(service.criar({ id: 4, tipo: 'cliente' }, body), conflito);

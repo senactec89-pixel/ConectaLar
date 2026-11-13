@@ -50,6 +50,25 @@ if ($Ip -notmatch '^(\d{1,3}\.){3}\d{1,3}$') {
 
 $apiBaseUrl = "http://${Ip}:${Port}"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+$googleWebClientId = $env:GOOGLE_WEB_CLIENT_ID
+if (-not $googleWebClientId) {
+  $apiEnvPath = Join-Path $repoRoot 'apps\api\.env.local'
+  if (Test-Path -LiteralPath $apiEnvPath) {
+    $googleWebClientId = Get-Content -LiteralPath $apiEnvPath |
+      Where-Object { $_ -match '^\s*GOOGLE_WEB_CLIENT_ID\s*=' } |
+      Select-Object -First 1 |
+      ForEach-Object {
+        if ($_ -match '^\s*GOOGLE_WEB_CLIENT_ID\s*=\s*["'']?([^"''#\s]+)') {
+          $Matches[1]
+        }
+      }
+  }
+}
+
+if (-not $googleWebClientId) {
+  throw 'GOOGLE_WEB_CLIENT_ID nao encontrado. Defina-o no ambiente ou em apps/api/.env.local para habilitar login Google no APK.'
+}
+
 $apkSource = Join-Path $repoRoot 'build\app\outputs\flutter-apk\app-debug.apk'
 $safeIp = $Ip.Replace('.', '-')
 $apkDestination = Join-Path $env:USERPROFILE "Downloads\ConectaLar-debug-${safeIp}-${Port}.apk"
@@ -57,7 +76,9 @@ $apkDestination = Join-Path $env:USERPROFILE "Downloads\ConectaLar-debug-${safeI
 Write-Step "Gerando APK para $apiBaseUrl"
 Push-Location $repoRoot
 try {
-  flutter build apk --debug --dart-define="CONECTALAR_API_BASE_URL=$apiBaseUrl"
+  flutter build apk --debug `
+    --dart-define="CONECTALAR_API_BASE_URL=$apiBaseUrl" `
+    --dart-define="GOOGLE_WEB_CLIENT_ID=$googleWebClientId"
 } finally {
   Pop-Location
 }

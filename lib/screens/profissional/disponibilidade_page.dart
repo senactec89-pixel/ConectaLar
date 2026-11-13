@@ -156,12 +156,13 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
                           if (dialogContext.mounted) {
                             Navigator.pop(dialogContext, true);
                           }
-                        } catch (_) {
+                        } catch (error) {
                           if (dialogContext.mounted) {
                             setDialogState(() {
                               enviando = false;
-                              erroEnvio =
-                                  'Não foi possível bloquear o período. Tente novamente.';
+                              erroEnvio = error is ApiException
+                                  ? error.message
+                                  : 'Não foi possível bloquear o período. Tente novamente.';
                             });
                           }
                         }
@@ -195,10 +196,16 @@ class _DisponibilidadePageState extends State<DisponibilidadePage> {
     try {
       await AppServices.instance.profissionais.removerBloqueio(id);
       if (mounted) _atualizarBloqueios();
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Não foi possível remover o bloqueio.')),
+          SnackBar(
+            content: Text(
+              error is ApiException
+                  ? error.message
+                  : 'Não foi possível remover o bloqueio.',
+            ),
+          ),
         );
       }
     }

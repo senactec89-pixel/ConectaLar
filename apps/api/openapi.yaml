@@ -1252,6 +1252,7 @@ paths:
                   - mes
                   - disponibilidade
                   - atendimentos
+                  - bloqueios
                 properties:
                   mes:
                     type: string
@@ -1264,6 +1265,16 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/AtendimentoAgenda'
+                  bloqueios:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [dataInicio, dataFim, motivo]
+                      properties:
+                        dataInicio: {type: string, format: date}
+                        dataFim: {type: string, format: date}
+                        motivo: {type: string}
         default:
           description: HTTP error with internal details omitted
           content:
