@@ -535,26 +535,6 @@ class _HomeHero extends StatelessWidget {
         final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
         final compact = constraints.maxWidth < 380 || textoAmpliado;
         final imageSize = (constraints.maxWidth * 0.37).clamp(132.0, 152.0);
-        const heroHeight = 318.0;
-        const searchBottom = 16.0;
-        const imageGap = 8.0;
-        final imageTop =
-            heroHeight -
-            searchBottom -
-            _SearchButton.height -
-            imageGap -
-            imageSize;
-        const fundo = Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFF3FBF6), Color(0xFFE6F5EC)],
-              ),
-            ),
-          ),
-        );
         Widget imagemCircular(double tamanho) => SizedBox.square(
           dimension: tamanho,
           child: DecoratedBox(
@@ -582,81 +562,54 @@ class _HomeHero extends StatelessWidget {
             ),
           ),
         );
-        final imagem = Positioned(
-          top: imageTop,
-          right: 20,
-          child: imagemCircular(imageSize),
-        );
-        if (textoAmpliado) {
-          return Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              fundo,
-              SizedBox(
-                width: constraints.maxWidth,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _BrandHeader(
-                        compact: compact,
-                        onNotificationsTap: onNotificationsTap,
-                      ),
-                      const SizedBox(height: AppSpace.xl),
-                      _Greeting(compact: compact, fullText: true),
-                      const SizedBox(height: AppSpace.sm),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: imagemCircular(96),
-                      ),
-                      const SizedBox(height: AppSpace.lg),
-                      _SearchButton(
-                        onTap: onSearchTap,
-                        onBairroTap: onBairroTap,
-                        compact: compact,
-                      ),
-                    ],
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF3FBF6), Color(0xFFE6F5EC)],
+            ),
+          ),
+          child: SizedBox(
+            width: constraints.maxWidth,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _BrandHeader(
+                    compact: compact,
+                    onNotificationsTap: onNotificationsTap,
                   ),
-                ),
+                  const SizedBox(height: AppSpace.xl),
+                  if (textoAmpliado) ...[
+                    _Greeting(compact: compact),
+                    const SizedBox(height: AppSpace.sm),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: imagemCircular(96),
+                    ),
+                    const SizedBox(height: AppSpace.lg),
+                  ] else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _Greeting(compact: compact)),
+                        const SizedBox(width: 10),
+                        imagemCircular(imageSize),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.md),
+                  ],
+                  _SearchButton(
+                    onTap: onSearchTap,
+                    onBairroTap: onBairroTap,
+                    compact: compact,
+                  ),
+                ],
               ),
-            ],
-          );
-        }
-        return SizedBox(
-          height: heroHeight,
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              fundo,
-              imagem,
-              Positioned(
-                top: 20,
-                left: 20,
-                right: 20,
-                child: _BrandHeader(
-                  compact: compact,
-                  onNotificationsTap: onNotificationsTap,
-                ),
-              ),
-              Positioned(
-                top: 98,
-                left: 20,
-                right: imageSize + 30,
-                child: _Greeting(compact: compact),
-              ),
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 12,
-                child: _SearchButton(
-                  onTap: onSearchTap,
-                  onBairroTap: onBairroTap,
-                  compact: compact,
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -704,10 +657,6 @@ class _BrandHeader extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Serviços para cuidar do seu lar',
-                maxLines: textoAmpliado ? null : 1,
-                overflow: textoAmpliado
-                    ? TextOverflow.clip
-                    : TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.textoSuave,
                   fontSize: 13,
@@ -765,10 +714,9 @@ class _BrandHeader extends StatelessWidget {
 }
 
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.compact, this.fullText = false});
+  const _Greeting({required this.compact});
 
   final bool compact;
-  final bool fullText;
 
   @override
   Widget build(BuildContext context) {
@@ -796,8 +744,6 @@ class _Greeting extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Busque, compare e solicite atendimento.',
-          maxLines: fullText ? null : 2,
-          overflow: fullText ? TextOverflow.clip : TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: AppColors.textoSuave,
             fontSize: 13,
@@ -1534,8 +1480,6 @@ class _SectionHeading extends StatelessWidget {
               Flexible(
                 child: Text(
                   title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -1548,8 +1492,6 @@ class _SectionHeading extends StatelessWidget {
                 Flexible(
                   child: Text(
                     suffix!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
