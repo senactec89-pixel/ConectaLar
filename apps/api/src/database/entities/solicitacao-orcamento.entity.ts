@@ -45,6 +45,9 @@ export class SolicitacaoOrcamentoEntity {
   @Column({ name: 'respondido_em', type: 'timestamp', nullable: true })
   respondidoEm!: Date | null;
 
+  @Column({ name: 'vence_em', type: 'datetime', precision: 3, nullable: true })
+  venceEm!: Date | null;
+
   @CreateDateColumn({ name: 'criado_em', type: 'timestamp' })
   criadoEm!: Date;
 

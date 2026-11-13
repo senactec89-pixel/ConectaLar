@@ -110,6 +110,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('cliente vê orçamento vencido sem opção de aceitar', (
+    tester,
+  ) async {
+    final proposta = {
+      'id': 8,
+      'propostoPorId': 101,
+      'valor': 150.5,
+      'descricao': 'Servico e materiais descritos no atendimento.',
+      'status': 'expirado',
+      'venceEm': '2000-01-01T12:00:00Z',
+      'criadoEm': '1999-12-30T12:00:00Z',
+    };
+    final atual = _pedido(orcamento: proposta, orcamentos: [proposta]);
+    await configurarFrontend(
+      responder: (request) async {
+        if (request.url.path == '/solicitacoes/1001' &&
+            request.method == 'GET') {
+          return jsonResponse({'solicitacao': atual});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.detalhesServico, arguments: 1001);
+    await tester.scrollUntilVisible(
+      find.text('O prazo terminou. O valor anterior continua válido.'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('orcamento-aceitar')), findsNothing);
+    expect(
+      find.text('O prazo terminou. O valor anterior continua válido.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profissional envia proposta com valor e escopo preservados', (
     tester,
   ) async {

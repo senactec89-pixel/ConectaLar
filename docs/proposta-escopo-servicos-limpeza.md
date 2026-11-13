@@ -30,14 +30,18 @@ As linhas seguintes são **exemplos para discussão**, não uma lista aprovada. 
 
 **Não publicar a ficha acima como serviço final.** Uma exclusão pode exigir tratamento diferente conforme o serviço e a capacitação; riscos de saúde e trabalho em altura precisam de critérios próprios.
 
-## Estrutura de dados e apresentação a aprovar
+## Estrutura implementada e decisões pendentes
 
-O modelo atual de `profissional_servicos` guarda nome, categoria, preço inicial, duração, intervalo e estado ativo; não guarda inclusões, exclusões ou opcionais. A solicitação copia nome, duração, endereço e outros campos, mas não uma versão completa do escopo da oferta. Antes de alterar API ou Flutter, definir:
+A oferta pode registrar listas opcionais de inclusões, exclusões e opcionais informadas pelo profissional. O app apresenta essas informações no perfil e no pedido; opcionais precisam ser combinados. A API copia o escopo para o pedido no momento da criação. O app atual envia o escopo visualizado, e a API recusa o pedido se ele tiver mudado. Versões antigas não enviam essa conferência. Essas listas são declarações da oferta, não uma ficha oficial aprovada nem prova de contratação de um opcional.
+
+Os testes automatizados usam substitutos do banco; a migration `1760138000000` e os fluxos ainda precisam ser verificados com MySQL em ambiente isolado. O bloqueio de habilitação permanece. A ficha de limpeza acima continua em revisão e não foi publicada automaticamente.
+
+Ainda é necessário definir e validar:
 
 - Um **catálogo de tipos de serviço** com código estável, nome claro e versão da ficha; profissionais indicam quais tipos oferecem e podem informar condições próprias dentro de limites aprovados.
-- Como guardar a **versão apresentada ao cliente** no momento do pedido, para uma edição posterior da oferta não mudar retroativamente o combinado.
+- A versionagem do catálogo oficial e o tratamento de clientes antigos que não enviam a conferência do escopo.
 - Quais opcionais são só informação no pedido e quais exigem uma proposta separada e aceite explícito.
-- Como mostrar a ficha no perfil, no formulário de pedido e no detalhe do atendimento, inclusive texto ampliado e conexão instável.
+- Como validar a apresentação da ficha oficial em aparelho físico, inclusive com texto ampliado e conexão instável.
 - Como administradores revisam mudanças e evitam nomes duplicados ou promessas incompatíveis com a ficha oficial.
 
 ## Empresa e executor no mesmo fluxo

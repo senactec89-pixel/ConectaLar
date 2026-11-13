@@ -6,7 +6,7 @@ Atualizado em 16/10/2026. Este documento explica o comportamento tecnico atual. 
 
 Na tela `Perfil > Seguranca`, o usuario escolhe **Exportar meus dados** e confirma a senha atual. A API gera um JSON versionado e o app abre o compartilhamento nativo do aparelho para que o titular escolha onde guardar o arquivo.
 
-O arquivo inclui dados cadastrais, foto, perfil, enderecos, ofertas, disponibilidade, documentos enviados, solicitacoes, historico de orcamentos, mensagens enviadas, avaliacoes, denuncias relacionadas, notificacoes, favoritos, aceites e historico de pedidos de privacidade. Documentos e foto sao representados em Base64 quando o arquivo esta disponivel.
+O arquivo inclui dados cadastrais, foto, perfil, enderecos, ofertas, disponibilidade, documentos enviados, solicitacoes, historico de orcamentos e propostas pre-aceite, mensagens enviadas, avaliacoes, denuncias relacionadas, notificacoes, favoritos, aceites e historico de pedidos de privacidade. Documentos e foto sao representados em Base64 quando o arquivo esta disponivel.
 
 O arquivo nunca inclui hash de senha, token de sessao, codigo de verificacao, codigo de recuperacao ou segredo MFA. Identificadores de outras pessoas sao omitidos quando nao sao necessarios para explicar o registro ao titular.
 
@@ -22,6 +22,7 @@ A exclusao:
 - apaga notificacoes, favoritos, codigos de verificacao e recuperacao;
 - remove localizacao, disponibilidade e dados publicos do perfil;
 - substitui mensagens, descricoes de pedidos, comentarios e denuncias escritos pelo titular por textos neutros;
+- remove o texto das propostas relacionadas aos pedidos do cliente ou escritas pelo profissional, inclusive copias do escopo aceito e snapshots no historico;
 - preserva registros minimos de atendimento, aceite, avaliacao e moderacao quando a referencia e necessaria para seguranca, auditoria, defesa de direitos ou obrigacao legal.
 
 A conta nao pode ser reativada pelo aplicativo. O mesmo e-mail e telefone ficam livres para um novo cadastro, pois a conta antiga passa a usar identificadores anonimos.

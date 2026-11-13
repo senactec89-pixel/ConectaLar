@@ -17,6 +17,7 @@ import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { optionalEnumFilter, optionalSearchTerm } from '../common/admin-list-query.js';
 import { paginationMetadata, parsePaginationQuery } from '../common/pagination.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
+import { detalheAuditoriaSeguro } from '../common/admin-auditoria.js';
 
 @Injectable()
 export class AdminPainelService {
@@ -165,7 +166,7 @@ export class AdminPainelService {
         acao: evento.acao,
         alvoTipo: evento.alvoTipo,
         alvoId: evento.alvoId,
-        detalhe: evento.detalhe,
+        detalhe: detalheAuditoriaSeguro(evento.detalhe),
         criadoEm: evento.criadoEm.toISOString(),
       })),
     };

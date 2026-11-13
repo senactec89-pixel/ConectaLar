@@ -11,6 +11,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../utils/validators.dart';
 import '../../widgets/app_bar_custom.dart';
+import '../../widgets/escopo_servico_view.dart';
 
 class SolicitarServicoPage extends StatefulWidget {
   const SolicitarServicoPage({super.key});
@@ -269,6 +270,12 @@ class _SolicitarServicoPageState extends State<SolicitarServicoPage> {
         'categoriaId': _ofertaSelecionada?.categoriaId,
         if ((_ofertaSelecionada?.id ?? 0) > 0)
           'servicoId': _ofertaSelecionada!.id,
+        if ((_ofertaSelecionada?.id ?? 0) > 0)
+          'escopoEsperado': {
+            'inclui': _ofertaSelecionada!.inclui,
+            'naoInclui': _ofertaSelecionada!.naoInclui,
+            'opcionais': _ofertaSelecionada!.opcionais,
+          },
         'enderecoId': _enderecoSelecionadoId,
         'descricao': _descricaoController.text,
         'opcoesIds': _opcoesSelecionadas.toList()..sort(),
@@ -640,6 +647,13 @@ class _FormularioSolicitacao extends StatelessWidget {
                 onChanged: onOfertaChanged,
                 validator: (id) => id == null ? 'Selecione um serviço.' : null,
               ),
+              if (ofertaSelecionada case final oferta?)
+                EscopoServicoView(
+                  titulo: 'Detalhes da oferta',
+                  inclui: oferta.inclui,
+                  naoInclui: oferta.naoInclui,
+                  opcionais: oferta.opcionais,
+                ),
               const SizedBox(height: 12),
               if (!ofertaConfigurada)
                 const _ConsultaAviso(

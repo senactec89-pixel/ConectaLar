@@ -24,14 +24,37 @@ const publicErrors: Readonly<Record<string, string>> = {
     'Este horário não está mais disponível. Atualize a disponibilidade.',
   TRANSICAO_INVALIDA:
     'Esta solicitação já foi atualizada. Recarregue para conferir o estado atual.',
+  PRAZO_PEDIDO_ENCERRADO:
+    'O prazo desta negociação terminou. Atualize o pedido para consultar a situação.',
+  PROPOSTA_INDISPONIVEL:
+    'Esta proposta já foi atualizada. Recarregue o pedido para conferir.',
+  PROPOSTA_EXPIRADA:
+    'O prazo para responder à proposta terminou. Atualize o pedido.',
+  PROPOSTA_HORARIO_INCOMPLETO:
+    'Informe a data e o horário da proposta.',
+  PROPOSTA_ESCOPO_INVALIDO:
+    'Descreva o escopo em pelo menos 10 caracteres e no máximo 600.',
+  PROPOSTA_VAZIA:
+    'Sugira outro horário ou descreva o escopo proposto.',
+  RESPOSTA_PROPOSTA_INVALIDA:
+    'Escolha se deseja aceitar ou recusar a proposta.',
   OFERTA_INDISPONIVEL:
     'Este serviço não está mais disponível. Atualize o perfil do profissional.',
+  OFERTA_ALTERADA:
+    'Os detalhes deste serviço mudaram. Atualize o perfil e confira a oferta antes de enviar.',
+  ESCOPO_INVALIDO:
+    'Revise os detalhes do serviço: cada lista aceita até 10 itens de 160 caracteres.',
   OFERTA_INVALIDA:
     'Não foi possível atualizar esta oferta. Recarregue os serviços.',
   DISPONIBILIDADE_NAO_CADASTRADA:
     'O profissional ainda não cadastrou disponibilidade para receber solicitações.',
   DATA_INVALIDA: 'Informe uma data válida para o atendimento.',
   HORARIO_INVALIDO: 'Informe o horário no formato HH:MM.',
+  HORARIO_PASSADO: 'Escolha uma data e um horário futuros para o atendimento.',
+  REAGENDAMENTO_APOS_INICIO:
+    'O atendimento já começou. Use a opção de ajuda ou registre uma ocorrência.',
+  CANCELAMENTO_APOS_INICIO:
+    'O atendimento já começou. Use a opção de ajuda ou registre uma ocorrência.',
   INTERVALO_INVALIDO:
     'O horário inicial deve ser menor que o horário final.',
   DISPONIBILIDADE_INVALIDA:

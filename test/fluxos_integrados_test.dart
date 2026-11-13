@@ -541,6 +541,8 @@ void main() {
         find.byKey(const ValueKey('solicitar-descricao')),
         'Reparar a instalação elétrica da residência.',
       );
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('solicitar-enviar')),
         300,
@@ -615,6 +617,8 @@ void main() {
         'Serviços residenciais com agendamento e cuidado.',
       );
       await tester.enterText(find.byType(TextFormField).at(1), 'Centro');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.byKey(const ValueKey('profissional-continuar')),
       );
@@ -646,10 +650,10 @@ void main() {
         find.widgetWithText(TextFormField, 'Preço inicial (R\$)'),
         '125,50',
       );
-      await tester.enterText(
-        find.widgetWithText(TextFormField, 'Duração estimada (minutos)'),
-        '90',
-      );
+      await tester.tap(find.text('2 horas'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1h30').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Salvar'));
       await tester.pumpAndSettle();
       final oferta = (ofertaEnviada?['servicos'] as List).single;
@@ -762,6 +766,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Editar perfil profissional'), findsOneWidget);
       await tester.enterText(find.byType(TextFormField).at(1), 'Bairro Novo');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('profissional-continuar')),
         300,

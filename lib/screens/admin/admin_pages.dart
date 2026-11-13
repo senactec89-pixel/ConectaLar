@@ -1108,7 +1108,8 @@ class _AdminPageState extends State<AdminPage> {
         final alvo = _rotuloAlvoAuditoria(item['alvoTipo']?.toString());
         return Card(
           margin: const EdgeInsets.only(bottom: 9),
-          child: ListTile(
+          child: ExpansionTile(
+            key: Key('auditoria-detalhes-${item['id']}'),
             leading: const Icon(Icons.history, color: AppColors.verde),
             title: Text(_rotuloAcaoAuditoria(item['acao']?.toString())),
             subtitle: Padding(
@@ -1142,7 +1143,6 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
             ),
-            isThreeLine: true,
           ),
         );
       case AdminModulo.painel:

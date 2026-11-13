@@ -9,6 +9,7 @@ import '../../services/api_mappers.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/escopo_servico_view.dart';
 import 'avaliacoes_recebidas_page.dart';
 
 class PerfilProfissionalPage extends StatefulWidget {
@@ -698,9 +699,9 @@ class _ServicosPerfil extends StatelessWidget {
     final itens = profissional.ofertas.isNotEmpty
         ? [
             for (final oferta in profissional.ofertas)
-              (oferta.nome, oferta.precoInicial),
+              (oferta.nome, oferta.precoInicial, oferta),
           ]
-        : [for (final nome in profissional.servicos) (nome, null)];
+        : [for (final nome in profissional.servicos) (nome, null, null)];
     if (itens.isEmpty) {
       return const Text('Este perfil ainda não apresenta serviços oferecidos.');
     }
@@ -731,6 +732,12 @@ class _ServicosPerfil extends StatelessWidget {
                       _precoTexto(itens[index].$2),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (itens[index].$3 case final oferta?)
+                      EscopoServicoView(
+                        inclui: oferta.inclui,
+                        naoInclui: oferta.naoInclui,
+                        opcionais: oferta.opcionais,
+                      ),
                   ],
                 ),
               ),

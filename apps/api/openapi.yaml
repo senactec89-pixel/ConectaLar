@@ -1819,6 +1819,56 @@ paths:
         '409': { description: Prazo inicial de 48 horas expirado (SOLICITACAO_EXPIRADA) }
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/propostas:
+    post:
+      operationId: postSolicitacaoPropostaPreAceite
+      summary: Professional proposes a time or scope before accepting a request
+      description: The proposal expires after 48 hours; acceptance is subject to eligibility and agenda checks. Professional eligibility remains blocked until the security policy is complete.
+      tags: [Solicitacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PropostaPreAceiteRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /solicitacoes/{id}/propostas/{propostaId}/responder:
+    patch:
+      operationId: patchSolicitacaoPropostaPreAceiteResponder
+      summary: Client accepts or rejects a pending pre-acceptance proposal
+      description: Acceptance confirms the appointment only after rechecking eligibility and availability. An expired proposal cannot be accepted.
+      tags: [Solicitacoes]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/SolicitacaoId'
+        - name: propostaId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [aceitar]
+              properties:
+                aceitar: {type: boolean}
+      responses:
+        '200':
+          $ref: '#/components/responses/SolicitacaoResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /solicitacoes/{id}/cancelar:
     patch:
       operationId: patchSolicitacaoCancelar
@@ -3717,7 +3767,9 @@ components:
       required: [estado, podeAtender, documentoAnalisado, etapas, mensagem, revisaoSolicitadaEm]
       properties:
         estado: { type: string, enum: [pendente, em_analise, suspenso] }
-        podeAtender: { type: boolean, const: false }
+        podeAtender:
+          type: boolean
+          description: Verdadeiro apenas na beta local isolada para perfil autorizado; em produção permanece falso até concluir as políticas pendentes.
         documentoAnalisado: { type: boolean }
         mensagem: { type: string }
         revisaoSolicitadaEm: { type: [string, 'null'], format: date-time }
@@ -4434,6 +4486,9 @@ components:
           type: [integer, 'null']
           minimum: 1
           description: Oferta ativa vinculada ao catalogo do profissional; obrigatoria para novos pedidos.
+        escopoEsperado:
+          $ref: '#/components/schemas/EscopoServico'
+          description: Escopo visto no app; a API rejeita o envio se a oferta tiver mudado.
         categoriaId:
           type:
             - integer
@@ -4526,6 +4581,11 @@ components:
             descricao: {type: [string, 'null']}
             inclusoes: {type: [string, 'null']}
             exclusoes: {type: [string, 'null']}
+        escopoServicoSnapshot:
+          anyOf:
+            - $ref: '#/components/schemas/EscopoServico'
+            - type: 'null'
+          description: Escopo da oferta ao criar o pedido; opcionais dependem de combinação entre as partes.
         avaliado:
           type: boolean
           description: O ator autenticado já enviou sua avaliação deste atendimento, inclusive se ainda não publicada.
@@ -4539,6 +4599,22 @@ components:
           type: [string, 'null']
           format: date-time
           description: Prazo da negociacao; mensagens reiniciam 96 horas. Proposta pendente usa seu prazo proprio.
+        prazoRespostaEm:
+          type: [string, 'null']
+          format: date-time
+          description: Limite para a primeira resposta formal; o horário solicitado pode encerrar o pedido antes.
+        prazoInatividadeEm:
+          type: [string, 'null']
+          format: date-time
+          description: Limite de inatividade após ação formal, enquanto o pedido estiver pendente.
+        propostaPreAceite:
+          oneOf:
+            - $ref: '#/components/schemas/PropostaPreAceite'
+            - type: 'null'
+        propostasPreAceite:
+          type: array
+          items:
+            $ref: '#/components/schemas/PropostaPreAceite'
         descricao:
           type: string
         bairroAtendimento:
@@ -4974,6 +5050,14 @@ components:
             limite: {type: integer, minimum: 1, maximum: 50}
             total: {type: integer, minimum: 0}
             totalPaginas: {type: integer, minimum: 1}
+    EscopoServico:
+      type: object
+      additionalProperties: false
+      required: [inclui, naoInclui, opcionais]
+      properties:
+        inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
+        opcionais: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}}
     ServicoProfissional:
       type: object
       additionalProperties: false
@@ -5030,6 +5114,9 @@ components:
           type: [number, 'null']
           minimum: 0
           maximum: 99999999.99
+        inclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
+        naoInclui: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
+        opcionais: {type: array, maxItems: 10, items: {type: string, minLength: 1, maxLength: 160}, description: Omitir preserva os itens existentes.}
         ativo:
           type: boolean
           description: Whether the offer is publicly available. Defaults to true for a new offer.
@@ -5037,9 +5124,9 @@ components:
           $ref: '#/components/schemas/DuracaoMinutos'
         intervaloMinutos:
           type: integer
-          minimum: 0
-          maximum: 1440
-          description: Campo legado aceito para compatibilidade; a API ignora o valor e persiste zero conforme P06.
+          const: 0
+          default: 0
+          description: P06 não prevê intervalo adicional entre atendimentos.
     ReagendamentoRequest:
       type: object
       additionalProperties: false
@@ -5048,6 +5135,33 @@ components:
         dataServico: {type: string, format: date}
         horarioServico: {type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$'}
         motivo: {type: string, minLength: 10, maxLength: 400}
+    PropostaPreAceiteRequest:
+      type: object
+      additionalProperties: false
+      dependentRequired:
+        dataServico: [horarioServico]
+        horarioServico: [dataServico]
+      anyOf:
+        - required: [dataServico, horarioServico]
+        - required: [escopo]
+      properties:
+        dataServico: {type: string, format: date}
+        horarioServico: {type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$'}
+        escopo: {type: string, minLength: 10, maxLength: 600}
+    PropostaPreAceite:
+      type: object
+      additionalProperties: false
+      required: [id, propostoPorId, dataServico, horarioServico, escopo, status, venceEm, respondidoEm, criadoEm]
+      properties:
+        id: {type: integer, minimum: 1}
+        propostoPorId: {type: integer, minimum: 1}
+        dataServico: {type: [string, 'null'], format: date}
+        horarioServico: {type: [string, 'null']}
+        escopo: {type: [string, 'null']}
+        status: {type: string, enum: [pendente, aceita, recusada, expirada, substituida]}
+        venceEm: {type: string, format: date-time}
+        respondidoEm: {type: [string, 'null'], format: date-time}
+        criadoEm: {type: string, format: date-time}
     OrcamentoRequest:
       type: object
       additionalProperties: false
@@ -5114,7 +5228,8 @@ components:
         dataServico: {type: string, format: date}
         horarioServico: {type: string}
         motivo: {type: string}
-        status: {type: string, enum: [pendente, aceito, recusado, cancelado]}
+        status: {type: string, enum: [pendente, aceito, recusado, cancelado, expirado]}
+        venceEm: {type: [string, 'null'], format: date-time}
         respondidoEm: {type: [string, 'null'], format: date-time}
         criadoEm: {type: string, format: date-time}
     Orcamento:
@@ -5128,7 +5243,8 @@ components:
         descricao: {type: string}
         status:
           type: string
-          enum: [pendente, aceito, recusado, substituido]
+          enum: [pendente, aceito, recusado, substituido, expirado]
+        venceEm: {type: [string, 'null'], format: date-time}
         respondidoEm: {type: [string, 'null'], format: date-time}
         criadoEm: {type: string, format: date-time}
     DisponibilidadeInput:

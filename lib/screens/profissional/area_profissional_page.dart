@@ -962,9 +962,32 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
     );
-    final duracao = TextEditingController(
-      text: '${servico?['duracaoMinutos'] ?? 120}',
-    );
+    String textoEscopo(String chave) =>
+        (servico?[chave] as List? ?? []).whereType<String>().join('\n');
+    final inclui = TextEditingController(text: textoEscopo('inclui'));
+    final naoInclui = TextEditingController(text: textoEscopo('naoInclui'));
+    final opcionais = TextEditingController(text: textoEscopo('opcionais'));
+    List<String> itens(String valor) => valor
+        .split('\n')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    String? validarEscopo(String? valor) {
+      final lista = itens(valor ?? '');
+      if (lista.length > 10) return 'Informe até 10 itens.';
+      if (lista.any((item) => item.length > 160)) {
+        return 'Cada item deve ter até 160 caracteres.';
+      }
+      return null;
+    }
+
+    var duracaoMinutos =
+        int.tryParse('${servico?['duracaoMinutos'] ?? 120}') ?? 120;
+    const duracoesProntas = [30, 45, 60, 90, 120, 180, 240];
+    var duracaoEscolhida = duracoesProntas.contains(duracaoMinutos)
+        ? '$duracaoMinutos'
+        : 'personalizada';
+    final duracaoPersonalizada = TextEditingController(text: '$duracaoMinutos');
     final form = GlobalKey<FormState>();
     var enviando = false;
     String? erro;
@@ -1083,27 +1106,70 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                   validator: validarPrecoOpcional,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: duracao,
-                  enabled: !enviando,
-                  keyboardType: TextInputType.number,
-                  maxLength: 4,
+                DropdownButtonFormField<String>(
+                  initialValue: duracaoEscolhida,
+                  isExpanded: true,
                   decoration: const InputDecoration(
-                    labelText: 'Duração estimada (minutos)',
+                    labelText: 'Duração estimada',
                     prefixIcon: Icon(Icons.timer_outlined),
                   ),
-                  validator: (value) {
-                    final minutes = int.tryParse((value ?? '').trim());
-                    return minutes == null || minutes < 1 || minutes > 1440
-                        ? 'Informe uma duração entre 1 e 1.440 minutos.'
-                        : null;
-                  },
+                  items: [
+                    for (final value in duracoesProntas)
+                      DropdownMenuItem(
+                        value: '$value',
+                        child: Text(_rotuloDuracao(value)),
+                      ),
+                    const DropdownMenuItem(
+                      value: 'personalizada',
+                      child: Text('Personalizada'),
+                    ),
+                  ],
+                  onChanged: enviando
+                      ? null
+                      : (value) => setDialogState(() {
+                          duracaoEscolhida = value ?? '120';
+                          if (duracaoEscolhida != 'personalizada') {
+                            duracaoMinutos = int.parse(duracaoEscolhida);
+                          }
+                        }),
                 ),
-                const SizedBox(height: AppSpace.xs),
-                Text(
-                  'Sem intervalo adicional entre atendimentos.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                if (duracaoEscolhida == 'personalizada') ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const Key('duracao-personalizada'),
+                    controller: duracaoPersonalizada,
+                    enabled: !enviando,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Duração em minutos (1 a 1440)',
+                    ),
+                    validator: (value) {
+                      final minutos = int.tryParse((value ?? '').trim());
+                      return minutos == null || minutos < 1 || minutos > 1440
+                          ? 'Informe de 1 a 1440 minutos.'
+                          : null;
+                    },
+                  ),
+                ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Detalhes visíveis para o cliente. Escreva um item por linha e não inclua dados pessoais.',
                 ),
+                for (final campo in [
+                  (inclui, 'O que o serviço inclui'),
+                  (naoInclui, 'O que não está incluído'),
+                  (opcionais, 'Opcionais a combinar'),
+                ]) ...[
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: campo.$1,
+                    enabled: !enviando,
+                    minLines: 2,
+                    maxLines: 5,
+                    decoration: InputDecoration(labelText: campo.$2),
+                    validator: validarEscopo,
+                  ),
+                ],
                 if (erro != null) ...[
                   const SizedBox(height: 12),
                   Text(erro!, style: const TextStyle(color: AppColors.erro)),
@@ -1127,6 +1193,11 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         );
                         return;
                       }
+                      if (duracaoEscolhida == 'personalizada') {
+                        duracaoMinutos = int.parse(
+                          duracaoPersonalizada.text.trim(),
+                        );
+                      }
                       setDialogState(() {
                         enviando = true;
                         erro = null;
@@ -1143,8 +1214,11 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'servicoCatalogoId': ?servicoCatalogoId,
                           'precoInicial': parsePrecoInicial(preco.text),
                           'ativo': servico?['ativo'] != false,
-                          'duracaoMinutos': int.parse(duracao.text.trim()),
+                          'duracaoMinutos': duracaoMinutos,
                           'intervaloMinutos': 0,
+                          'inclui': itens(inclui.text),
+                          'naoInclui': itens(naoInclui.text),
+                          'opcionais': itens(opcionais.text),
                         };
                         if (servico == null) {
                           final existente = servicos.indexWhere(
@@ -1215,7 +1289,10 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     nome.dispose();
     preco.dispose();
-    duracao.dispose();
+    inclui.dispose();
+    naoInclui.dispose();
+    opcionais.dispose();
+    duracaoPersonalizada.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
@@ -1232,6 +1309,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'ativo': item['ativo'] != false,
           'duracaoMinutos': item['duracaoMinutos'] ?? 120,
           'intervaloMinutos': 0,
+          'inclui': item['inclui'] ?? const <String>[],
+          'naoInclui': item['naoInclui'] ?? const <String>[],
+          'opcionais': item['opcionais'] ?? const <String>[],
         },
       )
       .toList();
@@ -1467,7 +1547,9 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                                   ? 'Preço a informar'
                                   : 'A partir de R\$ ${e['precoInicial']}',
                             ),
-                            Text('${e['duracaoMinutos'] ?? 120} min'),
+                            Text(
+                              '${e['duracaoMinutos'] ?? 120} min de atendimento',
+                            ),
                             Text(e['ativo'] == true ? 'Ativa' : 'Pausada'),
                           ],
                         ),
@@ -2461,4 +2543,15 @@ String _nomeDia(int dia) => switch (dia) {
   5 => 'sexta-feira',
   6 => 'sábado',
   _ => 'dia selecionado',
+};
+
+String _rotuloDuracao(int minutos) => switch (minutos) {
+  30 => '30 min',
+  45 => '45 min',
+  60 => '1 hora',
+  90 => '1h30',
+  120 => '2 horas',
+  180 => '3 horas',
+  240 => '4 horas',
+  _ => '$minutos min',
 };

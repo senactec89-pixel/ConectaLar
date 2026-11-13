@@ -3,4 +3,5 @@ export enum OrcamentoStatus {
   Aceito = 'aceito',
   Recusado = 'recusado',
   Substituido = 'substituido',
+  Expirado = 'expirado',
 }

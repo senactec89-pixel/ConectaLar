@@ -104,6 +104,13 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
         intervaloMinutos: s['intervaloMinutos'] == null
             ? 0
             : intValue(s['intervaloMinutos']),
+        inclui: (s['inclui'] as List? ?? const []).whereType<String>().toList(),
+        naoInclui: (s['naoInclui'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
+        opcionais: (s['opcionais'] as List? ?? const [])
+            .whereType<String>()
+            .toList(),
       ),
     ),
     notaMedia: doubleValueOrNull(json['notaMedia']),
@@ -129,6 +136,9 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
         ? intValue(json['servicoSnapshot']['servicoCatalogoId'])
         : null,
     nomeServico: nullableString(json['nomeServico']),
+    escopoServicoSnapshot: json['escopoServicoSnapshot'] is Map<String, dynamic>
+        ? json['escopoServicoSnapshot'] as Map<String, dynamic>
+        : null,
     categoriaId: categoria is Map<String, dynamic>
         ? intValue(categoria['id'])
         : 0,
@@ -158,6 +168,16 @@ Solicitacao solicitacaoFromApi(Map<String, dynamic> json) {
     reagendamentos: (json['reagendamentos'] as List? ?? const [])
         .whereType<Map<String, dynamic>>()
         .toList(growable: false),
+    propostaPreAceite: json['propostaPreAceite'] is Map<String, dynamic>
+        ? json['propostaPreAceite'] as Map<String, dynamic>
+        : null,
+    propostasPreAceite: (json['propostasPreAceite'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false),
+    prazoRespostaEm: DateTime.tryParse('${json['prazoRespostaEm'] ?? ''}'),
+    prazoInatividadeEm: DateTime.tryParse(
+      '${json['prazoInatividadeEm'] ?? ''}',
+    ),
     orcamento: json['orcamento'] is Map<String, dynamic>
         ? json['orcamento'] as Map<String, dynamic>
         : null,

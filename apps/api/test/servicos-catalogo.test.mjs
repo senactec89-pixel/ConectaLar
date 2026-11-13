@@ -63,8 +63,8 @@ test('administrador cria pausado e pode editar, ativar e pausar com auditoria', 
   assert.equal((await service.atualizar(admin, 1, created.id, { ativo: false, descricao: null })).servico.descricao, null);
   assert.deepEqual(state.auditorias.map((item) => item.acao), ['servico_catalogo_criado', 'servico_catalogo_atualizado', 'servico_catalogo_atualizado']);
   const audit = JSON.parse(state.auditorias[1].detalhe);
-  assert.equal(audit.antes.nome, 'Montagem de cadeira');
-  assert.equal(audit.depois.nome, 'Montagem de mesa');
+  assert.deepEqual(audit.antes, { ativo: false });
+  assert.deepEqual(audit.depois, { ativo: true });
 });
 
 test('valida categoria, duplicidade, campos e pertencimento', async () => {

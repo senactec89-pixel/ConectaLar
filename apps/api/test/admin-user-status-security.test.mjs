@@ -109,7 +109,6 @@ test('deactivation and reactivation each advance token version in a transaction'
   assert.deepEqual(JSON.parse(audits[0].detalhe), {
     antes: { ativo: true, tokenVersion: 3 },
     depois: { ativo: false, tokenVersion: 4 },
-    motivo: 'Revisao administrativa',
   });
 });
 

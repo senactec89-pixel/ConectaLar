@@ -53,7 +53,8 @@ export function habilitacaoProfissional(
     : perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
   const testeLocalElegivel = habilitacaoManualLocalAtiva() && perfil !== null;
-  const podeAtender = estado === 'teste_local_aprovado' && habilitacaoManualLocalAtiva() && perfil?.ativo !== false;
+  const betaLocal = betaLocalAutorizada(perfil) && estado !== 'suspenso';
+  const podeAtender = (estado === 'teste_local_aprovado' && testeLocalElegivel && perfil?.ativo !== false) || betaLocal;
   return {
     estado,
     podeAtender,
@@ -69,12 +70,24 @@ export function habilitacaoProfissional(
       { codigo: 'aprovacao', status: estado },
     ],
     mensagem: podeAtender
-      ? 'Habilitacao temporaria no ambiente local. Nao libera atendimento real.'
+      ? betaLocal
+        ? 'Beta local de testes: atendimentos simulados liberados para este perfil. Nao use dados reais.'
+        : 'Habilitacao temporaria no ambiente local. Nao libera atendimento real.'
       : estado === 'suspenso'
       ? 'Habilitacao suspensa. Solicite revisao pela plataforma.'
       : 'Atendimentos bloqueados ate a conclusao das verificacoes de seguranca. Documento aprovado nao libera atendimentos.',
     revisaoSolicitadaEm: perfil?.habilitacaoRevisaoEm?.toISOString() ?? null,
   };
+}
+
+function betaLocalAutorizada(perfil: ProfissionalPerfilEntity | null): boolean {
+  if (process.env.NODE_ENV !== 'test' || process.env.CONECTALAR_BETA_LOCAL !== 'true') return false;
+  if (!['127.0.0.1', 'localhost', '::1'].includes(process.env.DB_HOST ?? '')) return false;
+  if (process.env.DB_NAME !== 'conectalar_beta_test') return false;
+  if (!perfil?.ativo || !perfil.usuario?.ativo ||
+    !['profissional', 'empresa'].includes(perfil.usuario.tipo)) return false;
+  const ids = (process.env.CONECTALAR_BETA_LOCAL_PROFISSIONAL_IDS ?? '').split(',');
+  return ids.some((raw) => /^[1-9]\d*$/.test(raw.trim()) && Number(raw.trim()) === perfil.id);
 }
 
 export function podeAtender(perfil: ProfissionalPerfilEntity | null): boolean {

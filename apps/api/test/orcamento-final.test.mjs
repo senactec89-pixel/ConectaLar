@@ -175,6 +175,19 @@ test('revisao recusada preserva valor aceito e historico anterior', async () => 
   ]);
 });
 
+test('cliente não aceita orçamento vencido e valor anterior permanece', async () => {
+  const contexto = fixture();
+  contexto.solicitacao.precoFinal = '90.00';
+  await contexto.service.proporOrcamento(profissional, 1, {
+    valor: 125, descricao: 'Revisao detalhada do servico combinado.',
+  });
+  assert.ok(contexto.orcamentos[0].venceEm instanceof Date);
+  contexto.orcamentos[0].venceEm = new Date(Date.now() - 1);
+  await assert.rejects(contexto.service.responderOrcamento(cliente, 1, { aceitar: true }),
+    (error) => error.getResponse?.().code === 'PROPOSTA_EXPIRADA');
+  assert.equal(contexto.solicitacao.precoFinal, '90.00');
+});
+
 test('revisao aceita substitui o acordo anterior e deixa um unico vigente', async () => {
   const contexto = fixture();
   await contexto.service.proporOrcamento(profissional, 1, {

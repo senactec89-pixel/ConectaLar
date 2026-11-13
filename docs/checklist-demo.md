@@ -2,7 +2,7 @@
 
 Use esta lista para validar a demo com API e MySQL locais. Marque somente quando o fluxo for testado no ambiente integrado atual.
 
-> **Atenção: evidência histórica.** O resultado abaixo registra uma demo anterior em que a contratação estava liberada. A política atual bloqueia deliberadamente novas solicitações e aceites com `409 PROFISSIONAL_HABILITACAO_PENDENTE`. Os itens marcados como concluídos descrevem apenas aquele commit/ambiente antigo; não são evidência de que a contratação atual esteja liberada ou homologada.
+> **Registro histórico:** as caixas marcadas abaixo referem-se somente à demo de 10/10/2026 no commit `4e303d0`, quando a contratação estava liberada. Não provam que o fluxo atual esteja homologado. No processo normal, pedidos e aceites devem permanecer bloqueados com `409 PROFISSIONAL_HABILITACAO_PENDENTE`; para a beta local, siga `homologacao-beta-local.md` e os checklists por papel.
 
 ## Resultado em 2026-10-10
 

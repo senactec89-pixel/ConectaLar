@@ -53,10 +53,15 @@ class Solicitacao {
     this.servicoId,
     this.servicoCatalogoId,
     this.nomeServico,
+    this.escopoServicoSnapshot,
     this.duracaoMinutos = 120,
     this.intervaloMinutos = 0,
     this.reagendamento,
     this.reagendamentos = const [],
+    this.propostaPreAceite,
+    this.propostasPreAceite = const [],
+    this.prazoRespostaEm,
+    this.prazoInatividadeEm,
     this.orcamento,
     this.orcamentos = const [],
     this.cancelamentoMotivo,
@@ -75,6 +80,7 @@ class Solicitacao {
   final int? servicoId;
   final int? servicoCatalogoId;
   final String? nomeServico;
+  final Map<String, dynamic>? escopoServicoSnapshot;
   final int categoriaId;
   final int? enderecoId;
   final String descricao;
@@ -88,6 +94,10 @@ class Solicitacao {
   final int intervaloMinutos;
   final Map<String, dynamic>? reagendamento;
   final List<Map<String, dynamic>> reagendamentos;
+  final Map<String, dynamic>? propostaPreAceite;
+  final List<Map<String, dynamic>> propostasPreAceite;
+  final DateTime? prazoRespostaEm;
+  final DateTime? prazoInatividadeEm;
   final Map<String, dynamic>? orcamento;
   final List<Map<String, dynamic>> orcamentos;
   final String? cancelamentoMotivo;

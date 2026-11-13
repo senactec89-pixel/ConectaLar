@@ -7,6 +7,8 @@ enviado nem credito consumido. O aviso exibido no app ainda precisa de aprovacao
 antes de uma homologacao com fornecedor. Antecedentes seguem pendentes de politica.
 Nenhuma confirmacao de telefone ou aprovacao documental libera atendimentos.
 
+Em novembro de 2026, foi acrescentada uma excecao **somente para beta tecnica local**, descrita em `homologacao-beta-local.md`: o processo `NODE_ENV=test`, conectado ao banco descartavel `conectalar_beta_test` em loopback, pode liberar IDs ficticios listados explicitamente pelo operador. O processo normal e a aprovacao administrativa continuam bloqueados. A excecao nao substitui nenhuma etapa de seguranca para uso real.
+
 ## Impacto da atualizacao
 
 - `verificado` continua significando apenas analise documental. Nao e autorizacao

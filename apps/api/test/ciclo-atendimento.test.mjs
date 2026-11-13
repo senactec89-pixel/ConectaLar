@@ -5,6 +5,7 @@ import { SolicitacaoEntity } from '../dist/database/entities/solicitacao.entity.
 import { ProfissionalPerfilEntity } from '../dist/database/entities/profissional-perfil.entity.js';
 import { databaseRuntimeOptions } from '../dist/database/database.config.js';
 import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
+import { agoraCivil, cancelamentoClienteExcepcional } from '../dist/domain/agendamento.js';
 
 const cliente = { id: 30, tipo: 'cliente' };
 const profissional = { id: 20, tipo: 'profissional' };
@@ -104,7 +105,7 @@ function fixture(status = 'aceita_agendada', dataServico = '2020-01-01') {
     { async find() { return []; } }, { async find() { return []; } }, {}, {},
     { async criar(input) { notificacoes.push(input); } },
   );
-  return { service, solicitacao, eventos, notificacoes };
+  return { service, solicitacao, eventos, notificacoes, manager };
 }
 
 test('conclusao exige declaracao profissional e confirmacao do cliente', async () => {
@@ -181,4 +182,34 @@ test('cancelamento aceito exige motivo, ocorre antes do inicio e notifica a outr
     }),
     (error) => error.getResponse?.().code === 'CANCELAMENTO_APOS_INICIO',
   );
+});
+
+test('cancelamento excepcional é identificado sem multa e respeita o limite de 24 horas', async () => {
+  const instante = new Date('2026-11-11T13:00:00.000Z');
+  assert.equal(cancelamentoClienteExcepcional('2026-11-12', '10:00', instante), false);
+  assert.equal(cancelamentoClienteExcepcional('2026-11-12', '09:59', instante), true);
+  assert.equal(cancelamentoClienteExcepcional('2026-11-12', '10:01', instante), false);
+  const emUmaHora = agoraCivil(new Date(Date.now() + 60 * 60 * 1000));
+  const f = fixture('aceita_agendada', emUmaHora.data);
+  f.solicitacao.horarioServico = emUmaHora.horario;
+  const result = await f.service.cancelar(cliente, 1, { motivo: 'Imprevisto de saúde familiar.' });
+  assert.equal(result.solicitacao.status, 'cancelada');
+  assert.equal(f.eventos[0].tipo, 'cancelamento_cliente_excepcional');
+  assert.equal(f.eventos[0].motivo, 'Imprevisto de saúde familiar.');
+  assert.equal(f.notificacoes[0].usuarioId, 20);
+});
+
+test('cancelamento revalida início após obter o bloqueio do pedido', async () => {
+  const f = fixture('aceita_agendada', '2099-01-01');
+  const findOne = f.manager.findOne.bind(f.manager);
+  f.manager.findOne = async (type) => {
+    const result = await findOne(type);
+    if (type === SolicitacaoEntity) result.dataServico = '2020-01-01';
+    return result;
+  };
+  await assert.rejects(f.service.cancelar(cliente, 1, { motivo: 'Preciso cancelar o atendimento.' }),
+    (error) => error.getResponse?.().code === 'CANCELAMENTO_APOS_INICIO');
+  assert.equal(f.solicitacao.status, 'aceita_agendada');
+  assert.equal(f.eventos.length, 0);
+  assert.equal(f.notificacoes.length, 0);
 });

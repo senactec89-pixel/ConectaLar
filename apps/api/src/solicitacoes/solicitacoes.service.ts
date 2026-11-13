@@ -21,7 +21,7 @@ import { calcularExpiracaoProposta, propostaExpirada } from './proposta-prazo.js
 import { ClienteEnderecoEntity } from '../database/entities/cliente-endereco.entity.js';
 import { ProfissionalDisponibilidadeEntity } from '../database/entities/profissional-disponibilidade.entity.js';
 import { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
-import { EnderecoAtendimentoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
+import { EnderecoAtendimentoSnapshot, EscopoServicoSnapshot, SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
 import { ProfissionalBloqueioEntity } from '../database/entities/profissional-bloqueio.entity.js';
 import {
@@ -35,10 +35,11 @@ import {
 } from '../database/entities/solicitacao-proposta.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { horarioDisponivel } from '../disponibilidade/disponibilidade.service.js';
-import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, periodosSobrepostos } from '../domain/agendamento.js';
+import { cancelamentoClienteExcepcional, diaAnterior, duracaoLegadaMinutos, fusoAgenda, horarioIniciado, periodosSobrepostos } from '../domain/agendamento.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
 import { OrcamentoStatus } from '../domain/orcamento-status.js';
 import { SolicitacaoStatus } from '../domain/solicitacao-status.js';
+import { escoposIguais, ofertasEquivalentes, snapshotEscopo } from '../domain/escopo-servico.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { exigirHabilitacao, habilitacaoManualLocalAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
@@ -55,6 +56,7 @@ interface CriarSolicitacaoInput {
   readonly dataServico: string;
   readonly horarioServico: string;
   readonly opcoesIds: number[];
+  readonly escopoEsperado: EscopoServicoSnapshot | null;
 }
 
 @Injectable()
@@ -134,6 +136,10 @@ export class SolicitacoesService {
       (input.categoriaId !== null && input.categoriaId !== oferta.categoriaId)) {
       throw badRequest('OFERTA_INDISPONIVEL');
     }
+    if (input.escopoEsperado !== null && (oferta === null ||
+      !escoposIguais(input.escopoEsperado, snapshotEscopo(oferta)!))) {
+      throw ofertaAlterada();
+    }
     const categoriaId =
       oferta === null ? input.categoriaId : oferta.categoriaId;
     if (categoriaId !== null) {
@@ -171,8 +177,9 @@ export class SolicitacoesService {
       profissionalId: profissional.id,
       categoriaId,
       servicoId: oferta?.id ?? null,
-      nomeServico: servicoSnapshot?.nomeServico ?? null,
+      nomeServico: servicoSnapshot?.nomeServico ?? oferta?.nome ?? null,
       servicoSnapshot,
+      escopoServicoSnapshot: snapshotEscopo(oferta),
       enderecoId: input.enderecoId,
       enderecoSnapshot,
       descricao: input.descricao,
@@ -195,12 +202,14 @@ export class SolicitacoesService {
       exigirHabilitacao(perfilAtual);
       if (perfilAtual === null || !perfilAtual.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
       const ofertaAtual = await bloquearOfertaCatalogo(manager, profissional.id, oferta.id);
+      if (!ofertasEquivalentes(oferta, ofertaAtual)) throw ofertaAlterada();
       const opcoes = await carregarOpcoesAtivas(manager, ofertaAtual.servicoCatalogoId!, input.opcoesIds);
       if (ofertaAtual.duracaoMinutos !== duracaoMinutos) throw badRequest('OFERTA_ATUALIZADA');
       const snapshotAtual = criarSnapshotServico(ofertaAtual);
       solicitacao.categoriaId = ofertaAtual.categoriaId;
       solicitacao.nomeServico = snapshotAtual?.nomeServico ?? null;
       solicitacao.servicoSnapshot = snapshotAtual;
+      solicitacao.escopoServicoSnapshot = snapshotEscopo(ofertaAtual);
       solicitacao.precoInicial = ofertaAtual.precoInicial;
       const criada = await manager.save(SolicitacaoEntity, solicitacao);
       for (const opcao of opcoes) {
@@ -813,7 +822,15 @@ export class SolicitacoesService {
       [SolicitacaoStatus.AguardandoResposta, SolicitacaoStatus.AceitaAgendada],
       SolicitacaoStatus.Cancelada,
       user,
-      'solicitacao_cancelada',
+      (atual) => {
+        if (atual.status === SolicitacaoStatus.AceitaAgendada && agendamentoJaIniciou(atual)) {
+          throw new ConflictException({ code: 'CANCELAMENTO_APOS_INICIO' });
+        }
+        return atual.status === SolicitacaoStatus.AceitaAgendada &&
+          user.id === atual.clienteId &&
+          cancelamentoClienteExcepcional(atual.dataServico, atual.horarioServico)
+          ? 'cancelamento_cliente_excepcional' : 'solicitacao_cancelada';
+      },
       motivo,
       (atual) => {
         atual.cancelamentoMotivo = motivo;
@@ -1044,6 +1061,8 @@ export class SolicitacoesService {
             motivo: input.motivo,
             status: ReagendamentoStatus.Pendente,
             respondidoEm: null,
+            venceEm: user.id === atual.clienteId
+              ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
           }),
         );
         await manager.save(
@@ -1109,7 +1128,14 @@ export class SolicitacoesService {
           message: 'A proposta deve ser respondida pela outra parte.',
         });
       }
+      if (proposta.venceEm != null && proposta.venceEm <= new Date()) {
+        throw new ConflictException({ code: 'PROPOSTA_EXPIRADA' });
+      }
       if (aceitar) {
+        if (agendamentoJaIniciou(atual)) {
+          throw new ConflictException({ code: 'REAGENDAMENTO_APOS_INICIO' });
+        }
+        assertAgendamentoFuturo(proposta.dataProposta, proposta.horarioProposto);
         await this.validarAgendaComManager(
           manager,
           atual.profissionalId,
@@ -1204,6 +1230,7 @@ export class SolicitacoesService {
             descricao: input.descricao,
             status: OrcamentoStatus.Pendente,
             respondidoEm: null,
+            venceEm: new Date(Date.now() + 48 * 60 * 60 * 1000),
           }),
         );
         await manager.save(
@@ -1264,6 +1291,10 @@ export class SolicitacoesService {
           });
         }
 
+        if (orcamento.venceEm != null && orcamento.venceEm <= new Date()) {
+          throw new ConflictException({ code: 'PROPOSTA_EXPIRADA' });
+        }
+
         if (aceitar) {
           await manager.update(
             SolicitacaoOrcamentoEntity,
@@ -1310,7 +1341,7 @@ export class SolicitacoesService {
     origem: SolicitacaoStatus | readonly SolicitacaoStatus[],
     destino: SolicitacaoStatus,
     user: AuthenticatedUser,
-    eventoTipo: string,
+    eventoTipo: string | ((solicitacao: SolicitacaoEntity) => string),
     motivo: string | null = null,
     atualizar?: (solicitacao: SolicitacaoEntity) => void,
     encerrarNegociacao = false,
@@ -1356,6 +1387,7 @@ export class SolicitacoesService {
             throw badRequest('PROFISSIONAL_INDISPONIVEL');
           const opcoes = await manager.query('SELECT id FROM solicitacao_opcoes WHERE solicitacao_id = ? LIMIT 1', [atual.id]) as unknown[];
           if (opcoes.length > 0) throw new ConflictException({ code: 'USE_PROPOSTA_ATENDIMENTO', message: 'Este pedido deve ser negociado e confirmado por proposta.' });
+          assertAgendamentoFuturo(atual.dataServico, atual.horarioServico);
           const disponibilidade = await manager.find(
             ProfissionalDisponibilidadeEntity,
             {
@@ -1374,6 +1406,7 @@ export class SolicitacoesService {
           );
         }
         const statusAnterior = atual.status;
+        const tipoEvento = typeof eventoTipo === 'function' ? eventoTipo(atual) : eventoTipo;
         atual.status = destino;
         if (statusAnterior === SolicitacaoStatus.AguardandoResposta &&
             destino !== SolicitacaoStatus.AguardandoResposta) {
@@ -1402,7 +1435,7 @@ export class SolicitacoesService {
           manager.create(SolicitacaoEventoEntity, {
             solicitacaoId: atual.id,
             atorId: user.id,
-            tipo: eventoTipo,
+            tipo: tipoEvento,
             statusAnterior,
             statusNovo: destino,
             motivo,
@@ -1594,6 +1627,7 @@ function solicitacaoResponse(
     servicoId: solicitacao.servicoId,
     nomeServico: solicitacao.nomeServico,
     servicoSnapshot: solicitacao.servicoSnapshot ?? null,
+    escopoServicoSnapshot: solicitacao.escopoServicoSnapshot ?? null,
     avaliado,
     status: solicitacao.status,
     prazoRespostaEm: solicitacao.prazoRespostaEm?.toISOString() ?? null,
@@ -1745,7 +1779,26 @@ function parseCriarSolicitacao(body: unknown): CriarSolicitacaoInput {
     dataServico: dateField(value.dataServico),
     horarioServico: timeField(value.horarioServico),
     opcoesIds: parseOpcoesIds(value.opcoesIds, false),
+    escopoEsperado: parseEscopoEsperado(value.escopoEsperado),
   };
+}
+
+function parseEscopoEsperado(value: unknown): EscopoServicoSnapshot | null {
+  if (value === undefined || value === null) return null;
+  const body = objectBody(value);
+  function lista(campo: string): string[] {
+    const items = body[campo];
+    if (!Array.isArray(items) || items.length > 10 ||
+      items.some((item) => typeof item !== 'string' || item.trim().length === 0 || item.length > 160)) {
+      throw badRequest('ESCOPO_INVALIDO');
+    }
+    return items as string[];
+  }
+  return { inclui: lista('inclui'), naoInclui: lista('naoInclui'), opcionais: lista('opcionais') };
+}
+
+function ofertaAlterada(): ConflictException {
+  return new ConflictException({ code: 'OFERTA_ALTERADA' });
 }
 
 function parseReagendamento(body: unknown) {
@@ -1798,6 +1851,9 @@ function parsePropostaAntesAceite(body: unknown) {
   const temData = value.dataServico !== undefined && value.dataServico !== null;
   const temHorario = value.horarioServico !== undefined && value.horarioServico !== null;
   if (temData !== temHorario) throw badRequest('PROPOSTA_HORARIO_INCOMPLETO');
+  if (value.escopo != null && typeof value.escopo !== 'string') {
+    throw badRequest('PROPOSTA_ESCOPO_INVALIDO');
+  }
   const escopo = typeof value.escopo === 'string' ? value.escopo.trim() : '';
   if (escopo !== '' && (escopo.length < 10 || escopo.length > 600)) {
     throw badRequest('PROPOSTA_ESCOPO_INVALIDO');
@@ -1818,7 +1874,9 @@ function parseRespostaPropostaAntesAceite(body: unknown): boolean {
 
 function prazoPedidoEncerrado(solicitacao: SolicitacaoEntity, agora: Date): boolean {
   const prazo = solicitacao.prazoInatividadeEm ?? solicitacao.prazoRespostaEm;
-  return prazo !== null && prazo <= agora;
+  return (prazo != null && prazo <= agora) ||
+    (solicitacao.prazoRespostaEm != null &&
+      horarioIniciado(solicitacao.dataServico, solicitacao.horarioServico, agora));
 }
 
 function propostaPreAceiteResponse(item: SolicitacaoPropostaEntity) {
@@ -1887,6 +1945,7 @@ function reagendamentoResponse(item: SolicitacaoReagendamentoEntity) {
     horarioServico: item.horarioProposto,
     motivo: item.motivo,
     status: item.status,
+    venceEm: item.venceEm?.toISOString() ?? null,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
     criadoEm: item.criadoEm.toISOString(),
   };
@@ -1899,6 +1958,7 @@ function orcamentoResponse(item: SolicitacaoOrcamentoEntity) {
     valor: numberOrNull(item.valor),
     descricao: item.descricao,
     status: item.status,
+    venceEm: item.venceEm?.toISOString() ?? null,
     respondidoEm: item.respondidoEm?.toISOString() ?? null,
     criadoEm: item.criadoEm.toISOString(),
   };

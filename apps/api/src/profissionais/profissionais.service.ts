@@ -39,8 +39,11 @@ interface ProfissionalServicoInput {
   readonly servicoCatalogoId?: number | null;
   readonly precoInicial?: number | null;
   readonly ativo?: boolean;
-  readonly duracaoMinutos: number;
+  readonly duracaoMinutos?: number;
   readonly intervaloMinutos: number;
+  readonly inclui?: string[];
+  readonly naoInclui?: string[];
+  readonly opcionais?: string[];
 }
 
 interface UpsertPerfilInput {
@@ -631,8 +634,11 @@ export class ProfissionaisService {
       }
       oferta.servicoCatalogoId = catalogoId;
       oferta.precoInicial = decimalOrNull(input.precoInicial);
-      oferta.duracaoMinutos = input.duracaoMinutos;
+      oferta.duracaoMinutos = input.duracaoMinutos ?? oferta.duracaoMinutos ?? duracaoLegadaMinutos;
       oferta.intervaloMinutos = input.intervaloMinutos;
+      if (input.inclui !== undefined) oferta.inclui = input.inclui;
+      if (input.naoInclui !== undefined) oferta.naoInclui = input.naoInclui;
+      if (input.opcionais !== undefined) oferta.opcionais = input.opcionais;
       oferta.ativo = input.ativo ?? true;
       const saved = await manager.save(ProfissionalServicoEntity, oferta);
       usados.add(saved.id);
@@ -898,6 +904,9 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
     precoInicial: numberOrNull(servico.precoInicial),
     duracaoMinutos: servico.duracaoMinutos,
     intervaloMinutos: servico.intervaloMinutos,
+    inclui: servico.inclui ?? [],
+    naoInclui: servico.naoInclui ?? [],
+    opcionais: servico.opcionais ?? [],
     ativo: servico.ativo,
     disponivelNoCatalogo: servico.servicoCatalogoId == null ? null :
       servico.servicoCatalogo?.ativo === true && servico.categoria?.ativo === true,
@@ -1029,19 +1038,40 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       servicoCatalogoId: optionalId(body.servicoCatalogoId),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
-      duracaoMinutos: durationField(body.duracaoMinutos, 120),
-      intervaloMinutos: 0,
+      duracaoMinutos: durationField(body.duracaoMinutos),
+      intervaloMinutos: noAdditionalInterval(body.intervaloMinutos),
+      inclui: itensEscopo(body.inclui),
+      naoInclui: itensEscopo(body.naoInclui),
+      opcionais: itensEscopo(body.opcionais),
     };
   });
 }
 
-function durationField(value: unknown, fallback: number): number {
-  if (value === undefined || value === null || value === '') return fallback;
+function itensEscopo(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > 10) throw badRequest('ESCOPO_INVALIDO');
+  return value.map((item) => {
+    if (typeof item !== 'string' || item.trim().length === 0 || item.trim().length > 160) {
+      throw badRequest('ESCOPO_INVALIDO');
+    }
+    return item.trim();
+  });
+}
+
+function durationField(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
   const parsed = typeof value === 'string' ? Number(value) : value;
-  if (!Number.isInteger(parsed) || Number(parsed) < 1 || Number(parsed) > 1440) {
+  if (!Number.isInteger(parsed) || Number(parsed) < 1 || Number(parsed) > 1_440) {
     throw badRequest('DURACAO_INVALIDA');
   }
   return Number(parsed);
+}
+
+function noAdditionalInterval(value: unknown): 0 {
+  if (value !== undefined && value !== null && value !== 0) {
+    throw badRequest('INTERVALO_INDISPONIVEL');
+  }
+  return 0;
 }
 
 function optionalBoolean(value: unknown): boolean | undefined {

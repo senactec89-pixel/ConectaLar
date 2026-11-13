@@ -299,7 +299,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
             'servicoCatalogoId': ?servico['servicoCatalogoId'],
             'precoInicial': ?preco,
             'duracaoMinutos': servico['duracaoMinutos'] ?? 120,
-            'intervaloMinutos': servico['intervaloMinutos'] ?? 0,
+            'intervaloMinutos': 0,
             'ativo': servico['ativo'] != false,
           };
         })

@@ -51,6 +51,15 @@ export class ProfissionalServicoEntity {
   @Column({ type: 'varchar', length: 90 })
   nome!: string;
 
+  @Column({ type: 'json', nullable: true })
+  inclui!: string[] | null;
+
+  @Column({ name: 'nao_inclui', type: 'json', nullable: true })
+  naoInclui!: string[] | null;
+
+  @Column({ type: 'json', nullable: true })
+  opcionais!: string[] | null;
+
   @Column({
     name: 'preco_inicial',
     type: 'decimal',

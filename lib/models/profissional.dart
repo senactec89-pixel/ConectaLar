@@ -76,6 +76,9 @@ class OfertaProfissional {
     this.precoInicial,
     this.duracaoMinutos = 120,
     this.intervaloMinutos = 0,
+    this.inclui = const [],
+    this.naoInclui = const [],
+    this.opcionais = const [],
   });
   final int id;
   final String nome;
@@ -84,4 +87,7 @@ class OfertaProfissional {
   final double? precoInicial;
   final int duracaoMinutos;
   final int intervaloMinutos;
+  final List<String> inclui;
+  final List<String> naoInclui;
+  final List<String> opcionais;
 }

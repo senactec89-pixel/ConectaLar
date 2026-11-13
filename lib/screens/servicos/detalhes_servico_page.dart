@@ -13,6 +13,7 @@ import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
 import '../../widgets/async_state_view.dart';
+import '../../widgets/escopo_servico_view.dart';
 
 class DetalhesServicoPage extends StatefulWidget {
   const DetalhesServicoPage({super.key});
@@ -215,6 +216,28 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       }
     } catch (_) {
       // A mensagem original permanece quando não for possível recarregar.
+    }
+  }
+
+  Future<void> _atualizarPedido() async {
+    if (_enviando) return;
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos.obter(
+        _atendimento.solicitacao.id,
+      );
+      final pedido = response['solicitacao'];
+      if (pedido is! Map<String, dynamic>) throw const FormatException();
+      if (mounted) {
+        setState(() => _atendimento = atendimentoResumoFromApi(pedido));
+        _notificar('Pedido atualizado.');
+      }
+    } catch (_) {
+      if (mounted) {
+        _notificar('Não foi possível atualizar o pedido. Tente novamente.');
+      }
+    } finally {
+      if (mounted) setState(() => _enviando = false);
     }
   }
 
@@ -433,6 +456,246 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
       'Contestação registrada.',
       'Não foi possível registrar a contestação.',
     );
+  }
+
+  Future<void> _proporAntesAceite() async {
+    if (_enviando || AppServices.instance.emDemonstracao) return;
+    var alterarHorario = false;
+    var data = _atendimento.solicitacao.dataServico;
+    final partes = _atendimento.solicitacao.horarioServico.split(':');
+    var horario = TimeOfDay(
+      hour: int.tryParse(partes.first) ?? 9,
+      minute: partes.length > 1 ? int.tryParse(partes[1]) ?? 0 : 0,
+    );
+    var escopo = '';
+    String? erro;
+    var enviando = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => PopScope(
+          canPop: !enviando,
+          child: AlertDialog(
+            scrollable: true,
+            title: const Text('Propor antes do aceite'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'O cliente terá 48 horas para responder. O atendimento só '
+                  'será agendado se ele aceitar e o horário estiver disponível.',
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Sugerir outro horário'),
+                  value: alterarHorario,
+                  onChanged: enviando
+                      ? null
+                      : (value) => setDialogState(() => alterarHorario = value),
+                ),
+                if (alterarHorario) ...[
+                  OutlinedButton.icon(
+                    onPressed: enviando
+                        ? null
+                        : () async {
+                            final hoje = DateTime.now();
+                            final ultimo = hoje.add(const Duration(days: 730));
+                            final inicial = data.isBefore(hoje)
+                                ? hoje
+                                : data.isAfter(ultimo)
+                                ? ultimo
+                                : data;
+                            final escolhida = await showDatePicker(
+                              context: dialogContext,
+                              initialDate: inicial,
+                              firstDate: hoje,
+                              lastDate: ultimo,
+                            );
+                            if (escolhida != null && dialogContext.mounted) {
+                              setDialogState(() => data = escolhida);
+                            }
+                          },
+                    icon: const Icon(Icons.calendar_month_outlined),
+                    label: Text(_dataBr(data)),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: enviando
+                        ? null
+                        : () async {
+                            final escolhido = await showTimePicker(
+                              context: dialogContext,
+                              initialTime: horario,
+                            );
+                            if (escolhido != null && dialogContext.mounted) {
+                              setDialogState(() => horario = escolhido);
+                            }
+                          },
+                    icon: const Icon(Icons.schedule_outlined),
+                    label: Text(_hora(horario)),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                  key: const ValueKey('proposta-pre-aceite-escopo'),
+                  onChanged: (value) => setDialogState(() {
+                    escopo = value;
+                    erro = null;
+                  }),
+                  minLines: 2,
+                  maxLines: 5,
+                  maxLength: 600,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição completa proposta (opcional)',
+                    helperText: 'Se aceita, substituirá a descrição do pedido.',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                if (erro != null)
+                  Text(erro!, style: const TextStyle(color: AppColors.erro)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: enviando ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Voltar'),
+              ),
+              FilledButton(
+                key: const ValueKey('proposta-pre-aceite-enviar'),
+                onPressed: enviando
+                    ? null
+                    : () async {
+                        final texto = escopo.trim();
+                        if (!alterarHorario && texto.isEmpty) {
+                          setDialogState(
+                            () => erro =
+                                'Sugira outro horário ou descreva o novo escopo.',
+                          );
+                          return;
+                        }
+                        if (texto.isNotEmpty && texto.length < 10) {
+                          setDialogState(
+                            () => erro =
+                                'Descreva o escopo em pelo menos 10 caracteres.',
+                          );
+                          return;
+                        }
+                        setDialogState(() {
+                          enviando = true;
+                          erro = null;
+                        });
+                        setState(() => _enviando = true);
+                        try {
+                          final response = await AppServices.instance.servicos
+                              .proporAntesAceite(
+                                _atendimento.solicitacao.id,
+                                dataServico: alterarHorario
+                                    ? _dataApi(data)
+                                    : null,
+                                horarioServico: alterarHorario
+                                    ? _hora(horario)
+                                    : null,
+                                escopo: texto.isEmpty ? null : texto,
+                              );
+                          final pedido = response['solicitacao'];
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (pedido is! Map<String, dynamic>) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível confirmar o envio. Tente novamente.',
+                            );
+                            return;
+                          }
+                          setState(
+                            () =>
+                                _atendimento = atendimentoResumoFromApi(pedido),
+                          );
+                          Navigator.pop(dialogContext);
+                          _notificar('Proposta enviada ao cliente.');
+                        } on ApiException catch (errorApi) {
+                          if (dialogContext.mounted) {
+                            setDialogState(() => erro = errorApi.message);
+                          }
+                        } catch (_) {
+                          if (dialogContext.mounted) {
+                            setDialogState(
+                              () => erro =
+                                  'Não foi possível enviar a proposta. Tente novamente.',
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => _enviando = false);
+                          if (dialogContext.mounted) {
+                            setDialogState(() => enviando = false);
+                          }
+                        }
+                      },
+                child: const Text('Enviar proposta'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _responderPropostaAntesAceite(bool aceitar) async {
+    if (_enviando || AppServices.instance.emDemonstracao) return;
+    final proposta = _atendimento.solicitacao.propostaPreAceite;
+    final id = intValue(proposta?['id']);
+    if (id <= 0) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(aceitar ? 'Aceitar proposta?' : 'Recusar proposta?'),
+        content: Text(
+          aceitar
+              ? 'Ao aceitar, o atendimento será agendado se o horário continuar disponível e o profissional estiver habilitado.'
+              : 'O pedido continuará aberto para uma nova proposta ou resposta do profissional.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirmar-resposta-proposta-pre-aceite'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(aceitar ? 'Aceitar e agendar' : 'Recusar proposta'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    setState(() => _enviando = true);
+    try {
+      final response = await AppServices.instance.servicos
+          .responderPropostaAntesAceite(
+            _atendimento.solicitacao.id,
+            id,
+            aceitar: aceitar,
+          );
+      final pedido = response['solicitacao'];
+      if (mounted && pedido is Map<String, dynamic>) {
+        setState(() => _atendimento = atendimentoResumoFromApi(pedido));
+        _notificar(
+          aceitar
+              ? 'Proposta aceita e atendimento agendado.'
+              : 'Proposta recusada. O pedido continua aberto.',
+        );
+      } else if (mounted) {
+        _notificar('Não foi possível confirmar a resposta. Atualize o pedido.');
+      }
+    } on ApiException catch (error) {
+      if (error.statusCode == 409) await _atualizarAposConflito();
+      if (mounted) _notificar(error.message);
+    } catch (_) {
+      if (mounted) _notificar('Não foi possível responder à proposta.');
+    } finally {
+      if (mounted) setState(() => _enviando = false);
+    }
   }
 
   Future<void> _proporReagendamento() async {
@@ -946,6 +1209,19 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
     final dataFormatada =
         '${data.day.toString().padLeft(2, '0')}/'
         '${data.month.toString().padLeft(2, '0')}/${data.year}';
+    final exibirProposta =
+        !AppServices.instance.emDemonstracao &&
+        (solicitacao.status == StatusSolicitacao.aguardandoResposta ||
+            solicitacao.propostasPreAceite.isNotEmpty);
+    Widget propostaCard() => _PropostaAntesAceiteCard(
+      solicitacao: solicitacao,
+      cliente: _clienteParticipante,
+      profissional: _profissionalParticipante,
+      ocupada: _enviando,
+      onPropor: _proporAntesAceite,
+      onResponder: _responderPropostaAntesAceite,
+      onAtualizar: _atualizarPedido,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -999,6 +1275,19 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
                   label: 'Descrição',
                   value: solicitacao.descricao,
                 ),
+                if (solicitacao.escopoServicoSnapshot case final escopo?)
+                  EscopoServicoView(
+                    titulo: 'Oferta registrada ao criar o pedido',
+                    inclui: (escopo['inclui'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                    naoInclui: (escopo['naoInclui'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                    opcionais: (escopo['opcionais'] as List? ?? const [])
+                        .whereType<String>()
+                        .toList(),
+                  ),
                 _DetalheLinha(
                   icon: Icons.payments_outlined,
                   label: 'Preço inicial',
@@ -1019,6 +1308,10 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
           ),
         ),
         const SizedBox(height: 16),
+        if (exibirProposta && !_profissionalParticipante) ...[
+          propostaCard(),
+          const SizedBox(height: 16),
+        ],
         if (solicitacao.status == StatusSolicitacao.aceitaAgendada ||
             solicitacao.orcamentos.isNotEmpty ||
             solicitacao.precoFinal != null) ...[
@@ -1171,6 +1464,10 @@ class _DetalhesSolicitacaoState extends State<_DetalhesSolicitacao> {
               );
             },
           ),
+        ],
+        if (exibirProposta && _profissionalParticipante) ...[
+          const SizedBox(height: 16),
+          propostaCard(),
         ],
         if (solicitacao.eventos.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -1329,6 +1626,7 @@ class _OrcamentoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = '${orcamento?['status'] ?? ''}';
     final pendente = status == 'pendente';
+    final venceEm = DateTime.tryParse('${orcamento?['venceEm'] ?? ''}');
     final valor = double.tryParse('${orcamento?['valor'] ?? ''}');
     final descricao = '${orcamento?['descricao'] ?? ''}'.trim();
     final anteriores = historico
@@ -1395,9 +1693,17 @@ class _OrcamentoCard extends StatelessWidget {
                     ? 'Valor aceito pelo cliente e registrado no atendimento.'
                     : status == 'recusado'
                     ? 'O cliente recusou esta proposta.'
+                    : status == 'expirado'
+                    ? 'O prazo terminou. O valor anterior continua válido.'
                     : 'Esta proposta foi substituída por uma versão mais recente.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
+              if (pendente && venceEm != null) ...[
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  'Responda até ${_dataHoraBr(venceEm.toIso8601String())}, antes do início do atendimento.',
+                ),
+              ],
             ],
             if (precoFinal != null && status != 'aceito') ...[
               const Divider(height: AppSpace.xl),
@@ -1487,6 +1793,7 @@ class _OrcamentoStatus extends StatelessWidget {
     final (rotulo, icon, cor) = switch (status) {
       'aceito' => ('Aceito', Icons.check_circle_outline, AppColors.verdeEscuro),
       'recusado' => ('Recusado', Icons.cancel_outlined, AppColors.erro),
+      'expirado' => ('Expirado', Icons.schedule_outlined, AppColors.textoSuave),
       'substituido' => (
         'Substituído',
         Icons.history_outlined,
@@ -1527,6 +1834,7 @@ class _ReagendamentoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pendente = proposta?['status'] == 'pendente';
+    final venceEm = DateTime.tryParse('${proposta?['venceEm'] ?? ''}');
     final anteriores = historico
         .where((item) => item['id'] != proposta?['id'])
         .toList(growable: false);
@@ -1576,6 +1884,12 @@ class _ReagendamentoCard extends StatelessWidget {
                       ? 'Proposta enviada por você. Aguardando resposta.'
                       : 'Proposta recebida. Confirme, recuse ou sugira outra data.',
                   style: const TextStyle(color: AppColors.textoSuave),
+                ),
+              ],
+              if (pendente && venceEm != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Responda até ${_dataHoraBr(venceEm.toIso8601String())}; alterações exigem que o atendimento ainda não tenha iniciado.',
                 ),
               ],
             ] else ...[
@@ -1712,6 +2026,7 @@ String _statusOrcamento(Object? value) => switch (value) {
   'aceito' => 'aceito',
   'recusado' => 'recusado',
   'substituido' => 'substituído',
+  'expirado' => 'expirado',
   _ => 'situação indisponível',
 };
 
@@ -1726,6 +2041,7 @@ String _statusReagendamento(Object? value) => switch (value) {
   'aceito' => 'confirmado',
   'recusado' => 'recusado',
   'cancelado' => 'substituído',
+  'expirado' => 'expirado',
   _ => 'indisponível',
 };
 
@@ -1855,6 +2171,7 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'solicitacao_aceita' => 'Solicitação aceita',
   'solicitacao_recusada' => 'Solicitação recusada',
   'solicitacao_cancelada' => 'Solicitação cancelada',
+  'cancelamento_cliente_excepcional' => 'Cancelamento excepcional do cliente',
   'servico_marcado_realizado' => 'Profissional marcou o serviço como realizado',
   'conclusao_confirmada' => 'Cliente confirmou a conclusão',
   'conclusao_contestada' => 'Cliente contestou a conclusão',
@@ -1866,9 +2183,132 @@ String _eventoTitulo(String tipo) => switch (tipo) {
   'orcamento_proposto' => 'Orçamento final enviado',
   'orcamento_aceito' => 'Cliente aceitou o orçamento',
   'orcamento_recusado' => 'Cliente recusou o orçamento',
+  'orcamento_expirado' => 'Orçamento expirou sem resposta',
+  'reagendamento_expirado' => 'Reagendamento expirou sem resposta',
+  'proposta_pre_aceite_criada' => 'Profissional enviou uma proposta',
+  'proposta_pre_aceite_aceita' => 'Cliente aceitou a proposta',
+  'proposta_pre_aceite_recusada' => 'Cliente recusou a proposta',
+  'proposta_pre_aceite_expirada' => 'Proposta expirou sem resposta',
+  'pedido_expirado_sem_resposta' => 'Pedido encerrado sem resposta',
+  'pedido_expirado_horario' => 'Pedido encerrado ao chegar o horário',
+  'pedido_expirado_inatividade' => 'Pedido encerrado por inatividade',
   'estado_importado' => 'Situação anterior registrada',
   _ => 'Atendimento atualizado',
 };
+
+class _PropostaAntesAceiteCard extends StatelessWidget {
+  const _PropostaAntesAceiteCard({
+    required this.solicitacao,
+    required this.cliente,
+    required this.profissional,
+    required this.ocupada,
+    required this.onPropor,
+    required this.onResponder,
+    required this.onAtualizar,
+  });
+
+  final Solicitacao solicitacao;
+  final bool cliente;
+  final bool profissional;
+  final bool ocupada;
+  final VoidCallback onPropor;
+  final void Function(bool aceitar) onResponder;
+  final VoidCallback onAtualizar;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendente = solicitacao.status == StatusSolicitacao.aguardandoResposta;
+    final proposta = solicitacao.propostaPreAceite;
+    final prazo = solicitacao.prazoInatividadeEm ?? solicitacao.prazoRespostaEm;
+    final venceEm = DateTime.tryParse('${proposta?['venceEm'] ?? ''}');
+    final propostaAtiva = pendente && proposta?['status'] == 'pendente';
+    final status = switch ('${proposta?['status']}') {
+      'pendente' => 'Aguardando resposta do cliente',
+      'aceita' => 'Proposta aceita',
+      'recusada' => 'Proposta recusada',
+      'expirada' => 'Proposta expirada',
+      'substituida' => 'Proposta substituída',
+      _ => '',
+    };
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Prazo e proposta',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (pendente && prazo != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                solicitacao.prazoInatividadeEm == null
+                    ? 'O profissional pode responder até ${_dataHoraBr(prazo.toIso8601String())} ou até o horário solicitado, se for antes.'
+                    : 'Negociação aberta até ${_dataHoraBr(prazo.toIso8601String())}, se não houver nova ação formal.',
+              ),
+            ],
+            if (proposta != null) ...[
+              const SizedBox(height: 12),
+              Text(status, style: const TextStyle(fontWeight: FontWeight.w700)),
+              if (proposta['dataServico'] != null &&
+                  proposta['horarioServico'] != null)
+                Text(
+                  'Horário proposto: ${_dataApiBr(proposta['dataServico'])} '
+                  'às ${proposta['horarioServico']}',
+                ),
+              if ('${proposta['escopo'] ?? ''}'.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text('Escopo proposto: ${proposta['escopo']}'),
+              ],
+              if (propostaAtiva && venceEm != null)
+                Text('Responda até ${_dataHoraBr(venceEm.toIso8601String())}.'),
+              if (propostaAtiva) ...[
+                TextButton.icon(
+                  onPressed: ocupada ? null : onAtualizar,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Atualizar pedido'),
+                ),
+              ],
+            ],
+            if (pendente && (profissional || (cliente && propostaAtiva))) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (profissional)
+                    OutlinedButton.icon(
+                      key: const ValueKey('propor-antes-aceite'),
+                      onPressed: ocupada ? null : onPropor,
+                      icon: const Icon(Icons.edit_calendar_outlined),
+                      label: Text(
+                        propostaAtiva
+                            ? 'Substituir proposta'
+                            : 'Enviar proposta',
+                      ),
+                    ),
+                  if (cliente && propostaAtiva) ...[
+                    FilledButton(
+                      key: const ValueKey('aceitar-proposta-pre-aceite'),
+                      onPressed: ocupada ? null : () => onResponder(true),
+                      child: const Text('Aceitar proposta'),
+                    ),
+                    OutlinedButton(
+                      key: const ValueKey('recusar-proposta-pre-aceite'),
+                      onPressed: ocupada ? null : () => onResponder(false),
+                      child: const Text('Recusar'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _AcoesAtendimento extends StatelessWidget {
   const _AcoesAtendimento({

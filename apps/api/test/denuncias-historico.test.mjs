@@ -108,9 +108,7 @@ test('decisao administrativa notifica denunciante sem desfazer moderacao', async
     solicitacaoId: 10,
     denuncianteId: 30,
     denunciadoId: 20,
-    motivoDenuncia: 'Conduta inadequada',
     status: { antes: 'pendente', depois: 'resolvida' },
-    decisao: 'Medidas administrativas registradas.',
   });
   assert.equal(notificacoes.length, 1);
   assert.equal(notificacoes[0].usuarioId, 30);

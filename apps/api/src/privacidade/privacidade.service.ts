@@ -32,6 +32,11 @@ import { ProfissionalPerfilEntity } from '../database/entities/profissional-perf
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { SolicitacaoEntity } from '../database/entities/solicitacao.entity.js';
 import { SolicitacaoOrcamentoEntity } from '../database/entities/solicitacao-orcamento.entity.js';
+import { SolicitacaoEventoEntity } from '../database/entities/solicitacao-evento.entity.js';
+import {
+  SolicitacaoPropostaEntity,
+  SolicitacaoPropostaStatus,
+} from '../database/entities/solicitacao-proposta.entity.js';
 import { TermoAceiteEntity } from '../database/entities/termo-aceite.entity.js';
 import { UsuarioEmailVerificacaoEntity } from '../database/entities/usuario-email-verificacao.entity.js';
 import { UsuarioSenhaResetEntity } from '../database/entities/usuario-senha-reset.entity.js';
@@ -151,6 +156,40 @@ export class PrivacidadeService {
         });
       }
 
+      // Propostas podem conter dados livres do titular ou da outra parte.
+      // Limpe também o texto copiado ao pedido e os snapshots no histórico.
+      const pedidosCliente = await manager.find(SolicitacaoEntity, {
+        where: { clienteId: usuario.id },
+        select: { id: true },
+      });
+      const propostasAutor = await manager.find(SolicitacaoPropostaEntity, {
+        where: { propostoPorId: usuario.id },
+      });
+      const pedidosClienteIds = pedidosCliente.map((item) => item.id);
+      const pedidosEscopoAceitoIds = propostasAutor
+        .filter((item) => item.status === SolicitacaoPropostaStatus.Aceita && item.escopoProposto !== null)
+        .map((item) => item.solicitacaoId);
+      const pedidosHistoricoIds = [...new Set([
+        ...pedidosClienteIds,
+        ...propostasAutor.map((item) => item.solicitacaoId),
+      ])];
+      if (pedidosClienteIds.length > 0) {
+        await manager.update(SolicitacaoPropostaEntity,
+          { solicitacaoId: In(pedidosClienteIds) }, { escopoProposto: null });
+      }
+      await manager.update(SolicitacaoPropostaEntity,
+        { propostoPorId: usuario.id }, { escopoProposto: null });
+      if (pedidosEscopoAceitoIds.length > 0) {
+        await manager.update(SolicitacaoEntity,
+          { id: In(pedidosEscopoAceitoIds) },
+          { descricao: 'Conteudo removido pelo titular.' });
+      }
+      if (pedidosHistoricoIds.length > 0) {
+        await manager.update(SolicitacaoEventoEntity,
+          { solicitacaoId: In(pedidosHistoricoIds), tipo: 'proposta_pre_aceite_criada' },
+          { motivo: null });
+      }
+
       const registro = manager.create(PrivacidadeSolicitacaoEntity, {
         usuarioId: usuario.id,
         tipo: PrivacidadeSolicitacaoTipo.Exclusao,
@@ -202,9 +241,14 @@ export class PrivacidadeService {
             nome: 'Servico removido',
             precoInicial: null,
             categoriaId: null,
+            inclui: null,
+            naoInclui: null,
+            opcionais: null,
             ativo: false,
           },
         );
+        await manager.update(SolicitacaoEntity,
+          { profissionalId: profissional.id }, { escopoServicoSnapshot: null });
         await manager.update(
           ProfissionalPerfilEntity,
           { id: profissional.id },
@@ -431,7 +475,7 @@ export class PrivacidadeService {
       .getMany();
     const solicitacaoIds = solicitacoes.map((item) => item.id);
 
-    const [mensagens, avaliacoes, fotosAvaliacoes, denuncias, orcamentos, historicoPrivacidade] =
+    const [mensagens, avaliacoes, fotosAvaliacoes, denuncias, orcamentos, propostas, historicoPrivacidade] =
       await Promise.all([
         solicitacaoIds.length === 0
           ? []
@@ -469,6 +513,12 @@ export class PrivacidadeService {
               where: { solicitacaoId: In(solicitacaoIds) },
               order: { criadoEm: 'ASC' },
             }),
+        solicitacaoIds.length === 0
+          ? []
+          : manager.find(SolicitacaoPropostaEntity, {
+              where: { solicitacaoId: In(solicitacaoIds) },
+              order: { criadoEm: 'ASC' },
+            }),
         manager.find(PrivacidadeSolicitacaoEntity, {
           where: { usuarioId: usuario.id },
           order: { criadoEm: 'DESC' },
@@ -503,7 +553,10 @@ export class PrivacidadeService {
           ? null
           : {
               ...semRelacoes(profissional),
-              servicos: servicos.map(semRelacoes),
+              servicos: servicos.map((servico) => ({
+                ...semRelacoes(servico), inclui: servico.inclui ?? [],
+                naoInclui: servico.naoInclui ?? [], opcionais: servico.opcionais ?? [],
+              })),
               disponibilidades: disponibilidades.map(semRelacoes),
               documentos: await Promise.all(
                 documentos.map((documento) =>
@@ -513,12 +566,17 @@ export class PrivacidadeService {
             },
       solicitacoes: solicitacoes.map((item) => ({
         ...semRelacoes(item),
+        escopoServicoSnapshot: item.escopoServicoSnapshot ?? null,
         papelDoTitular:
           item.clienteId === usuario.id ? 'cliente' : 'profissional',
         enderecoId: item.clienteId === usuario.id ? item.enderecoId : null,
       })),
       mensagensEnviadas: mensagens.map(semRelacoes),
       orcamentosDeAtendimentos: orcamentos.map(semRelacoes),
+      propostasDeAtendimentos: propostas.map((item) => ({
+        ...semRelacoes(item),
+        propostoPorId: item.propostoPorId === usuario.id ? usuario.id : null,
+      })),
       avaliacoes: avaliacoes.map((item) => ({
         ...semRelacoes(item),
         relacao:
