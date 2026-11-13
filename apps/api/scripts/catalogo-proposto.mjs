@@ -10,17 +10,22 @@ export async function importarCatalogoProposto(connection) {
     const ids = new Map(rows.map((row) => [row.nome, row.id]));
     if (categorias.some((nome) => !ids.has(nome))) throw new Error('Categorias do catalogo proposto nao encontradas.');
     let criados = 0;
+    let enriquecidos = 0;
     for (const item of itens) {
       const [result] = await connection.execute(
-        `INSERT INTO servicos_catalogo (categoria_id, nome, descricao, ativo)
-         SELECT ?, ?, ?, 0 WHERE NOT EXISTS
-           (SELECT 1 FROM servicos_catalogo WHERE categoria_id = ? AND nome = ?)`,
-        [ids.get(item.categoria), item.nome, item.descricao ?? null, ids.get(item.categoria), item.nome],
+        `INSERT INTO servicos_catalogo (categoria_id, nome, descricao, inclusoes, exclusoes, ativo)
+           VALUES (?, ?, ?, ?, ?, 0)
+         ON DUPLICATE KEY UPDATE
+           descricao = IF(descricao IS NULL OR TRIM(descricao) = '', VALUES(descricao), descricao),
+           inclusoes = IF(inclusoes IS NULL OR TRIM(inclusoes) = '', VALUES(inclusoes), inclusoes),
+           exclusoes = IF(exclusoes IS NULL OR TRIM(exclusoes) = '', VALUES(exclusoes), exclusoes)`,
+        [ids.get(item.categoria), item.nome, item.descricao, item.inclusoes, item.exclusoes],
       );
-      criados += result.affectedRows;
+      if (result.affectedRows === 1) criados += 1;
+      else if (result.affectedRows > 1) enriquecidos += 1;
     }
     await connection.commit();
-    return { propostos: itens.length, criados };
+    return { propostos: itens.length, criados, enriquecidos };
   } catch (error) {
     await connection.rollback();
     throw error;

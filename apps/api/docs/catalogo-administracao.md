@@ -3,10 +3,25 @@
 Estas rotas sao implementadas na API e exigem sessao de administrador, MFA e
 termos atuais, como as demais rotas administrativas. O catalogo inicia vazio.
 Criar ou ativar um servico nao habilita profissionais nem libera contratacoes.
-O arquivo `scripts/catalogo-proposto.json` reune 37 servicos propostos para
-revisao. `importarCatalogoProposto` e uma carga explicita para teste/demo, nao
-executada por migrations ou inicializacao da API; novos itens entram pausados,
-sem alterar nomes, textos ou estados ja existentes.
+O arquivo `scripts/catalogo-proposto.json` reune 37 servicos em Limpeza,
+Pintura, Manutencao, Eletrica e Hidraulica, com descricao, inclusoes e exclusoes
+propostas. As categorias Ar-condicionado, Reformas e Outros continuam sem
+servicos concretos ate que sejam delimitadas e revisadas.
+
+`importarCatalogoProposto` e uma carga explicita de homologacao, nao executada
+por migrations ou inicializacao da API. Itens novos entram pausados. Em itens
+existentes, a carga preenche somente campos de texto vazios e preserva textos
+nao vazios e o estado ativo/inativo. A operacao e idempotente. Os textos sao
+propostas de escopo, nao aprovacao tecnica ou liberacao para contratacao.
+
+Depois de publicar a nova imagem da API na homologacao, a carga exige confirmacao
+explicita e so roda com `CONECTALAR_STAGE=homologacao` e
+`DB_NAME=conectalar_homologacao`:
+
+```sh
+docker compose run --rm -e APLICAR_CATALOGO_PROPOSTO=SIM api \
+  node scripts/aplicar-catalogo-proposto-homologacao.mjs
+```
 
 ## Categorias existentes
 

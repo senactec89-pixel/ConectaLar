@@ -1,39 +1,261 @@
 [
-  {"categoria":"Limpeza","nome":"Limpeza residencial padrao","descricao":"Limpeza geral de pisos, superficies e moveis acessiveis, incluindo cozinha e banheiro."},
-  {"categoria":"Limpeza","nome":"Limpeza pesada residencial","descricao":"Remocao de sujeira acumulada; escopo e cuidados pendentes de revisao."},
-  {"categoria":"Limpeza","nome":"Limpeza pos-mudanca","descricao":"Limpeza de imovel desocupado antes ou depois da mudanca."},
-  {"categoria":"Limpeza","nome":"Limpeza pos-obra leve","descricao":"Remocao de poeira e residuos leves; sem entulho ou materiais perigosos."},
-  {"categoria":"Limpeza","nome":"Limpeza de vidros internos","descricao":"Limpeza de vidros acessiveis sem altura ou risco de queda."},
-  {"categoria":"Limpeza","nome":"Limpeza de areas externas terreas","descricao":"Limpeza de varandas e quintais acessiveis no nivel do solo."},
-  {"categoria":"Pintura","nome":"Pintura de paredes internas"},
-  {"categoria":"Pintura","nome":"Pintura de tetos"},
-  {"categoria":"Pintura","nome":"Pintura de portas"},
-  {"categoria":"Pintura","nome":"Pintura de janelas e esquadrias"},
-  {"categoria":"Pintura","nome":"Pintura de grades"},
-  {"categoria":"Pintura","nome":"Retoques de pintura"},
-  {"categoria":"Pintura","nome":"Aplicacao de massa corrida"},
-  {"categoria":"Pintura","nome":"Pintura externa terrea"},
-  {"categoria":"Manutencao","nome":"Montagem de guarda-roupa"},
-  {"categoria":"Manutencao","nome":"Montagem de cama"},
-  {"categoria":"Manutencao","nome":"Montagem de beliche"},
-  {"categoria":"Manutencao","nome":"Montagem de comoda"},
-  {"categoria":"Manutencao","nome":"Montagem de mesa"},
-  {"categoria":"Manutencao","nome":"Montagem de cadeira"},
-  {"categoria":"Manutencao","nome":"Montagem de estante"},
-  {"categoria":"Manutencao","nome":"Montagem de rack e painel"},
-  {"categoria":"Manutencao","nome":"Montagem de armario de cozinha"},
-  {"categoria":"Manutencao","nome":"Desmontagem e remontagem de moveis"},
-  {"categoria":"Eletrica","nome":"Troca de tomada"},
-  {"categoria":"Eletrica","nome":"Troca de interruptor"},
-  {"categoria":"Eletrica","nome":"Instalacao ou troca de luminaria"},
-  {"categoria":"Eletrica","nome":"Troca de chuveiro eletrico"},
-  {"categoria":"Eletrica","nome":"Diagnostico de falha eletrica"},
-  {"categoria":"Eletrica","nome":"Troca de disjuntor"},
-  {"categoria":"Eletrica","nome":"Instalacao de ventilador de teto"},
-  {"categoria":"Hidraulica","nome":"Troca de torneira"},
-  {"categoria":"Hidraulica","nome":"Reparo de vazamento aparente"},
-  {"categoria":"Hidraulica","nome":"Troca de sifao"},
-  {"categoria":"Hidraulica","nome":"Reparo de descarga"},
-  {"categoria":"Hidraulica","nome":"Desentupimento simples"},
-  {"categoria":"Hidraulica","nome":"Instalacao de filtro de agua"}
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza residencial padrao",
+    "descricao": "Limpeza comum de ambientes internos selecionados pelo cliente, conforme o resumo do pedido.",
+    "inclusoes": "Varrer e passar pano em pisos acessiveis; tirar poeira de superficies acessiveis; lavar a louca existente; limpar banheiro; arrumacao superficial dos quartos. Cozinha e banheiro podem ser selecionados no pedido.",
+    "exclusoes": "Limpeza pesada ou pos-obra; mover moveis pesados; janelas em altura; mofo extenso; pragas; residuos biologicos ou perigosos; cuidado de pessoas; tarefas nao descritas no resumo."
+  },
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza pesada residencial",
+    "descricao": "Proposta para limpeza de sujeira comum acumulada, com tarefas e limites confirmados antes do atendimento; permanece pausada ate revisao do escopo.",
+    "inclusoes": "Somente superficies lavaveis e ambientes acessiveis previamente descritos e aceitos no resumo, sem exigir altura ou equipamento especializado.",
+    "exclusoes": "Residuos desconhecidos, biologicos ou perigosos; pragas; mofo extenso; pos-obra; produtos restritos; mover cargas ou moveis pesados; altura; qualquer tarefa nao avaliada previamente."
+  },
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza pos-mudanca",
+    "descricao": "Limpeza comum de imovel vazio antes ou depois de uma mudanca, limitada aos ambientes e superficies acessiveis combinados.",
+    "inclusoes": "Pisos e superficies fixas acessiveis; armarios pelo lado externo; loucas sanitarias e cozinha conforme selecao no pedido.",
+    "exclusoes": "Transporte de caixas ou moveis; limpeza interna de eletrodomesticos; cola, tinta ou cimento; entulho; pragas; mofo; residuos desconhecidos; altura ou trabalho fora do imovel."
+  },
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza pos-obra leve",
+    "descricao": "Remocao de poeira comum e residuos leves identificados em superficies acessiveis; exige confirmacao do tipo de residuo antes do atendimento.",
+    "inclusoes": "Poeira superficial comum e limpeza de pisos e superficies fixas acessiveis, dentro dos ambientes descritos no resumo.",
+    "exclusoes": "Entulho; poeira de lixamento ou silica; cimento, tinta ou solventes; produtos perigosos; residuos desconhecidos; altura; equipamento especializado; qualquer contaminacao."
+  },
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza de vidros internos",
+    "descricao": "Limpeza de vidros pelo lado interno quando alcancaveis com os pes no chao e postura estavel.",
+    "inclusoes": "Vidros internos acessiveis e suas molduras alcancaveis, nas quantidades e ambientes selecionados.",
+    "exclusoes": "Escadas, bancos ou plataformas; inclinar-se para fora; sacadas ou fachadas; vidros trincados; trabalho em altura; remocao de tinta, cimento ou adesivos."
+  },
+  {
+    "categoria": "Limpeza",
+    "nome": "Limpeza de areas externas terreas",
+    "descricao": "Limpeza simples de varanda ou quintal acessivel no nivel do solo, em condicoes seguras.",
+    "inclusoes": "Varrer e limpar piso e superficies externas acessiveis descritas no pedido.",
+    "exclusoes": "Telhados, calhas ou escadas; poda; jardinagem; piscina; lavadora de alta pressao; residuos pesados, biologicos ou perigosos; pragas; proximidade de instalacao eletrica."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura de paredes internas",
+    "descricao": "Pintura de paredes internas acessiveis, com area, cor e produto combinados previamente.",
+    "inclusoes": "Protecao simples do entorno, preparacao superficial leve e pintura da area delimitada no resumo, com material previamente combinado.",
+    "exclusoes": "Escadas ou altura; reparo estrutural; infiltracao, umidade ou mofo; remocao de revestimento; instalacao eletrica; preparacao extensa; materiais nao combinados."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura de tetos",
+    "descricao": "Proposta de pintura de teto, fora do piloto inicial ate que acesso, equipamento e procedimento sejam avaliados por profissional experiente.",
+    "inclusoes": "Somente apos aprovacao tecnica: preparacao superficial e pintura da area delimitada, com materiais previamente definidos.",
+    "exclusoes": "Acesso improvisado; escada ou plataforma sem procedimento aprovado; trabalho sobre instalacao eletrica; infiltracao, mofo, reparo estrutural ou superficie desconhecida."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura de portas",
+    "descricao": "Pintura de porta interna acessivel, apos combinar material, acabamento, cor e preparacao necessaria.",
+    "inclusoes": "Protecao simples do entorno e pintura da face e partes especificadas no resumo, com preparacao superficial leve.",
+    "exclusoes": "Decapagem; solventes fortes; reparo estrutural; remocao ou instalacao da porta; ferragens; vidro; tinta ou revestimento desconhecido; danos por umidade."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura de janelas e esquadrias",
+    "descricao": "Pintura de esquadrias acessiveis com os pes no chao, limitada as faces combinadas.",
+    "inclusoes": "Preparacao superficial leve e pintura de faces acessiveis, com material previamente definido.",
+    "exclusoes": "Inclinar-se para fora; escadas, fachada ou altura; troca de vidro; reparo estrutural; corrosao extensa; decapagem ou revestimento desconhecido."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura de grades",
+    "descricao": "Pintura de grade ou portao acessivel ao nivel do solo, dentro da area definida no pedido.",
+    "inclusoes": "Protecao simples do entorno, preparacao leve e pintura da parte acessivel previamente combinada.",
+    "exclusoes": "Altura; escada; corrosao extensa; solda ou reparo; decapagem; solventes fortes; revestimento desconhecido; proximidade de instalacao eletrica."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Retoques de pintura",
+    "descricao": "Correcao localizada de pintura em superficie interna seca e acessivel, com cor e area combinadas.",
+    "inclusoes": "Retoque de pequenas marcas ou descascados superficiais delimitados e preparacao leve.",
+    "exclusoes": "Repintura ampla; altura; infiltracao; umidade; mofo; fissura estrutural; causa do dano nao identificada; igualacao de cor nao garantida sem a tinta original."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Aplicacao de massa corrida",
+    "descricao": "Regularizacao superficial localizada em parede interna seca, em area e condicao previamente descritas.",
+    "inclusoes": "Aplicacao em pequenos defeitos superficiais e preparacao leve da area delimitada.",
+    "exclusoes": "Fissura estrutural; infiltracao; umidade; mofo; lixamento amplo; poeira de material desconhecido; altura; pintura final, salvo se incluida expressamente no resumo."
+  },
+  {
+    "categoria": "Pintura",
+    "nome": "Pintura externa terrea",
+    "descricao": "Pintura de muro ou superficie externa que possa ser alcancada com seguranca a partir do solo.",
+    "inclusoes": "Preparacao leve e pintura da superficie externa acessivel, delimitada no resumo e com materiais combinados.",
+    "exclusoes": "Fachada elevada; beiral; escada; andaime; telhado; proximidade eletrica; infiltracao; mofo; reparo estrutural; condicao climatica inadequada."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de guarda-roupa",
+    "descricao": "Montagem de guarda-roupa fornecido pelo cliente, conforme manual e limites de tamanho e equipe combinados.",
+    "inclusoes": "Conferencia visual das pecas e montagem do movel conforme manual em local preparado pelo cliente.",
+    "exclusoes": "Transporte de carga pesada; reparo ou adaptacao; falta de pecas; fixacao antitombamento ou ancoragem em parede; montagem sem manual quando houver risco; servico eletrico ou hidraulico."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de cama",
+    "descricao": "Montagem de cama convencional fornecida pelo cliente, seguindo o manual do fabricante.",
+    "inclusoes": "Montagem da estrutura e componentes incluidos no kit, no ambiente preparado e conforme o manual.",
+    "exclusoes": "Beliche ou cama suspensa; reparo estrutural; adaptacao de pecas; transporte pesado; fixacao em parede; falta de componentes ou manual com instrucoes incompativeis."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de beliche",
+    "descricao": "Proposta para montagem de beliche; permanece fora do piloto inicial ate checklist de estabilidade e seguranca.",
+    "inclusoes": "Somente montagem conforme manual apos aprovacao especifica do procedimento, do modelo e da equipe.",
+    "exclusoes": "Uso sem validacao; adaptacoes; pecas ausentes; ancoragem nao especificada; transporte de carga pesada; qualquer divergencia do manual."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de comoda",
+    "descricao": "Montagem de comoda fornecida pelo cliente, seguindo o manual e os limites de tamanho combinados.",
+    "inclusoes": "Montagem das pecas do kit e conferencia visual basica de estabilidade conforme instrucoes do fabricante.",
+    "exclusoes": "Fixacao antitombamento ou ancoragem em parede; reparo; adaptacao; transporte pesado; pecas ausentes; montagem que contrarie o manual."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de mesa",
+    "descricao": "Montagem de mesa convencional fornecida pelo cliente, conforme manual e dimensoes previamente combinadas.",
+    "inclusoes": "Montagem da estrutura e componentes incluidos no kit em superficie e ambiente preparados.",
+    "exclusoes": "Fixacao suspensa; furacao; corte; adaptacao; reparo estrutural; transporte pesado; instalacao eletrica; pecas ausentes ou instrucoes incompativeis."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de cadeira",
+    "descricao": "Montagem de cadeira convencional fornecida pelo cliente, seguindo o manual do fabricante.",
+    "inclusoes": "Montagem das pecas do kit e verificacao visual de que os componentes previstos foram instalados.",
+    "exclusoes": "Reparo estrutural; solda; adaptacao; estofamento; pecas ausentes; transporte de carga pesada; modificacao do produto."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de estante",
+    "descricao": "Montagem de estante baixa e autoportante, conforme manual; modelos altos ou que exijam ancoragem ficam fora deste escopo.",
+    "inclusoes": "Montagem de modulo baixo apoiado no piso, em local preparado e conforme manual.",
+    "exclusoes": "Estante alta sem procedimento aprovado; ancoragem antitombamento; fixacao suspensa; furacao; reparo; adaptacao; transporte pesado."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de rack e painel",
+    "descricao": "Montagem de rack autoportante apoiado no piso; painel ou rack suspenso exige avaliacao separada e permanece fora do piloto.",
+    "inclusoes": "Montagem do rack de piso conforme manual, sem fixacao em parede.",
+    "exclusoes": "Painel suspenso; furacao ou ancoragem; passagem de cabos; ligacao eletrica; instalacao de TV; suporte de carga em parede; transporte pesado."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Montagem de armario de cozinha",
+    "descricao": "Proposta para montagem de modulo de piso fornecido pelo cliente; modulos suspensos e instalacoes ficam fora deste escopo.",
+    "inclusoes": "Montagem de modulo autoportante de piso conforme manual, em area desocupada e preparada.",
+    "exclusoes": "Armario suspenso; ancoragem; corte de bancada; ajuste de pedra; ligacao hidraulica ou eletrica; adaptacao; transporte pesado."
+  },
+  {
+    "categoria": "Manutencao",
+    "nome": "Desmontagem e remontagem de moveis",
+    "descricao": "Desmontagem e remontagem de movel identificado, no mesmo endereco e conforme manual ou construcao existente.",
+    "inclusoes": "Desmontar e remontar a quantidade de moveis descrita no resumo, separando componentes de forma organizada.",
+    "exclusoes": "Transporte entre enderecos; carga pesada; garantia de reutilizacao de pecas desgastadas; reparo; adaptacao; fixacao em parede; descarte."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Troca de tomada",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao por eletricista e aprovacao dos controles do piloto.",
+    "inclusoes": "Eventual substituicao equivalente em ponto existente, somente apos escopo, qualificacao e procedimento serem aprovados.",
+    "exclusoes": "Circuito novo; quadro; aumento de carga; fiacao embutida; sinais de aquecimento, faisca ou umidade; qualquer reparo sem avaliacao tecnica."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Troca de interruptor",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao por eletricista e aprovacao dos controles do piloto.",
+    "inclusoes": "Eventual substituicao equivalente em ponto existente, somente apos escopo, qualificacao e procedimento serem aprovados.",
+    "exclusoes": "Circuito novo; automacao; quadro; fiacao embutida; defeito sem diagnostico; sinais de aquecimento, faisca ou umidade."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Instalacao ou troca de luminaria",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao por eletricista, incluindo acesso e suporte do equipamento.",
+    "inclusoes": "Eventual substituicao em ponto existente e compativel, apos aprovacao do procedimento, da qualificacao e das condicoes de acesso.",
+    "exclusoes": "Novo ponto; alteracao de circuito; trabalho em altura; forro ou suporte sem avaliacao; fiacao exposta; quadro; equipamento incompativel."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Troca de chuveiro eletrico",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao tecnica e aprovacao dos requisitos aplicaveis.",
+    "inclusoes": "Eventual substituicao de equipamento em ponto existente, somente apos validar compatibilidade, qualificacao e procedimento.",
+    "exclusoes": "Novo circuito; alteracao de fiacao ou disjuntor; quadro; sinais de aquecimento, choque ou umidade; equipamento incompativel; qualquer improviso."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Diagnostico de falha eletrica",
+    "descricao": "Servico eletrico proposto para avaliacao futura; indisponivel ate definir limites de diagnostico, qualificacao e encaminhamento de riscos.",
+    "inclusoes": "Somente verificacao permitida por procedimento aprovado, com registro da falha relatada e encaminhamento quando inconclusivo.",
+    "exclusoes": "Abrir quadro; intervir em circuito; medir ou reparar sem procedimento aprovado; sinais de choque, fumaca, faisca, aquecimento ou risco imediato."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Troca de disjuntor",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao por eletricista e revisao dos requisitos aplicaveis.",
+    "inclusoes": "Eventual substituicao equivalente somente apos avaliacao tecnica, qualificacao e procedimento formalmente aprovados.",
+    "exclusoes": "Aumentar capacidade; alterar quadro ou circuito; falha recorrente sem diagnostico; sinais de aquecimento ou dano; qualquer intervencao nao aprovada."
+  },
+  {
+    "categoria": "Eletrica",
+    "nome": "Instalacao de ventilador de teto",
+    "descricao": "Servico eletrico proposto apenas para catalogacao; indisponivel ate avaliacao de altura, suporte, qualificacao e procedimento.",
+    "inclusoes": "Eventual substituicao em ponto e suporte existentes, somente apos aprovacao tecnica do modelo e das condicoes de acesso.",
+    "exclusoes": "Novo ponto; altura sem procedimento aprovado; reforco estrutural; suporte inadequado; alteracao de circuito; fiacao ou instalacao incompativel."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Troca de torneira",
+    "descricao": "Proposta para substituicao de torneira em ponto acessivel; permanece pausada ate avaliacao de profissional hidraulico e limites de interrupcao.",
+    "inclusoes": "Substituicao compativel em conexao existente e acessivel, apos validar condicoes e procedimento aprovado.",
+    "exclusoes": "Tubulacao embutida; alteracao de ponto; rede coletiva; corrosao ou dano grave; vazamento relevante; inundacao; conexao sem compatibilidade confirmada."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Reparo de vazamento aparente",
+    "descricao": "Proposta limitada a vazamento visivel e acessivel; permanece pausada ate definir triagem de urgencia e procedimento de parada.",
+    "inclusoes": "Avaliacao de origem visivel e eventual reparo em componente acessivel somente dentro de procedimento aprovado.",
+    "exclusoes": "Vazamento intenso; inundacao; origem embutida ou desconhecida; rede coletiva; esgoto; risco eletrico; qualquer caso que exija resposta emergencial."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Troca de sifao",
+    "descricao": "Proposta para sifao acessivel sob pia ou lavatorio; permanece pausada ate validar compatibilidade e controle de vazamentos.",
+    "inclusoes": "Substituicao compativel em ponto acessivel, com componente previamente definido e teste conforme procedimento aprovado.",
+    "exclusoes": "Alteracao de tubulacao embutida; rede coletiva; vazamento extenso; componente incompativel; esgoto sem controle; dano estrutural."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Reparo de descarga",
+    "descricao": "Proposta limitada a componentes acessiveis de caixa convencional; permanece pausada ate avaliacao tecnica do sistema e dos limites.",
+    "inclusoes": "Avaliacao de componente acessivel e eventual substituicao compativel somente dentro de procedimento aprovado.",
+    "exclusoes": "Tubulacao embutida; sistema pressurizado; rede coletiva; vazamento relevante; quebra de louca; modelo ou defeito sem identificacao segura."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Desentupimento simples",
+    "descricao": "Proposta para obstrucao localizada em ponto domestico; permanece pausada ate definir metodo permitido e criterio de interrupcao.",
+    "inclusoes": "Somente avaliacao e metodo mecanico expressamente aprovados para o ponto informado.",
+    "exclusoes": "Produtos causticos ou perigosos; rede coletiva; equipamento de alta pressao; retorno de esgoto; multiplos pontos; causa desconhecida ou risco biologico."
+  },
+  {
+    "categoria": "Hidraulica",
+    "nome": "Instalacao de filtro de agua",
+    "descricao": "Proposta para filtro compativel com ponto existente; permanece pausada ate validar equipamento, conexao e procedimento de teste.",
+    "inclusoes": "Instalacao em ponto existente e compativel, com equipamento definido e verificacao conforme procedimento aprovado.",
+    "exclusoes": "Criar ou deslocar ponto; alterar tubulacao embutida; corte de bancada; conexao incompativel; vazamento; equipamento sem manual ou especificacao."
+  }
 ]
