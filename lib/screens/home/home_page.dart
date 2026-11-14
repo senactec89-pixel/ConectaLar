@@ -153,7 +153,7 @@ class _HomeContentView extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 1100),
         child: ListView(
-          padding: EdgeInsets.zero,
+          padding: const EdgeInsets.only(bottom: AppSpace.xxl * 2),
           children: [
             _HomeHero(
               onSearchTap: onSearchTap,

@@ -147,39 +147,60 @@ void main() {
   testWidgets('Home orienta a cadastrar endereço quando ele não existe', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        home: HomePage(
-          loadContent: () async =>
-              const HomeContent(regionalAddressUnavailable: true),
-        ),
-        routes: {
-          AppRoutes.enderecos: (_) =>
-              const Scaffold(body: Text('Tela de endereços')),
-        },
-      ),
-    );
-    await tester.pumpAndSettle();
+    for (final largura in [320.0, 360.0, 390.0, 412.0]) {
+      for (final escala in [1.0, 2.0]) {
+        tester.view.physicalSize = Size(largura, largura == 320 ? 568 : 844);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(escala)),
+              child: child!,
+            ),
+            home: HomePage(
+              loadContent: () async =>
+                  const HomeContent(regionalAddressUnavailable: true),
+            ),
+            routes: {
+              AppRoutes.enderecos: (_) =>
+                  const Scaffold(body: Text('Tela de endereços')),
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
 
-    expect(
-      find.text(
-        'Cadastre um endereço para encontrar profissionais da sua região.',
-      ),
-      findsOneWidget,
-    );
-    final addAddress = find.text('Adicionar endereço');
-    await tester.ensureVisible(addAddress);
-    await tester.tap(addAddress);
-    await tester.pumpAndSettle();
+        final aviso = find.text(
+          'Cadastre um endereço para encontrar profissionais da sua região.',
+        );
+        await tester.scrollUntilVisible(
+          aviso,
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        expect(aviso, findsOneWidget);
+        final addAddress = find.text('Adicionar endereço');
+        await tester.ensureVisible(addAddress);
+        await tester.pumpAndSettle();
+        expect(
+          addAddress.hitTestable(),
+          findsOneWidget,
+          reason: '$largura px, texto $escala×',
+        );
+        await tester.tap(addAddress);
+        await tester.pumpAndSettle();
 
-    expect(find.text('Tela de endereços'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+        expect(find.text('Tela de endereços'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    }
   });
 
   test(
