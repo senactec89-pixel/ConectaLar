@@ -1,0 +1,223 @@
+export const opcoesPropostas = new Map(Object.entries({
+  'limpeza residencial padrao': [
+    'Limpeza da cozinha', 'Limpeza do banheiro', 'Limpeza da sala',
+    'Limpeza dos quartos', 'Varredura e limpeza dos pisos',
+  ],
+  'limpeza pesada residencial': [
+    'Limpeza detalhada da cozinha', 'Limpeza detalhada do banheiro',
+    'Limpeza de azulejos acessiveis', 'Limpeza de rodapes e portas',
+    'Limpeza interna de armarios vazios',
+  ],
+  'limpeza pos-mudanca': [
+    'Limpeza de comodos vazios', 'Limpeza interna de armarios vazios',
+    'Limpeza de cozinha e banheiro', 'Limpeza de pisos',
+    'Limpeza de vidros internos acessiveis',
+  ],
+  'limpeza pos-obra leve': [
+    'Remocao de po fino em superficies acessiveis',
+    'Limpeza de pisos sem entulho', 'Limpeza de portas e rodapes',
+    'Limpeza externa de armarios vazios',
+    'Limpeza de vidros internos acessiveis',
+  ],
+  'limpeza de vidros internos': [
+    'Vidros internos de um comodo', 'Vidros internos de varios comodos',
+    'Limpeza de janelas pelo lado interno', 'Limpeza de espelhos acessiveis',
+    'Limpeza de trilhos acessiveis sem desmontagem',
+  ],
+  'limpeza de areas externas terreas': [
+    'Varredura de patio terreo', 'Lavagem manual de piso externo',
+    'Limpeza de varanda no nivel do piso', 'Limpeza de area de entrada',
+    'Remocao de folhas em area delimitada',
+  ],
+  'pintura de paredes internas': [
+    'Pintura de uma parede', 'Pintura de um comodo',
+    'Pintura de duas paredes do mesmo comodo', 'Repintura na mesma cor',
+    'Pintura com cor diferente previamente definida',
+  ],
+  'pintura de tetos': [
+    'Pintura do teto de um comodo baixo', 'Repintura do teto na mesma cor',
+    'Pintura de teto apos preparo leve', 'Pintura de teto de banheiro ventilado',
+    'Retoque localizado em teto acessivel',
+  ],
+  'pintura de portas': [
+    'Pintura de uma porta interna', 'Pintura da porta e do batente',
+    'Repintura de porta na mesma cor', 'Pintura de porta de madeira acessivel',
+    'Pintura de porta metalica interna acessivel',
+  ],
+  'pintura de janelas e esquadrias': [
+    'Pintura de esquadria pelo lado interno',
+    'Pintura de janela acessivel pelo lado interno',
+    'Pintura de esquadria de madeira acessivel',
+    'Pintura de esquadria metalica acessivel',
+    'Retoque localizado em esquadria interna',
+  ],
+  'pintura de grades': [
+    'Pintura de grade baixa ao nivel do solo',
+    'Pintura de portao baixo ao nivel do solo',
+    'Pintura de trecho localizado de grade',
+    'Repintura de grade na mesma cor',
+    'Preparo manual leve e pintura de grade acessivel',
+  ],
+  'retoques de pintura': [
+    'Retoque em pequena area de parede', 'Retoque de marcas localizadas',
+    'Retoque em porta interna', 'Retoque em rodape acessivel',
+    'Retoque em uma parede na mesma cor',
+  ],
+  'aplicacao de massa corrida': [
+    'Aplicacao em pequeno reparo localizado', 'Aplicacao em uma parede interna',
+    'Preparo de superficie para pintura', 'Correcao de pequenas marcas em parede seca',
+    'Aplicacao em area delimitada pelo cliente',
+  ],
+  'pintura externa terrea': [
+    'Pintura de muro baixo acessivel', 'Pintura de parede externa ao nivel do solo',
+    'Retoque em parede externa terrea', 'Pintura de area externa delimitada',
+    'Repintura de superficie externa na mesma cor',
+  ],
+  'montagem de guarda-roupa': [
+    'Montagem de guarda-roupa de duas portas',
+    'Montagem de guarda-roupa de tres portas',
+    'Montagem de guarda-roupa com gavetas',
+    'Montagem conforme manual do fabricante',
+    'Montagem de um modulo de guarda-roupa',
+  ],
+  'montagem de cama': [
+    'Montagem de cama de solteiro', 'Montagem de cama de casal',
+    'Montagem de cama com gavetas', 'Montagem de cama box com componentes',
+    'Montagem conforme manual do fabricante',
+  ],
+  'montagem de beliche': [
+    'Montagem de beliche convencional', 'Montagem de beliche com gavetas',
+    'Montagem de beliche com escada inclusa',
+    'Montagem conforme manual do fabricante',
+    'Conferencia das pecas antes da montagem',
+  ],
+  'montagem de comoda': [
+    'Montagem de comoda pequena', 'Montagem de comoda media',
+    'Montagem de comoda com gavetas', 'Montagem conforme manual do fabricante',
+    'Montagem de uma comoda fornecida pelo cliente',
+  ],
+  'montagem de mesa': [
+    'Montagem de mesa de jantar', 'Montagem de mesa de escritorio',
+    'Montagem de mesa lateral ou de apoio', 'Montagem de mesa com cadeiras do mesmo kit',
+    'Montagem conforme manual do fabricante',
+  ],
+  'montagem de cadeira': [
+    'Montagem de uma cadeira convencional', 'Montagem de conjunto de cadeiras',
+    'Montagem de cadeira de escritorio', 'Montagem de cadeira com rodizios',
+    'Montagem conforme manual do fabricante',
+  ],
+  'montagem de estante': [
+    'Montagem de estante baixa autoportante', 'Montagem de estante modular',
+    'Montagem de estante pequena', 'Montagem conforme manual do fabricante',
+    'Montagem de um modulo de estante',
+  ],
+  'montagem de rack e painel': [
+    'Montagem de rack autoportante', 'Montagem de rack de piso',
+    'Montagem somente do rack sem fixacao na parede',
+    'Montagem conforme manual do fabricante',
+    'Montagem de rack fornecido pelo cliente',
+  ],
+  'montagem de armario de cozinha': [
+    'Montagem de modulo de piso', 'Montagem de conjunto de modulos de piso',
+    'Montagem de modulo fornecido pelo cliente',
+    'Montagem conforme manual do fabricante',
+    'Montagem de um modulo de armario',
+  ],
+  'desmontagem e remontagem de moveis': [
+    'Desmontagem e remontagem de um movel',
+    'Desmontagem e remontagem de mais de um movel',
+    'Remontagem no mesmo endereco', 'Desmontagem para transporte no mesmo imovel',
+    'Conferencia de pecas antes da remontagem',
+  ],
+  'troca de tomada': [
+    'Substituicao de tomada simples', 'Substituicao de conjunto de tomadas',
+    'Instalacao de tomada fornecida pelo cliente',
+    'Substituicao de tomada em ponto existente',
+    'Conferencia visual de compatibilidade antes do servico',
+  ],
+  'troca de interruptor': [
+    'Substituicao de interruptor simples',
+    'Substituicao de interruptor com mais de uma tecla',
+    'Instalacao de interruptor fornecido pelo cliente',
+    'Substituicao em caixa existente',
+    'Conferencia visual de compatibilidade antes do servico',
+  ],
+  'instalacao ou troca de luminaria': [
+    'Instalacao de luminaria em ponto existente',
+    'Substituicao de luminaria existente',
+    'Montagem de luminaria fornecida pelo cliente',
+    'Troca de plafon compativel em ponto existente',
+    'Conferencia visual do modelo e do ponto existente',
+  ],
+  'troca de chuveiro eletrico': [
+    'Substituicao de chuveiro em ponto existente',
+    'Instalacao de chuveiro fornecido pelo cliente',
+    'Conferencia de modelo e compatibilidade antes do servico',
+    'Substituicao de ducha compativel em ponto existente',
+    'Orientacao previa sobre modelo e itens necessarios',
+  ],
+  'diagnostico de falha eletrica': [
+    'Avaliacao de tomada ou interruptor sem funcionamento',
+    'Avaliacao de luminaria ou circuito com falha',
+    'Avaliacao de disjuntor que desarma',
+    'Registro dos pontos afetados informados pelo cliente',
+    'Inspecao visual inicial sem intervencao em circuito energizado',
+  ],
+  'troca de disjuntor': [
+    'Substituicao de disjuntor existente compativel',
+    'Avaliacao de disjuntor que desarma',
+    'Conferencia da identificacao do circuito',
+    'Substituicao de disjuntor fornecido pelo cliente apos validacao',
+    'Registro do modelo e das especificacoes do disjuntor existente',
+  ],
+  'instalacao de ventilador de teto': [
+    'Instalacao de ventilador em ponto existente',
+    'Substituicao de ventilador existente',
+    'Conferencia de compatibilidade do suporte existente',
+    'Montagem de ventilador fornecido pelo cliente',
+    'Conferencia do modelo e dos componentes antes do servico',
+  ],
+  'troca de torneira': [
+    'Troca de torneira de cozinha', 'Troca de torneira de banheiro',
+    'Instalacao de torneira fornecida pelo cliente',
+    'Substituicao em ponto existente compativel',
+    'Conferencia visual do modelo e da conexao existente',
+  ],
+  'reparo de vazamento aparente': [
+    'Avaliacao de vazamento visivel em torneira',
+    'Avaliacao de vazamento visivel em sifao',
+    'Avaliacao de vazamento em conexao acessivel',
+    'Avaliacao de vedacao aparente em registro acessivel',
+    'Identificacao visual do ponto informado pelo cliente',
+  ],
+  'troca de sifao': [
+    'Troca de sifao de pia de cozinha', 'Troca de sifao de lavatorio',
+    'Instalacao de sifao fornecido pelo cliente',
+    'Substituicao de sifao compativel em ponto acessivel',
+    'Conferencia de medidas e modelo antes do servico',
+  ],
+  'reparo de descarga': [
+    'Ajuste de mecanismo interno da caixa',
+    'Substituicao de mecanismo fornecido pelo cliente',
+    'Correcao de acionamento ou vedacao aparente',
+    'Avaliacao de caixa acoplada convencional',
+    'Conferencia do modelo do mecanismo antes do servico',
+  ],
+  'desentupimento simples': [
+    'Desentupimento de pia ou lavatorio', 'Desentupimento de ralo de banheiro',
+    'Desentupimento de vaso sanitario por metodo aprovado',
+    'Avaliacao de obstrucao localizada em um ponto',
+    'Orientacao para interromper uso do ponto ate a visita',
+  ],
+  'instalacao de filtro de agua': [
+    'Instalacao de filtro em torneira compativel',
+    'Instalacao de filtro em ponto existente',
+    'Troca de refil de filtro existente',
+    'Instalacao de filtro fornecido pelo cliente',
+    'Conferencia de modelo e conexao antes do servico',
+  ],
+}));
+
+export function normalizarNomeServico(value) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}

@@ -23,6 +23,20 @@ docker compose run --rm -e APLICAR_CATALOGO_PROPOSTO=SIM api \
   node scripts/aplicar-catalogo-proposto-homologacao.mjs
 ```
 
+Para incluir cinco opcoes do que o profissional pode executar em cada servico,
+use o seed de opcoes. Ele adiciona opcoes dos servicos conhecidos; as opcoes
+ficam ativas somente quando o servico e a categoria ja estao ativos. Servicos
+pausados recebem opcoes pausadas, sem liberar contratacao.
+
+```sh
+docker compose run --rm -e SEED_HOMOLOGACAO_OPCOES=SIM api \
+  node scripts/seed-homologacao-opcoes-catalogo.mjs
+```
+
+No banco local de desenvolvimento, `npm run db:seed:demo` nao e o seed de
+opcoes. Use `node scripts/seed-local-catalog-options.mjs`; ele continua limitado
+a `127.0.0.1:3307/conectalar_dev`.
+
 ## Categorias existentes
 
 - `GET /categorias`: lista publica de categorias ativas.
