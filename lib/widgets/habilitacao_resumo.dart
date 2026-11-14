@@ -48,7 +48,7 @@ class HabilitacaoResumo extends StatelessWidget {
         ),
       const SizedBox(height: 8),
       const Text(
-        'Identidade e telefone aguardam integração. Antecedentes aguardam definição da política de análise. Não envie selfies, CPF ou certidões para essas etapas por enquanto.',
+        'Acompanhe o estado de cada etapa acima. Não envie selfies, CPF ou certidões para substituir verificações ainda indisponíveis.',
       ),
       if (dados['revisaoSolicitadaEm'] != null) ...[
         const SizedBox(height: 8),

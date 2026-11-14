@@ -404,6 +404,7 @@ class _CadastroProfissionalPageState extends State<CadastroProfissionalPage> {
                           AppServices.instance.auth.emailVerificado,
                       situacaoDocumental: _situacaoDocumental,
                       habilitado: _habilitacao['podeAtender'] == true,
+                      empresa: _empresa,
                       onVerPerfil: _perfilAtual == null
                           ? null
                           : _abrirPerfilPublico,
@@ -746,6 +747,7 @@ class _ChecklistCadastro extends StatelessWidget {
     required this.emailConfirmado,
     required this.situacaoDocumental,
     required this.habilitado,
+    required this.empresa,
     required this.onVerPerfil,
   });
 
@@ -755,6 +757,7 @@ class _ChecklistCadastro extends StatelessWidget {
   final bool emailConfirmado;
   final SituacaoDocumental? situacaoDocumental;
   final bool habilitado;
+  final bool empresa;
   final VoidCallback? onVerPerfil;
 
   @override
@@ -857,6 +860,12 @@ class _ChecklistCadastro extends StatelessWidget {
                 ),
               ],
             ),
+            if (empresa) ...[
+              const SizedBox(height: AppSpace.sm),
+              const Text(
+                'Para atender por uma empresa, cada executor precisará ser identificado e verificado antes de ser indicado em um pedido. O cadastro da equipe ainda não está disponível no aplicativo.',
+              ),
+            ],
             const SizedBox(height: AppSpace.md),
             OutlinedButton.icon(
               onPressed: onVerPerfil,
