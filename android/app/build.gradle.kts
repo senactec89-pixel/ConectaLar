@@ -1,5 +1,7 @@
 @file:Suppress("DEPRECATION")
 
+import java.net.URI
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -22,6 +24,33 @@ val missingReleaseSigningKeys = releaseSigningKeys.filter {
 }
 val releaseTaskRequested = gradle.startParameter.taskNames.any {
     it.contains("release", ignoreCase = true)
+}
+
+if (releaseTaskRequested) {
+    val apiUrls = (project.findProperty("dart-defines")?.toString() ?: "")
+        .split(',')
+        .mapNotNull { encoded ->
+            runCatching { String(Base64.getDecoder().decode(encoded), Charsets.UTF_8) }
+                .getOrNull()
+                ?.takeIf { it.startsWith("CONECTALAR_API_BASE_URL=") }
+                ?.substringAfter('=')
+        }
+    val apiUrl = apiUrls.singleOrNull()
+    val uri = apiUrl?.let { runCatching { URI(it) }.getOrNull() }
+    val host = uri?.host?.lowercase()?.trimEnd('.')
+    val enderecoLocal = host == null || !host.contains('.') || host == "localhost" ||
+        host.endsWith(".localhost") || host.endsWith(".local") || host.contains(':') ||
+        Regex("""\d{1,3}(?:\.\d{1,3}){3}""").matches(host)
+    val enderecoExemplo = host == "example.com" || host?.endsWith(".example.com") == true ||
+        host?.endsWith(".example") == true || host?.endsWith(".test") == true ||
+        host?.endsWith(".invalid") == true
+    if (uri?.scheme != "https" || enderecoLocal || enderecoExemplo || uri?.rawUserInfo != null ||
+        uri?.rawQuery != null || uri?.rawFragment != null) {
+        throw GradleException(
+            "Build release bloqueado: informe CONECTALAR_API_BASE_URL com uma URL HTTPS " +
+                "de domínio público usando --dart-define, sem credenciais ou parâmetros."
+        )
+    }
 }
 
 if (releaseTaskRequested && missingReleaseSigningKeys.isNotEmpty()) {
