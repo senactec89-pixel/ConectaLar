@@ -48,7 +48,7 @@ try {
 
   let opcoesCriadasOuAtivadas = 0;
   let servicosComOpcoes = 0;
-  let pausadas = 0;
+  let opcoesPausadas = 0;
   for (const [name, options] of opcoesPropostas) {
     const service = byName.get(name);
     const ativo = Number(service.ativo) === 1 && Number(service.categoria_ativa) === 1;
@@ -61,7 +61,7 @@ try {
       );
       opcoesCriadasOuAtivadas += result.affectedRows;
     }
-    if (!ativo) pausadas += options.length;
+    if (!ativo) opcoesPausadas += options.length;
     servicosComOpcoes += 1;
     await db.execute(
       `INSERT INTO admin_auditoria (ator_id, acao, alvo_tipo, alvo_id, detalhe)
