@@ -8,18 +8,25 @@ class ProfissionalCard extends StatelessWidget {
     required this.profissional,
     this.onTap,
     this.trailingAction,
+    this.compact = false,
     super.key,
   });
 
   final Profissional profissional;
   final VoidCallback? onTap;
   final Widget? trailingAction;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final preco = profissional.precoInicial;
     final textoAmpliado = MediaQuery.textScalerOf(context).scale(16) > 24;
-    final espacamento = textoAmpliado ? AppSpace.md : AppSpace.sm;
+    final compacto = compact && !textoAmpliado;
+    final espacamento = textoAmpliado
+        ? AppSpace.md
+        : compacto
+        ? AppSpace.xs
+        : AppSpace.sm;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -82,7 +89,11 @@ class ProfissionalCard extends StatelessWidget {
                 SizedBox(height: espacamento),
                 Text(
                   profissional.descricao,
-                  maxLines: textoAmpliado ? null : 2,
+                  maxLines: textoAmpliado
+                      ? null
+                      : compacto
+                      ? 1
+                      : 2,
                   overflow: textoAmpliado
                       ? TextOverflow.clip
                       : TextOverflow.ellipsis,
@@ -106,8 +117,8 @@ class ProfissionalCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const Divider(
-                height: AppSpace.lg,
+              Divider(
+                height: compacto ? AppSpace.sm : AppSpace.lg,
                 thickness: 1,
                 color: AppColors.borda,
               ),
