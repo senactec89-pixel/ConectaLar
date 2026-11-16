@@ -402,14 +402,12 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                 ] else if (_tab == 2) ...[
                   Text(
-                    'Minha agenda',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    'Confira atendimentos e disponibilidade.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textoSuave,
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Veja os dias com atendimentos e confira seus horários antes de aceitar novos pedidos.',
-                  ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpace.md),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final textoAmpliado =

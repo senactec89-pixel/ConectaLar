@@ -44,7 +44,10 @@ void main() {
             await tester.pumpAndSettle();
             await tester.tap(find.text('Agenda').last);
             await tester.pumpAndSettle();
-            expect(find.text('Minha agenda'), findsOneWidget);
+            expect(
+              find.text('Confira atendimentos e disponibilidade.'),
+              findsOneWidget,
+            );
             expect(find.text('Tentar novamente'), findsNothing);
             expect(tester.takeException(), isNull, reason: 'Agenda em $width');
             await tester.ensureVisible(find.text('Pedidos').last);
