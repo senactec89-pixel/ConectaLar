@@ -1572,25 +1572,7 @@ class _PerfilProfissionalPrivadoPageState
                   ? 'Empresa · dados privados'
                   : 'Profissional · dados privados',
             ),
-            const SizedBox(height: AppSpace.md),
-            FilledButton.tonalIcon(
-              onPressed: _editarDadosProfissionais,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Editar perfil profissional'),
-            ),
-            if (perfilPublico != null) ...[
-              const SizedBox(height: AppSpace.sm),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.perfilProfissional,
-                  arguments: perfilPublico,
-                ),
-                icon: const Icon(Icons.visibility_outlined),
-                label: const Text('Ver meu perfil público'),
-              ),
-            ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.sm),
             if (podeAtender == null)
               Card(
                 child: Padding(
@@ -1637,6 +1619,24 @@ class _PerfilProfissionalPrivadoPageState
                 ].join('\n'),
                 onTap: _abrirDocumentos,
               ),
+            const SizedBox(height: AppSpace.md),
+            FilledButton.tonalIcon(
+              onPressed: _editarDadosProfissionais,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Editar perfil profissional'),
+            ),
+            if (perfilPublico != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.perfilProfissional,
+                  arguments: perfilPublico,
+                ),
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Ver meu perfil público'),
+              ),
+            ],
             const SizedBox(height: AppSpace.lg),
             const _PerfilSecaoTitulo(
               titulo: 'Dados pessoais',
