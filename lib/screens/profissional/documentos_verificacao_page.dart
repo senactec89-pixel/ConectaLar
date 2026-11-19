@@ -445,13 +445,17 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Documentos que você pode enviar',
+                          'Documentos disponíveis para envio',
                           style: TextStyle(fontWeight: FontWeight.w800),
                         ),
                         SizedBox(height: AppSpace.sm),
                         Text('• Documento de identificação'),
                         Text('• Comprovante de endereço'),
-                        Text('• Certificados profissionais (opcionais)'),
+                        Text('• Certificado profissional, se houver'),
+                        SizedBox(height: AppSpace.sm),
+                        Text(
+                          'Para a habilitação, cada pessoa que executar serviços precisará comprovar formação ou experiência. Certificados podem ser enviados aqui; a análise de experiência ainda não está disponível. O envio não libera atendimentos.',
+                        ),
                       ],
                     ),
                   ),
@@ -1286,7 +1290,7 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                   Text('Endereço', semanticsLabel: 'Comprovante de endereço'),
                   Text(
                     'Certificado',
-                    semanticsLabel: 'Certificado profissional opcional',
+                    semanticsLabel: 'Certificado profissional, se houver',
                   ),
                 ],
                 decoration: const InputDecoration(
@@ -1303,7 +1307,7 @@ class _DocumentoFormState extends State<_DocumentoForm> {
                   ),
                   DropdownMenuItem(
                     value: 'certificado_opcional',
-                    child: Text('Certificado profissional (opcional)'),
+                    child: Text('Certificado profissional, se houver'),
                   ),
                 ],
                 onChanged: (value) => setState(() => _tipo = value ?? _tipo),

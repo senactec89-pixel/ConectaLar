@@ -131,4 +131,46 @@ void main() {
     expect(find.text('Propor antes do aceite'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('proposta mantém campos e envio acessíveis com teclado', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async =>
+          request.url.path == '/solicitacoes/1001' && request.method == 'GET'
+          ? jsonResponse({'solicitacao': pedido()})
+          : null,
+    );
+    addTearDown(tester.view.resetViewInsets);
+
+    for (final width in [320.0, 360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.detalhesServico,
+        arguments: 1001,
+        width: width,
+        textScale: 2,
+      );
+      await mostrar(tester, 'propor-antes-aceite');
+      await tester.tap(find.byKey(const ValueKey('propor-antes-aceite')));
+      await tester.pumpAndSettle();
+
+      final escopo = find.byKey(const ValueKey('proposta-pre-aceite-escopo'));
+      await tester.ensureVisible(escopo);
+      await tester.tap(escopo);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+
+      final enviar = find.byKey(const ValueKey('proposta-pre-aceite-enviar'));
+      await tester.ensureVisible(enviar);
+      await tester.pumpAndSettle();
+      expect(enviar.hitTestable(), findsOneWidget, reason: '$width px');
+      expect(tester.takeException(), isNull, reason: '$width px');
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.resetViewInsets();
+    }
+  });
 }

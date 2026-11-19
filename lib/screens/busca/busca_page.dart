@@ -544,6 +544,7 @@ class _BuscaPageState extends State<BuscaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final textoAmpliado = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     return Scaffold(
       backgroundColor: AppColors.fundo,
       appBar: const AppBarCustom(title: 'ConectaLar'),
@@ -593,14 +594,25 @@ class _BuscaPageState extends State<BuscaPage> {
                   AppSpace.xxl,
                 ),
                 children: [
-                  const PageIntro(
-                    title: 'Buscar profissionais',
-                    subtitle: 'Encontre o serviço ideal para seu lar.',
-                  ),
-                  const SizedBox(height: AppSpace.lg),
+                  if (textoAmpliado)
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Buscar profissionais',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    )
+                  else
+                    const PageIntro(
+                      title: 'Buscar profissionais',
+                      subtitle: 'Encontre o serviço ideal para seu lar.',
+                    ),
+                  SizedBox(height: textoAmpliado ? AppSpace.md : AppSpace.lg),
                   Card(
                     child: Padding(
-                      padding: AppInsets.card,
+                      padding: EdgeInsets.all(
+                        textoAmpliado ? AppSpace.md : AppSpace.lg,
+                      ),
                       child: _FiltrosBusca(
                         termoController: _termoController,
                         termoFocusNode: _termoFocusNode,
@@ -700,7 +712,8 @@ class _BuscaPageState extends State<BuscaPage> {
                       onModoAlterado: (mapa) =>
                           setState(() => _mostrarMapa = mapa),
                     ),
-                    if (_podeComparar &&
+                    if (!textoAmpliado &&
+                        _podeComparar &&
                         resultados.isNotEmpty &&
                         !(_mostrarMapa && _mapaDisponivel)) ...[
                       const SizedBox(height: AppSpace.xs),
@@ -733,6 +746,7 @@ class _BuscaPageState extends State<BuscaPage> {
                           padding: const EdgeInsets.only(bottom: AppSpace.md),
                           child: ProfissionalCard(
                             profissional: profissional,
+                            compact: true,
                             onTap: () => _abrirProfissional(profissional),
                             trailingAction: _podeComparar
                                 ? Semantics(
@@ -1122,10 +1136,21 @@ class _FiltrosBusca extends StatelessWidget {
                   context,
                 ).textTheme.titleSmall?.copyWith(color: AppColors.texto),
               ),
-              Text(
-                'Deslize para ver mais →',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (textoAmpliado)
+                Semantics(
+                  label: 'Deslize para ver mais categorias',
+                  child: ExcludeSemantics(
+                    child: Text(
+                      'Ver mais →',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  'Deslize para ver mais →',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
             ],
           ),
           const SizedBox(height: AppSpace.sm),

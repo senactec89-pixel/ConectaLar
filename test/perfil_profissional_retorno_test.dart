@@ -8,6 +8,39 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  testWidgets('situação do atendimento aparece cedo com texto ampliado', (
+    tester,
+  ) async {
+    await configurarFrontend(
+      papel: 'profissional',
+      responder: (request) async {
+        if (request.url.path == '/profissionais/me') {
+          return jsonResponse({
+            'profissional': {'id': 9, 'nome': 'Teste'},
+          });
+        }
+        if (request.url.path == '/profissionais/me/documentos') {
+          return jsonResponse({
+            'documentos': [],
+            'habilitacao': {'podeAtender': false},
+          });
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(
+      tester,
+      AppRoutes.perfilProfissionalPrivado,
+      width: 360,
+      textScale: 2,
+    );
+
+    final situacao = find.text('Atendimentos ainda bloqueados');
+    expect(situacao, findsOneWidget);
+    expect(tester.getTopLeft(situacao).dy, lessThan(600));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final destino in [
     ('Dados pessoais e conta', AppRoutes.perfil),
     ('Atendimentos ainda bloqueados', AppRoutes.documentosProfissional),

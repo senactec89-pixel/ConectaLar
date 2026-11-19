@@ -658,6 +658,9 @@ class _AdminPageState extends State<AdminPage> {
           snapshot.data ?? const _AdminListaDados(itens: [], paginacao: {});
       final items = dados.itens;
       final permiteBuscaLocal = _modulo != AdminModulo.painel;
+      final documentosComTextoAmpliado =
+          _modulo == AdminModulo.documentos &&
+          MediaQuery.textScalerOf(context).scale(1) >= 1.6;
       Widget filtroDropdown(
         String label,
         String value,
@@ -694,7 +697,9 @@ class _AdminPageState extends State<AdminPage> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                _descricaoModulo(_modulo),
+                documentosComTextoAmpliado
+                    ? 'Analise os documentos enviados.'
+                    : _descricaoModulo(_modulo),
                 style: Theme.of(
                   context,
                 ).textTheme.bodyMedium?.copyWith(color: AppColors.textoSuave),
@@ -710,7 +715,9 @@ class _AdminPageState extends State<AdminPage> {
                 onChanged: (value) => setState(() => _buscaLocal = value),
                 onSubmitted: (_) => _aplicarFiltros(),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search_rounded),
+                  prefixIcon: documentosComTextoAmpliado
+                      ? null
+                      : const Icon(Icons.search_rounded),
                   labelText: switch (_modulo) {
                     AdminModulo.categorias => 'Buscar categoria',
                     AdminModulo.documentos => 'Buscar documento',
@@ -719,7 +726,9 @@ class _AdminPageState extends State<AdminPage> {
                     AdminModulo.auditoria => 'Buscar registro',
                     _ => 'Buscar',
                   },
-                  helperText: 'Use a busca do teclado para aplicar.',
+                  helperText: documentosComTextoAmpliado
+                      ? null
+                      : 'Use a busca do teclado para aplicar.',
                   helperMaxLines: 3,
                   suffixIcon: _buscaLocal.isEmpty
                       ? null

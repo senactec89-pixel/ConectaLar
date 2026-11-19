@@ -51,7 +51,7 @@ class HabilitacaoResumo extends StatelessWidget {
         ),
       const SizedBox(height: 8),
       const Text(
-        'Telefone confirmado significa acesso ao WhatsApp naquele momento, não identidade ou prova de vida. Antecedentes aguardam uma política aprovada; não envie certidões ou dados biométricos por enquanto.',
+        'Telefone confirmado significa acesso ao WhatsApp naquele momento, não identidade ou prova de vida. Antecedentes aguardam uma política aprovada; não envie selfies, CPF ou certidões para substituir verificações ainda indisponíveis.',
       ),
       if (dados['revisaoSolicitadaEm'] != null) ...[
         const SizedBox(height: 8),

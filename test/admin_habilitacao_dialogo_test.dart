@@ -100,4 +100,55 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('análise de habilitação cabe com texto ampliado', (tester) async {
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async =>
+          request.url.path == '/admin/profissionais/habilitacoes'
+          ? jsonResponse({
+              'pagina': 1,
+              'total': 1,
+              'profissionais': [
+                {
+                  'id': 10,
+                  'nome': 'Profissional de teste',
+                  'habilitacao': {
+                    'estado': 'pendente',
+                    'podeAtender': false,
+                    'etapas': [],
+                  },
+                },
+              ],
+            })
+          : null,
+    );
+
+    for (final width in [320.0, 360.0, 390.0, 412.0]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await abrirFrontend(
+        tester,
+        AppRoutes.adminHabilitacoes,
+        width: width,
+        textScale: 2,
+      );
+      final registro = find.text('Profissional de teste');
+      await tester.scrollUntilVisible(
+        registro,
+        180,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(registro);
+      await tester.pumpAndSettle();
+
+      final acao = find.byKey(const ValueKey('habilitacao-acao'));
+      final confirmar = find.byKey(const ValueKey('habilitacao-confirmar'));
+      await tester.ensureVisible(acao);
+      await tester.ensureVisible(confirmar);
+      await tester.pumpAndSettle();
+      expect(confirmar.hitTestable(), findsOneWidget, reason: '$width px');
+      expect(tester.takeException(), isNull, reason: '$width px');
+    }
+  });
 }

@@ -88,6 +88,12 @@ void main() {
           );
           expect(filtro, findsOneWidget);
           expect(tester.getSize(filtro).width, lessThanOrEqualTo(width));
+          expect(
+            tester.getTopLeft(find.text('Carlos Silva')).dy,
+            lessThan(500),
+            reason:
+                'O primeiro documento deve aparecer sem rolar em $width px.',
+          );
         } else {
           final linhas = <int, int>{};
           double? larguraFiltro;

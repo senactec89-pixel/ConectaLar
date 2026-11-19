@@ -419,14 +419,12 @@ class _AreaProfissionalPageState extends State<AreaProfissionalPage> {
                   ),
                 ] else if (_tab == 2) ...[
                   Text(
-                    'Minha agenda',
-                    style: Theme.of(context).textTheme.headlineSmall,
+                    'Confira atendimentos e disponibilidade.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textoSuave,
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Veja os dias com atendimentos e confira seus horários antes de aceitar novos pedidos.',
-                  ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: AppSpace.md),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final textoAmpliado =
@@ -1697,25 +1695,7 @@ class _PerfilProfissionalPrivadoPageState
                   ? 'Empresa · dados privados'
                   : 'Profissional · dados privados',
             ),
-            const SizedBox(height: AppSpace.md),
-            FilledButton.tonalIcon(
-              onPressed: _editarDadosProfissionais,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Editar perfil profissional'),
-            ),
-            if (perfilPublico != null) ...[
-              const SizedBox(height: AppSpace.sm),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.perfilProfissional,
-                  arguments: perfilPublico,
-                ),
-                icon: const Icon(Icons.visibility_outlined),
-                label: const Text('Ver meu perfil público'),
-              ),
-            ],
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpace.sm),
             if (podeAtender == null)
               Card(
                 child: Padding(
@@ -1762,6 +1742,24 @@ class _PerfilProfissionalPrivadoPageState
                 ].join('\n'),
                 onTap: _abrirDocumentos,
               ),
+            const SizedBox(height: AppSpace.md),
+            FilledButton.tonalIcon(
+              onPressed: _editarDadosProfissionais,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Editar perfil profissional'),
+            ),
+            if (perfilPublico != null) ...[
+              const SizedBox(height: AppSpace.sm),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  AppRoutes.perfilProfissional,
+                  arguments: perfilPublico,
+                ),
+                icon: const Icon(Icons.visibility_outlined),
+                label: const Text('Ver meu perfil público'),
+              ),
+            ],
             const SizedBox(height: AppSpace.lg),
             const _PerfilSecaoTitulo(
               titulo: 'Dados pessoais',
