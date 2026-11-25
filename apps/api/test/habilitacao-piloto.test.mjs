@@ -37,6 +37,17 @@ const validOffer = () => ({
   motivoRevisaoExperiencia: null,
 });
 
+function ofertaAprovadaPorDois(oferta) {
+  return {
+    ...oferta,
+    revisaoExperienciaEstado: 'aprovada',
+    primeiroRevisorId: 90,
+    primeiraRevisaoEm: new Date('2026-11-25T12:00:00.000Z'),
+    revisorFinalId: 91,
+    revisaoFinalEm: new Date('2026-11-25T12:05:00.000Z'),
+  };
+}
+
 function withEnvironment(values, run) {
   const previous = new Map(Object.keys(values).map((key) => [key, process.env[key]]));
   Object.assign(process.env, values);
@@ -94,7 +105,7 @@ test('oferta do piloto falha fechada por padrao e requer tarefa e declaracao apr
   withEnvironment({ NODE_ENV: 'development', CONECTALAR_HABILITACAO_PILOTO: 'true',
     CONECTALAR_STAGE: 'development', DB_HOST: '127.0.0.1', DB_NAME: 'conectalar_dev' }, () => {
     assert.equal(ofertaElegivelNoPiloto(offer), false);
-    offer.revisaoExperienciaEstado = 'aprovada';
+    Object.assign(offer, ofertaAprovadaPorDois(offer));
     assert.equal(ofertaElegivelNoPiloto(offer), true);
     assert.equal(ofertaElegivelNoPiloto({ ...offer, ativo: false }), false);
     assert.equal(ofertaElegivelNoPiloto({ ...offer, servicoCatalogo: { ...offer.servicoCatalogo, ativo: false } }), false);
@@ -174,6 +185,12 @@ test('aprovacao da tarefa exige dois administradores distintos e correcao reenvi
     async findOne(entity) {
       if (entity === ProfissionalPerfilEntity) return perfil;
       if (entity === ProfissionalServicoEntity) return oferta;
+      if (entity === UsuarioEntity) return {
+        id: 90,
+        tipo: 'administrador',
+        ativo: true,
+        mfaAtivo: true,
+      };
       assert.fail(`entidade inesperada: ${entity.name}`);
     },
     getRepository(entity) {
@@ -251,11 +268,17 @@ test('revisao recusa declaracao de iniciante sem confirmacao registrada', async 
       politicaPiloto: 'iniciante_ou_experiencia',
     },
   };
-  const perfil = { id: 10, usuarioId: 20, usuario: { id: 20, tipo: 'profissional' } };
+  const perfil = { id: 10, usuarioId: 20, usuario: { id: 20, tipo: 'profissional', ativo: true } };
   const manager = {
     async findOne(entity) {
       if (entity === ProfissionalPerfilEntity) return perfil;
       if (entity === ProfissionalServicoEntity) return oferta;
+      if (entity === UsuarioEntity) return {
+        id: 90,
+        tipo: 'administrador',
+        ativo: true,
+        mfaAtivo: true,
+      };
       assert.fail(`entidade inesperada: ${entity.name}`);
     },
   };

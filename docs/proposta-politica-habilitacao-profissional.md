@@ -4,6 +4,25 @@
 
 **Atualizado em:** 02/11/2026.
 
+## Atualizacao de implementacao — 25/11/2026
+
+Esta nota registra a decisao mais recente: no piloto, o telefone cadastrado e apenas
+um canal de contato; nenhum codigo de posse e enviado ou exigido. A flag
+`CONECTALAR_PHONE_VERIFICATION_ENABLED` deve permanecer `false`.
+
+A aprovacao manual real foi implementada no codigo: perfil individual ativo, e-mail
+confirmado, documento de identificacao aprovado e ao menos uma tarefa elegivel do
+catalogo revisada por dois administradores distintos. A habilitacao geral do perfil
+tambem exige duas decisoes de administradores diferentes com MFA. Tarefas fora do
+catalogo aprovado permanecem indisponiveis. Antecedentes e prova de vida nao sao
+verificados automaticamente e nenhum selo deve sugerir isso.
+
+Esta atualizacao substitui os trechos historicos abaixo que tratavam telefone como
+requisito, diziam que a aprovacao geral ainda nao existia ou bloqueavam toda aprovacao
+em producao. Ela descreve o comportamento do codigo, nao e aprovacao juridica nem
+autorizacao de lancamento. A migration correspondente ainda precisa ser aplicada e o
+fluxo precisa ser homologado no ambiente correto.
+
 ## Atualizacao posterior — 05/11/2026
 
 Esta atualizacao registra a direcao de produto mais recente e prevalece sobre

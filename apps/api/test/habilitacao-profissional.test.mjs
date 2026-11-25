@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { habilitacaoProfissional, podeAtender, exigirHabilitacao, IdentidadeNaoConfigurada } from '../dist/verificacao/habilitacao-profissional.js';
+import { ofertaElegivelNoPiloto } from '../dist/verificacao/habilitacao-piloto.js';
 import { HabilitacaoService } from '../dist/verificacao/habilitacao.service.js';
 import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
 import { ProfissionaisService } from '../dist/profissionais/profissionais.service.js';
@@ -9,6 +10,7 @@ import { VerificacaoService } from '../dist/verificacao/verificacao.service.js';
 
 const profissional = { id: 20, tipo: 'profissional' };
 const admin = { id: 99, tipo: 'administrador' };
+const adminSegundo = { id: 98, tipo: 'administrador' };
 const cliente = { id: 30, tipo: 'cliente' };
 const codigo = (value) => (error) => error.getResponse?.().code === value;
 function perfil() {
@@ -16,18 +18,19 @@ function perfil() {
     usuario: { id: 20, tipo: 'profissional', nome: 'Teste', email: 'teste@example.invalid', ativo: true, emailVerificado: true } };
 }
 
-test('sem fornecedores nao ha aprovacao, nem por selo legado, estado adulterado ou flag', () => {
+test('sem revisao manual completa nao ha aprovacao por selo legado, estado adulterado ou flag', () => {
   for (const estado of [undefined, 'pendente', 'em_analise', 'suspenso', 'aprovado']) {
     const p = { ...perfil(), habilitacaoEstado: estado };
     assert.equal(podeAtender(p), false);
     assert.throws(() => exigirHabilitacao(p), codigo('PROFISSIONAL_HABILITACAO_PENDENTE'));
     const status = habilitacaoProfissional(p);
     assert.equal(status.documentoAnalisado, true);
-    assert.equal(status.etapas.find((e) => e.codigo === 'antecedentes').status, 'aguardando_politica');
+    assert.equal(status.etapas.find((e) => e.codigo === 'antecedentes').status, 'nao_verificados_no_piloto');
     assert.notEqual(status.estado, 'aprovado');
   }
   assert.equal(podeAtender(null), false);
   assert.equal(habilitacaoProfissional(perfil(), 'confirmado', 'confirmado').podeAtender, false);
+  assert.equal(habilitacaoProfissional(perfil()).etapas.find((e) => e.codigo === 'telefone').status, 'nao_exigido_no_piloto');
 });
 
 test('habilitacao manual de teste exige ambiente local, flag e estado aprovado', () => {
@@ -119,18 +122,91 @@ test('provider desabilitado nao simula identidade ou prova de vida', async () =>
   await assert.rejects(provider.consultar('forjada'), codigo('VERIFICACAO_IDENTIDADE_INDISPONIVEL'));
 });
 
-function habilitacaoFixture(mfaAtivo = true) {
+test('verificacao de telefone permanece desligada sem opt-in, mesmo com flags antigas', async () => {
+  const keys = ['CONECTALAR_PHONE_VERIFICATION_ENABLED', 'ID_ZAPSIGN_PHONE_ENABLED', 'WHATSAPP_MANUAL_ENABLED'];
+  const previous = new Map(keys.map((key) => [key, process.env[key]]));
+  const { service } = habilitacaoFixture();
+  try {
+    delete process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED;
+    process.env.ID_ZAPSIGN_PHONE_ENABLED = 'true';
+    process.env.WHATSAPP_MANUAL_ENABLED = 'true';
+    await assert.rejects(service.iniciarTelefone(profissional, { consentimento: true }),
+      codigo('VERIFICACAO_TELEFONE_INDISPONIVEL'));
+    await assert.rejects(service.iniciarTelefoneManual(profissional, { consentimento: true }),
+      codigo('VERIFICACAO_MANUAL_WHATSAPP_INDISPONIVEL'));
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+test('producao exige revisoes distintas registradas para cada oferta do piloto', () => {
+  const keys = ['NODE_ENV', 'CONECTALAR_HABILITACAO_PILOTO'];
+  const previous = new Map(keys.map((key) => [key, process.env[key]]));
+  process.env.NODE_ENV = 'production';
+  process.env.CONECTALAR_HABILITACAO_PILOTO = 'false';
+  const oferta = {
+    ativo: true,
+    servicoCatalogoId: 7,
+    categoriaId: 3,
+    categoria: { ativo: true },
+    servicoCatalogo: {
+      ativo: true,
+      categoriaId: 3,
+      politicaPiloto: 'experiencia_declarada',
+      criterioPiloto: 'Experiencia declarada com tarefa dentro do piloto.',
+    },
+    revisaoExperienciaEstado: 'aprovada',
+    nivelExperienciaPiloto: 'experiencia_declarada',
+    primeiroRevisorId: 70,
+    primeiraRevisaoEm: new Date(),
+    revisorFinalId: 71,
+    revisaoFinalEm: new Date(),
+  };
+  try {
+    assert.equal(ofertaElegivelNoPiloto({ ...oferta, primeiroRevisorId: null }), false);
+    assert.equal(ofertaElegivelNoPiloto({ ...oferta, revisorFinalId: 70 }), false);
+    assert.equal(ofertaElegivelNoPiloto(oferta), true);
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
+function habilitacaoFixture(mfaAtivo = true, { documentos = [], ofertas = [] } = {}) {
   const p = perfil();
   const audit = [];
   const filtrosAplicados = [];
+  const admins = new Map([
+    [99, { ...admin, ativo: true, mfaAtivo }],
+    [98, { ...adminSegundo, ativo: true, mfaAtivo }],
+  ]);
   const manager = {
-    async findOne(entity) { return entity.name === 'UsuarioEntity' ? p.usuario : p; },
+    async findOne(entity, options = {}) {
+      if (entity.name === 'UsuarioEntity') {
+        const id = options.where?.id;
+        return id === p.usuario.id ? p.usuario : admins.get(id) ?? null;
+      }
+      return p;
+    },
     getRepository(entity) {
       if (entity.name === 'AdminAuditoriaEntity') {
         return {
           create: (data) => data,
           async save(data) { audit.push(data); return data; },
         };
+      }
+      if (entity.name === 'ProfissionalDocumentoVerificacaoEntity') {
+        return { async findOne({ where }) {
+          return documentos.find((documento) => Object.entries(where).every(([key, value]) => documento[key] === value)) ?? null;
+        } };
+      }
+      if (entity.name === 'ProfissionalServicoEntity') {
+        return { async find() { return ofertas; } };
       }
       return {};
     },
@@ -149,8 +225,7 @@ function habilitacaoFixture(mfaAtivo = true) {
     manager: { async transaction(fn) { return fn(manager); } },
     async findAndCount() { return [[p], 1]; },
   };
-  const usuarios = { async findOneBy({ id }) { return id === 99
-    ? { ...admin, ativo: true, mfaAtivo } : p.usuario; } };
+  const usuarios = { async findOneBy({ id }) { return admins.get(id) ?? p.usuario; } };
   return { p, audit, filtrosAplicados, service: new HabilitacaoService(repo, usuarios) };
 }
 
@@ -183,9 +258,11 @@ test('habilitacao administrativa exige papel e MFA, inclusive na leitura', async
   await assert.rejects(service.listar(profissional, {}), (e) => e.getStatus() === 403);
 });
 
-test('admin nao aprova sem dependencias nem aceita detalhes criminais arbitrarios', async () => {
+test('admin nao aprova sem evidencias e nao aceita detalhes criminais arbitrarios', async () => {
   const { service, p, audit } = habilitacaoFixture();
-  await assert.rejects(service.analisar(admin, 10, { acao: 'aprovar' }), codigo('HABILITACAO_DEPENDENCIAS_PENDENTES'));
+  await assert.rejects(service.analisar(admin, 10, {
+    acao: 'aprovar', motivo: 'revisao_concluida',
+  }), codigo('HABILITACAO_EVIDENCIAS_PENDENTES'));
   await assert.rejects(service.analisar(admin, 10, { acao: 'suspender', motivo: 'Texto com dados pessoais' }), codigo('HABILITACAO_DADOS_INVALIDOS'));
   await assert.rejects(service.analisar(admin, 10, { acao: 'suspender', motivo: 'suspeita_fraude', antecedentes: 'dados' }), codigo('HABILITACAO_DADOS_INVALIDOS'));
   assert.equal(p.habilitacaoEstado, 'pendente');
@@ -199,6 +276,60 @@ test('admin nao aprova sem dependencias nem aceita detalhes criminais arbitrario
   assert.equal(p.habilitacaoEstado, 'pendente');
   assert.equal(podeAtender(p), false);
   assert.equal(audit.length, 2);
+});
+
+test('habilitacao real exige documento e tarefa revisada, depois dois admins distintos', async () => {
+  const now = new Date();
+  const documentos = [{
+    profissionalId: 10,
+    tipoDocumento: 'documento_identidade',
+    status: 'aprovado',
+  }];
+  const ofertas = [{
+    id: 5,
+    profissionalId: 10,
+    ativo: true,
+    servicoCatalogoId: 7,
+    categoriaId: 3,
+    categoria: { ativo: true },
+    servicoCatalogo: {
+      ativo: true,
+      categoriaId: 3,
+      politicaPiloto: 'experiencia_declarada',
+      criterioPiloto: 'Experiencia declarada e tarefa delimitada para revisao.',
+    },
+    revisaoExperienciaEstado: 'aprovada',
+    nivelExperienciaPiloto: 'experiencia_declarada',
+    primeiroRevisorId: 70,
+    primeiraRevisaoEm: now,
+    revisorFinalId: 71,
+    revisaoFinalEm: now,
+  }];
+  const { service, p, audit } = habilitacaoFixture(true, { documentos, ofertas });
+
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'aprovar', motivo: 'revisao_concluida',
+  });
+  assert.equal(p.habilitacaoEstado, 'em_analise');
+  assert.equal(primeira.habilitacao.podeAtender, false);
+  assert.equal(primeira.habilitacao.aguardandoSegundoRevisor, true);
+  await assert.rejects(service.analisar(admin, 10, {
+    acao: 'aprovar', motivo: 'revisao_concluida',
+  }), codigo('REVISOR_INDEPENDENTE_OBRIGATORIO'));
+
+  const final = await service.analisar(adminSegundo, 10, {
+    acao: 'aprovar', motivo: 'revisao_concluida',
+  });
+  assert.equal(p.habilitacaoEstado, 'aprovado');
+  assert.equal(final.habilitacao.podeAtender, true);
+  assert.equal(final.habilitacao.estado, 'aprovado');
+  assert.equal(p.habilitacaoPrimeiroRevisorId, admin.id);
+  assert.equal(p.habilitacaoRevisorFinalId, adminSegundo.id);
+  assert.equal(audit.length, 2);
+  assert.equal(JSON.parse(audit[0].detalhe).aprovacaoConcedida, false);
+  assert.equal(JSON.parse(audit[1].detalhe).aprovacaoRealConcluida, true);
+  assert.equal(JSON.parse(audit[0].detalhe).etapaAprovacao, 'primeiro_revisor');
+  assert.equal(JSON.parse(audit[1].detalhe).etapaAprovacao, 'revisor_final');
 });
 
 test('admin libera perfis de teste somente em ambiente de teste ou homologacao isolada', async () => {
@@ -221,7 +352,7 @@ test('admin libera perfis de teste somente em ambiente de teste ou homologacao i
     assert.equal(result.habilitacao.podeAtender, true);
     assert.equal(audit.length, 1);
     assert.equal(JSON.parse(audit[0].detalhe).aprovacaoConcedida, true);
-    assert.equal(JSON.parse(audit[0].detalhe).somenteTesteLocal, undefined);
+    assert.equal(JSON.parse(audit[0].detalhe).somenteTesteLocal, true);
 
     p.usuario.email = 'profissional.real@example.com';
     p.habilitacaoEstado = 'pendente';

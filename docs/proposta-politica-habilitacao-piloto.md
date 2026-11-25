@@ -38,6 +38,15 @@ destino planejado para arquivos privados. Isso registra a direcao de produto,
 nao aprovacao juridica, configuracao concluida, coleta real ou liberacao de
 contratacoes.
 
+**Atualizacao de produto e codigo — 2026-11-25:** a decisao mais recente substitui
+a exigencia de telefone acima: o numero cadastrado e apenas contato, sem codigo e
+sem verificacao de posse nesta fase. A aprovacao manual real foi implementada com
+MFA e dois administradores distintos para o perfil e para cada tarefa elegivel do
+piloto. A primeira revisao nao libera atendimento; somente a segunda decisao
+independente conclui a habilitacao. Isso nao equivale a verificacao automatizada de
+identidade, antecedentes ou qualidade. Revisao juridica, privacidade, procedimento
+de contestacao e migracao/deploy continuam pendentes de verificacao propria.
+
 **CPF, identidade e antecedentes:** embora tenha sido manifestado interesse em
 avaliar CPF/nome, antecedentes e fontes publicas, a recomendacao inicial e nao
 fazer buscas abertas ou verificacoes de antecedentes e nao tratar CPF como prova

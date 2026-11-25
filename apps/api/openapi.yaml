@@ -303,11 +303,11 @@ paths:
               additionalProperties: false
               required: [acao, motivo]
               properties:
-                acao: { type: string, enum: [iniciar_analise, suspender, reabrir, aprovar_teste_local] }
-                motivo: { type: string, enum: [revisao_cadastral, suspeita_fraude, solicitacao_titular, teste_fluxo_local] }
+                acao: { type: string, enum: [aprovar, iniciar_analise, suspender, reabrir, aprovar_teste_local] }
+                motivo: { type: string, enum: [revisao_concluida, revisao_cadastral, suspeita_fraude, solicitacao_titular, teste_fluxo_local] }
       responses:
         '200':
-          description: Decision and audit committed atomically; test approval is available only outside production with the local flag enabled
+          description: Manual approval is recorded in two distinct MFA-protected administrator reviews; test approval remains isolated from real requests
           content:
             application/json:
               schema:
@@ -315,7 +315,7 @@ paths:
         '403':
           description: Administrator MFA required; self-review forbidden
         '409':
-          description: Production approval unavailable; local test approval disabled or account not eligible; or suspended review not reopened
+          description: Evidence incomplete, second administrator required, pilot task unavailable, or test approval disabled
   /health:
     get:
       operationId: getHealth
@@ -3826,13 +3826,18 @@ components:
         habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
     HabilitacaoProfissional:
       type: object
-      required: [estado, podeAtender, documentoAnalisado, etapas, mensagem, revisaoSolicitadaEm]
+      required: [estado, podeAtender, documentoAnalisado, aguardandoSegundoRevisor, etapas, mensagem, revisaoSolicitadaEm]
       properties:
-        estado: { type: string, enum: [pendente, em_analise, suspenso] }
+        estado: { type: string, enum: [pendente, em_analise, suspenso, aprovado, teste_local_aprovado] }
         podeAtender:
           type: boolean
-          description: Verdadeiro apenas na beta local isolada para perfil autorizado; em produção permanece falso até concluir as políticas pendentes.
+          description: True for manually approved active individual professionals with a verified email and approved document; each requested task must also remain eligible in the pilot catalog.
         documentoAnalisado: { type: boolean }
+        aguardandoSegundoRevisor: { type: boolean }
+        primeiroRevisorId: { type: [integer, 'null'] }
+        primeiraRevisaoEm: { type: [string, 'null'], format: date-time }
+        revisorFinalId: { type: [integer, 'null'] }
+        aprovadoEm: { type: [string, 'null'], format: date-time }
         mensagem: { type: string }
         revisaoSolicitadaEm: { type: [string, 'null'], format: date-time }
         etapas:
@@ -3841,7 +3846,7 @@ components:
             type: object
             properties:
               codigo: { type: string, enum: [perfil, email, documentos, telefone, identidade, antecedentes, aprovacao] }
-              status: { type: string, enum: [cadastrado, analisado, confirmado, pendente, em_analise, suspenso, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
+              status: { type: string, enum: [cadastrado, analisado, confirmado, pendente, em_analise, suspenso, aprovado, teste_local_aprovado, nao_exigido_no_piloto, nao_verificados_no_piloto, nao_verificada_no_piloto, aguardando_integracao, aguardando_politica, revisao_necessaria, expirada, invalidada, telefone_ausente, nao_iniciada] }
     TelefoneProfissionalVerificacao:
       type: object
       additionalProperties: false

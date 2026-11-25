@@ -39,10 +39,13 @@ const estados = new Set([
   'primeira_aprovacao', 'precisa_correcao', 'inconclusiva', 'suspensa',
 ]);
 const acoesTarefa = new Set(['aprovar', 'solicitar_correcao', 'marcar_inconclusiva', 'suspender']);
+const acoesHabilitacao = new Set(['aprovar', 'iniciar_analise', 'suspender', 'reabrir', 'aprovar_teste_local']);
 const motivosTarefa = new Set([
   'revisao_concluida', 'informacao_incompleta', 'criterio_nao_verificavel',
   'escopo_incompativel', 'risco_identificado',
 ]);
+const motivosHabilitacao = new Set(['revisao_concluida', 'revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular', 'teste_fluxo_local']);
+const etapasAprovacao = new Set(['primeiro_revisor', 'revisor_final']);
 const chavesId = new Set([
   'profissionalUsuarioId', 'solicitacaoId', 'denuncianteId',
   'denunciadoId', 'avaliadorId', 'avaliadoId', 'emailOutboxId',
@@ -50,7 +53,7 @@ const chavesId = new Set([
 ]);
 const chavesBooleanas = new Set([
   'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida',
-  'requerDoisAdministradores', 'selo',
+  'aprovacaoRealConcluida', 'somenteTesteLocal', 'requerDoisAdministradores', 'selo',
 ]);
 
 function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, unknown> {
@@ -93,6 +96,12 @@ function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, 
     } else if (chave === 'acaoTarefa' && typeof valor === 'string' && acoesTarefa.has(valor)) {
       seguro[chave] = valor;
     } else if (chave === 'motivoTarefa' && typeof valor === 'string' && motivosTarefa.has(valor)) {
+      seguro[chave] = valor;
+    } else if (chave === 'acao' && typeof valor === 'string' && acoesHabilitacao.has(valor)) {
+      seguro[chave] = valor;
+    } else if (chave === 'motivo' && typeof valor === 'string' && motivosHabilitacao.has(valor)) {
+      seguro[chave] = valor;
+    } else if (chave === 'etapaAprovacao' && typeof valor === 'string' && etapasAprovacao.has(valor)) {
       seguro[chave] = valor;
     }
   }

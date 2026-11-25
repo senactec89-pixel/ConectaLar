@@ -13,9 +13,10 @@ import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/prof
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
+import { DocumentoVerificacaoStatus } from '../domain/documento-verificacao-status.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { habilitacaoManualTesteAtiva, habilitacaoProfissional } from './habilitacao-profissional.js';
-import { habilitacaoPilotoAtiva, politicaPilotoPublicavel } from './habilitacao-piloto.js';
+import { habilitacaoPilotoRestrita, ofertaRevisadaParaHabilitacao, politicaPilotoPublicavel } from './habilitacao-piloto.js';
 import { IdZapSignProvider } from './id-zapsign.provider.js';
 
 @Injectable()
@@ -49,7 +50,7 @@ export class HabilitacaoService {
     this.exigirProfissional(user);
     const input = corpo(body, ['consentimento']);
     if (input.consentimento !== true) throw invalido();
-    if (!this.identidade.telefoneDisponivel || !this.telefones) throw telefoneIndisponivel();
+    if (!telefoneVerificacaoAtiva() || !this.identidade.telefoneDisponivel || !this.telefones) throw telefoneIndisponivel();
 
     const inicio = await this.telefones.manager.transaction(async (manager) => {
       const usuario = await manager.findOne(UsuarioEntity, {
@@ -173,7 +174,7 @@ export class HabilitacaoService {
     const input = corpo(body, ['consentimento']);
     if (input.consentimento !== true) throw invalido();
     const numeroOficial = numeroWhatsAppManual();
-    if (!numeroOficial || !this.telefones || !segredoCodigoConfigurado()) {
+    if (!telefoneVerificacaoAtiva() || !numeroOficial || !this.telefones || !segredoCodigoConfigurado()) {
       throw telefoneManualIndisponivel();
     }
 
@@ -277,7 +278,7 @@ export class HabilitacaoService {
 
   async confirmarTelefoneManual(user: AuthenticatedUser, id: number, body: unknown) {
     await this.exigirAdminMfa(user);
-    if (!numeroWhatsAppManual()) throw telefoneManualIndisponivel();
+    if (!telefoneVerificacaoAtiva() || !numeroWhatsAppManual()) throw telefoneManualIndisponivel();
     const input = corpo(body, ['codigo', 'telefoneRemetente']);
     if (typeof input.codigo !== 'string' || !/^\d{8}$/.test(input.codigo) ||
       typeof input.telefoneRemetente !== 'string') throw invalido();
@@ -438,7 +439,7 @@ export class HabilitacaoService {
     }
     const codigo = input.codigo;
     const tentativaId = input.tentativaId as string;
-    if (!this.identidade.telefoneDisponivel || !this.telefones) throw telefoneIndisponivel();
+    if (!telefoneVerificacaoAtiva() || !this.identidade.telefoneDisponivel || !this.telefones) throw telefoneIndisponivel();
 
     const preparado = await this.telefones.manager.transaction(async (manager) => {
       const usuario = await manager.findOne(UsuarioEntity, {
@@ -782,14 +783,17 @@ export class HabilitacaoService {
       throw new ConflictException({ code: 'HABILITACAO_TESTE_LOCAL_INDISPONIVEL',
         message: 'A habilitacao manual de teste esta desativada neste ambiente.' });
     }
-    if (input.acao === 'aprovar') {
-      throw new ConflictException({ code: 'HABILITACAO_DEPENDENCIAS_PENDENTES',
-        message: 'Aprovacao indisponivel: faltam integracoes de identidade, telefone e politica de antecedentes.' });
-    }
-    if (typeof input.acao !== 'string' || !['suspender', 'iniciar_analise', 'reabrir', 'aprovar_teste_local'].includes(input.acao)) throw invalido();
-    if (typeof input.motivo !== 'string' || !['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular', 'teste_fluxo_local'].includes(input.motivo)) throw invalido();
+    if (typeof input.acao !== 'string' || !['aprovar', 'suspender', 'iniciar_analise', 'reabrir', 'aprovar_teste_local'].includes(input.acao)) throw invalido();
+    if (typeof input.motivo !== 'string' || !['revisao_concluida', 'revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular', 'teste_fluxo_local'].includes(input.motivo)) throw invalido();
     if (input.acao === 'aprovar_teste_local' && input.motivo !== 'teste_fluxo_local') throw invalido();
+    if (input.acao === 'aprovar' && input.motivo !== 'revisao_concluida') throw invalido();
     const perfil = await this.perfis.manager.transaction(async (manager) => {
+      const admin = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!admin?.mfaAtivo || admin.tipo !== UsuarioTipo.Administrador) {
+        throw new ForbiddenException({ code: 'MFA_ADMIN_OBRIGATORIO', message: 'Ative a verificacao em duas etapas para gerenciar habilitacoes.' });
+      }
       const perfil = await manager.findOne(ProfissionalPerfilEntity, {
         where: { id }, lock: { mode: 'pessimistic_write' },
       });
@@ -802,11 +806,75 @@ export class HabilitacaoService {
       if (perfil.habilitacaoEstado === 'suspenso' && input.acao === 'iniciar_analise') {
         throw new ConflictException({ code: 'HABILITACAO_SUSPENSA', message: 'Reabra a analise antes de continuar.' });
       }
+      if (input.acao === 'iniciar_analise' &&
+        (perfil.habilitacaoEstado === 'aprovado' || perfil.habilitacaoEstado === 'teste_local_aprovado' ||
+          perfil.habilitacaoPrimeiroRevisorId != null)) {
+        throw new ConflictException({ code: 'HABILITACAO_REABERTURA_OBRIGATORIA', message: 'Reabra a habilitacao para iniciar um novo ciclo de revisao.' });
+      }
       const estadoAnterior = perfil.habilitacaoEstado;
       const revisaoAnterior = perfil.habilitacaoRevisaoEm;
-      perfil.habilitacaoEstado = input.acao === 'aprovar_teste_local' ? 'teste_local_aprovado'
-        : input.acao === 'suspender' ? 'suspenso'
-        : input.acao === 'iniciar_analise' ? 'em_analise' : 'pendente';
+      let etapaAprovacao: 'primeiro_revisor' | 'revisor_final' | null = null;
+      if (input.acao === 'aprovar') {
+        if (perfil.habilitacaoEstado === 'suspenso' || perfil.habilitacaoEstado === 'teste_local_aprovado') {
+          throw new ConflictException({ code: 'HABILITACAO_REABERTURA_OBRIGATORIA', message: 'Reabra a habilitacao antes de iniciar a aprovacao real.' });
+        }
+        if (perfil.habilitacaoEstado === 'aprovado') {
+          throw new ConflictException({ code: 'HABILITACAO_JA_APROVADA', message: 'Este perfil ja esta habilitado.' });
+        }
+        const usuario = await manager.findOne(UsuarioEntity, {
+          where: { id: perfil.usuarioId, ativo: true }, lock: { mode: 'pessimistic_read' },
+        });
+        if (!perfil.ativo || !usuario?.emailVerificado || usuario.tipo !== UsuarioTipo.Profissional) {
+          throw new ConflictException({ code: 'HABILITACAO_CONTA_INELEGIVEL', message: 'A aprovacao manual exige conta individual ativa, perfil ativo e e-mail confirmado.' });
+        }
+        const documentoAprovado = await manager.getRepository(ProfissionalDocumentoVerificacaoEntity).findOne({
+          where: {
+            profissionalId: perfil.id,
+            tipoDocumento: 'documento_identidade',
+            status: DocumentoVerificacaoStatus.Aprovado,
+          },
+        });
+        const ofertas = await manager.getRepository(ProfissionalServicoEntity).find({
+          where: { profissionalId: perfil.id, ativo: true },
+          relations: { categoria: true, servicoCatalogo: true },
+        });
+        if (!documentoAprovado || !ofertas.some(ofertaRevisadaParaHabilitacao)) {
+          throw new ConflictException({ code: 'HABILITACAO_EVIDENCIAS_PENDENTES', message: 'Aprove manualmente um documento de identificacao e ao menos uma oferta do piloto, cada tarefa com duas revisoes administrativas.' });
+        }
+        const now = new Date();
+        if (perfil.habilitacaoPrimeiroRevisorId == null) {
+          if (perfil.habilitacaoPrimeiraRevisaoEm != null || perfil.habilitacaoRevisorFinalId != null ||
+            perfil.habilitacaoAprovadoEm != null) {
+            throw new ConflictException({ code: 'HABILITACAO_REVISOES_INVALIDAS', message: 'O historico de revisao esta inconsistente; reabra a analise antes de continuar.' });
+          }
+          perfil.habilitacaoEstado = 'em_analise';
+          perfil.habilitacaoPrimeiroRevisorId = user.id;
+          perfil.habilitacaoPrimeiraRevisaoEm = now;
+          etapaAprovacao = 'primeiro_revisor';
+        } else {
+          if (perfil.habilitacaoEstado !== 'em_analise' || perfil.habilitacaoPrimeiraRevisaoEm == null ||
+            perfil.habilitacaoRevisorFinalId != null || perfil.habilitacaoAprovadoEm != null) {
+            throw new ConflictException({ code: 'HABILITACAO_REVISOES_INVALIDAS', message: 'A primeira revisao nao esta registrada corretamente.' });
+          }
+          if (perfil.habilitacaoPrimeiroRevisorId === user.id) {
+            throw new ConflictException({ code: 'REVISOR_INDEPENDENTE_OBRIGATORIO', message: 'A aprovacao final exige outro administrador.' });
+          }
+          perfil.habilitacaoEstado = 'aprovado';
+          perfil.habilitacaoRevisorFinalId = user.id;
+          perfil.habilitacaoAprovadoEm = now;
+          etapaAprovacao = 'revisor_final';
+        }
+      } else {
+        perfil.habilitacaoEstado = input.acao === 'aprovar_teste_local' ? 'teste_local_aprovado'
+          : input.acao === 'suspender' ? 'suspenso'
+          : input.acao === 'iniciar_analise' ? 'em_analise' : 'pendente';
+        if (input.acao === 'reabrir') {
+          perfil.habilitacaoPrimeiroRevisorId = null;
+          perfil.habilitacaoPrimeiraRevisaoEm = null;
+          perfil.habilitacaoRevisorFinalId = null;
+          perfil.habilitacaoAprovadoEm = null;
+        }
+      }
       perfil.habilitacaoRevisaoEm = null;
       await manager.save(ProfissionalPerfilEntity, perfil);
       await registrarAuditoriaAdmin(manager, {
@@ -823,8 +891,13 @@ export class HabilitacaoService {
           },
           acao: input.acao,
           motivo: input.motivo,
-          aprovacaoConcedida: input.acao === 'aprovar_teste_local',
+          etapaAprovacao,
+          primeiroRevisorId: perfil.habilitacaoPrimeiroRevisorId,
+          revisorFinalId: perfil.habilitacaoRevisorFinalId,
+          aprovacaoConcedida: input.acao === 'aprovar_teste_local' ||
+            (input.acao === 'aprovar' && etapaAprovacao === 'revisor_final'),
           somenteTesteLocal: input.acao === 'aprovar_teste_local',
+          aprovacaoRealConcluida: input.acao === 'aprovar' && etapaAprovacao === 'revisor_final',
         },
       });
       return perfil;
@@ -850,12 +923,18 @@ export class HabilitacaoService {
       (input.acao === 'suspender' && input.motivo !== 'risco_identificado')) throw invalido();
 
     return this.perfis.manager.transaction(async (manager) => {
+      const admin = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!admin?.mfaAtivo || admin.tipo !== UsuarioTipo.Administrador) {
+        throw new ForbiddenException({ code: 'MFA_ADMIN_OBRIGATORIO', message: 'Ative a verificacao em duas etapas para gerenciar habilitacoes.' });
+      }
       const perfil = await manager.findOne(ProfissionalPerfilEntity, {
         where: { id: perfilId }, relations: { usuario: true }, lock: { mode: 'pessimistic_write' },
       });
       if (!perfil) throw naoEncontrado();
       if (perfil.usuarioId === user.id) throw new ForbiddenException();
-      if (habilitacaoPilotoAtiva() && perfil.usuario.tipo !== UsuarioTipo.Profissional) {
+      if (habilitacaoPilotoRestrita() && perfil.usuario.tipo !== UsuarioTipo.Profissional) {
         throw new ConflictException({ code: 'EMPRESA_FORA_DO_PILOTO', message: 'Empresas com equipes estao fora desta rodada do piloto.' });
       }
       const oferta = await manager.findOne(ProfissionalServicoEntity, {
@@ -980,8 +1059,12 @@ function numeroWhatsAppManual(): string | null {
 }
 
 function telefoneConfigurado(): boolean {
-  return Boolean(numeroWhatsAppManual() && segredoCodigoConfigurado()) ||
-    process.env.ID_ZAPSIGN_PHONE_ENABLED === 'true';
+  return telefoneVerificacaoAtiva() && (Boolean(numeroWhatsAppManual() && segredoCodigoConfigurado()) ||
+    process.env.ID_ZAPSIGN_PHONE_ENABLED === 'true');
+}
+
+function telefoneVerificacaoAtiva(): boolean {
+  return process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED === 'true';
 }
 
 function segredoCodigoConfigurado(): boolean {
@@ -1117,7 +1200,7 @@ function identidadeIndisponivel() {
 }
 function optionalEstadoHabilitacao(value: unknown): string | null {
   if (value === undefined || value === null || value === '') return null;
-  if (typeof value === 'string' && ['pendente', 'em_analise', 'suspenso', 'teste_local_aprovado'].includes(value)) {
+  if (typeof value === 'string' && ['pendente', 'em_analise', 'suspenso', 'aprovado', 'teste_local_aprovado'].includes(value)) {
     return value;
   }
   throw new BadRequestException({ code: 'FILTRO_INVALIDO', message: 'Filtro invalido.' });

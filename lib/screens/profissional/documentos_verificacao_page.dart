@@ -61,17 +61,6 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
         _identidade = {..._identidade, 'falhaConsulta': true};
       }
     }
-    try {
-      final respostaTelefone = await AppServices.instance.verificacao
-          .consultarPosseTelefone();
-      final rawTelefone = respostaTelefone['telefone'];
-      _telefone = rawTelefone is Map
-          ? Map<String, dynamic>.from(rawTelefone)
-          : const {};
-      _tentativaTelefoneId = _telefone['tentativaId']?.toString();
-    } catch (_) {
-      _telefone = {..._telefone, 'falhaConsulta': true};
-    }
     final rawHabilitacao = dados['habilitacao'];
     if (rawHabilitacao is Map) {
       final habilitacao = Map<String, dynamic>.from(rawHabilitacao);
@@ -84,13 +73,6 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
       if (indice >= 0 && etapas[indice] is Map) {
         (etapas[indice] as Map<String, dynamic>)['status'] =
             _statusEtapaIdentidade(_identidade['estado']);
-      }
-      final indiceTelefone = etapas.indexWhere(
-        (item) => item is Map && item['codigo'] == 'telefone',
-      );
-      if (indiceTelefone >= 0 && etapas[indiceTelefone] is Map) {
-        (etapas[indiceTelefone] as Map<String, dynamic>)['status'] =
-            _statusEtapaTelefone(_telefone['estado']);
       }
       habilitacao['etapas'] = etapas;
       dados['habilitacao'] = habilitacao;
@@ -405,14 +387,13 @@ class _DocumentosVerificacaoPageState extends State<DocumentosVerificacaoPage> {
                   onConsultar: _consultarIdentidade,
                 ),
                 const SizedBox(height: 12),
-                _CartaoTelefone(
-                  dados: _telefone,
-                  iniciando: _iniciandoTelefone,
-                  confirmando: _confirmandoTelefone,
-                  consultando: _consultandoTelefone,
-                  onIniciar: _iniciarTelefone,
-                  onConfirmar: _confirmarTelefone,
-                  onConsultar: _consultarTelefone,
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'O telefone cadastrado será usado como contato. Não enviamos código e a confirmação do número não é requisito para habilitação nesta fase.',
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(

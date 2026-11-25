@@ -1,13 +1,12 @@
 # Habilitacao profissional: preparacao de seguranca
 
-Estado em 25/10/2026: a API e a interface Flutter para posse de telefone por codigo
-WhatsApp estao implementadas e testadas com MySQL isolado e respostas simuladas. O
-recurso permanece desativado: `ID_ZAPSIGN_PHONE_ENABLED=false`; nenhum codigo real foi
-enviado nem credito consumido. O aviso exibido no app ainda precisa de aprovacao juridica
-antes de uma homologacao com fornecedor. Antecedentes seguem pendentes de politica.
-Nenhuma confirmacao de telefone ou aprovacao documental libera atendimentos.
+**Atualizacao de 25/11/2026:** a regra anterior de bloqueio universal da aprovacao administrativa foi substituida pelo fluxo de revisao manual descrito abaixo. O telefone fica como contato, sem codigo, e nao e requisito de habilitacao (`CONECTALAR_PHONE_VERIFICATION_ENABLED=false`).
 
-Em novembro de 2026, foi acrescentada uma excecao **somente para beta tecnica local**, descrita em `homologacao-beta-local.md`: o processo `NODE_ENV=test`, conectado ao banco descartavel `conectalar_beta_test` em loopback, pode liberar IDs ficticios listados explicitamente pelo operador. O processo normal e a aprovacao administrativa continuam bloqueados. A excecao nao substitui nenhuma etapa de seguranca para uso real.
+A aprovacao real exige conta e perfil individuais ativos, e-mail confirmado, documento de identificacao aprovado manualmente, ao menos uma oferta ativa do catalogo do piloto e revisao dupla da oferta. A aprovacao do perfil tambem exige dois administradores diferentes, ambos com MFA. O primeiro registra a decisao e o segundo a confirma; a mesma pessoa nao pode concluir ambas.
+
+A habilitacao significa apenas que a equipe revisou manualmente o documento apresentado e as ofertas aprovadas. Nao representa prova de identidade, prova de vida, checagem de antecedentes, certificacao profissional nem garantia de qualidade ou seguranca. Cada pedido continua restrito a uma oferta ativa aprovada do piloto. A habilitacao de teste local permanece separada e nao libera pedidos reais.
+
+O codigo e a migration estao no checkout, mas isso nao aplica a migration no banco remoto nem comprova deploy/homologacao. Revisao juridica, privacidade, operacao e decisao de lancamento permanecem fora deste fluxo tecnico.
 
 ## Impacto da atualizacao
 
@@ -81,13 +80,11 @@ verificacao estiver pendente. A URL retornada e validada para HTTPS e o host ofi
 A chave do fornecedor nao foi usada nesta homologacao e nenhuma chamada externa foi
 feita. A migration de telefone foi homologada apenas no banco temporario descrito acima;
 isso nao equivale a homologar o fornecedor. A prova de vida usa `ID_ZAPSIGN_ENABLED`; posse de telefone
-usa separadamente `ID_ZAPSIGN_PHONE_ENABLED`; ambos exigem `ID_ZAPSIGN_API_KEY`. Mantenha
-as flags desligadas e a chave fora do VPS ate aprovar o aviso/consentimento e concluir
-os testes. A API registra telefone vinculado, estado, datas e versao do aviso; nao
-persiste o OTP. A confirmacao so prova acesso ao canal WhatsApp naquele momento, nao
-identidade nem titularidade civil do numero. Tambem nao libera atendimentos: a
-habilitacao continua bloqueada enquanto antecedentes e revisao administrativa nao
-estiverem resolvidos.
+usa separadamente `ID_ZAPSIGN_PHONE_ENABLED`; ambos exigem `ID_ZAPSIGN_API_KEY`. A posse
+de telefone esta desligada nesta fase por `CONECTALAR_PHONE_VERIFICATION_ENABLED=false`;
+credenciais antigas de fornecedor ou WhatsApp nao reativam o fluxo sem a nova flag.
+Os endpoints legados podem permanecer para compatibilidade, mas iniciacao e confirmacao
+devem responder indisponivel enquanto a flag estiver desligada.
 
 O fluxo usa `POST /profissionais/me/habilitacao/telefone` para solicitar o envio,
 `POST /profissionais/me/habilitacao/telefone/confirmacao` para submeter codigo e
@@ -107,25 +104,26 @@ baixar documentos para celulares ou computadores pessoais, nao enviar documentos
 chats, nao registrar codigos ou dados sensiveis em logs e nao fazer pesquisas de
 antecedentes por conta propria.
 
-A tela de moderacao documental atual e uma revisao de documentos; ela nao confirma
-posse do telefone, nao equivale a verificacao biometrica, nao prova qualificacao
-profissional e nao libera solicitacoes. Ate que exista fluxo manual formal, testado e
-aprovado, manter pedidos e aceites bloqueados. Um piloto deve ser supervisionado e
-nao deve expor clientes a atendimentos residenciais sem as salvaguardas definidas.
+A tela de moderacao documental e uma revisao de documentos; isoladamente, ela nao
+libera solicitacoes. A habilitacao manual e uma etapa separada e exige as condicoes
+acima, inclusive aprovacao dupla do perfil e de cada tarefa. O procedimento operacional
+de contestacao, retencao e resposta a incidentes ainda deve ser revisado antes do
+lancamento; este fluxo tecnico nao substitui essa aprovacao.
 
 Antes de ativar em producao, definir e documentar:
 
 - base legal, finalidade, aviso ao titular, retencao/exclusao, contrato de tratamento
   e avaliacao de impacto para biometria;
 - revisao humana segura e alternativa acessivel para resultados inconclusivos;
-- confirmacao real de telefone e nova verificacao apos alteracoes de identidade;
+- verificacao de telefone por codigo (nao exigida nem ativada nesta fase);
 - empresas: verificar cada pessoa que entrara na residencia, nao apenas CNPJ ou representante;
 - tratamento administrativo de casos `revisao_necessaria` sem aceitar aprovacao automatica.
 
 O provedor nao oferece webhook para este fluxo: o app solicita atualizacao manual e a
-API consulta o resultado autenticado. Nao ha aprovacao de habilitacao nesta fase. A
-futura liberacao exigira completar telefone, antecedentes, analise humana, revogacao,
-expiracao e validacao operacional; nao basta alterar uma constante.
+API consulta o resultado autenticado. A verificacao automatizada de identidade nao e
+condicao para o fluxo manual do piloto. Antecedentes permanecem fora da verificacao;
+nao basta alterar uma constante para substituir as revisoes humanas ou controles
+operacionais.
 
 ## Antecedentes ainda pendentes
 

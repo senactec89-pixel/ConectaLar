@@ -31,14 +31,25 @@ export function habilitacaoPilotoAtiva(): boolean {
     database === 'conectalar_dev' && ['127.0.0.1', 'localhost', '::1'].includes(host ?? '');
 }
 
+export function habilitacaoPilotoRestrita(): boolean {
+  return process.env.NODE_ENV === 'production' || habilitacaoPilotoAtiva();
+}
+
 export function ofertaElegivelNoPiloto(oferta: ProfissionalServicoEntity): boolean {
-  if (!habilitacaoPilotoAtiva()) return true;
+  if (!habilitacaoPilotoRestrita()) return true;
+  return ofertaRevisadaParaHabilitacao(oferta);
+}
+
+export function ofertaRevisadaParaHabilitacao(oferta: ProfissionalServicoEntity): boolean {
   const catalogo = oferta.servicoCatalogo;
   const politica = catalogo?.politicaPiloto ?? 'fora_piloto';
   if (!oferta.ativo || oferta.servicoCatalogoId == null || !catalogo?.ativo ||
     !oferta.categoria?.ativo || catalogo.categoriaId !== oferta.categoriaId ||
     !politicaPilotoPublicavel(politica, catalogo.criterioPiloto) ||
-    oferta.revisaoExperienciaEstado !== 'aprovada') return false;
+    oferta.revisaoExperienciaEstado !== 'aprovada' ||
+    oferta.primeiroRevisorId == null || oferta.primeiraRevisaoEm == null ||
+    oferta.revisorFinalId == null || oferta.revisaoFinalEm == null ||
+    oferta.primeiroRevisorId === oferta.revisorFinalId) return false;
   if (politica === 'experiencia_declarada') {
     return oferta.nivelExperienciaPiloto === 'experiencia_declarada';
   }

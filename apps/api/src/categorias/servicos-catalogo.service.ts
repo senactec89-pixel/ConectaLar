@@ -8,7 +8,7 @@ import { paginationMetadata, parsePaginationQuery } from '../common/pagination.j
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ServicoCatalogoEntity } from '../database/entities/servico-catalogo.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
-import { habilitacaoPilotoAtiva, politicaPilotoPublicavel, type PoliticaHabilitacaoPiloto } from '../verificacao/habilitacao-piloto.js';
+import { habilitacaoPilotoRestrita, politicaPilotoPublicavel, type PoliticaHabilitacaoPiloto } from '../verificacao/habilitacao-piloto.js';
 
 @Injectable()
 export class ServicosCatalogoService {
@@ -83,7 +83,7 @@ export class ServicosCatalogoService {
       .where('servico.categoriaId = :categoriaId AND servico.ativo = :ativo', { categoriaId, ativo: true })
       .orderBy('servico.nome', 'ASC').addOrderBy('servico.id', 'ASC')
       .skip(paginacao.skip).take(paginacao.limite);
-    if (habilitacaoPilotoAtiva()) {
+    if (habilitacaoPilotoRestrita()) {
       builder.andWhere(`servico.politicaPiloto IN (:...politicas)
         AND CHAR_LENGTH(TRIM(servico.criterioPiloto)) >= :minimoCriterio`, {
         politicas: ['experiencia_declarada', 'iniciante_ou_experiencia'], minimoCriterio: 20,

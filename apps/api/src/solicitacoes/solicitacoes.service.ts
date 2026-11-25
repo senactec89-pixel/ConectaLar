@@ -43,7 +43,7 @@ import { escoposIguais, ofertasEquivalentes, snapshotEscopo } from '../domain/es
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { exigirHabilitacao, habilitacaoManualTesteAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
-import { habilitacaoPilotoAtiva, ofertaElegivelNoPiloto } from '../verificacao/habilitacao-piloto.js';
+import { habilitacaoPilotoRestrita, ofertaElegivelNoPiloto } from '../verificacao/habilitacao-piloto.js';
 import { calcularExpiracaoPedido, expirarPedidoSemResposta } from './pedido-prazo.js';
 import { calcularExpiracaoNegociacao, expirarNegociacaoInativa } from './negociacao-prazo.js';
 
@@ -107,7 +107,7 @@ export class SolicitacoesService {
     if (
       profissional === null ||
       !profissional.usuario.ativo ||
-      !(habilitacaoPilotoAtiva()
+      !(habilitacaoPilotoRestrita()
         ? profissional.usuario.tipo === UsuarioTipo.Profissional
         : [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(profissional.usuario.tipo))
     ) {
@@ -2214,7 +2214,7 @@ async function exigirOfertaElegivelParaPiloto(
   profissionalId: number,
   servicoId: number | null,
 ): Promise<void> {
-  if (!habilitacaoPilotoAtiva()) return;
+  if (!habilitacaoPilotoRestrita()) return;
   if (servicoId === null) throw badRequest('OFERTA_INDISPONIVEL');
   const oferta = await bloquearOfertaCatalogo(manager, profissionalId, servicoId);
   if (!ofertaElegivelNoPiloto(oferta)) throw badRequest('OFERTA_INDISPONIVEL');

@@ -30,7 +30,7 @@ import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 import { podeAtender } from '../verificacao/habilitacao-profissional.js';
-import { habilitacaoPilotoAtiva, ofertaElegivelNoPiloto, politicaPilotoPublicavel, type NivelExperienciaPiloto } from '../verificacao/habilitacao-piloto.js';
+import { habilitacaoPilotoRestrita, ofertaElegivelNoPiloto, politicaPilotoPublicavel, type NivelExperienciaPiloto } from '../verificacao/habilitacao-piloto.js';
 import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, intervalosLivres, minutosHorario } from '../domain/agendamento.js';
 
 interface ProfissionalServicoInput {
@@ -138,23 +138,32 @@ export class ProfissionaisService {
       .where('perfil.ativo = :ativo', { ativo: true })
       .andWhere('usuario.ativo = :ativo', { ativo: true })
       .andWhere('usuario.tipo IN (:...tipos)', {
-        tipos: habilitacaoPilotoAtiva()
+        tipos: habilitacaoPilotoRestrita()
           ? [UsuarioTipo.Profissional]
           : [UsuarioTipo.Profissional, UsuarioTipo.Empresa],
       })
       .distinct(true);
 
-    if (habilitacaoPilotoAtiva()) {
+    if (habilitacaoPilotoRestrita()) {
       builder.andWhere(`EXISTS (SELECT 1 FROM servicos_catalogo scp
         WHERE scp.id = servicoFiltro.servico_catalogo_id
           AND scp.categoria_id = servicoFiltro.categoria_id
           AND scp.politica_piloto IN ('experiencia_declarada', 'iniciante_ou_experiencia')
           AND CHAR_LENGTH(TRIM(scp.criterio_piloto)) >= 20
           AND servicoFiltro.revisao_experiencia_estado = 'aprovada'
+          AND servicoFiltro.primeiro_revisor_id IS NOT NULL
+          AND servicoFiltro.primeira_revisao_em IS NOT NULL
+          AND servicoFiltro.revisor_final_id IS NOT NULL
+          AND servicoFiltro.revisao_final_em IS NOT NULL
+          AND servicoFiltro.primeiro_revisor_id <> servicoFiltro.revisor_final_id
           AND ((scp.politica_piloto = 'experiencia_declarada' AND servicoFiltro.nivel_experiencia_piloto = 'experiencia_declarada')
             OR (scp.politica_piloto = 'iniciante_ou_experiencia' AND (
               servicoFiltro.nivel_experiencia_piloto = 'experiencia_declarada'
               OR (servicoFiltro.nivel_experiencia_piloto = 'iniciante' AND servicoFiltro.iniciante_confirmado_piloto = 1)))))`);
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      builder.andWhere("perfil.habilitacao_estado = 'aprovado'");
     }
 
     if (termo !== null) {
@@ -523,7 +532,7 @@ export class ProfissionaisService {
 
   async salvarMeusServicos(user: AuthenticatedUser, body: unknown) {
     const usuario = await this.carregarUsuarioProfissional(user);
-    if (habilitacaoPilotoAtiva() && usuario.tipo !== UsuarioTipo.Profissional) {
+    if (habilitacaoPilotoRestrita() && usuario.tipo !== UsuarioTipo.Profissional) {
       throw badRequest('EMPRESA_FORA_DO_PILOTO');
     }
     const input = parseServicosBody(body);
@@ -644,14 +653,14 @@ export class ProfissionaisService {
           (input.categoriaId != null && input.categoriaId !== oferta.categoriaId)) {
           throw badRequest('SERVICO_CATALOGO_OBRIGATORIO');
         }
-        if (habilitacaoPilotoAtiva()) throw badRequest('SERVICO_FORA_DO_PILOTO');
+        if (habilitacaoPilotoRestrita()) throw badRequest('SERVICO_FORA_DO_PILOTO');
       } else if (item != null) {
         if (input.categoriaId != null && input.categoriaId !== item.categoriaId) throw badRequest('CATEGORIA_INVALIDA');
         if ((!item.ativo || !categorias.get(item.categoriaId)?.ativo) &&
           (oferta === undefined || (!oferta.ativo && (input.ativo ?? true)))) {
           throw badRequest('SERVICO_CATALOGO_INDISPONIVEL');
         }
-        if (habilitacaoPilotoAtiva() &&
+        if (habilitacaoPilotoRestrita() &&
           (!politicaPilotoPublicavel(item.politicaPiloto, item.criterioPiloto) ||
             !item.ativo || !categorias.get(item.categoriaId)?.ativo)) {
           throw badRequest('SERVICO_FORA_DO_PILOTO');
@@ -669,7 +678,7 @@ export class ProfissionaisService {
       const formacao = input.formacaoInformadaPiloto === undefined ? formacaoAnterior : input.formacaoInformadaPiloto;
       const frequencia = input.frequenciaExperienciaPiloto === undefined ? frequenciaAnterior : input.frequenciaExperienciaPiloto;
       const inicianteConfirmado = input.inicianteConfirmadoPiloto ?? inicianteConfirmadoAnterior;
-      if (habilitacaoPilotoAtiva() && item != null) {
+      if (habilitacaoPilotoRestrita() && item != null) {
         if (modalidade == null ||
           (item.politicaPiloto === 'experiencia_declarada' && modalidade !== 'experiencia_declarada') ||
           item.politicaPiloto === 'fora_piloto') {
@@ -957,7 +966,7 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
 }
 
 function ofertaDisponivel(servico: ProfissionalServicoEntity): boolean {
-  if (habilitacaoPilotoAtiva()) {
+  if (habilitacaoPilotoRestrita()) {
     return servico.ativo && servico.servicoCatalogo?.ativo === true &&
       servico.categoria?.ativo === true && ofertaElegivelNoPiloto(servico);
   }
@@ -966,7 +975,7 @@ function ofertaDisponivel(servico: ProfissionalServicoEntity): boolean {
 }
 
 function servicoResponse(servico: ProfissionalServicoEntity, incluirExperiencia = false) {
-  const experienciaElegivel = habilitacaoPilotoAtiva() && ofertaElegivelNoPiloto(servico);
+  const experienciaElegivel = habilitacaoPilotoRestrita() && ofertaElegivelNoPiloto(servico);
   return {
     id: servico.id,
     nome: servico.servicoCatalogo?.nome ?? servico.nome,

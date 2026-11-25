@@ -95,17 +95,21 @@ function fixture({ mfaAtivo = true } = {}) {
 function withManualConfig(operation) {
   const previous = {
     secret: process.env.AUTH_TOKEN_SECRET,
+    phoneEnabled: process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED,
     enabled: process.env.WHATSAPP_MANUAL_ENABLED,
     number: process.env.WHATSAPP_MANUAL_NUMBER,
     provider: process.env.ID_ZAPSIGN_PHONE_ENABLED,
   };
   process.env.AUTH_TOKEN_SECRET = 'test-auth-secret-at-least-thirty-two-characters';
+  process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED = 'true';
   process.env.WHATSAPP_MANUAL_ENABLED = 'true';
   process.env.WHATSAPP_MANUAL_NUMBER = '5531999990000';
   process.env.ID_ZAPSIGN_PHONE_ENABLED = 'false';
   return Promise.resolve().then(operation).finally(() => {
     if (previous.secret === undefined) delete process.env.AUTH_TOKEN_SECRET;
     else process.env.AUTH_TOKEN_SECRET = previous.secret;
+    if (previous.phoneEnabled === undefined) delete process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED;
+    else process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED = previous.phoneEnabled;
     if (previous.enabled === undefined) delete process.env.WHATSAPP_MANUAL_ENABLED;
     else process.env.WHATSAPP_MANUAL_ENABLED = previous.enabled;
     if (previous.number === undefined) delete process.env.WHATSAPP_MANUAL_NUMBER;
@@ -230,11 +234,13 @@ test('manual WhatsApp challenge cannot be confirmed by admins without MFA or by 
 
 test('manual WhatsApp route remains disabled until official number and feature flag are configured', async () => {
   const previous = {
+    phoneEnabled: process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED,
     enabled: process.env.WHATSAPP_MANUAL_ENABLED,
     number: process.env.WHATSAPP_MANUAL_NUMBER,
   };
   delete process.env.WHATSAPP_MANUAL_ENABLED;
   delete process.env.WHATSAPP_MANUAL_NUMBER;
+  delete process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED;
   try {
     const { service } = fixture();
     await assert.rejects(
@@ -242,6 +248,8 @@ test('manual WhatsApp route remains disabled until official number and feature f
       code('VERIFICACAO_MANUAL_WHATSAPP_INDISPONIVEL'),
     );
   } finally {
+    if (previous.phoneEnabled === undefined) delete process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED;
+    else process.env.CONECTALAR_PHONE_VERIFICATION_ENABLED = previous.phoneEnabled;
     if (previous.enabled === undefined) delete process.env.WHATSAPP_MANUAL_ENABLED;
     else process.env.WHATSAPP_MANUAL_ENABLED = previous.enabled;
     if (previous.number === undefined) delete process.env.WHATSAPP_MANUAL_NUMBER;

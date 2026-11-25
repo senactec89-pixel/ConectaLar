@@ -2,7 +2,7 @@
 
 Use uma conta administrativa de teste e banco descartável. Execute decisões apenas sobre registros fictícios; confirme o ator, o alvo e a auditoria de cada operação.
 
-**Contexto:** siga `homologacao-beta-local.md`. Revisão documental, confirmação de telefone e ações administrativas de análise não habilitam contratação por si só. A aprovação manual só pode ser usada no ambiente de homologação explicitamente configurado; em produção, pedidos e aceites seguem bloqueados até a política completa ser aprovada. Não use SQL para contornar o fluxo, nem marque caixas por teste automatizado.
+**Contexto:** siga `homologacao-beta-local.md` e use apenas contas/dados ficticios neste checklist. A verificacao por codigo de telefone fica desligada. A aprovacao real, quando a migration estiver aplicada, requer documento aprovado, tarefa elegivel revisada por dois admins e duas revisoes distintas do perfil com MFA; nao teste essa acao com contas reais durante homologacao. Nao use SQL para contornar o fluxo, nem marque caixas por teste automatizado. Este checklist nao representa aprovacao juridica ou decisao de lancamento.
 
 ## Acesso e painel
 
@@ -33,7 +33,12 @@ Use uma conta administrativa de teste e banco descartável. Execute decisões ap
 - [ ] Aprovar um documento de teste.
 - [ ] Rejeitar outro com justificativa.
 - [ ] Conferir status na área profissional e selo no perfil público.
-- [ ] Confirmar que aprovar documento (inclusive identidade) atualiza apenas o estado documental/selo e não libera solicitações.
+- [ ] Confirmar que aprovar um documento isoladamente atualiza apenas o estado documental/selo e não libera solicitações.
+- [ ] Em registros ficticios, confirmar que a primeira aprovacao do perfil nao habilita pedidos e a segunda, feita por outro admin com MFA, conclui a habilitacao.
+- [ ] Confirmar que o mesmo administrador nao consegue registrar as duas decisoes do perfil nem as duas revisoes de uma tarefa.
+- [ ] Confirmar que perfil sem e-mail confirmado, documento aprovado ou oferta ativa aprovada do piloto permanece bloqueado.
+- [ ] Confirmar que um profissional habilitado nao pode receber solicitacao por tarefa fora do piloto ou sem duas revisoes registradas.
+- [ ] Confirmar que nenhuma tela exige codigo de telefone e que os endpoints de inicio/confirmacao ficam indisponiveis com `CONECTALAR_PHONE_VERIFICATION_ENABLED=false`.
 - [ ] Confirmar que a interface não apresenta profissional pendente como apto a receber pedidos.
 - [ ] Conferir se a auditoria registra ator, ação, alvo e data sem incluir conteúdo sensível.
 

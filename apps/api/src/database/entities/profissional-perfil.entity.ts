@@ -74,6 +74,18 @@ export class ProfissionalPerfilEntity {
   @Column({ name: 'habilitacao_revisao_em', type: 'datetime', nullable: true })
   habilitacaoRevisaoEm!: Date | null;
 
+  @Column({ name: 'habilitacao_primeiro_revisor_id', type: 'int', unsigned: true, nullable: true })
+  habilitacaoPrimeiroRevisorId!: number | null;
+
+  @Column({ name: 'habilitacao_primeira_revisao_em', type: 'datetime', nullable: true })
+  habilitacaoPrimeiraRevisaoEm!: Date | null;
+
+  @Column({ name: 'habilitacao_revisor_final_id', type: 'int', unsigned: true, nullable: true })
+  habilitacaoRevisorFinalId!: number | null;
+
+  @Column({ name: 'habilitacao_aprovado_em', type: 'datetime', nullable: true })
+  habilitacaoAprovadoEm!: Date | null;
+
   @Column({ type: 'boolean', default: true })
   ativo!: boolean;
 

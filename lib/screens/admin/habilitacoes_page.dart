@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import '../../services/service_registry.dart';
 import '../../widgets/app_bar_custom.dart';
@@ -38,12 +37,20 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
   Future<void> _analisar(Map<String, dynamic> item) async {
     if (_salvando) return;
     String acao = 'iniciar_analise';
-    String motivo = 'revisao_cadastral';
     final raw = item['habilitacao'];
     final dados = raw is Map
         ? Map<String, dynamic>.from(raw)
         : <String, dynamic>{};
-    if (dados['estado'] == 'suspenso') acao = 'reabrir';
+    if (dados['estado'] == 'suspenso') {
+      acao = 'reabrir';
+    } else if (dados['estado'] == 'aprovado') {
+      acao = 'suspender';
+    } else if (dados['aguardandoSegundoRevisor'] == true) {
+      acao = 'aprovar';
+    }
+    String motivo = acao == 'aprovar'
+        ? 'revisao_concluida'
+        : 'revisao_cadastral';
     final tamanhoTela = MediaQuery.sizeOf(context);
     final larguraDialogo = (tamanhoTela.width - 32)
         .clamp(240.0, 420.0)
@@ -84,47 +91,81 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                             value: 'aprovar_teste_local',
                             child: Text('Liberar somente para teste'),
                           ),
-                        if (dados['estado'] != 'suspenso')
+                        if (dados['estado'] != 'suspenso' &&
+                            dados['estado'] != 'aprovado')
                           const DropdownMenuItem(
                             value: 'iniciar_analise',
                             child: Text('Iniciar análise'),
                           ),
-                        const DropdownMenuItem(
-                          value: 'suspender',
-                          child: Text('Suspender habilitação'),
-                        ),
-                        const DropdownMenuItem(
-                          value: 'reabrir',
-                          child: Text('Voltar para pendente'),
-                        ),
+                        if (dados['estado'] == 'pendente' ||
+                            dados['estado'] == 'em_analise')
+                          DropdownMenuItem(
+                            value: 'aprovar',
+                            child: Text(
+                              dados['aguardandoSegundoRevisor'] == true
+                                  ? 'Registrar aprovação final'
+                                  : 'Registrar primeira aprovação',
+                            ),
+                          ),
+                        if (dados['estado'] != 'suspenso')
+                          const DropdownMenuItem(
+                            value: 'suspender',
+                            child: Text('Suspender habilitação'),
+                          ),
+                        if (dados['estado'] == 'suspenso')
+                          const DropdownMenuItem(
+                            value: 'reabrir',
+                            child: Text('Voltar para pendente'),
+                          ),
                       ],
-                      onChanged: (value) => setDialogState(() => acao = value!),
+                      onChanged: (value) => setDialogState(() {
+                        acao = value!;
+                        motivo = acao == 'aprovar'
+                            ? 'revisao_concluida'
+                            : acao == 'aprovar_teste_local'
+                            ? 'teste_fluxo_local'
+                            : 'revisao_cadastral';
+                      }),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: motivo,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Motivo'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'revisao_cadastral',
-                          child: Text('Revisão cadastral'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'suspeita_fraude',
-                          child: Text('Suspeita de fraude'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'solicitacao_titular',
-                          child: Text('Solicitação do titular'),
-                        ),
-                      ],
+                      items: acao == 'aprovar'
+                          ? const [
+                              DropdownMenuItem(
+                                value: 'revisao_concluida',
+                                child: Text('Revisão documental concluída'),
+                              ),
+                            ]
+                          : acao == 'aprovar_teste_local'
+                          ? const [
+                              DropdownMenuItem(
+                                value: 'teste_fluxo_local',
+                                child: Text('Teste local'),
+                              ),
+                            ]
+                          : const [
+                              DropdownMenuItem(
+                                value: 'revisao_cadastral',
+                                child: Text('Revisão cadastral'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'suspeita_fraude',
+                                child: Text('Suspeita de fraude'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'solicitacao_titular',
+                                child: Text('Solicitação do titular'),
+                              ),
+                            ],
                       onChanged: (value) =>
                           setDialogState(() => motivo = value!),
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'A revisão local de teste não aprova identidade ou antecedentes para uso real.',
+                      'Abra o dossiê antes de decidir. A aprovação real exige dois administradores diferentes, documento de identificação aprovado e ao menos uma oferta do piloto revisada em duas etapas.',
                     ),
                     if (acao == 'aprovar_teste_local') ...[
                       const SizedBox(height: 8),
@@ -173,50 +214,6 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
               error is ApiException
                   ? error.message
                   : 'Não foi possível registrar a análise.',
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
-  Future<void> _confirmarTelefoneManual(Map<String, dynamic> item) async {
-    if (_salvando) return;
-    final dados = item['telefoneVerificacao'] is Map
-        ? Map<String, dynamic>.from(item['telefoneVerificacao'] as Map)
-        : const <String, dynamic>{};
-    if (dados['metodo'] != 'whatsapp_manual' ||
-        dados['estado'] != 'em_analise') {
-      return;
-    }
-    final resposta = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (_) => const _ConfirmarTelefoneManualDialog(),
-    );
-    if (resposta == null || !mounted) return;
-    setState(() => _salvando = true);
-    try {
-      await AppServices.instance.admin.confirmarTelefoneManual(
-        profissionalId: item['id'] as int,
-        codigo: resposta['codigo']!,
-        telefoneRemetente: resposta['telefoneRemetente']!,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Acesso ao WhatsApp confirmado.')),
-        );
-        _recarregar();
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              error is ApiException
-                  ? error.message
-                  : 'Não foi possível confirmar o desafio.',
             ),
           ),
         );
@@ -305,6 +302,10 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                           child: Text('Suspenso'),
                         ),
                         DropdownMenuItem(
+                          value: 'aprovado',
+                          child: Text('Habilitados'),
+                        ),
+                        DropdownMenuItem(
                           value: 'teste_local_aprovado',
                           child: Text('Habilitados (teste)'),
                         ),
@@ -317,7 +318,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'A habilitação de teste não valida identidade nem libera atendimentos reais.',
+                      'A aprovação real exige revisão de documento e oferta por dois administradores diferentes. Telefone é apenas contato; antecedentes não são verificados automaticamente.',
                     ),
                     const SizedBox(height: 16),
                     if (itens.isEmpty)
@@ -356,25 +357,6 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                                         ),
                                       ),
                               ),
-                              if (_aguardaConfirmacaoManual(item))
-                                Align(
-                                  alignment: AlignmentDirectional.centerEnd,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    child: TextButton.icon(
-                                      onPressed: _salvando
-                                          ? null
-                                          : () =>
-                                                _confirmarTelefoneManual(item),
-                                      icon: const Icon(Icons.chat_outlined),
-                                      label: const Text(
-                                        'Conferir desafio do WhatsApp',
-                                      ),
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                         ),
@@ -423,96 +405,26 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
   );
 }
 
-bool _aguardaConfirmacaoManual(Map<String, dynamic> item) {
-  final raw = item['telefoneVerificacao'];
-  if (raw is! Map) return false;
-  return raw['metodo'] == 'whatsapp_manual' && raw['estado'] == 'em_analise';
-}
-
 String _rotuloEstado(Map<String, dynamic> item) {
   final habilitacao = item['habilitacao'];
-  if (habilitacao is Map && habilitacao['podeAtender'] == true) {
-    return 'Habilitado somente para teste';
+  if (habilitacao is! Map) return 'Atendimentos bloqueados';
+  if (habilitacao['estado'] == 'aprovado' &&
+      habilitacao['podeAtender'] == true) {
+    return 'Habilitado para receber solicitações';
   }
-  if (habilitacao is Map && habilitacao['revisaoSolicitadaEm'] != null) {
-    return 'RevisÃ£o solicitada pelo profissional';
+  if (habilitacao['aguardandoSegundoRevisor'] == true) {
+    return 'Aguardando segundo administrador';
+  }
+  if (habilitacao['estado'] == 'teste_local_aprovado' &&
+      habilitacao['podeAtender'] == true) {
+    return 'Habilitado somente para teste local';
+  }
+  if (habilitacao['estado'] == 'suspenso') return 'Habilitação suspensa';
+  if (habilitacao['podeAtender'] == true) {
+    return 'Habilitação de teste local';
+  }
+  if (habilitacao['revisaoSolicitadaEm'] != null) {
+    return 'Revisão solicitada pelo profissional';
   }
   return 'Atendimentos bloqueados';
-}
-
-class _ConfirmarTelefoneManualDialog extends StatefulWidget {
-  const _ConfirmarTelefoneManualDialog();
-
-  @override
-  State<_ConfirmarTelefoneManualDialog> createState() =>
-      _ConfirmarTelefoneManualDialogState();
-}
-
-class _ConfirmarTelefoneManualDialogState
-    extends State<_ConfirmarTelefoneManualDialog> {
-  final _codigo = TextEditingController();
-  final _remetente = TextEditingController();
-
-  @override
-  void dispose() {
-    _codigo.dispose();
-    _remetente.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Conferir mensagem recebida'),
-    content: SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'No WhatsApp oficial, confira que a mensagem veio do telefone cadastrado e copie o código. Esta ação confirma acesso ao WhatsApp, não identidade nem habilitação para atender.',
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _remetente,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[0-9+(). -]')),
-              LengthLimitingTextInputFormatter(24),
-            ],
-            decoration: const InputDecoration(
-              labelText: 'Número exibido como remetente',
-              hintText: '+55 (31) 99999-9999',
-            ),
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _codigo,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(8),
-            ],
-            decoration: const InputDecoration(labelText: 'Código da mensagem'),
-            onChanged: (_) => setState(() {}),
-          ),
-        ],
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
-      ),
-      FilledButton(
-        onPressed: _codigo.text.length == 8 && _remetente.text.trim().isNotEmpty
-            ? () => Navigator.pop(context, {
-                'codigo': _codigo.text,
-                'telefoneRemetente': _remetente.text.trim(),
-              })
-            : null,
-        child: const Text('Confirmar remetente e código'),
-      ),
-    ],
-  );
 }
