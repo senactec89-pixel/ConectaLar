@@ -13,6 +13,7 @@ import { EmailOutboxEntity } from './entities/email-outbox.entity.js';
 import { FavoritoProfissionalEntity } from './entities/favorito-profissional.entity.js';
 import { MensagemAtendimentoEntity } from './entities/mensagem-atendimento.entity.js';
 import { NotificacaoEntity } from './entities/notificacao.entity.js';
+import { DispositivoPushEntity } from './entities/dispositivo-push.entity.js';
 import { ProfissionalDocumentoVerificacaoEntity } from './entities/profissional-documento-verificacao.entity.js';
 import { ProfissionalDisponibilidadeEntity } from './entities/profissional-disponibilidade.entity.js';
 import { ProfissionalBloqueioEntity } from './entities/profissional-bloqueio.entity.js';
@@ -97,6 +98,7 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       ProfissionalDisponibilidadeEntity,
       ProfissionalBloqueioEntity,
       NotificacaoEntity,
+      DispositivoPushEntity,
       ProfissionalDocumentoVerificacaoEntity,
       DenunciaEntity,
       AdminConviteEntity,

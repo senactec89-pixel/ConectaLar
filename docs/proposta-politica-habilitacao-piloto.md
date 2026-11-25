@@ -1,8 +1,15 @@
 # Proposta consolidada: habilitacao profissional para piloto
 
-**Status: rascunho para decisao dos dois responsaveis.** Esta proposta nao e
-parecer juridico, autorizacao para coletar dados reais, garantia de identidade
-ou seguranca, nem liberacao de contratacoes. Ate a politica ser aprovada,
+**Status:** os dois responsaveis acordaram a direcao de elegibilidade e
+experiencia em 2026-11-20. O fluxo tecnico por tarefa foi implementado neste
+checkout com ativacao desligada por padrao e testes automatizados; tarefas
+concretas e revisao externa continuam pendentes. A limpeza residencial padrao
+esta configurada como elegivel para iniciante ou experiencia declarada, mas
+permanece pausada ate revisao tecnica/operacional e aprovacao administrativa.
+Pos-obra permanece fora do piloto. Revisao juridica, homologacao e liberacao
+continuam pendentes. Esta proposta nao e parecer
+juridico, autorizacao para coletar dados reais, garantia de identidade ou
+seguranca, nem liberacao de contratacoes. Ate a politica ser aprovada,
 implementada e homologada, a API deve continuar bloqueando solicitacoes e
 aceites.
 
@@ -39,19 +46,71 @@ fonte autorizada, base legal, aviso, revisao humana, contestacao e orientacao
 juridica. Detalhes e salvaguardas em
 [plano-lgpd-habilitacao-profissional.md](plano-lgpd-habilitacao-profissional.md).
 
+**Direcao acordada pelos dois responsaveis em 2026-11-20:** o primeiro piloto
+tera profissionais individuais e um conjunto pequeno de tarefas de baixo risco,
+com escopo e limites definidos. Empresas com equipes ou substituicoes ficam fora
+desta rodada ate que cada executor, seus acessos e o fluxo de troca estejam
+representados e testados. Nao sera exigido um curso universal: a experiencia
+sera avaliada por tarefa, com declaracao estruturada e revisao manual quando
+adequado. Uma pessoa iniciante podera entrar somente em tarefas previamente
+classificadas como apropriadas para iniciantes, com limites claros e essa
+condicao informada ao cliente antes da solicitacao. Tarefas regulamentadas ou de
+risco elevado exigem qualificacao especifica verificavel e ficam fora enquanto
+os criterios nao forem aprovados. Esta e uma decisao de direcao do piloto, nao
+uma aprovacao juridica, habilitacao de profissionais reais ou liberacao de
+contratacoes.
+
+## Implementacao tecnica atual
+
+- A chave `CONECTALAR_HABILITACAO_PILOTO` fica `false` por padrao. Em
+  desenvolvimento, exige `conectalar_dev` em loopback; em testes, o banco
+  descartavel `conectalar_beta_test` em loopback; em runtime de producao, so
+  reconhece `CONECTALAR_STAGE=homologacao` com `DB_NAME=conectalar_homologacao`.
+  Isso nao configura nem libera producao.
+- Tarefas do catalogo iniciam como `fora_piloto`. Para publicar uma candidata,
+  exigem categoria/servico ativos, inclusoes, exclusoes e criterio textual.
+- Uma oferta so fica visivel e solicitavel no modo piloto depois de uma revisao
+  de tarefa aprovada por dois administradores distintos com MFA. Alterar a
+  declaracao ou o escopo reinicia a revisao; pedido de correcao nao pode ser
+  aprovado antes de novo envio.
+- Para uma tarefa que aceite iniciantes, a selecao do nivel nao basta: o
+  profissional precisa marcar uma confirmacao separada. A API valida e persiste
+  essa confirmacao, a revisao administrativa a confere e a oferta falha fechada
+  se o registro estiver ausente. A condicao e informada ao cliente antes do
+  pedido.
+- Na limpeza residencial padrao, experiencia e curso nao sao requisitos. O
+  curso/formacao relacionada e opcional e apenas autodeclarado; nao ha upload de
+  certificado nesta tela e a informacao nao e tratada como comprovada. A
+  declaracao de formacao e limitada a 300 caracteres e fica restrita ao
+  profissional e aos revisores autorizados.
+- Essa revisao confirma apenas que dois administradores avaliaram a declaracao
+  e os limites registrados para aquela tarefa. Nao prova identidade, autoria,
+  autenticidade documental, qualificacao, competencia, qualidade futura ou
+  ausencia de risco; nao habilita o perfil inteiro.
+- A implementacao nao seleciona nem aprova tarefas reais. O conjunto final,
+  checklists, limites de cada verificacao, privacidade/juridico, fluxo de
+  contestacao e homologacao continuam sendo gates antes de dados e atendimentos
+  reais.
+
 ## 1. Regras comuns propostas
 
-- Avaliar a pessoa que efetivamente entrara na residencia. Em empresas, cada
-  integrante da equipe precisa de cadastro e avaliacao individual; a empresa nao
-  pode substituir a pessoa aprovada sem nova verificacao.
+- Para este piloto, avaliar somente profissionais individuais. Empresas com
+  equipes e substituicoes ficam fora ate que o sistema represente cada executor,
+  seus acessos e a verificacao exigida para uma troca. Para uma fase futura,
+  avaliar cada pessoa que efetivamente entrara na residencia.
 - Definir tarefas e limites concretos. Categoria ampla ou campo "Outros" nao
   habilita uma oferta.
-- Exigir evidencia pertinente a tarefa, nao o mesmo certificado para todos.
-  Evidencia pode ser curso/certificado aplicavel, qualificacao exigida para a
-  atividade ou experiencia demonstravel por meio previamente aceito. Portfolio,
-  declaracao ou referencia podem demonstrar apenas o que foi apresentado; nao
-  autenticam por si so autoria, qualidade ou competencia. Nao recolher dados de
-  clientes anteriores sem necessidade, autorizacao e protecao adequada.
+- Nao exigir um curso universal. Para cada tarefa de baixo risco, definir se
+  basta uma declaracao estruturada de experiencia relevante, revisada por uma
+  pessoa, e quais exemplos concretos a sustentam (tarefas realizadas, frequencia,
+  limites e ferramentas conhecidas). Declaracao, portfolio ou referencia
+  demonstram somente o que foi apresentado; nao provam por si so autoria,
+  qualidade ou competencia. Nao pedir dados de clientes anteriores sem
+  necessidade, autorizacao e protecao adequada.
+- Permitir iniciante somente em tarefa explicitamente classificada como adequada
+  para iniciante, com escopo reduzido, limites e orientacoes definidos. Informar
+  essa condicao ao cliente antes de ele enviar a solicitacao; nao apresentar a
+  experiencia como verificada quando ela nao foi comprovada.
 - Para atividade regulamentada ou de risco elevado, nao aceitar evidencia
   generica: definir qualificacao, escopo e forma confiavel de conferir emissor e
   validade com especialista tecnico e orientacao juridica. Sem isso, a tarefa
@@ -80,6 +139,15 @@ juridica. Detalhes e salvaguardas em
 Os exemplos abaixo sao uma base para a reuniao, nao um catalogo aprovado. A
 equipe precisa preencher inclusoes, exclusoes e evidencia aceita antes de
 habilitar cada tarefa.
+
+O criterio acordado e por tarefa: experiencia declarada e analisada manualmente
+para atividades de baixo risco; iniciante apenas nas tarefas que forem
+explicitamente aprovadas para esse perfil; qualificacao especifica verificavel
+para atividades regulamentadas ou de maior risco. O formato da declaracao, a
+lista final de ofertas e os checklists do especialista continuam pendentes.
+Limpeza residencial interna comum e a primeira tarefa configurada para aceitar
+iniciantes; limpeza pos-obra nao herda essa classificacao e permanece fora do
+piloto ate avaliacao especifica.
 
 Para um primeiro piloto pequeno, consultar o recorte conservador da
 [ficha de analise por categoria](ficha-analise-categorias-piloto.md): somente
@@ -197,20 +265,21 @@ storage de forma repetivel.
 - A mudanca do bloqueio de contratacao e uma decisao separada, implementada e
   testada somente depois dos gates anteriores.
 
-## 7. Decisoes a registrar pelos dois responsaveis
+## 7. Diretrizes acordadas e pendencias dos dois responsaveis
 
 | Decisao | Proposta para discutir | Estado |
 |---|---|---|
-| Regiao e tamanho do piloto | Venda Nova, com bairros, limite de profissionais e volume definidos | Pendente |
-| Categorias e tarefas | Usar a matriz acima como ponto de partida; eletrica, reformas amplas e tarefas tecnicas sem criterio ficam fora | Pendente |
-| Evidencia por tarefa | Evidencia pertinente; alternativa para experiencia informal; requisito tecnico especifico quando aplicavel | Direcao aceita nesta conversa; detalhar e validar por tarefa |
-| Empresas/equipes | Avaliar individualmente cada pessoa que entrara na residencia | Pendente |
+| Quem participa | Profissionais individuais; empresas com equipes ou substituicoes ficam fora desta primeira rodada | Direcao acordada pelos dois responsaveis em 2026-11-20; definir convite, limite e criterios de entrada |
+| Categorias e tarefas | Selecionar poucas tarefas de baixo risco com escopo e limites; atividades regulamentadas ou de risco elevado ficam fora sem criterio especifico | Direcao acordada; lista final de tarefas e checklists pendentes |
+| Evidencia por tarefa | Sem curso universal; declaracao estruturada e revisao manual para experiencia pertinente em tarefas de baixo risco | Direcao acordada; definir formato, exemplos aceitos e padrao de revisao por tarefa |
+| Profissional iniciante | Admitir somente em tarefas explicitamente adequadas para iniciantes, com escopo limitado e condicao informada ao cliente antes do pedido | Direcao acordada; tarefas elegiveis, texto e validacao juridica/operacional pendentes |
+| Empresas/equipes | Reavaliar quando cada executor, acesso ao endereco, autorizacao e substituicao puderem ser controlados | Fora do primeiro piloto; modelagem e revisao futuras |
 | Prazo e retencao | Revisar os valores candidatos da secao 5 com juridico/privacidade e capacidade tecnica | Pendente |
 | Contestacao | Revisores independentes, sem aprovacao automatica; confirmar prazo de 30 dias candidato | Pendente |
 | Antecedentes/selfie | Nao coletar nem usar para liberar nesta proposta | Pendente de decisao juridica futura |
 | Confirmacao do telefone | WhatsApp e requisito para receber solicitacoes, nao para criar conta; numero alterado reinicia verificacao | Direcao de produto aceita; validar aviso, base, fornecedor e alternativa |
 | Storage documental | Cloudflare R2 privado como destino planejado | Escolhido; configuracao, contratos e homologacao pendentes |
-| Auditoria | Metadados minimos, sem copiar conteudo sensivel para logs | Direcao aceita; prazo e implementacao pendentes |
+| Auditoria | Metadados minimos, sem copiar conteudo sensivel para logs | Metadados da revisao por tarefa implementados; prazo e demais fluxos pendentes |
 | Revisores e SLA | Definir capacidade real; nao prometer prazo ainda | Pendente |
 
 ## Fontes para revisao de privacidade

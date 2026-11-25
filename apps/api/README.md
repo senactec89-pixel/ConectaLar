@@ -24,6 +24,7 @@ Never copy production data into this database.
 | `DB_USER` | none | Required to enable MySQL-backed routes |
 | `DB_PASSWORD` | empty string | Allowed empty only for local development |
 | `DB_NAME` | none | Required to enable MySQL-backed routes |
+| `CONECTALAR_HABILITACAO_PILOTO` | `false` | Enables task-level restrictions only on loopback `conectalar_dev`/`conectalar_beta_test`, or the isolated production-mode homologation database |
 | `AUTH_TOKEN_SECRET` | none | Required to enable auth routes; minimum 32 characters |
 | `MFA_SECRET_ENCRYPTION_KEY` | falls back to `AUTH_TOKEN_SECRET` outside production | Use a distinct 32+ character secret in production to encrypt administrator MFA secrets |
 | `EMAIL_OUTBOX_ENCRYPTION_KEY` | development-only fallback is permitted | Required in production, 32+ characters and distinct from the auth and MFA keys |
@@ -36,6 +37,8 @@ Never copy production data into this database.
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_FROM` | none / `587` / none | Required in production for password recovery and account verification e-mail delivery |
 | `SMTP_SECURE` / `SMTP_STARTTLS` | `false` / `true` | SMTP transport security flags |
 | `SMTP_USER` / `SMTP_PASSWORD` | none | Optional SMTP credentials |
+| `FCM_ENABLED` | `false` | Enables best-effort Firebase Cloud Messaging delivery when set to `true` |
+| `FCM_PROJECT_ID` / `FCM_CLIENT_EMAIL` / `FCM_PRIVATE_KEY` | none | Firebase service-account credentials, required only when FCM is enabled; keep the private key in deployment secrets |
 | `MALWARE_SCAN_MODE` | `required` in production, `disabled` otherwise | `disabled`, `log-only`, or `required`; use `required` with ClamAV before production uploads |
 | `CLAMAV_HOST` / `CLAMAV_PORT` | `127.0.0.1` / `3310` | ClamAV TCP service used by document upload scanning |
 | `CLAMAV_TIMEOUT_MS` | `10000` | Positive integer timeout for ClamAV scan requests |
@@ -63,7 +66,7 @@ For local troubleshooting, use `npm run diagnostico:local` after starting the AP
 
 Request bodies and headers are not logged. The global exception filter returns a generic response and emits only a structured event, HTTP status, and broad exception type; it omits exception messages, stacks, URLs, and request data. Add request logging only with an explicit redaction and retention policy.
 
-The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. Verification uploads validate file type and can scan bytes through ClamAV before writing to private storage. Document storage supports local disk for development and Cloudflare R2 through its S3-compatible API for production. Documents are still served back only through the authenticated administrative API route, not by public object URLs. Critical internal notifications can also be delivered by SMTP e-mail. Push via Firebase Cloud Messaging is not active yet; see `docs/notificacoes-email-fcm.md` for the remaining setup. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
+The API uses allow-list CORS, basic security headers, a local in-memory request rate limiter, generic error responses, and structured startup/error logs that do not include request bodies or authorization headers. Verification uploads validate file type and can scan bytes through ClamAV before writing to private storage. Document storage supports local disk for development and Cloudflare R2 through its S3-compatible API for production. Documents are still served back only through the authenticated administrative API route, not by public object URLs. Critical internal notifications can also be delivered by SMTP e-mail. Firebase Cloud Messaging delivery and authenticated device registration are implemented, but remain disabled until Firebase credentials, the database migration, app configuration, and real-device checks are completed. See `docs/notificacoes-email-fcm.md` before enabling it. The app module imports TypeORM and the business modules only when runtime configuration is complete, so the health endpoint remains independent of MySQL.
 
 ## Database foundation
 

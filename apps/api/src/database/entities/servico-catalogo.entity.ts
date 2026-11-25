@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm';
 import { CategoriaEntity } from './categoria.entity.js';
+import type { PoliticaHabilitacaoPiloto } from '../../verificacao/habilitacao-piloto.js';
 
 @Entity({ name: 'servicos_catalogo' })
 @Index('uq_servicos_catalogo_categoria_nome', ['categoriaId', 'nome'], { unique: true })
@@ -28,6 +29,12 @@ export class ServicoCatalogoEntity {
 
   @Column({ type: 'varchar', length: 1000, nullable: true })
   exclusoes!: string | null;
+
+  @Column({ name: 'politica_piloto', type: 'varchar', length: 32, default: 'fora_piloto' })
+  politicaPiloto!: PoliticaHabilitacaoPiloto;
+
+  @Column({ name: 'criterio_piloto', type: 'varchar', length: 1000, nullable: true })
+  criterioPiloto!: string | null;
 
   @Column({ type: 'boolean', default: false })
   ativo!: boolean;

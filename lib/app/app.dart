@@ -24,6 +24,14 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
   void initState() {
     super.initState();
     _auth.addListener(_sessaoAlterada);
+    AppServices.instance.push.onNotificationTap = _abrirCentralNotificacoes;
+  }
+
+  void _abrirCentralNotificacoes() {
+    if (!_auth.autenticado || !_auth.emailVerificado || !_auth.termosAceitos) {
+      return;
+    }
+    _navigator.currentState?.pushNamed(AppRoutes.notificacoes);
   }
 
   void _sessaoAlterada() {
@@ -65,6 +73,7 @@ class _ConectaLarAppState extends State<ConectaLarApp> {
   @override
   void dispose() {
     _auth.removeListener(_sessaoAlterada);
+    AppServices.instance.push.onNotificationTap = null;
     super.dispose();
   }
 

@@ -30,6 +30,7 @@ import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { LocalizacaoService } from '../localizacao/localizacao.service.js';
 import { fotoPerfilUrl } from '../usuarios/foto-perfil.storage.js';
 import { podeAtender } from '../verificacao/habilitacao-profissional.js';
+import { habilitacaoPilotoAtiva, ofertaElegivelNoPiloto, politicaPilotoPublicavel, type NivelExperienciaPiloto } from '../verificacao/habilitacao-piloto.js';
 import { diaAnterior, duracaoLegadaMinutos, fusoAgenda, intervalosLivres, minutosHorario } from '../domain/agendamento.js';
 
 interface ProfissionalServicoInput {
@@ -44,6 +45,11 @@ interface ProfissionalServicoInput {
   readonly inclui?: string[];
   readonly naoInclui?: string[];
   readonly opcionais?: string[];
+  readonly nivelExperienciaPiloto?: NivelExperienciaPiloto | null;
+  readonly relatoExperienciaPiloto?: string | null;
+  readonly formacaoInformadaPiloto?: string | null;
+  readonly frequenciaExperienciaPiloto?: 'ocasional' | 'recorrente' | null;
+  readonly inicianteConfirmadoPiloto?: boolean;
 }
 
 interface UpsertPerfilInput {
@@ -132,9 +138,24 @@ export class ProfissionaisService {
       .where('perfil.ativo = :ativo', { ativo: true })
       .andWhere('usuario.ativo = :ativo', { ativo: true })
       .andWhere('usuario.tipo IN (:...tipos)', {
-        tipos: [UsuarioTipo.Profissional, UsuarioTipo.Empresa],
+        tipos: habilitacaoPilotoAtiva()
+          ? [UsuarioTipo.Profissional]
+          : [UsuarioTipo.Profissional, UsuarioTipo.Empresa],
       })
       .distinct(true);
+
+    if (habilitacaoPilotoAtiva()) {
+      builder.andWhere(`EXISTS (SELECT 1 FROM servicos_catalogo scp
+        WHERE scp.id = servicoFiltro.servico_catalogo_id
+          AND scp.categoria_id = servicoFiltro.categoria_id
+          AND scp.politica_piloto IN ('experiencia_declarada', 'iniciante_ou_experiencia')
+          AND CHAR_LENGTH(TRIM(scp.criterio_piloto)) >= 20
+          AND servicoFiltro.revisao_experiencia_estado = 'aprovada'
+          AND ((scp.politica_piloto = 'experiencia_declarada' AND servicoFiltro.nivel_experiencia_piloto = 'experiencia_declarada')
+            OR (scp.politica_piloto = 'iniciante_ou_experiencia' AND (
+              servicoFiltro.nivel_experiencia_piloto = 'experiencia_declarada'
+              OR (servicoFiltro.nivel_experiencia_piloto = 'iniciante' AND servicoFiltro.iniciante_confirmado_piloto = 1)))))`);
+    }
 
     if (termo !== null) {
       const padrao = `%${termo}%`;
@@ -496,12 +517,15 @@ export class ProfissionaisService {
       servicos:
         perfil === null
           ? []
-          : (perfil.servicos ?? []).map(servicoResponse),
+          : (perfil.servicos ?? []).map((servico) => servicoResponse(servico, true)),
     };
   }
 
   async salvarMeusServicos(user: AuthenticatedUser, body: unknown) {
-    await this.carregarUsuarioProfissional(user);
+    const usuario = await this.carregarUsuarioProfissional(user);
+    if (habilitacaoPilotoAtiva() && usuario.tipo !== UsuarioTipo.Profissional) {
+      throw badRequest('EMPRESA_FORA_DO_PILOTO');
+    }
     const input = parseServicosBody(body);
     const perfil = await this.carregarMeuPerfil(user);
     if (perfil === null) {
@@ -517,7 +541,7 @@ export class ProfissionaisService {
       servicos:
         reloaded === null
           ? []
-          : (reloaded.servicos ?? []).map(servicoResponse),
+          : (reloaded.servicos ?? []).map((servico) => servicoResponse(servico, true)),
     };
   }
 
@@ -620,15 +644,45 @@ export class ProfissionaisService {
           (input.categoriaId != null && input.categoriaId !== oferta.categoriaId)) {
           throw badRequest('SERVICO_CATALOGO_OBRIGATORIO');
         }
+        if (habilitacaoPilotoAtiva()) throw badRequest('SERVICO_FORA_DO_PILOTO');
       } else if (item != null) {
         if (input.categoriaId != null && input.categoriaId !== item.categoriaId) throw badRequest('CATEGORIA_INVALIDA');
         if ((!item.ativo || !categorias.get(item.categoriaId)?.ativo) &&
           (oferta === undefined || (!oferta.ativo && (input.ativo ?? true)))) {
           throw badRequest('SERVICO_CATALOGO_INDISPONIVEL');
         }
+        if (habilitacaoPilotoAtiva() &&
+          (!politicaPilotoPublicavel(item.politicaPiloto, item.criterioPiloto) ||
+            !item.ativo || !categorias.get(item.categoriaId)?.ativo)) {
+          throw badRequest('SERVICO_FORA_DO_PILOTO');
+        }
         catalogosUsados.add(catalogoId);
       }
       oferta ??= manager.create(ProfissionalServicoEntity, { profissionalId });
+      const modalidadeAnterior = oferta.nivelExperienciaPiloto ?? null;
+      const relatoAnterior = oferta.relatoExperienciaPiloto ?? null;
+      const formacaoAnterior = oferta.formacaoInformadaPiloto ?? null;
+      const frequenciaAnterior = oferta.frequenciaExperienciaPiloto ?? null;
+      const inicianteConfirmadoAnterior = oferta.inicianteConfirmadoPiloto === true;
+      const modalidade = input.nivelExperienciaPiloto === undefined ? modalidadeAnterior : input.nivelExperienciaPiloto;
+      const relato = input.relatoExperienciaPiloto === undefined ? relatoAnterior : input.relatoExperienciaPiloto;
+      const formacao = input.formacaoInformadaPiloto === undefined ? formacaoAnterior : input.formacaoInformadaPiloto;
+      const frequencia = input.frequenciaExperienciaPiloto === undefined ? frequenciaAnterior : input.frequenciaExperienciaPiloto;
+      const inicianteConfirmado = input.inicianteConfirmadoPiloto ?? inicianteConfirmadoAnterior;
+      if (habilitacaoPilotoAtiva() && item != null) {
+        if (modalidade == null ||
+          (item.politicaPiloto === 'experiencia_declarada' && modalidade !== 'experiencia_declarada') ||
+          item.politicaPiloto === 'fora_piloto') {
+          throw badRequest('EXPERIENCIA_PILOTO_INVALIDA');
+        }
+        if (modalidade === 'experiencia_declarada' && (!relato || relato.trim().length < 30 || frequencia == null)) {
+          throw badRequest('DECLARACAO_EXPERIENCIA_INCOMPLETA');
+        }
+        if (modalidade === 'iniciante' && (!inicianteConfirmado || relato != null || frequencia != null)) {
+          throw badRequest('DECLARACAO_INICIANTE_INVALIDA');
+        }
+      }
+      const escopoAnterior = JSON.stringify([oferta.inclui ?? [], oferta.naoInclui ?? [], oferta.opcionais ?? []]);
       if (item != null) {
         oferta.nome = item.nome;
         oferta.categoriaId = item.categoriaId;
@@ -640,6 +694,24 @@ export class ProfissionaisService {
       if (input.inclui !== undefined) oferta.inclui = input.inclui;
       if (input.naoInclui !== undefined) oferta.naoInclui = input.naoInclui;
       if (input.opcionais !== undefined) oferta.opcionais = input.opcionais;
+      oferta.nivelExperienciaPiloto = modalidade;
+      oferta.relatoExperienciaPiloto = modalidade === 'iniciante' ? null : relato;
+      oferta.formacaoInformadaPiloto = formacao;
+      oferta.frequenciaExperienciaPiloto = modalidade === 'iniciante' ? null : frequencia;
+      oferta.inicianteConfirmadoPiloto = modalidade === 'iniciante' && inicianteConfirmado;
+      const declaracaoMudou = modalidadeAnterior !== oferta.nivelExperienciaPiloto ||
+        relatoAnterior !== oferta.relatoExperienciaPiloto || formacaoAnterior !== oferta.formacaoInformadaPiloto ||
+        frequenciaAnterior !== oferta.frequenciaExperienciaPiloto ||
+        inicianteConfirmadoAnterior !== oferta.inicianteConfirmadoPiloto;
+      const escopoMudou = escopoAnterior !== JSON.stringify([oferta.inclui ?? [], oferta.naoInclui ?? [], oferta.opcionais ?? []]);
+      if (declaracaoMudou || escopoMudou) {
+        oferta.revisaoExperienciaEstado = 'pendente';
+        oferta.primeiroRevisorId = null;
+        oferta.primeiraRevisaoEm = null;
+        oferta.revisorFinalId = null;
+        oferta.revisaoFinalEm = null;
+        oferta.motivoRevisaoExperiencia = null;
+      }
       oferta.ativo = input.ativo ?? true;
       const saved = await manager.save(ProfissionalServicoEntity, oferta);
       usados.add(saved.id);
@@ -855,7 +927,7 @@ function enderecoResponse(endereco: ClienteEnderecoEntity) {
 function perfilPublico(perfil: ProfissionalPerfilEntity) {
   const servicos = (perfil.servicos ?? [])
     .filter(ofertaDisponivel)
-    .map(servicoResponse);
+    .map((servico) => servicoResponse(servico));
 
   const disponivelParaAtendimento = podeAtender(perfil);
   return {
@@ -885,11 +957,16 @@ function perfilPublico(perfil: ProfissionalPerfilEntity) {
 }
 
 function ofertaDisponivel(servico: ProfissionalServicoEntity): boolean {
+  if (habilitacaoPilotoAtiva()) {
+    return servico.ativo && servico.servicoCatalogo?.ativo === true &&
+      servico.categoria?.ativo === true && ofertaElegivelNoPiloto(servico);
+  }
   return servico.ativo && (servico.servicoCatalogoId == null ||
     (servico.servicoCatalogo?.ativo === true && servico.categoria?.ativo === true));
 }
 
-function servicoResponse(servico: ProfissionalServicoEntity) {
+function servicoResponse(servico: ProfissionalServicoEntity, incluirExperiencia = false) {
+  const experienciaElegivel = habilitacaoPilotoAtiva() && ofertaElegivelNoPiloto(servico);
   return {
     id: servico.id,
     nome: servico.servicoCatalogo?.nome ?? servico.nome,
@@ -911,6 +988,23 @@ function servicoResponse(servico: ProfissionalServicoEntity) {
     ativo: servico.ativo,
     disponivelNoCatalogo: servico.servicoCatalogoId == null ? null :
       servico.servicoCatalogo?.ativo === true && servico.categoria?.ativo === true,
+    ...(experienciaElegivel ? {
+      nivelExperienciaPiloto: servico.nivelExperienciaPiloto,
+      experienciaAviso: servico.nivelExperienciaPiloto === 'iniciante'
+        ? 'Profissional iniciante nesta tarefa; essa condicao foi revisada pela equipe.'
+        : 'Experiencia declarada pelo profissional e revisada pela equipe; nao equivale a certificado.',
+    } : {}),
+    ...(incluirExperiencia ? {
+      nivelExperienciaPiloto: servico.nivelExperienciaPiloto ?? null,
+      relatoExperienciaPiloto: servico.relatoExperienciaPiloto ?? null,
+      formacaoInformadaPiloto: servico.formacaoInformadaPiloto ?? null,
+      frequenciaExperienciaPiloto: servico.frequenciaExperienciaPiloto ?? null,
+          inicianteConfirmadoPiloto: servico.inicianteConfirmadoPiloto === true,
+      revisaoExperienciaEstado: servico.revisaoExperienciaEstado ?? 'pendente',
+      motivoRevisaoExperiencia: servico.motivoRevisaoExperiencia ?? null,
+      politicaPiloto: servico.servicoCatalogo?.politicaPiloto ?? 'fora_piloto',
+      criterioPiloto: servico.servicoCatalogo?.criterioPiloto ?? null,
+    } : {}),
   };
 }
 
@@ -1037,6 +1131,11 @@ function parseServicos(value: unknown): readonly ProfissionalServicoInput[] {
       nome: body.nome === undefined ? undefined : textField(body, 'nome', 2, 90),
       categoriaId: optionalId(body.categoriaId),
       servicoCatalogoId: optionalId(body.servicoCatalogoId),
+      nivelExperienciaPiloto: optionalNivelExperiencia(body.nivelExperienciaPiloto),
+      relatoExperienciaPiloto: optionalExperienciaText(body.relatoExperienciaPiloto),
+      formacaoInformadaPiloto: optionalFormacaoInformada(body.formacaoInformadaPiloto),
+      frequenciaExperienciaPiloto: optionalFrequenciaExperiencia(body.frequenciaExperienciaPiloto),
+      inicianteConfirmadoPiloto: optionalBoolean(body.inicianteConfirmadoPiloto),
       precoInicial: optionalMoney(body.precoInicial),
       ativo: optionalBoolean(body.ativo),
       duracaoMinutos: durationField(body.duracaoMinutos),
@@ -1057,6 +1156,38 @@ function itensEscopo(value: unknown): string[] | undefined {
     }
     return item.trim();
   });
+}
+
+function optionalNivelExperiencia(value: unknown): NivelExperienciaPiloto | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (value === 'experiencia_declarada' || value === 'iniciante') return value;
+  throw badRequest('EXPERIENCIA_PILOTO_INVALIDA');
+}
+
+function optionalExperienciaText(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') throw badRequest('DECLARACAO_EXPERIENCIA_INVALIDA');
+  const text = value.trim();
+  if (text.length > 500) throw badRequest('DECLARACAO_EXPERIENCIA_INVALIDA');
+  return text || null;
+}
+
+function optionalFormacaoInformada(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') throw badRequest('FORMACAO_PILOTO_INVALIDA');
+  const text = value.trim();
+  if (text.length > 300) throw badRequest('FORMACAO_PILOTO_INVALIDA');
+  return text || null;
+}
+
+function optionalFrequenciaExperiencia(value: unknown): 'ocasional' | 'recorrente' | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (value === 'ocasional' || value === 'recorrente') return value;
+  throw badRequest('FREQUENCIA_EXPERIENCIA_INVALIDA');
 }
 
 function durationField(value: unknown): number | undefined {

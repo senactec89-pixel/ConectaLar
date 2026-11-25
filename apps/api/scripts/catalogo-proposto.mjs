@@ -13,13 +13,15 @@ export async function importarCatalogoProposto(connection) {
     let enriquecidos = 0;
     for (const item of itens) {
       const [result] = await connection.execute(
-        `INSERT INTO servicos_catalogo (categoria_id, nome, descricao, inclusoes, exclusoes, ativo)
-           VALUES (?, ?, ?, ?, ?, 0)
+        `INSERT INTO servicos_catalogo
+           (categoria_id, nome, descricao, inclusoes, exclusoes, ativo, politica_piloto, criterio_piloto)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?)
          ON DUPLICATE KEY UPDATE
            descricao = IF(descricao IS NULL OR TRIM(descricao) = '', VALUES(descricao), descricao),
            inclusoes = IF(inclusoes IS NULL OR TRIM(inclusoes) = '', VALUES(inclusoes), inclusoes),
            exclusoes = IF(exclusoes IS NULL OR TRIM(exclusoes) = '', VALUES(exclusoes), exclusoes)`,
-        [ids.get(item.categoria), item.nome, item.descricao, item.inclusoes, item.exclusoes],
+        [ids.get(item.categoria), item.nome, item.descricao, item.inclusoes, item.exclusoes,
+          item.politicaPiloto ?? 'fora_piloto', item.criterioPiloto ?? null],
       );
       if (result.affectedRows === 1) criados += 1;
       else if (result.affectedRows > 1) enriquecidos += 1;

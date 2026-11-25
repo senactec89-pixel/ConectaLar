@@ -14,21 +14,17 @@ base nesta folha. A API deve continuar bloqueando solicitacoes e aceites.
 - Limpeza comum, pintura interna simples e montagem delimitada sao candidatas
   para avaliacao, nao servicos liberados. Eletrica, por exemplo, permanece fora
   do primeiro piloto; consultar a ficha para os demais servicos.
-- A direcao aprovada e avaliar evidencia pertinente a cada tarefa, como curso
-  ou experiencia estruturada; o criterio concreto ainda precisa ser definido.
+- Nao sera exigido curso universal. A experiencia sera declarada e analisada
+  por tarefa; curso/formacao relacionada pode ser informado opcionalmente, sem
+  ser tratado como comprovado. Nao ha upload de certificado nesta tela.
 - Os dois responsaveis farao as revisoes inicialmente: uma pessoa faz a primeira
   analise e a outra, a segunda. Quem fez a primeira nao encerra sozinho a
   decisao. Se uma pessoa estiver ausente, o caso aguarda ou vai a substituto
   previamente designado; nao prometer prazo antes de medir capacidade. No futuro,
   podem contratar pessoas especializadas por area.
-- Serao aceitos profissionais individuais e empresas. A empresa tera um
-  responsavel e cada pessoa executora tera cadastro individual vinculado a ela,
-  sem compartilhamento de contas. Cada pessoa que possa entrar na residencia,
-  inclusive ajudantes, deve ser apresentada ao cliente e passar pelo processo
-  de identidade e habilitacao definido para sua funcao. A substituicao exige
-  informar a nova pessoa e obter aceite do cliente antes do atendimento; se
-  houver recusa, a empresa pode propor outra pessoa ou cancelar, sem penalidade
-  automatica nesta fase.
+- O primeiro piloto aceitara somente profissionais individuais. Empresas com
+  equipes e substituicoes ficam fora desta rodada; a participacao de empresas
+  depende de uma fase futura com controles por executor.
 - Permitir correcao ou reenvio com motivo claro e instrucao objetiva. Uma
   contestacao sera revista pelo outro responsavel. Enquanto a revisao aplicavel
   estiver pendente, a pessoa nao fica habilitada para a tarefa.
@@ -37,9 +33,11 @@ base nesta folha. A API deve continuar bloqueando solicitacoes e aceites.
   banheiro e arrumar superficialmente os quartos; cliente escolhe ambientes e
   pode escrever observacao. Limpeza pesada, mover moveis grandes, janelas em
   altura, mofo extenso, pragas, residuos perigosos e pos-obra ficam fora dessa
-  tarefa padrao; piscina e servicos especializados ficam separados. O amigo
-  responsavel pelo catalogo e o profissional experiente ainda precisam revisar
-  e detalhar opcoes, limites e criterios de interrupcao antes de oferecer.
+  tarefa padrao; piscina e servicos especializados ficam separados. Iniciantes
+  podem ser aceitos nesta tarefa padrao sem experiencia ou curso obrigatorios;
+  pos-obra permanece fora ate avaliacao separada. O amigo responsavel pelo
+  catalogo e o profissional experiente ainda precisam revisar opcoes, limites e
+  criterios de interrupcao antes de oferecer.
 - Atraso: profissional avisa assim que souber; apos 15 minutos o cliente pode
   pedir atualizacao e, apos 30 minutos sem contato, registrar ausencia e
   solicitar cancelamento. Dano ou tarefa fora do combinado: interromper a parte
@@ -122,7 +120,7 @@ Usar uma linha para cada decisao, duvida ou acao.
 |---|---|---|---|---|
 | Checklist tecnico | Pendente | Dois responsaveis e profissional experiente | Validar escopo-base de limpeza e definir criterios de parada e evidencia por tarefa | Revisao externa pendente |
 | Dados e privacidade | Inventario e revisao profissional necessarios antes de dados reais | Dois responsaveis e assessoria | Preencher inventario e obter revisao profissional; nao coletar documentos reais | Pendente |
-| Individual e empresa | Ambos; empresa com responsavel e contas individuais vinculadas para executores | Dois responsaveis | Projetar permissoes e confirmar dados/metodos com especialista e assessoria | Direcao aprovada; controles pendentes |
+| Participantes profissionais | Somente profissionais individuais no primeiro piloto; empresas/equipes ficam fora | Dois responsaveis | Definir convite e criterios de entrada; fase empresarial futura | Direcao atualizada; documentacao tecnica em alinhamento |
 | Revisores | Um responsavel faz a primeira analise e o outro a segunda; contestacao vai ao segundo revisor | Dois responsaveis | Designar substituto para ausencia e medir capacidade antes de definir prazo | Direcao aprovada; capacidade pendente |
 | Equipes e substituicoes | Cada pessoa que possa entrar na residencia deve ser apresentada e habilitada; substituicao requer aceite do cliente | Dois responsaveis | Definir verificacoes e dados com revisao tecnica/privacidade; implementar o procedimento | Direcao aprovada; controles pendentes |
 | Correcao e reenvio | Permitidos, com motivo claro e instrucao objetiva | Dois responsaveis | Definir estados, canal e detalhes de implementacao, sem prazo prometido antes de medir capacidade | Direcao aprovada; procedimento tecnico pendente |
@@ -130,7 +128,7 @@ Usar uma linha para cada decisao, duvida ou acao.
 | Atraso, ausencia e incidentes | Aviso assim que houver atraso; atualizacao apos 15 min; apos 30 min sem contato, cliente pode registrar ausencia e solicitar cancelamento; dano/fora de escopo gera relato | Dois responsaveis | Implementar fluxo de suporte e medir capacidade; sem SLA, multa ou decisao automatica de responsabilidade | Direcao aprovada; implementacao pendente |
 | Mudanca apos confirmacao | Nova versao com aceite explicito; nova verificacao de disponibilidade se mudar horario | Dois responsaveis | Implementar versionamento, aceite e historico | Direcao aprovada; implementacao pendente |
 | Pagamento inicial | Fora do app; resumo registra apenas condicao declarada e nao confirma pagamento | Dois responsaveis | Definir exibicao clara; processamento, repasse e reembolso automatizados ficam para depois | Direcao aprovada; integracao futura |
-| Catalogo de limpeza | Escopo-base aprovado para revisao: tarefas comuns internas e exclusoes descritas acima | Responsaveis; amigo cuida do catalogo | Amigo e profissional experiente revisam opcoes, limites e criterios antes de oferta | Rascunho aprovado; revisao pendente |
+| Catalogo de limpeza | Limpeza residencial padrao admite iniciante sem curso obrigatorio; pos-obra fora | Responsaveis; amigo cuida do catalogo | Amigo e profissional experiente revisam opcoes, limites e criterios antes de oferta | Direcao registrada; revisao pendente |
 
 ## Antes de avancar para uso real
 

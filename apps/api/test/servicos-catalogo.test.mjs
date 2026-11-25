@@ -9,12 +9,13 @@ import { GUARDS_METADATA } from '@nestjs/common/constants.js';
 const admin = { id: 12, tipo: 'administrador' };
 
 function setup() {
-  const state = { categorias: [{ id: 1, ativo: true }, { id: 2, ativo: false }], servicos: [], auditorias: [], falharAuditoria: false };
+  const state = { categorias: [{ id: 1, ativo: true }, { id: 2, ativo: false }], servicos: [], ofertas: [], auditorias: [], falharAuditoria: false };
   const categorias = { async findOne({ where }) { return state.categorias.find((item) => item.id === where.id) ?? null; } };
   const servicos = {
     manager: {
       async transaction(operation) {
         const items = structuredClone(state.servicos);
+        const offers = structuredClone(state.ofertas);
         const audits = [];
         const repository = {
           create: (value) => value,
@@ -28,6 +29,16 @@ function setup() {
           },
         };
         const result = await operation({
+          async query(_sql, parameters) {
+            const catalogId = parameters?.[0];
+            for (const offer of offers) {
+              if (offer.servicoCatalogoId === catalogId) Object.assign(offer, {
+                revisaoExperienciaEstado: 'pendente', primeiroRevisorId: null,
+                primeiraRevisaoEm: null, revisorFinalId: null, revisaoFinalEm: null,
+                motivoRevisaoExperiencia: null,
+              });
+            }
+          },
           getRepository(entity) {
             if (entity.name === 'CategoriaEntity') return categorias;
             if (entity.name === 'ServicoCatalogoEntity') return repository;
@@ -39,6 +50,7 @@ function setup() {
           },
         });
         state.servicos = items;
+        state.ofertas = offers;
         state.auditorias.push(...audits);
         return result;
       },
@@ -87,6 +99,26 @@ test('falha de auditoria nao confirma criacao nem edicao', async () => {
   await assert.rejects(service.atualizar(admin, 1, item.id, { nome: 'Alterado' }), /auditoria indisponivel/);
   assert.equal(state.servicos.length, 1);
   assert.equal(state.servicos[0].nome, 'Inicial');
+});
+
+test('alterar escopo da tarefa reinicia revisao das ofertas vinculadas', async () => {
+  const { state, service } = setup();
+  const item = (await service.criar(admin, 1, {
+    nome: 'Limpeza interna simples',
+    descricao: 'Limpeza de manutencao em areas internas e acessiveis.',
+    inclusoes: 'Superficies e pisos acessiveis.',
+    exclusoes: 'Altura, pragas e material perigoso.',
+    ativo: true,
+    politicaPiloto: 'experiencia_declarada',
+    criterioPiloto: 'Relato de experiencia relevante para a tarefa e seus limites.',
+  })).servico;
+  state.ofertas.push({ servicoCatalogoId: item.id, revisaoExperienciaEstado: 'aprovada',
+    primeiroRevisorId: 90, primeiraRevisaoEm: new Date(), revisorFinalId: 91,
+    revisaoFinalEm: new Date(), motivoRevisaoExperiencia: null });
+  await service.atualizar(admin, 1, item.id, { inclusoes: 'Somente pisos acessiveis.' });
+  assert.equal(state.ofertas[0].revisaoExperienciaEstado, 'pendente');
+  assert.equal(state.ofertas[0].primeiroRevisorId, null);
+  assert.equal(state.ofertas[0].revisorFinalId, null);
 });
 
 test('listagem administrativa limita categoria, filtro e paginacao', async () => {

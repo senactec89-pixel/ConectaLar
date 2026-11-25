@@ -36,14 +36,21 @@ export function detalheAuditoriaSeguro(value: unknown): string {
 const estados = new Set([
   'pendente', 'em_analise', 'suspenso', 'aprovado', 'aprovada',
   'rejeitado', 'rejeitada', 'resolvida', 'convite_pendente',
+  'primeira_aprovacao', 'precisa_correcao', 'inconclusiva', 'suspensa',
+]);
+const acoesTarefa = new Set(['aprovar', 'solicitar_correcao', 'marcar_inconclusiva', 'suspender']);
+const motivosTarefa = new Set([
+  'revisao_concluida', 'informacao_incompleta', 'criterio_nao_verificavel',
+  'escopo_incompativel', 'risco_identificado',
 ]);
 const chavesId = new Set([
   'profissionalUsuarioId', 'solicitacaoId', 'denuncianteId',
   'denunciadoId', 'avaliadorId', 'avaliadoId', 'emailOutboxId',
-  'profissionalId', 'tokenVersion',
+  'profissionalId', 'primeiroRevisorId', 'revisorFinalId', 'tokenVersion',
 ]);
 const chavesBooleanas = new Set([
-  'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida', 'selo',
+  'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida',
+  'requerDoisAdministradores', 'selo',
 ]);
 
 function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, unknown> {
@@ -82,6 +89,10 @@ function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, 
       typeof valor === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(valor)) {
       seguro[chave] = valor;
     } else if (chave === 'efeito' && valor === 'nao_altera_estado_de_aprovacao_ou_suspensao') {
+      seguro[chave] = valor;
+    } else if (chave === 'acaoTarefa' && typeof valor === 'string' && acoesTarefa.has(valor)) {
+      seguro[chave] = valor;
+    } else if (chave === 'motivoTarefa' && typeof valor === 'string' && motivosTarefa.has(valor)) {
       seguro[chave] = valor;
     }
   }

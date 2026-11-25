@@ -973,6 +973,19 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     int? servicoCatalogoId = int.tryParse(
       '${servico?['servicoCatalogoId'] ?? ''}',
     );
+    var politicaPiloto = '${servico?['politicaPiloto'] ?? 'fora_piloto'}';
+    var criterioPiloto = '${servico?['criterioPiloto'] ?? ''}';
+    String? nivelExperienciaPiloto =
+        servico?['nivelExperienciaPiloto'] as String?;
+    String? frequenciaExperienciaPiloto =
+        servico?['frequenciaExperienciaPiloto'] as String?;
+    var confirmaIniciante = servico?['inicianteConfirmadoPiloto'] == true;
+    final relatoExperiencia = TextEditingController(
+      text: '${servico?['relatoExperienciaPiloto'] ?? ''}',
+    );
+    final formacaoInformada = TextEditingController(
+      text: '${servico?['formacaoInformadaPiloto'] ?? ''}',
+    );
     Future<List<Map<String, dynamic>>>? catalogoFuture;
     final preco = TextEditingController(
       text: '${servico?['precoInicial'] ?? ''}',
@@ -1047,6 +1060,12 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         : (value) => setDialogState(() {
                             categoriaId = value;
                             servicoCatalogoId = null;
+                            politicaPiloto = 'fora_piloto';
+                            criterioPiloto = '';
+                            nivelExperienciaPiloto = null;
+                            frequenciaExperienciaPiloto = null;
+                            relatoExperiencia.clear();
+                            formacaoInformada.clear();
                             catalogoFuture = value == null
                                 ? null
                                 : AppServices.instance.categorias.servicos(
@@ -1101,15 +1120,162 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                               value == null ? 'Escolha um serviço.' : null,
                           onChanged: enviando
                               ? null
-                              : (value) => setDialogState(
-                                  () => servicoCatalogoId = value,
-                                ),
+                              : (value) => setDialogState(() {
+                                  servicoCatalogoId = value;
+                                  Map<String, dynamic>? selecionado;
+                                  for (final item in opcoes) {
+                                    if (int.tryParse('${item['id']}') ==
+                                        value) {
+                                      selecionado = item;
+                                      break;
+                                    }
+                                  }
+                                  politicaPiloto =
+                                      '${selecionado?['politicaPiloto'] ?? 'fora_piloto'}';
+                                  criterioPiloto =
+                                      '${selecionado?['criterioPiloto'] ?? ''}';
+                                  nivelExperienciaPiloto =
+                                      politicaPiloto == 'experiencia_declarada'
+                                      ? 'experiencia_declarada'
+                                      : null;
+                                  frequenciaExperienciaPiloto = null;
+                                  relatoExperiencia.clear();
+                                  formacaoInformada.clear();
+                                  confirmaIniciante = false;
+                                }),
                         );
                       },
                     ),
                 ],
+                if (politicaPiloto != 'fora_piloto') ...[
+                  const SizedBox(height: 16),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Experiência para este serviço'),
+                  ),
+                  if (criterioPiloto.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Critério informado pela equipe: $criterioPiloto',
+                        ),
+                      ),
+                    ),
+                  if (politicaPiloto == 'iniciante_ou_experiencia')
+                    DropdownButtonFormField<String>(
+                      initialValue: nivelExperienciaPiloto,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Sua experiência neste serviço',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'experiencia_declarada',
+                          child: Text('Já tenho experiência'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'iniciante',
+                          child: Text('Sou iniciante nesta tarefa'),
+                        ),
+                      ],
+                      validator: (value) =>
+                          value == null ? 'Escolha uma opção.' : null,
+                      onChanged: enviando
+                          ? null
+                          : (value) => setDialogState(() {
+                              nivelExperienciaPiloto = value;
+                              confirmaIniciante = false;
+                              if (value == 'iniciante') {
+                                relatoExperiencia.clear();
+                                frequenciaExperienciaPiloto = null;
+                              }
+                            }),
+                    )
+                  else
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text('Esta tarefa exige experiência declarada.'),
+                      ),
+                    ),
+                  if (nivelExperienciaPiloto == 'experiencia_declarada') ...[
+                    TextFormField(
+                      controller: relatoExperiencia,
+                      enabled: !enviando,
+                      minLines: 2,
+                      maxLines: 4,
+                      maxLength: 500,
+                      decoration: const InputDecoration(
+                        labelText: 'Atividades semelhantes que já realizou',
+                        helperText:
+                            'Descreva tarefas e limites. Não inclua dados de clientes.',
+                      ),
+                      validator: (value) => (value ?? '').trim().length < 30
+                          ? 'Descreva a experiência com pelo menos 30 caracteres.'
+                          : null,
+                    ),
+                    DropdownButtonFormField<String>(
+                      initialValue: frequenciaExperienciaPiloto,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Frequência aproximada',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'ocasional',
+                          child: Text('Ocasional'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'recorrente',
+                          child: Text('Recorrente'),
+                        ),
+                      ],
+                      validator: (value) =>
+                          value == null ? 'Informe a frequência.' : null,
+                      onChanged: enviando
+                          ? null
+                          : (value) => setDialogState(
+                              () => frequenciaExperienciaPiloto = value,
+                            ),
+                    ),
+                  ],
+                  if (nivelExperienciaPiloto == 'iniciante')
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: confirmaIniciante,
+                      title: const Text(
+                        'Confirmo que sou iniciante nesta tarefa.',
+                      ),
+                      onChanged: enviando
+                          ? null
+                          : (value) => setDialogState(
+                              () => confirmaIniciante = value == true,
+                            ),
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  TextFormField(
+                    key: const Key('formacao-informada-piloto'),
+                    controller: formacaoInformada,
+                    enabled: !enviando,
+                    minLines: 1,
+                    maxLines: 2,
+                    maxLength: 300,
+                    decoration: const InputDecoration(
+                      labelText: 'Curso ou formação relacionada (opcional)',
+                      helperText:
+                          'Informe nome, instituição e ano. É autodeclarado, não verificado. Não envie documentos nem dados de terceiros.',
+                    ),
+                  ),
+                  const Text(
+                    'Esta é uma declaração sua, revisada manualmente. Não é certificado nem comprovação independente de identidade ou competência.',
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextFormField(
+                  key: const Key('preco-inicial-piloto'),
                   controller: preco,
                   enabled: !enviando,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -1208,6 +1374,16 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                         );
                         return;
                       }
+                      if (politicaPiloto != 'fora_piloto' &&
+                          (nivelExperienciaPiloto == null ||
+                              (nivelExperienciaPiloto == 'iniciante' &&
+                                  !confirmaIniciante))) {
+                        setDialogState(
+                          () => erro =
+                              'Revise a declaração de experiência deste serviço.',
+                        );
+                        return;
+                      }
                       if (duracaoEscolhida == 'personalizada') {
                         duracaoMinutos = int.parse(
                           duracaoPersonalizada.text.trim(),
@@ -1234,6 +1410,22 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
                           'inclui': itens(inclui.text),
                           'naoInclui': itens(naoInclui.text),
                           'opcionais': itens(opcionais.text),
+                          if (politicaPiloto != 'fora_piloto') ...{
+                            'nivelExperienciaPiloto': nivelExperienciaPiloto,
+                            'inicianteConfirmadoPiloto':
+                                nivelExperienciaPiloto == 'iniciante' &&
+                                confirmaIniciante,
+                            'relatoExperienciaPiloto':
+                                nivelExperienciaPiloto == 'iniciante'
+                                ? null
+                                : relatoExperiencia.text.trim(),
+                            'frequenciaExperienciaPiloto':
+                                nivelExperienciaPiloto == 'iniciante'
+                                ? null
+                                : frequenciaExperienciaPiloto,
+                            'formacaoInformadaPiloto': formacaoInformada.text
+                                .trim(),
+                          },
                         };
                         if (servico == null) {
                           final existente = servicos.indexWhere(
@@ -1308,6 +1500,8 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
     naoInclui.dispose();
     opcionais.dispose();
     duracaoPersonalizada.dispose();
+    relatoExperiencia.dispose();
+    formacaoInformada.dispose();
   }
 
   List<Map<String, dynamic>> _servicosParaSalvar(
@@ -1327,6 +1521,12 @@ class _ServicosProfissionalPageState extends State<ServicosProfissionalPage> {
           'inclui': item['inclui'] ?? const <String>[],
           'naoInclui': item['naoInclui'] ?? const <String>[],
           'opcionais': item['opcionais'] ?? const <String>[],
+          'nivelExperienciaPiloto': item['nivelExperienciaPiloto'],
+          'relatoExperienciaPiloto': item['relatoExperienciaPiloto'],
+          'formacaoInformadaPiloto': item['formacaoInformadaPiloto'],
+          'frequenciaExperienciaPiloto': item['frequenciaExperienciaPiloto'],
+          'inicianteConfirmadoPiloto':
+              item['inicianteConfirmadoPiloto'] == true,
         },
       )
       .toList();

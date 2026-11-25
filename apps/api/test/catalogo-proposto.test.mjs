@@ -15,5 +15,10 @@ test('lista proposta preserva as categorias e os servicos decididos', async () =
   }
   assert.ok(itens.some((item) => item.categoria === 'Manutencao' && item.nome === 'Montagem de cadeira'));
   assert.ok(itens.some((item) => item.categoria === 'Limpeza' && item.nome === 'Limpeza residencial padrao' && item.inclusoes.toLowerCase().includes('cozinha e banheiro')));
+  const limpezaPadrao = itens.find((item) => item.nome === 'Limpeza residencial padrao');
+  assert.equal(limpezaPadrao.politicaPiloto, 'iniciante_ou_experiencia');
+  assert.match(limpezaPadrao.criterioPiloto, /Nao exige curso nem certificado/);
+  const posObra = itens.find((item) => item.nome === 'Limpeza pos-obra leve');
+  assert.equal(posObra.politicaPiloto, 'fora_piloto');
   assert.ok(!itens.some((item) => ['Limpeza de cozinha', 'Limpeza de banheiro'].includes(item.nome)));
 });

@@ -244,6 +244,11 @@ export class PrivacidadeService {
             inclui: null,
             naoInclui: null,
             opcionais: null,
+            nivelExperienciaPiloto: null,
+            relatoExperienciaPiloto: null,
+            formacaoInformadaPiloto: null,
+            frequenciaExperienciaPiloto: null,
+            inicianteConfirmadoPiloto: false,
             ativo: false,
           },
         );

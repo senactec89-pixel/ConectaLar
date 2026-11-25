@@ -18,6 +18,7 @@ class DossieProfissionalPage extends StatefulWidget {
 class _DossieProfissionalPageState extends State<DossieProfissionalPage> {
   int _pagina = 1;
   bool _abrindoDocumento = false;
+  bool _analisandoExperiencia = false;
   late Future<Map<String, dynamic>> _future = _carregar();
 
   Future<Map<String, dynamic>> _carregar() => AppServices.instance.admin
@@ -42,6 +43,99 @@ class _DossieProfissionalPageState extends State<DossieProfissionalPage> {
     'certificado_curso' => 'Certificado de curso',
     _ => 'Documento',
   };
+
+  String _estadoExperiencia(Object? estado) => switch (estado) {
+    'primeira_aprovacao' => '1ª revisão aprovada; falta outro administrador',
+    'aprovada' => 'Aprovada por dois administradores',
+    'precisa_correcao' => 'Precisa de correção',
+    'inconclusiva' => 'Inconclusiva; permanece bloqueada',
+    'suspensa' => 'Suspensa',
+    _ => 'Pendente de revisão',
+  };
+
+  Future<void> _revisarExperiencia(
+    Map oferta,
+    String acao,
+    String motivo,
+  ) async {
+    if (_analisandoExperiencia) return;
+    final ofertaId = oferta['id'];
+    if (ofertaId is! int) return;
+    final primeiroPasso =
+        acao == 'aprovar' &&
+        oferta['revisaoExperienciaEstado'] != 'primeira_aprovacao';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(switch (acao) {
+          'aprovar' =>
+            primeiroPasso
+                ? 'Registrar primeira revisão?'
+                : 'Concluir aprovação? ',
+          'solicitar_correcao' => 'Solicitar correção?',
+          'marcar_inconclusiva' => 'Marcar como inconclusiva?',
+          _ => 'Suspender esta análise?',
+        }),
+        content: Text(
+          acao == 'aprovar'
+              ? primeiroPasso
+                    ? 'Esta decisão será apenas a primeira de duas revisões e não libera a tarefa.'
+                    : 'A aprovação exige um administrador diferente do primeiro revisor. Ela aprova somente esta tarefa, não a habilitação geral.'
+              : 'A tarefa continuará indisponível para pedidos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    setState(() => _analisandoExperiencia = true);
+    try {
+      await AppServices.instance.admin.analisarExperienciaOferta(
+        profissionalId: widget.profissionalId,
+        ofertaId: ofertaId,
+        acao: acao,
+        motivo: motivo,
+      );
+      if (mounted) {
+        _recarregar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              acao == 'aprovar' && primeiroPasso
+                  ? 'Primeira revisão registrada; falta outro administrador.'
+                  : acao == 'aprovar'
+                  ? 'Tarefa aprovada. A habilitação geral continua pendente.'
+                  : 'Revisão registrada; a tarefa permanece bloqueada.',
+            ),
+          ),
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível registrar a revisão.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _analisandoExperiencia = false);
+    }
+  }
 
   Future<void> _abrirDocumento(Map documento) async {
     if (_abrindoDocumento) return;
@@ -153,11 +247,108 @@ class _DossieProfissionalPageState extends State<DossieProfissionalPage> {
               if (ofertas.isEmpty)
                 const ListTile(title: Text('Nenhuma oferta cadastrada.')),
               for (final oferta in ofertas)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('${oferta['nome'] ?? 'Oferta'}'),
-                  subtitle: Text('${oferta['categoria'] ?? 'Sem categoria'}'),
-                  trailing: Text(oferta['ativo'] == true ? 'Ativa' : 'Pausada'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('${oferta['nome'] ?? 'Oferta'}'),
+                      subtitle: Text(
+                        [
+                          '${oferta['categoria'] ?? 'Sem categoria'} · ${oferta['ativo'] == true ? 'Ativa' : 'Pausada'}',
+                          'Política: ${oferta['politicaPiloto'] ?? 'fora_piloto'}',
+                          'Experiência: ${oferta['nivelExperienciaPiloto'] ?? 'não informada'}',
+                          if (oferta['criterioPiloto'] != null)
+                            'Critério do piloto: ${oferta['criterioPiloto']}',
+                          if (oferta['descricaoTarefa'] != null)
+                            'Descrição: ${oferta['descricaoTarefa']}',
+                          if (oferta['inclusoesTarefa'] != null)
+                            'Incluído na tarefa: ${oferta['inclusoesTarefa']}',
+                          if (oferta['exclusoesTarefa'] != null)
+                            'Fora do escopo da tarefa: ${oferta['exclusoesTarefa']}',
+                          if ((oferta['inclusoesDeclaradas'] as List?)
+                                  ?.isNotEmpty ==
+                              true)
+                            'Escopo declarado: ${(oferta['inclusoesDeclaradas'] as List).join(', ')}',
+                          if ((oferta['exclusoesDeclaradas'] as List?)
+                                  ?.isNotEmpty ==
+                              true)
+                            'Limites declarados: ${(oferta['exclusoesDeclaradas'] as List).join(', ')}',
+                          if ((oferta['opcionaisDeclarados'] as List?)
+                                  ?.isNotEmpty ==
+                              true)
+                            'Opcionais: ${(oferta['opcionaisDeclarados'] as List).join(', ')}',
+                          if (oferta['frequenciaExperienciaPiloto'] != null)
+                            'Frequência declarada: ${oferta['frequenciaExperienciaPiloto']}',
+                          if (oferta['nivelExperienciaPiloto'] == 'iniciante')
+                            'Confirmação de iniciante: ${oferta['inicianteConfirmadoPiloto'] == true ? 'registrada' : 'ausente'}',
+                          if (oferta['relatoExperienciaPiloto'] != null)
+                            'Relato: ${oferta['relatoExperienciaPiloto']}',
+                          if (oferta['formacaoInformadaPiloto'] != null)
+                            'Curso/formação informado (não verificado): ${oferta['formacaoInformadaPiloto']}',
+                          'Revisão: ${_estadoExperiencia(oferta['revisaoExperienciaEstado'])}',
+                          if (oferta['primeiroRevisorId'] != null)
+                            'Primeiro revisor: ${oferta['primeiroRevisorId']}',
+                        ].join('\n'),
+                      ),
+                      trailing: PopupMenuButton<String>(
+                        tooltip: 'Revisar experiência declarada',
+                        enabled:
+                            !_analisandoExperiencia &&
+                            oferta['politicaPiloto'] != 'fora_piloto',
+                        onSelected: (value) => switch (value) {
+                          'aprovar' => _revisarExperiencia(
+                            oferta,
+                            'aprovar',
+                            'revisao_concluida',
+                          ),
+                          'corrigir' => _revisarExperiencia(
+                            oferta,
+                            'solicitar_correcao',
+                            'informacao_incompleta',
+                          ),
+                          'inconclusiva' => _revisarExperiencia(
+                            oferta,
+                            'marcar_inconclusiva',
+                            'criterio_nao_verificavel',
+                          ),
+                          _ => _revisarExperiencia(
+                            oferta,
+                            'suspender',
+                            'risco_identificado',
+                          ),
+                        },
+                        itemBuilder: (_) => [
+                          if (oferta['revisaoExperienciaEstado'] ==
+                                  'pendente' ||
+                              oferta['revisaoExperienciaEstado'] ==
+                                  'primeira_aprovacao')
+                            PopupMenuItem(
+                              value: 'aprovar',
+                              child: Text(
+                                oferta['revisaoExperienciaEstado'] ==
+                                        'primeira_aprovacao'
+                                    ? 'Aprovar (segunda revisão)'
+                                    : 'Aprovar (primeira revisão)',
+                              ),
+                            ),
+                          const PopupMenuItem(
+                            value: 'corrigir',
+                            child: Text('Solicitar correção'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'inconclusiva',
+                            child: Text('Marcar inconclusiva'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'suspender',
+                            child: Text('Suspender'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                  ],
                 ),
               const SizedBox(height: 20),
               Text(

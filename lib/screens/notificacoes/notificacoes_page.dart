@@ -105,6 +105,29 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
     }
   }
 
+  Future<void> _ativarPush() async {
+    final push = AppServices.instance.push;
+    if (!push.disponivel) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Push ainda nao configurado nesta versao do app.'),
+        ),
+      );
+      return;
+    }
+    final ativado = await push.habilitarParaSessaoAtual(pedirPermissao: true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ativado
+              ? 'Notificacoes push ativadas neste aparelho.'
+              : 'Permita notificacoes nas configuracoes do aparelho e tente novamente.',
+        ),
+      ),
+    );
+  }
+
   Future<void> _abrir(Notificacao notificacao) async {
     if (_ocupado) return;
     setState(() => _ocupado = true);
@@ -157,6 +180,11 @@ class _NotificacoesPageState extends State<NotificacoesPage> {
       appBar: AppBarCustom(
         title: 'Notificações',
         actions: [
+          IconButton(
+            tooltip: 'Ativar notificacoes push neste aparelho',
+            onPressed: _ocupado ? null : _ativarPush,
+            icon: const Icon(Icons.notifications_active_outlined),
+          ),
           IconButton(
             tooltip: 'Atualizar notificações',
             onPressed: _ocupado ? null : _recarregar,

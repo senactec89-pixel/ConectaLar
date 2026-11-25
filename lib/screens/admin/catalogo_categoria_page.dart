@@ -132,7 +132,12 @@ class _CatalogoCategoriaPageState extends State<CatalogoCategoriaPage> {
                     color: AppColors.verde,
                   ),
                   title: Text('${item['nome']}'),
-                  subtitle: Text(item['ativo'] == true ? 'Ativo' : 'Pausado'),
+                  subtitle: Text(
+                    [
+                      item['ativo'] == true ? 'Ativo' : 'Pausado',
+                      'Piloto: ${_rotuloPolitica(item['politicaPiloto'])}',
+                    ].join(' · '),
+                  ),
                   onTap: _salvando ? null : () => _editar(item),
                   trailing: PopupMenuButton<String>(
                     tooltip: 'Ações do serviço',
@@ -229,6 +234,11 @@ class _ServicoCatalogoFormState extends State<_ServicoCatalogoForm> {
   late final _exclusoes = TextEditingController(
     text: '${widget.item?['exclusoes'] ?? ''}',
   );
+  late final _criterioPiloto = TextEditingController(
+    text: '${widget.item?['criterioPiloto'] ?? ''}',
+  );
+  late String _politicaPiloto =
+      '${widget.item?['politicaPiloto'] ?? 'fora_piloto'}';
   bool _salvando = false;
   String? _erro;
 
@@ -238,6 +248,7 @@ class _ServicoCatalogoFormState extends State<_ServicoCatalogoForm> {
     _descricao.dispose();
     _inclusoes.dispose();
     _exclusoes.dispose();
+    _criterioPiloto.dispose();
     super.dispose();
   }
 
@@ -257,6 +268,8 @@ class _ServicoCatalogoFormState extends State<_ServicoCatalogoForm> {
           'descricao': texto(_descricao),
           'inclusoes': texto(_inclusoes),
           'exclusoes': texto(_exclusoes),
+          'politicaPiloto': _politicaPiloto,
+          'criterioPiloto': texto(_criterioPiloto),
         },
         id: widget.item == null ? null : int.parse('${widget.item!['id']}'),
       );
@@ -315,6 +328,58 @@ class _ServicoCatalogoFormState extends State<_ServicoCatalogoForm> {
               labelText: 'O que não está incluído',
             ),
           ),
+          const SizedBox(height: 20),
+          Text(
+            'Elegibilidade no piloto',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _politicaPiloto,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Regra de experiência',
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'fora_piloto',
+                child: Text('Fora do piloto'),
+              ),
+              DropdownMenuItem(
+                value: 'experiencia_declarada',
+                child: Text('Exige experiência declarada'),
+              ),
+              DropdownMenuItem(
+                value: 'iniciante_ou_experiencia',
+                child: Text('Aceita iniciante ou experiência declarada'),
+              ),
+            ],
+            onChanged: _salvando
+                ? null
+                : (value) =>
+                      setState(() => _politicaPiloto = value ?? 'fora_piloto'),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _criterioPiloto,
+            enabled: !_salvando,
+            maxLength: 1000,
+            minLines: 3,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Critério de revisão da experiência',
+            ),
+            validator: (value) =>
+                _politicaPiloto == 'fora_piloto' ||
+                    (value ?? '').trim().length >= 20
+                ? null
+                : 'Descreva o critério com pelo menos 20 caracteres.',
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Uma tarefa só aparece no piloto com descrição, inclusões e exclusões preenchidas e revisão administrativa concluída. Esta configuração não é aprovação jurídica nem libera produção.',
+          ),
+          const SizedBox(height: 20),
           if (_erro != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -333,3 +398,9 @@ class _ServicoCatalogoFormState extends State<_ServicoCatalogoForm> {
     ),
   );
 }
+
+String _rotuloPolitica(Object? value) => switch (value) {
+  'experiencia_declarada' => 'Experiência declarada',
+  'iniciante_ou_experiencia' => 'Iniciante ou experiente',
+  _ => 'Fora do piloto',
+};

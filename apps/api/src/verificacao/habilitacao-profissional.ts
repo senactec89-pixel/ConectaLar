@@ -1,5 +1,6 @@
 import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import type { ProfissionalPerfilEntity } from '../database/entities/profissional-perfil.entity.js';
+import { habilitacaoPilotoAtiva } from './habilitacao-piloto.js';
 
 export type EstadoHabilitacao = 'pendente' | 'em_analise' | 'suspenso' | 'teste_local_aprovado';
 
@@ -58,8 +59,9 @@ export function habilitacaoProfissional(
     ? 'teste_local_aprovado'
     : perfil?.habilitacaoEstado === 'suspenso' ? 'suspenso'
     : perfil?.habilitacaoEstado === 'em_analise' ? 'em_analise' : 'pendente';
-  const testeLocalElegivel = habilitacaoDeTesteAtiva && perfil !== null;
-  const betaLocal = betaLocalAutorizada(perfil) && estado !== 'suspenso';
+  const profissionalIndividualNoPiloto = !habilitacaoPilotoAtiva() || perfil?.usuario?.tipo === 'profissional';
+  const testeLocalElegivel = habilitacaoDeTesteAtiva && perfil !== null && profissionalIndividualNoPiloto;
+  const betaLocal = betaLocalAutorizada(perfil) && estado !== 'suspenso' && profissionalIndividualNoPiloto;
   const podeAtender =
     (estado === 'teste_local_aprovado' && testeLocalElegivel && perfil?.ativo !== false) ||
     betaLocal;
@@ -67,6 +69,7 @@ export function habilitacaoProfissional(
     estado,
     podeAtender,
     testeLocalElegivel,
+    politicaPilotoAtiva: habilitacaoPilotoAtiva(),
     documentoAnalisado: perfil?.verificado === true,
     etapas: [
       { codigo: 'perfil', status: perfil ? 'cadastrado' : 'pendente' },

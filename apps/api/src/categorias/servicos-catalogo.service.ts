@@ -8,6 +8,7 @@ import { paginationMetadata, parsePaginationQuery } from '../common/pagination.j
 import { CategoriaEntity } from '../database/entities/categoria.entity.js';
 import { ServicoCatalogoEntity } from '../database/entities/servico-catalogo.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
+import { habilitacaoPilotoAtiva, politicaPilotoPublicavel, type PoliticaHabilitacaoPiloto } from '../verificacao/habilitacao-piloto.js';
 
 @Injectable()
 export class ServicosCatalogoService {
@@ -78,11 +79,18 @@ export class ServicosCatalogoService {
   async listarPublicos(categoriaId: number, query: Record<string, unknown>) {
     if (!(await this.categorias.findOne({ where: { id: categoriaId, ativo: true } }))) throw categoriaNaoEncontrada();
     const paginacao = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 100 });
-    const [servicos, total] = await this.servicos.findAndCount({
-      where: { categoriaId, ativo: true }, order: { nome: 'ASC', id: 'ASC' },
-      skip: paginacao.skip, take: paginacao.limite,
-    });
-    return { paginacao: paginationMetadata(paginacao, total), servicos: servicos.map(response) };
+    const builder = this.servicos.createQueryBuilder('servico')
+      .where('servico.categoriaId = :categoriaId AND servico.ativo = :ativo', { categoriaId, ativo: true })
+      .orderBy('servico.nome', 'ASC').addOrderBy('servico.id', 'ASC')
+      .skip(paginacao.skip).take(paginacao.limite);
+    if (habilitacaoPilotoAtiva()) {
+      builder.andWhere(`servico.politicaPiloto IN (:...politicas)
+        AND CHAR_LENGTH(TRIM(servico.criterioPiloto)) >= :minimoCriterio`, {
+        politicas: ['experiencia_declarada', 'iniciante_ou_experiencia'], minimoCriterio: 20,
+      });
+    }
+    const [servicos, total] = await builder.getManyAndCount();
+    return { paginacao: paginationMetadata(paginacao, total), servicos: servicos.map((servico) => response(servico, false)) };
   }
 
   async listar(categoriaId: number, query: Record<string, unknown>) {
@@ -97,7 +105,7 @@ export class ServicosCatalogoService {
     if (ativo !== null) builder.andWhere('servico.ativo = :ativo', { ativo });
     if (termo !== null) builder.andWhere('servico.nome LIKE :termo', { termo: `%${termo}%` });
     const [servicos, total] = await builder.getManyAndCount();
-    return { paginacao: paginationMetadata(paginacao, total), servicos: servicos.map(response) };
+    return { paginacao: paginationMetadata(paginacao, total), servicos: servicos.map((servico) => response(servico)) };
   }
 
   async criar(user: AuthenticatedUser, categoriaId: number, body: unknown) {
@@ -110,16 +118,20 @@ export class ServicosCatalogoService {
         if (categoria === null) throw categoriaNaoEncontrada();
         if (input.ativo === true && !categoria.ativo) throw badRequest('CATEGORIA_INATIVA');
         const repo = manager.getRepository(ServicoCatalogoEntity);
-        const servico = await repo.save(repo.create({
+        const servico = repo.create({
           categoriaId, nome: input.nome!, descricao: input.descricao ?? null,
           inclusoes: input.inclusoes ?? null, exclusoes: input.exclusoes ?? null,
           ativo: input.ativo ?? false,
-        }));
+          politicaPiloto: input.politicaPiloto ?? 'fora_piloto',
+          criterioPiloto: input.criterioPiloto ?? null,
+        });
+        validarConfiguracaoPiloto(categoria, servico);
+        const saved = await repo.save(servico);
         await registrarAuditoriaAdmin(manager, {
           atorId: user.id, acao: AdminAuditoriaAcao.ServicoCatalogoCriado,
-          alvoTipo: 'servico_catalogo', alvoId: servico.id, detalhe: { depois: response(servico) },
+          alvoTipo: 'servico_catalogo', alvoId: saved.id, detalhe: { depois: response(saved, true) },
         });
-        return servico;
+        return saved;
       });
       return { servico: response(saved) };
     } catch (error) {
@@ -140,16 +152,30 @@ export class ServicosCatalogoService {
         const servico = await repo.findOne({ where: { id: servicoId, categoriaId }, lock: { mode: 'pessimistic_write' } });
         if (servico === null) throw new NotFoundException({ code: 'SERVICO_CATALOGO_NAO_ENCONTRADO', message: 'Servico nao encontrado nesta categoria.' });
         if (input.ativo === true && !categoria.ativo) throw badRequest('CATEGORIA_INATIVA');
-        const antes = response(servico);
+        const antes = response(servico, true);
         if (input.nome !== undefined) servico.nome = input.nome;
         if (input.descricao !== undefined) servico.descricao = input.descricao;
         if (input.inclusoes !== undefined) servico.inclusoes = input.inclusoes;
         if (input.exclusoes !== undefined) servico.exclusoes = input.exclusoes;
         if (input.ativo !== undefined) servico.ativo = input.ativo;
+        if (input.politicaPiloto !== undefined) servico.politicaPiloto = input.politicaPiloto;
+        if (input.criterioPiloto !== undefined) servico.criterioPiloto = input.criterioPiloto;
+        validarConfiguracaoPiloto(categoria, servico);
         const atualizado = await repo.save(servico);
+        const escopoMudou = antes.nome !== atualizado.nome || antes.descricao !== atualizado.descricao ||
+          antes.inclusoes !== atualizado.inclusoes || antes.exclusoes !== atualizado.exclusoes ||
+          antes.politicaPiloto !== atualizado.politicaPiloto || antes.criterioPiloto !== atualizado.criterioPiloto;
+        if (escopoMudou) {
+          await manager.query(`UPDATE profissional_servicos
+            SET revisao_experiencia_estado = 'pendente', primeiro_revisor_id = NULL,
+              primeira_revisao_em = NULL, revisor_final_id = NULL, revisao_final_em = NULL,
+              motivo_revisao_experiencia = NULL
+            WHERE servico_catalogo_id = ?`, [atualizado.id]);
+        }
         await registrarAuditoriaAdmin(manager, {
           atorId: user.id, acao: AdminAuditoriaAcao.ServicoCatalogoAtualizado,
-          alvoTipo: 'servico_catalogo', alvoId: atualizado.id, detalhe: { antes, depois: response(atualizado) },
+          alvoTipo: 'servico_catalogo', alvoId: atualizado.id,
+          detalhe: { antes, depois: response(atualizado, true), revisoesDeOfertasReiniciadas: escopoMudou },
         });
         return atualizado;
       });
@@ -178,23 +204,43 @@ function servicoNaoEncontrado(): NotFoundException {
   return new NotFoundException({ code: 'SERVICO_CATALOGO_NAO_ENCONTRADO', message: 'Servico nao encontrado nesta categoria.' });
 }
 
-function response(servico: ServicoCatalogoEntity) {
+function response(servico: ServicoCatalogoEntity, administrativo = true) {
   return { id: servico.id, categoriaId: servico.categoriaId, nome: servico.nome,
-    descricao: servico.descricao, inclusoes: servico.inclusoes, exclusoes: servico.exclusoes, ativo: servico.ativo };
+    descricao: servico.descricao, inclusoes: servico.inclusoes, exclusoes: servico.exclusoes, ativo: servico.ativo,
+    politicaPiloto: servico.politicaPiloto ?? 'fora_piloto',
+    ...(administrativo || servico.politicaPiloto !== 'fora_piloto'
+      ? { criterioPiloto: servico.criterioPiloto ?? null } : {}),
+  };
 }
 
 function parseInput(body: unknown, requireNome: boolean) {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw badRequest('CORPO_INVALIDO');
   const value = body as Record<string, unknown>;
-  if (Object.keys(value).some((key) => !['nome', 'descricao', 'inclusoes', 'exclusoes', 'ativo'].includes(key))) throw badRequest('CAMPO_INVALIDO');
+  if (Object.keys(value).some((key) => !['nome', 'descricao', 'inclusoes', 'exclusoes', 'ativo', 'politicaPiloto', 'criterioPiloto'].includes(key))) throw badRequest('CAMPO_INVALIDO');
   const nome = value.nome === undefined ? undefined : requiredText(value.nome, 2, 90);
   const descricao = optionalText(value.descricao);
   const inclusoes = optionalText(value.inclusoes);
   const exclusoes = optionalText(value.exclusoes);
   if (value.ativo !== undefined && typeof value.ativo !== 'boolean') throw badRequest('CAMPO_INVALIDO');
+  const politicaPiloto = value.politicaPiloto === undefined ? undefined : parsePoliticaPiloto(value.politicaPiloto);
+  const criterioPiloto = optionalText(value.criterioPiloto);
   const ativo = value.ativo as boolean | undefined;
   if ((requireNome && nome === undefined) || (!requireNome && Object.keys(value).length === 0)) throw badRequest('SERVICO_CATALOGO_INVALIDO');
-  return { nome, descricao, inclusoes, exclusoes, ativo };
+  return { nome, descricao, inclusoes, exclusoes, ativo, politicaPiloto, criterioPiloto };
+}
+
+function parsePoliticaPiloto(value: unknown): PoliticaHabilitacaoPiloto {
+  if (value === 'fora_piloto' || value === 'experiencia_declarada' || value === 'iniciante_ou_experiencia') return value;
+  throw badRequest('POLITICA_PILOTO_INVALIDA');
+}
+
+function validarConfiguracaoPiloto(categoria: CategoriaEntity, servico: ServicoCatalogoEntity): void {
+  if (servico.politicaPiloto === 'fora_piloto') return;
+  if (!servico.ativo || !categoria.ativo || !servico.descricao?.trim() ||
+    !servico.inclusoes?.trim() || !servico.exclusoes?.trim() ||
+    !politicaPilotoPublicavel(servico.politicaPiloto, servico.criterioPiloto)) {
+    throw badRequest('ESCOPO_PILOTO_INCOMPLETO');
+  }
 }
 
 function requiredText(value: unknown, min: number, max: number): string {

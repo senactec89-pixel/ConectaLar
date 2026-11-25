@@ -34,12 +34,43 @@ autorizacao para coleta real nem liberacao de atendimentos.
 - **Retencao (D7):** continua pendente de justificativa por finalidade e revisao;
   prazos candidatos nao sao aprovacao.
 
+## Atualizacao de decisao — 20/11/2026
+
+Os dois responsaveis acordaram a direcao de elegibilidade e experiencia para o
+primeiro piloto, detalhada em
+[proposta-politica-habilitacao-piloto.md](proposta-politica-habilitacao-piloto.md):
+
+- limitar esta rodada a profissionais individuais e a poucas tarefas de baixo
+  risco, com escopo definido; empresas com equipes/substituicoes ficam fora ate
+  que cada executor e seus acessos possam ser controlados;
+- nao exigir curso universal; avaliar experiencia por tarefa com declaracao
+  estruturada e revisao manual quando adequado;
+- admitir iniciantes apenas em tarefas expressamente classificadas como
+  apropriadas para iniciantes, limitadas e informadas ao cliente;
+- manter tarefas regulamentadas ou de risco elevado fora ate haver qualificacao
+  especifica verificavel e criterio aprovado.
+
+A lista final de tarefas, o formato e os criterios da declaracao, os avisos ao
+cliente e os procedimentos de revisao ainda precisam ser definidos. Esta
+atualizacao substitui, para o escopo do primeiro piloto, qualquer registro
+historico conflitante de D1, D2 ou D3; nao aprova juridicamente a politica, nao
+autoriza coleta de documentos reais e nao libera atendimentos. `podeAtender`
+permanece `false` ate os gates juridicos, operacionais e tecnicos serem
+concluidos.
+
+O fluxo de revisao de declaracao e escopo **por tarefa** foi implementado neste
+checkout, incluindo duas aprovacoes distintas com MFA. Isso nao implementa a
+aprovacao **geral do perfil** referida em D5: ela continua indisponivel e os
+atendimentos reais permanecem bloqueados. A lista final de verificacoes, o que
+cada uma confirma, a revisao de privacidade/juridica e a homologacao continuam
+pendentes.
+
 Enquanto os gates juridicos, operacionais e tecnicos nao forem cumpridos, `podeAtender`
 deve permanecer `false`, e pedidos/aceites devem continuar bloqueados.
 
 **Escopo:** profissionais individuais e empresas no ConectaLar. Referências: [habilitação atual](habilitacao-profissional.md), [decisões registradas](decisoes.md), [segurança](seguranca.md) e P10/P11/P12/P13/P15 em `.agents/skills/conectalar/references/decisoes-pendentes.md`.
 
-Este documento prepara a fase de política do briefing de habilitação. A equipe também mantém a análise consolidada em [handoff-habilitacao-profissional.md](handoff-habilitacao-profissional.md); usar os dois documentos em conjunto e aplicar a atualização posterior acima quando houver divergência. As escolhas registradas em 02/11/2026 são históricas onde a atualização de 05/11 as substitui. **Não é contrato de API nem autorização jurídica.**
+Este documento prepara a fase de política do briefing de habilitação. A equipe também mantém a análise consolidada em [handoff-habilitacao-profissional.md](handoff-habilitacao-profissional.md); usar os dois documentos em conjunto e aplicar as atualizações de 05/11 e 20/11 acima quando houver divergência. As escolhas registradas em 02/11/2026 são históricas onde as atualizações posteriores as substituem. **Não é contrato de API nem autorização jurídica.**
 
 ## Ponto de partida confirmado
 
@@ -58,7 +89,7 @@ Cada decisão precisa de responsável, data, versão, critérios aprovados e imp
 | **D2 — Categorias** | **Escolha do usuário:** os mesmos requisitos de habilitação para todas as categorias. | Definir quais são esses requisitos e o efeito de mudar categoria, oferta ou qualificação. Uma exigência legal específica de atividade precisa de avaliação própria antes de qualquer liberação. | P03, P10, RF004, RF008 |
 | **D3 — Empresas e equipes** | **Escolha do usuário:** incluir profissionais e empresas; cada executor deve ser identificado e verificado. A empresa indica o executor verificado **antes de aceitar** o pedido. Troca de executor exige nova verificação e aviso ao cliente. | Definir vínculo, consentimento/ciência do executor, quem recebe endereço e mensagens, responsabilidade e revogação do acesso. Nenhum executor substituto recebe endereço por herdar a autorização do anterior. CNPJ ou representante sozinho não identificam o executor. | P12, RF013, RF017, RF040 |
 | **D4 — Antecedentes** | Critérios e fontes a definir pela equipe com análise jurídica | Necessidade e proporcionalidade por atividade, homônimos, resultados inconclusivos, contestação, periodicidade e dados que não devem ser coletados. Não consultar nem reprovar automaticamente antes dessa definição. | P10, P11, P13 |
-| **D5 — Revisão e recurso** | **Escolha do usuário:** decisão final por dois administradores distintos, ambos com MFA. Comprovação inconclusiva ou contestada mantém o atendimento bloqueado e oferece revisão humana por dois administradores distintos. | Definir ordem, validade das duas decisões sobre o mesmo dossiê, impedimentos por conflito de interesse, motivos e prazo de resposta. A API atual exige MFA, mas ainda não implementa dupla aprovação. | P10, P11, P15, RB17 |
+| **D5 — Revisão e recurso** | **Escolha do usuário:** decisão final por dois administradores distintos, ambos com MFA. Comprovação inconclusiva ou contestada mantém o atendimento bloqueado e oferece revisão humana por dois administradores distintos. | Definir ordem, validade das decisões sobre o mesmo dossiê, impedimentos por conflito de interesse, motivos e prazo de resposta. A dupla revisão por tarefa foi implementada no adendo de 20/11; a aprovação geral do perfil e o recurso do dossiê continuam pendentes e bloqueados. | P10, P11, P15, RB17 |
 | **D6 — Validade e revogação** | **Escolha do usuário:** quando uma verificação expirar, o telefone mudar ou um executor sair da empresa, bloquear imediatamente novos pedidos e aceites; revisar manualmente os atendimentos já aceitos. Avisar imediatamente cliente, executor/empresa e administradores, sem revelar ao cliente o motivo privado. | Definir quem conduz a revisão, prazo de resposta, canais de aviso, efeito sobre acesso ao endereço e demais eventos que exigem reanálise. Não cancelar automaticamente pedidos aceitos por esta diretriz. | P04, P10, P11, P12, P13 |
 | **D7 — Retenção e descarte** | Cronograma por tipo de dado, aprovado pela equipe responsável e revisão jurídica | Finalidade, base legal, prazo, acesso, exclusão, auditoria mínima e tratamento de backup para documentos, resultados, telefone e decisões. | P13, RF022, RF038 |
 | **D8 — Comunicação ao usuário** | **Escolha do usuário:** cliente vê apenas status genérico; titular vê etapas e motivos permitidos; administrador autorizado vê o dossiê. | Definir os textos e motivos permitidos em cada papel e canal. Nenhum aviso ou selo deve prometer segurança absoluta, divulgar dados privados ou revelar a outro usuário o motivo de uma suspensão. | P10, P18, RB15 |

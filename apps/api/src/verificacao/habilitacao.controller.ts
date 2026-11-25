@@ -68,6 +68,17 @@ export class HabilitacaoController {
     return this.service.analisar(user, id, body);
   }
 
+  @Patch('admin/profissionais/:id/ofertas/:ofertaId/experiencia')
+  @Roles(UsuarioTipo.Administrador)
+  analisarExperiencia(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('ofertaId', ParseIntPipe) ofertaId: number,
+    @Body() body: unknown,
+  ) {
+    return this.service.analisarExperiencia(user, id, ofertaId, body);
+  }
+
   @Post('admin/profissionais/:id/habilitacao/telefone/confirmacao-manual')
   @Roles(UsuarioTipo.Administrador)
   confirmarTelefoneManual(

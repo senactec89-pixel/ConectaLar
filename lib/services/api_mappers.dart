@@ -111,6 +111,8 @@ Profissional profissionalFromApi(Map<String, dynamic> json) {
         opcionais: (s['opcionais'] as List? ?? const [])
             .whereType<String>()
             .toList(),
+        nivelExperienciaPiloto: s['nivelExperienciaPiloto'] as String?,
+        experienciaAviso: s['experienciaAviso'] as String?,
       ),
     ),
     notaMedia: doubleValueOrNull(json['notaMedia']),

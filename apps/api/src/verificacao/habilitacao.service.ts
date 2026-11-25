@@ -11,9 +11,11 @@ import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { ProfissionalIdentidadeVerificacaoEntity } from '../database/entities/profissional-identidade-verificacao.entity.js';
 import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/profissional-telefone-verificacao.entity.js';
 import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
+import { ProfissionalServicoEntity } from '../database/entities/profissional-servico.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { habilitacaoManualTesteAtiva, habilitacaoProfissional } from './habilitacao-profissional.js';
+import { habilitacaoPilotoAtiva, politicaPilotoPublicavel } from './habilitacao-piloto.js';
 import { IdZapSignProvider } from './id-zapsign.provider.js';
 
 @Injectable()
@@ -708,7 +710,7 @@ export class HabilitacaoService {
     if (!Number.isSafeInteger(id) || id < 1) throw invalido();
     const pagination = parsePaginationQuery(query, { defaultLimit: 20, maxLimit: 50 });
     const perfil = await this.perfis.findOne({
-      where: { id }, relations: { usuario: true, servicos: { categoria: true } },
+      where: { id }, relations: { usuario: true, servicos: { categoria: true, servicoCatalogo: true } },
     });
     if (!perfil) throw naoEncontrado();
     const [identidade, telefone, resultadoDocumentos] = await Promise.all([
@@ -724,6 +726,7 @@ export class HabilitacaoService {
       profissional: {
         id: perfil.id,
         nome: perfil.usuario.nome,
+        tipo: perfil.usuario.tipo,
         ativo: perfil.ativo,
         cidade: perfil.cidade,
         uf: perfil.uf,
@@ -740,6 +743,24 @@ export class HabilitacaoService {
         ofertas: (perfil.servicos ?? []).map((servico) => ({
           id: servico.id, nome: servico.nome, ativo: servico.ativo,
           categoria: servico.categoria?.nome ?? null,
+          politicaPiloto: servico.servicoCatalogo?.politicaPiloto ?? 'fora_piloto',
+          criterioPiloto: servico.servicoCatalogo?.criterioPiloto ?? null,
+          descricaoTarefa: servico.servicoCatalogo?.descricao ?? null,
+          inclusoesTarefa: servico.servicoCatalogo?.inclusoes ?? null,
+          exclusoesTarefa: servico.servicoCatalogo?.exclusoes ?? null,
+          inclusoesDeclaradas: servico.inclui ?? [],
+          exclusoesDeclaradas: servico.naoInclui ?? [],
+          opcionaisDeclarados: servico.opcionais ?? [],
+          nivelExperienciaPiloto: servico.nivelExperienciaPiloto ?? null,
+          relatoExperienciaPiloto: servico.relatoExperienciaPiloto ?? null,
+          formacaoInformadaPiloto: servico.formacaoInformadaPiloto ?? null,
+          frequenciaExperienciaPiloto: servico.frequenciaExperienciaPiloto ?? null,
+          revisaoExperienciaEstado: servico.revisaoExperienciaEstado ?? 'pendente',
+          motivoRevisaoExperiencia: servico.motivoRevisaoExperiencia ?? null,
+          primeiroRevisorId: servico.primeiroRevisorId ?? null,
+          primeiraRevisaoEm: servico.primeiraRevisaoEm?.toISOString() ?? null,
+          revisorFinalId: servico.revisorFinalId ?? null,
+          revisaoFinalEm: servico.revisaoFinalEm?.toISOString() ?? null,
         })).sort((a, b) => a.id - b.id),
       },
       documentos: documentos.map((documento) => ({
@@ -813,6 +834,113 @@ export class HabilitacaoService {
     const telefone = await this.telefones?.findOne({ where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' } });
     return { habilitacao: habilitacaoProfissional(perfil, etapaIdentidade(identidade?.estado),
       etapaTelefone(telefone, perfil.usuario?.telefoneNormalizado, telefoneConfigurado())) };
+  }
+
+  async analisarExperiencia(user: AuthenticatedUser, perfilId: number, ofertaId: number, body: unknown) {
+    await this.exigirAdminMfa(user);
+    if (!Number.isSafeInteger(perfilId) || perfilId < 1 || !Number.isSafeInteger(ofertaId) || ofertaId < 1) throw invalido();
+    const input = corpo(body, ['acao', 'motivo']);
+    const acoes = ['aprovar', 'solicitar_correcao', 'marcar_inconclusiva', 'suspender'];
+    const motivos = ['revisao_concluida', 'informacao_incompleta', 'criterio_nao_verificavel', 'escopo_incompativel', 'risco_identificado'];
+    if (typeof input.acao !== 'string' || !acoes.includes(input.acao) ||
+      typeof input.motivo !== 'string' || !motivos.includes(input.motivo)) throw invalido();
+    if ((input.acao === 'aprovar' && input.motivo !== 'revisao_concluida') ||
+      (input.acao === 'solicitar_correcao' && !['informacao_incompleta', 'escopo_incompativel'].includes(input.motivo)) ||
+      (input.acao === 'marcar_inconclusiva' && input.motivo !== 'criterio_nao_verificavel') ||
+      (input.acao === 'suspender' && input.motivo !== 'risco_identificado')) throw invalido();
+
+    return this.perfis.manager.transaction(async (manager) => {
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: perfilId }, relations: { usuario: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!perfil) throw naoEncontrado();
+      if (perfil.usuarioId === user.id) throw new ForbiddenException();
+      if (habilitacaoPilotoAtiva() && perfil.usuario.tipo !== UsuarioTipo.Profissional) {
+        throw new ConflictException({ code: 'EMPRESA_FORA_DO_PILOTO', message: 'Empresas com equipes estao fora desta rodada do piloto.' });
+      }
+      const oferta = await manager.findOne(ProfissionalServicoEntity, {
+        where: { id: ofertaId, profissionalId: perfilId },
+        relations: { servicoCatalogo: true, categoria: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!oferta) throw new NotFoundException({ code: 'OFERTA_NAO_ENCONTRADA', message: 'Oferta nao encontrada para este profissional.' });
+      if (!oferta.ativo || !oferta.servicoCatalogo?.ativo || oferta.categoria?.ativo !== true ||
+        !politicaPilotoPublicavel(oferta.servicoCatalogo.politicaPiloto, oferta.servicoCatalogo.criterioPiloto) ||
+        oferta.nivelExperienciaPiloto == null ||
+        (oferta.servicoCatalogo.politicaPiloto === 'experiencia_declarada' && oferta.nivelExperienciaPiloto !== 'experiencia_declarada') ||
+        (oferta.nivelExperienciaPiloto === 'iniciante' && oferta.inicianteConfirmadoPiloto !== true) ||
+        (oferta.nivelExperienciaPiloto === 'experiencia_declarada' &&
+          (!oferta.relatoExperienciaPiloto || oferta.relatoExperienciaPiloto.trim().length < 30 || !oferta.frequenciaExperienciaPiloto))) {
+        throw new ConflictException({ code: 'DECLARACAO_EXPERIENCIA_INCOMPLETA', message: 'A oferta ou a declaracao nao atende aos criterios configurados para revisao.' });
+      }
+
+      const estadoAnterior = oferta.revisaoExperienciaEstado ?? 'pendente';
+      const now = new Date();
+      let estadoNovo: string;
+      if (input.acao === 'aprovar') {
+        if (estadoAnterior === 'pendente') {
+          oferta.revisaoExperienciaEstado = 'primeira_aprovacao';
+          oferta.primeiroRevisorId = user.id;
+          oferta.primeiraRevisaoEm = now;
+          oferta.revisorFinalId = null;
+          oferta.revisaoFinalEm = null;
+          oferta.motivoRevisaoExperiencia = null;
+        } else if (estadoAnterior === 'primeira_aprovacao') {
+          if (oferta.primeiroRevisorId == null || oferta.primeiraRevisaoEm == null) {
+            throw new ConflictException({
+              code: 'PRIMEIRA_REVISAO_INVALIDA',
+              message: 'A primeira revisao nao possui registro valido; a tarefa permanece bloqueada.',
+            });
+          }
+          if (oferta.primeiroRevisorId === user.id) {
+            throw new ConflictException({ code: 'REVISOR_INDEPENDENTE_OBRIGATORIO', message: 'A aprovacao final exige outro administrador.' });
+          }
+          oferta.revisaoExperienciaEstado = 'aprovada';
+          oferta.revisorFinalId = user.id;
+          oferta.revisaoFinalEm = now;
+        } else {
+          throw new ConflictException({
+            code: estadoAnterior === 'precisa_correcao' ? 'CORRECAO_DA_DECLARACAO_OBRIGATORIA' : 'REVISAO_EXPERIENCIA_NAO_DISPONIVEL',
+            message: estadoAnterior === 'precisa_correcao'
+              ? 'O profissional precisa alterar e reenviar a declaracao ou o escopo antes de uma nova revisao.'
+              : 'Esta declaracao nao esta aguardando aprovacao.',
+          });
+        }
+      } else {
+        oferta.revisaoExperienciaEstado = input.acao === 'solicitar_correcao' ? 'precisa_correcao'
+          : input.acao === 'marcar_inconclusiva' ? 'inconclusiva' : 'suspensa';
+        oferta.motivoRevisaoExperiencia = input.motivo as string;
+        oferta.revisorFinalId = user.id;
+        oferta.revisaoFinalEm = now;
+      }
+      estadoNovo = oferta.revisaoExperienciaEstado;
+      await manager.save(ProfissionalServicoEntity, oferta);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.HabilitacaoAnalisada,
+        alvoTipo: 'habilitacao_tarefa',
+        alvoId: oferta.id,
+        detalhe: {
+          profissionalId: perfilId,
+          ofertaId: oferta.id,
+          estado: { antes: estadoAnterior, depois: estadoNovo },
+          acaoTarefa: input.acao,
+          motivoTarefa: input.motivo,
+          primeiroRevisorId: oferta.primeiroRevisorId,
+          revisorFinalId: oferta.revisorFinalId,
+          requerDoisAdministradores: true,
+        },
+      });
+      return { revisaoExperiencia: {
+        ofertaId: oferta.id,
+        estado: estadoNovo,
+        motivo: oferta.motivoRevisaoExperiencia,
+        primeiroRevisorId: oferta.primeiroRevisorId,
+        primeiraRevisaoEm: oferta.primeiraRevisaoEm?.toISOString() ?? null,
+        revisorFinalId: oferta.revisorFinalId,
+        revisaoFinalEm: oferta.revisaoFinalEm?.toISOString() ?? null,
+      } };
+    });
   }
 
   private async atualizarIdentidade(verificacao: ProfissionalIdentidadeVerificacaoEntity) {

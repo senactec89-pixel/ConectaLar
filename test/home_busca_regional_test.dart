@@ -121,6 +121,44 @@ void main() {
     },
   );
 
+  testWidgets('Home mantém área do mapa visível sem resultados regionais', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: HomePage(
+          loadContent: () async =>
+              const HomeContent(nearbySearchAvailable: true),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final heading = find.text('Perto de você');
+    await tester.scrollUntilVisible(
+      heading,
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(heading, findsOneWidget);
+    expect(find.text('Nenhum profissional próximo'), findsOneWidget);
+    expect(
+      find.text(
+        'Não encontramos profissionais para esta região. Consulte a lista ou tente outra área.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   test(
     'falha ao consultar endereços aparece como erro, sem lista geral',
     () async {

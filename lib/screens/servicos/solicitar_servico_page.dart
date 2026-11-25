@@ -641,12 +641,23 @@ class _FormularioSolicitacao extends StatelessWidget {
                   for (final oferta in ofertas)
                     DropdownMenuItem(
                       value: oferta.id,
-                      child: Text(oferta.nome, overflow: TextOverflow.ellipsis),
+                      child: Text(
+                        oferta.nivelExperienciaPiloto == 'iniciante'
+                            ? '${oferta.nome} · iniciante'
+                            : oferta.nome,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: onOfertaChanged,
                 validator: (id) => id == null ? 'Selecione um serviço.' : null,
               ),
+              if (ofertaSelecionada case final oferta?)
+                if (oferta.experienciaAviso != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(oferta.experienciaAviso!),
+                  ),
               if (ofertaSelecionada case final oferta?)
                 EscopoServicoView(
                   titulo: 'Detalhes da oferta',

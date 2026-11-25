@@ -19,6 +19,26 @@ test('auditoria grava apenas campos estruturados e omite texto sensivel', async 
   });
 });
 
+test('auditoria da revisao por tarefa preserva motivo codificado e revisores, sem texto livre', () => {
+  assert.deepEqual(JSON.parse(detalheAuditoriaSeguro({
+    profissionalId: 10,
+    primeiroRevisorId: 90,
+    revisorFinalId: 91,
+    acaoTarefa: 'aprovar',
+    motivoTarefa: 'revisao_concluida',
+    requerDoisAdministradores: true,
+    relato: 'texto potencialmente sensivel',
+    motivo: 'texto livre',
+  })), {
+    profissionalId: 10,
+    primeiroRevisorId: 90,
+    revisorFinalId: 91,
+    acaoTarefa: 'aprovar',
+    motivoTarefa: 'revisao_concluida',
+    requerDoisAdministradores: true,
+  });
+});
+
 test('consulta filtra inclusive registros legados com texto livre', async () => {
   const legado = { id: 3, ator: { id: 1, nome: 'Admin', tipo: 'administrador' },
     acao: 'denuncia_moderada', alvoTipo: 'denuncia', alvoId: 4,

@@ -43,6 +43,7 @@ import { escoposIguais, ofertasEquivalentes, snapshotEscopo } from '../domain/es
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { NotificacoesService } from '../notificacoes/notificacoes.service.js';
 import { exigirHabilitacao, habilitacaoManualTesteAtiva, podeAtender } from '../verificacao/habilitacao-profissional.js';
+import { habilitacaoPilotoAtiva, ofertaElegivelNoPiloto } from '../verificacao/habilitacao-piloto.js';
 import { calcularExpiracaoPedido, expirarPedidoSemResposta } from './pedido-prazo.js';
 import { calcularExpiracaoNegociacao, expirarNegociacaoInativa } from './negociacao-prazo.js';
 
@@ -106,9 +107,9 @@ export class SolicitacoesService {
     if (
       profissional === null ||
       !profissional.usuario.ativo ||
-      ![UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(
-        profissional.usuario.tipo,
-      )
+      !(habilitacaoPilotoAtiva()
+        ? profissional.usuario.tipo === UsuarioTipo.Profissional
+        : [UsuarioTipo.Profissional, UsuarioTipo.Empresa].includes(profissional.usuario.tipo))
     ) {
       throw new NotFoundException({
         code: 'PROFISSIONAL_NAO_ENCONTRADO',
@@ -133,6 +134,7 @@ export class SolicitacoesService {
     if (oferta === null || oferta.servicoCatalogoId == null ||
       !oferta.servicoCatalogo?.ativo || !oferta.categoria?.ativo ||
       oferta.servicoCatalogo.categoriaId !== oferta.categoriaId ||
+      !ofertaElegivelNoPiloto(oferta) ||
       (input.categoriaId !== null && input.categoriaId !== oferta.categoriaId)) {
       throw badRequest('OFERTA_INDISPONIVEL');
     }
@@ -202,6 +204,7 @@ export class SolicitacoesService {
       exigirHabilitacao(perfilAtual);
       if (perfilAtual === null || !perfilAtual.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
       const ofertaAtual = await bloquearOfertaCatalogo(manager, profissional.id, oferta.id);
+      if (!ofertaElegivelNoPiloto(ofertaAtual)) throw badRequest('OFERTA_INDISPONIVEL');
       if (!ofertasEquivalentes(oferta, ofertaAtual)) throw ofertaAlterada();
       const opcoes = await carregarOpcoesAtivas(manager, ofertaAtual.servicoCatalogoId!, input.opcoesIds);
       if (ofertaAtual.duracaoMinutos !== duracaoMinutos) throw badRequest('OFERTA_ATUALIZADA');
@@ -327,6 +330,7 @@ export class SolicitacoesService {
       const iniciada = await manager.findOne(SolicitacaoEventoEntity, { where: { solicitacaoId: id, tipo: 'negociacao_iniciada' } });
       if (iniciada !== null) return 'ja_iniciada' as const;
       exigirHabilitacao(perfil);
+      await exigirOfertaElegivelParaPiloto(manager, atual.profissionalId, atual.servicoId);
       atual.prazoInatividadeEm = calcularExpiracaoNegociacao(new Date());
       await manager.save(SolicitacaoEntity, atual);
       await manager.save(SolicitacaoEventoEntity, manager.create(SolicitacaoEventoEntity, {
@@ -381,6 +385,7 @@ export class SolicitacoesService {
       if (evento === null || atual.servicoId === null) throw conflitoNegociacao();
       if (await expirarNegociacaoInativa(manager, atual)) return 'expirada' as const;
       const oferta = await bloquearOfertaCatalogo(manager, atual.profissionalId, atual.servicoId);
+      if (!ofertaElegivelNoPiloto(oferta)) throw badRequest('OFERTA_INDISPONIVEL');
       const opcoes = await carregarOpcoesAtivas(manager, oferta.servicoCatalogoId!, input.opcoesIds);
       await this.expirarPropostasPendentes(manager, atual);
       await manager.query("UPDATE solicitacao_propostas_atendimento SET status='substituida' WHERE solicitacao_id=? AND status='pendente'", [id]);
@@ -434,6 +439,7 @@ export class SolicitacoesService {
         }
         exigirHabilitacao(perfil);
         if (perfil === null || !perfil.ativo) throw new ConflictException({ code: 'PROFISSIONAL_INDISPONIVEL' });
+        await exigirOfertaElegivelParaPiloto(manager, atual.profissionalId, atual.servicoId);
         assertAgendamentoFuturo(rows[0].data_servico, rows[0].horario_servico);
         await this.validarAgendaComManager(
           manager, perfil.id, rows[0].data_servico, rows[0].horario_servico,
@@ -676,6 +682,7 @@ export class SolicitacoesService {
         throw new ConflictException({ code: 'PRAZO_PEDIDO_ENCERRADO' });
       }
       exigirHabilitacao(perfil);
+      await exigirOfertaElegivelParaPiloto(manager, atual.profissionalId, atual.servicoId);
       const data = input.dataServico ?? atual.dataServico;
       const horario = input.horarioServico ?? atual.horarioServico;
       assertAgendamentoFuturo(data, horario);
@@ -753,6 +760,7 @@ export class SolicitacoesService {
       if (aceitar) {
         exigirHabilitacao(perfil);
         if (perfil === null || !perfil.ativo) throw badRequest('PROFISSIONAL_INDISPONIVEL');
+        await exigirOfertaElegivelParaPiloto(manager, atual.profissionalId, atual.servicoId);
         const data = proposta.dataProposta ?? atual.dataServico;
         const horario = proposta.horarioProposto ?? atual.horarioServico;
         assertAgendamentoFuturo(data, horario);
@@ -1385,6 +1393,7 @@ export class SolicitacoesService {
           exigirHabilitacao(perfil);
           if (perfil === null || !perfil.ativo)
             throw badRequest('PROFISSIONAL_INDISPONIVEL');
+          await exigirOfertaElegivelParaPiloto(manager, atual.profissionalId, atual.servicoId);
           const opcoes = await manager.query('SELECT id FROM solicitacao_opcoes WHERE solicitacao_id = ? LIMIT 1', [atual.id]) as unknown[];
           if (opcoes.length > 0) throw new ConflictException({ code: 'USE_PROPOSTA_ATENDIMENTO', message: 'Este pedido deve ser negociado e confirmado por proposta.' });
           assertAgendamentoFuturo(atual.dataServico, atual.horarioServico);
@@ -2198,6 +2207,17 @@ function forbidden(): ForbiddenException {
     code: 'ACESSO_NEGADO',
     message: 'Usuario sem permissao para este recurso.',
   });
+}
+
+async function exigirOfertaElegivelParaPiloto(
+  manager: EntityManager,
+  profissionalId: number,
+  servicoId: number | null,
+): Promise<void> {
+  if (!habilitacaoPilotoAtiva()) return;
+  if (servicoId === null) throw badRequest('OFERTA_INDISPONIVEL');
+  const oferta = await bloquearOfertaCatalogo(manager, profissionalId, servicoId);
+  if (!ofertaElegivelNoPiloto(oferta)) throw badRequest('OFERTA_INDISPONIVEL');
 }
 
 function conflitoPedidoExpirado(): ConflictException {

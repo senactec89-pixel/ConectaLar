@@ -17,6 +17,11 @@ homologation endpoint and use synthetic accounts/data only.
   database `conectalar_homologacao`.
 - ClamAV on an un-published Docker network; uploads fail closed until scanning
   is healthy.
+- Task-by-task pilot eligibility is disabled by default. Keep
+  `CONECTALAR_HABILITACAO_PILOTO=false` until the owners approve the exact task
+  list, scope and criteria. In homologation, enabling it still requires each
+  professional offer to pass two independent MFA-backed task reviews; this is
+  not identity or qualification verification.
 - Caddy on public TCP 80/443 (and UDP 443), with persistent certificate storage.
 - Private persistent Docker volumes for MySQL, uploaded test files, scanner
   signatures and Caddy state.
@@ -74,7 +79,19 @@ startup without it. If Google sign-in is being tested, set the OAuth Web client
 ID expected by both the Flutter build and API; the accepted API audience falls
 back to `GOOGLE_WEB_CLIENT_ID` when `GOOGLE_OAUTH_CLIENT_IDS` is blank. It is not
 the Android Maps API key. `GOOGLE_MAPS_SERVER_API_KEY` is only for API-side
-address geocoding. Never send secrets in chat or commit `.env`.
+address geocoding. Keep that server key separate from
+`GOOGLE_MAPS_ANDROID_API_KEY`: restrict the server key to this VPS's public IP
+and the Geocoding API, while the Android key is restricted to the app and Maps
+SDK for Android. Existing professional profiles must be saved again after the
+server geocoding key is working so their approximate coordinates are populated.
+Never send secrets in chat or commit `.env`.
+
+Push notifications are disabled by default. Before enabling them, follow
+[`apps/api/docs/notificacoes-email-fcm.md`](../../apps/api/docs/notificacoes-email-fcm.md)
+to register the Firebase Android app, apply the device-token migration, add the
+least-privilege Firebase service-account credentials to this private `.env`,
+and build the APK with that Firebase project's public client values. Never put
+the service-account private key in the app build.
 
 ## First deployment
 

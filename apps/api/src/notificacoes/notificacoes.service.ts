@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,7 @@ import {
 import { NotificacaoEntity } from '../database/entities/notificacao.entity.js';
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { NotificacaoTipo } from '../domain/notificacao-tipo.js';
+import { PushNotificacoesService } from './push-notificacoes.service.js';
 
 export interface CriarNotificacaoInput {
   readonly usuarioId: number;
@@ -35,6 +37,8 @@ export class NotificacoesService {
     @InjectRepository(UsuarioEntity)
     private readonly usuarios: Repository<UsuarioEntity>,
     private readonly mail: MailService,
+    @Optional()
+    private readonly push: PushNotificacoesService,
   ) {}
 
   async listarMinhas(user: AuthenticatedUser, query: Record<string, unknown>) {
@@ -112,6 +116,7 @@ export class NotificacoesService {
     if (EMAIL_CRITICO_TIPOS.has(saved.tipo)) {
       await this.enviarEmailCritico(saved);
     }
+    void this.push?.enviar(saved);
 
     return saved;
   }

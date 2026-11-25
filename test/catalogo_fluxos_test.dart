@@ -49,7 +49,18 @@ void main() {
       find.widgetWithText(TextFormField, 'Nome do serviço'),
       'Montagem de cadeira',
     );
+    await tester.scrollUntilVisible(
+      find.text('Salvar'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView).first,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.ensureVisible(find.text('Salvar'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
     expect(salvo?['nome'], 'Montagem de cadeira');

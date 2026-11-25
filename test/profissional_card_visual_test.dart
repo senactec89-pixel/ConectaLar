@@ -54,7 +54,12 @@ void main() {
           expect(tester.getSize(find.byType(Image)), const Size(76, 94));
           expect(find.text('Quarto serviço'), findsNothing);
           expect(find.text('4,9 · 12345678 avaliações'), findsOneWidget);
-          expect(find.byTooltip('Documentos verificados'), findsOneWidget);
+          expect(
+            find.byTooltip(
+              'Análise documental aprovada; não confirma identidade.',
+            ),
+            findsOneWidget,
+          );
           if (scale == 2) {
             for (final texto in [
               _profissional.nome,

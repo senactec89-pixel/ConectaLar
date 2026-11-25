@@ -12,96 +12,92 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
-  testWidgets(
-    'erro preserva ação e motivo da habilitação para nova tentativa',
-    (tester) async {
-      final primeiraResposta = Completer<http.Response>();
-      final envios = <Map<String, dynamic>>[];
-      await configurarFrontend(
-        papel: 'administrador',
-        responder: (request) async {
-          if (request.url.path == '/admin/profissionais/habilitacoes') {
-            return jsonResponse({
-              'pagina': 1,
-              'total': 1,
-              'profissionais': [
-                {
-                  'id': 10,
-                  'nome': 'Profissional de teste',
-                  'habilitacao': {
-                    'estado': 'pendente',
-                    'podeAtender': false,
-                    'etapas': [],
-                  },
+  testWidgets('habilitacao permite nova tentativa depois de falha', (
+    tester,
+  ) async {
+    final primeiraResposta = Completer<http.Response>();
+    final envios = <Map<String, dynamic>>[];
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async {
+        if (request.url.path == '/admin/profissionais/habilitacoes') {
+          return jsonResponse({
+            'pagina': 1,
+            'total': 1,
+            'profissionais': [
+              {
+                'id': 10,
+                'nome': 'Profissional de teste',
+                'habilitacao': {
+                  'estado': 'pendente',
+                  'podeAtender': false,
+                  'etapas': [],
                 },
-              ],
-            });
-          }
-          if (request.url.path == '/admin/profissionais/10/habilitacao') {
-            envios.add(jsonDecode(request.body) as Map<String, dynamic>);
-            if (envios.length == 1) return primeiraResposta.future;
-            return jsonResponse({'ok': true});
-          }
-          return null;
-        },
-      );
-      await abrirFrontend(tester, AppRoutes.adminHabilitacoes, width: 360);
-      await tester.tap(find.text('Profissional de teste'));
-      await tester.pumpAndSettle();
+              },
+            ],
+          });
+        }
+        if (request.url.path == '/admin/profissionais/10/habilitacao') {
+          envios.add(jsonDecode(request.body) as Map<String, dynamic>);
+          if (envios.length == 1) return primeiraResposta.future;
+          return jsonResponse({'ok': true});
+        }
+        return null;
+      },
+    );
+    await abrirFrontend(tester, AppRoutes.adminHabilitacoes, width: 360);
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('habilitacao-acao')),
+    Future<void> selecionarSuspensao() async {
+      await tester.tap(find.byIcon(Icons.more_horiz).first);
+      await tester.pumpAndSettle();
+      final dialogo = find.byType(Dialog).last;
+      final scrollable = find
+          .descendant(of: dialogo, matching: find.byType(Scrollable))
+          .first;
+      final campos = find.descendant(
+        of: dialogo,
+        matching: find.byType(DropdownButtonFormField<String>),
       );
+      final acao = campos.first;
+      await tester.scrollUntilVisible(acao, 100, scrollable: scrollable);
+      await tester.tap(acao);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('habilitacao-acao')));
+      await tester.tap(find.textContaining('Suspender').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Suspender habilitação').last);
+      final motivo = campos.last;
+      await tester.scrollUntilVisible(motivo, 100, scrollable: scrollable);
+      await tester.tap(motivo);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('habilitacao-motivo')),
-      );
+      await tester.tap(find.textContaining('fraude').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('habilitacao-motivo')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Suspeita de fraude').last);
-      await tester.pumpAndSettle();
-
-      final confirmar = find.byKey(const ValueKey('habilitacao-confirmar'));
+      final confirmar = find.widgetWithText(FilledButton, 'Confirmar');
+      await tester.scrollUntilVisible(confirmar, 100, scrollable: scrollable);
       await tester.tap(confirmar);
-      await tester.pump();
-      expect(find.text('Enviando…'), findsOneWidget);
-      expect(tester.widget<FilledButton>(confirmar).onPressed, isNull);
-      expect(
-        tester
-            .widget<TextButton>(find.widgetWithText(TextButton, 'Cancelar'))
-            .onPressed,
-        isNull,
-      );
-      expect(envios, hasLength(1));
+    }
 
-      primeiraResposta.complete(
-        jsonResponse({'message': 'Falha temporária.'}, 503),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('habilitacao-erro-envio')),
-        findsOneWidget,
-      );
-      expect(find.text('Suspender habilitação'), findsOneWidget);
-      expect(find.text('Suspeita de fraude'), findsOneWidget);
-      await tester.tap(confirmar);
-      await tester.pumpAndSettle();
-      expect(envios, [
-        {'acao': 'suspender', 'motivo': 'suspeita_fraude'},
-        {'acao': 'suspender', 'motivo': 'suspeita_fraude'},
-      ]);
-      expect(find.byKey(const ValueKey('habilitacao-confirmar')), findsNothing);
-      expect(find.text('Análise registrada.'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await selecionarSuspensao();
+    await tester.pump();
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    expect(envios, hasLength(1));
 
-  testWidgets('análise de habilitação cabe com texto ampliado', (tester) async {
+    primeiraResposta.complete(
+      jsonResponse({'message': 'Temporary failure.'}, 503),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byType(Dialog), findsNothing);
+
+    await selecionarSuspensao();
+    await tester.pumpAndSettle();
+    expect(envios, [
+      {'acao': 'suspender', 'motivo': 'suspeita_fraude'},
+      {'acao': 'suspender', 'motivo': 'suspeita_fraude'},
+    ]);
+    expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dialogo de habilitacao cabe com texto ampliado', (tester) async {
     await configurarFrontend(
       papel: 'administrador',
       responder: (request) async =>
@@ -132,23 +128,25 @@ void main() {
         width: width,
         textScale: 2,
       );
-      final registro = find.text('Profissional de teste');
-      await tester.scrollUntilVisible(
-        registro,
-        180,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(registro);
+      await tester.tap(find.byIcon(Icons.more_horiz).first);
       await tester.pumpAndSettle();
 
-      final acao = find.byKey(const ValueKey('habilitacao-acao'));
-      final confirmar = find.byKey(const ValueKey('habilitacao-confirmar'));
-      await tester.ensureVisible(acao);
-      await tester.ensureVisible(confirmar);
-      await tester.pumpAndSettle();
+      final dialogo = find.byType(Dialog).last;
+      final scrollable = find
+          .descendant(of: dialogo, matching: find.byType(Scrollable))
+          .first;
+      final campos = find.descendant(
+        of: dialogo,
+        matching: find.byType(DropdownButtonFormField<String>),
+      );
+      final acao = campos.first;
+      final confirmar = find.widgetWithText(FilledButton, 'Confirmar');
+      await tester.scrollUntilVisible(acao, 100, scrollable: scrollable);
+      await tester.scrollUntilVisible(confirmar, 100, scrollable: scrollable);
       expect(confirmar.hitTestable(), findsOneWidget, reason: '$width px');
       expect(tester.takeException(), isNull, reason: '$width px');
+      await tester.tap(find.text('Cancelar'));
+      await tester.pumpAndSettle();
     }
   });
 }

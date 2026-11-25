@@ -79,6 +79,8 @@ class OfertaProfissional {
     this.inclui = const [],
     this.naoInclui = const [],
     this.opcionais = const [],
+    this.nivelExperienciaPiloto,
+    this.experienciaAviso,
   });
   final int id;
   final String nome;
@@ -90,4 +92,6 @@ class OfertaProfissional {
   final List<String> inclui;
   final List<String> naoInclui;
   final List<String> opcionais;
+  final String? nivelExperienciaPiloto;
+  final String? experienciaAviso;
 }

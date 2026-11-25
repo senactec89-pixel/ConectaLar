@@ -8,6 +8,13 @@ Pintura, Manutencao, Eletrica e Hidraulica, com descricao, inclusoes e exclusoes
 propostas. As categorias Ar-condicionado, Reformas e Outros continuam sem
 servicos concretos ate que sejam delimitadas e revisadas.
 
+No catalogo proposto, somente `Limpeza residencial padrao` recebe a politica
+`iniciante_ou_experiencia`, com curso opcional autodeclarado. `Limpeza pos-obra
+leve` permanece `fora_piloto`. Os itens entram pausados. A classificacao nao
+ativa o servico, nao aprova ofertas individuais e nao libera contratacoes; a
+equipe ainda deve revisar escopo, criterio e operacao. A carga nao sobrescreve a
+politica de itens ja existentes.
+
 `importarCatalogoProposto` e uma carga explicita de homologacao, nao executada
 por migrations ou inicializacao da API. Itens novos entram pausados. Em itens
 existentes, a carga preenche somente campos de texto vazios e preserva textos

@@ -4,7 +4,9 @@
     "nome": "Limpeza residencial padrao",
     "descricao": "Limpeza comum de ambientes internos selecionados pelo cliente, conforme o resumo do pedido.",
     "inclusoes": "Varrer e passar pano em pisos acessiveis; tirar poeira de superficies acessiveis; lavar a louca existente; limpar banheiro; arrumacao superficial dos quartos. Cozinha e banheiro podem ser selecionados no pedido.",
-    "exclusoes": "Limpeza pesada ou pos-obra; mover moveis pesados; janelas em altura; mofo extenso; pragas; residuos biologicos ou perigosos; cuidado de pessoas; tarefas nao descritas no resumo."
+    "exclusoes": "Limpeza pesada ou pos-obra; mover moveis pesados; janelas em altura; mofo extenso; pragas; residuos biologicos ou perigosos; cuidado de pessoas; tarefas nao descritas no resumo.",
+    "politicaPiloto": "iniciante_ou_experiencia",
+    "criterioPiloto": "Aceita iniciante ou experiencia declarada para limpeza comum apenas em ambientes internos e superficies acessiveis selecionados no pedido. Nao exige curso nem certificado. Formacao relacionada pode ser informada opcionalmente, sem ser considerada comprovada. Exclui limpeza pesada ou pos-obra, altura, mofo extenso, pragas, residuos biologicos ou perigosos, produtos restritos, cuidado de pessoas e tarefas fora do resumo."
   },
   {
     "categoria": "Limpeza",
@@ -25,7 +27,8 @@
     "nome": "Limpeza pos-obra leve",
     "descricao": "Remocao de poeira comum e residuos leves identificados em superficies acessiveis; exige confirmacao do tipo de residuo antes do atendimento.",
     "inclusoes": "Poeira superficial comum e limpeza de pisos e superficies fixas acessiveis, dentro dos ambientes descritos no resumo.",
-    "exclusoes": "Entulho; poeira de lixamento ou silica; cimento, tinta ou solventes; produtos perigosos; residuos desconhecidos; altura; equipamento especializado; qualquer contaminacao."
+    "exclusoes": "Entulho; poeira de lixamento ou silica; cimento, tinta ou solventes; produtos perigosos; residuos desconhecidos; altura; equipamento especializado; qualquer contaminacao.",
+    "politicaPiloto": "fora_piloto"
   },
   {
     "categoria": "Limpeza",

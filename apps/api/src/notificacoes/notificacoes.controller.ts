@@ -1,13 +1,42 @@
-import { Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
 import { UsuarioAtual } from '../auth/usuario-atual.decorator.js';
 import { NotificacoesService } from './notificacoes.service.js';
+import { PushNotificacoesService } from './push-notificacoes.service.js';
 
 @Controller('notificacoes')
 @UseGuards(AuthGuard)
 export class NotificacoesController {
-  constructor(private readonly notificacoes: NotificacoesService) {}
+  constructor(
+    private readonly notificacoes: NotificacoesService,
+    private readonly push: PushNotificacoesService,
+  ) {}
+
+  @Post('me/dispositivos')
+  registrarDispositivo(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.push.registrar(user, body);
+  }
+
+  @Post('me/dispositivos/revogar')
+  revogarDispositivo(
+    @UsuarioAtual() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
+    return this.push.revogar(user, body);
+  }
 
   @Get('me')
   listarMinhas(

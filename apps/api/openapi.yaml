@@ -3499,6 +3499,57 @@ paths:
                     minimum: 0
         default:
           $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/me/dispositivos:
+    post:
+      operationId: postRegistrarDispositivoPush
+      summary: Registers the authenticated user's push device
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, plataforma]
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 4096
+                plataforma:
+                  type: string
+                  enum: [android, ios, web]
+      responses:
+        '201':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
+  /notificacoes/me/dispositivos/revogar:
+    post:
+      operationId: postRevogarDispositivoPush
+      summary: Revokes the authenticated user's push device
+      tags: [Notificacoes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 4096
+      responses:
+        '201':
+          $ref: '#/components/responses/OkResponse'
+        default:
+          $ref: '#/components/responses/ApiErrorResponse'
   /notificacoes/me/lidas:
     patch:
       operationId: patchTodasNotificacoesLidas

@@ -16,6 +16,7 @@ import 'historico_service.dart';
 import 'mensagem_service.dart';
 import 'localizacao_service.dart';
 import 'notificacao_service.dart';
+import 'push_notification_service.dart';
 import 'profissional_service.dart';
 import 'session_storage.dart';
 import 'servico_service.dart';
@@ -39,17 +40,26 @@ class AppServices {
            ) {
     this.googleIdentity = googleIdentity ?? PluginGoogleIdentityClient();
     this.deviceLocation = deviceLocation ?? GeolocatorDeviceLocationClient();
+    push = PushNotificationService(this.api);
     auth = AuthService(
       this.api,
       persistirSessao: !modoDemo,
       sessionStorage: sessionStorage,
       onFederatedLogout: this.googleIdentity.signOut,
+      onBeforeLogout: push.revogarDispositivoDaSessao,
     );
     Object? usuarioBusca;
     auth.addListener(() {
       final usuario = auth.usuarioAtual?['id'];
       if (usuario != usuarioBusca || !auth.autenticado) buscaEstado.limpar();
       usuarioBusca = usuario;
+      final ativa = _sessaoPodeReceberPush;
+      final mudouUsuario = usuario?.toString() != _pushUserId;
+      if (ativa != _pushSessionActive || mudouUsuario) {
+        _pushSessionActive = ativa;
+        _pushUserId = usuario?.toString();
+        push.atualizarSessao(ativa: ativa).ignore();
+      }
     });
     this.api.onSessionExpired = auth.encerrarSessaoExpirada;
     this.api.onTermsRequired = auth.marcarTermosPendentes;
@@ -72,6 +82,9 @@ class AppServices {
   final buscaEstado = BuscaEstado();
   final bool modoDemo;
   final String papelDemo;
+  late final PushNotificationService push;
+  bool _pushSessionActive = false;
+  String? _pushUserId;
   late final GoogleIdentityClient googleIdentity;
   late final DeviceLocationClient deviceLocation;
   bool get emDemonstracao => modoDemo && !auth.autenticado;
@@ -90,6 +103,12 @@ class AppServices {
   late DenunciaService denuncias;
   late VerificacaoService verificacao;
 
+  bool get _sessaoPodeReceberPush =>
+      !modoDemo &&
+      auth.autenticado &&
+      auth.emailVerificado &&
+      auth.termosAceitos;
+
   Future<void> inicializar() async {
     if (modoDemo) {
       // A prévia usa somente o cliente local e não lê/altera a sessão real.
@@ -97,6 +116,10 @@ class AppServices {
     } else {
       await auth.inicializarSessao();
     }
+    await push.inicializar();
+    _pushSessionActive = _sessaoPodeReceberPush;
+    _pushUserId = auth.usuarioAtual?['id']?.toString();
+    await push.atualizarSessao(ativa: _pushSessionActive);
   }
 
   Future<HomeContent> carregarHome() async {

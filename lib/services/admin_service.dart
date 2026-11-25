@@ -33,6 +33,16 @@ class AdminService {
     body: {'acao': acao, 'motivo': motivo},
   );
 
+  Future<Map<String, dynamic>> analisarExperienciaOferta({
+    required int profissionalId,
+    required int ofertaId,
+    required String acao,
+    required String motivo,
+  }) => _api.patch(
+    'admin/profissionais/$profissionalId/ofertas/$ofertaId/experiencia',
+    body: {'acao': acao, 'motivo': motivo},
+  );
+
   Future<Map<String, dynamic>> confirmarTelefoneManual({
     required int profissionalId,
     required String codigo,

@@ -11,14 +11,17 @@ class AuthService extends ChangeNotifier {
     this.persistirSessao = true,
     SessionStorage? sessionStorage,
     Future<void> Function()? onFederatedLogout,
+    Future<void> Function()? onBeforeLogout,
   }) : _sessionStorage = sessionStorage ?? SecureSessionStorage(),
-       _onFederatedLogout = onFederatedLogout;
+       _onFederatedLogout = onFederatedLogout,
+       _onBeforeLogout = onBeforeLogout;
 
   static const _sessionKey = 'conectalar.auth.session.v1';
 
   final ApiService _api;
   final SessionStorage _sessionStorage;
   final Future<void> Function()? _onFederatedLogout;
+  final Future<void> Function()? _onBeforeLogout;
   final bool persistirSessao;
   Map<String, dynamic>? _usuarioAtual;
   String? _accessTokenAtual;
@@ -349,6 +352,7 @@ class AuthService extends ChangeNotifier {
     required String senhaAtual,
     required String confirmacao,
   }) async {
+    await _revogarPushAntesDeSair();
     final response = await _api.post(
       'privacidade/me/exclusao',
       body: {'senhaAtual': senhaAtual, 'confirmacao': confirmacao},
@@ -359,6 +363,7 @@ class AuthService extends ChangeNotifier {
 
   Future<Map<String, dynamic>> logout() async {
     Map<String, dynamic> response = {'ok': true};
+    await _revogarPushAntesDeSair();
     if (_api.autenticado) {
       try {
         response = await _api.post('auth/logout');
@@ -383,6 +388,14 @@ class AuthService extends ChangeNotifier {
       await _onFederatedLogout?.call();
     } catch (_) {
       // A sessao local ja foi encerrada e nao deve ser restaurada por falha externa.
+    }
+  }
+
+  Future<void> _revogarPushAntesDeSair() async {
+    try {
+      await _onBeforeLogout?.call();
+    } catch (_) {
+      // A saida da conta nao pode depender da entrega do push.
     }
   }
 

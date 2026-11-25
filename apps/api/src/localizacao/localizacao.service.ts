@@ -1,4 +1,9 @@
-import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 
 export interface LocalizacaoEndereco {
   readonly cep: string;
@@ -25,6 +30,8 @@ interface EnderecoGeocodificavel {
 
 @Injectable()
 export class LocalizacaoService {
+  private readonly logger = new Logger(LocalizacaoService.name);
+
   async consultarCep(valor: string): Promise<LocalizacaoEndereco> {
     const cep = somenteCep(valor);
     const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
@@ -67,6 +74,7 @@ export class LocalizacaoService {
   }> {
     const apiKey = process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim();
     if (!apiKey) {
+      this.logger.warn('geocoding_key_missing');
       return { latitude: null, longitude: null, precisao: null };
     }
 
@@ -91,8 +99,12 @@ export class LocalizacaoService {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8_000),
-    }).catch(() => null);
+    }).catch(() => {
+      this.logger.warn('geocoding_request_failed');
+      return null;
+    });
     if (response === null || !response.ok) {
+      if (response !== null) this.logger.warn('geocoding_http_failed');
       return { latitude: null, longitude: null, precisao: null };
     }
 
@@ -109,6 +121,19 @@ export class LocalizacaoService {
     const latitude = geometry?.location?.lat;
     const longitude = geometry?.location?.lng;
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      if (data.status !== 'ZERO_RESULTS') {
+        const knownStatuses = new Set([
+          'REQUEST_DENIED',
+          'OVER_QUERY_LIMIT',
+          'INVALID_REQUEST',
+          'UNKNOWN_ERROR',
+        ]);
+        this.logger.warn(
+          knownStatuses.has(data.status ?? '')
+            ? `geocoding_provider_${data.status?.toLowerCase()}`
+            : 'geocoding_provider_no_coordinates',
+        );
+      }
       return { latitude: null, longitude: null, precisao: null };
     }
 

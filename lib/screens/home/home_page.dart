@@ -329,8 +329,7 @@ class _HomeContentView extends StatelessWidget {
                       },
                     ),
                   if (content.nearbySearchAvailable &&
-                      !content.professionalsLoadFailed &&
-                      content.featuredProfessionals.isNotEmpty) ...[
+                      !content.professionalsLoadFailed) ...[
                     const SizedBox(height: 28),
                     _NearbyProfessionals(
                       professionals: content.featuredProfessionals,
@@ -456,7 +455,19 @@ class _NearbyProfessionals extends StatelessWidget {
                 )
               : ConstrainedBox(
                   constraints: const BoxConstraints(minHeight: 176),
-                  child: _MapFallback(onTap: onSeeAll),
+                  child: _MapFallback(
+                    onTap: onSeeAll,
+                    title: professionals.isEmpty
+                        ? 'Nenhum profissional próximo'
+                        : located.isEmpty
+                        ? 'Localização indisponível'
+                        : 'Mapa indisponível',
+                    message: professionals.isEmpty
+                        ? 'Não encontramos profissionais para esta região. Consulte a lista ou tente outra área.'
+                        : located.isEmpty
+                        ? 'A localização aproximada ainda não está disponível para os profissionais encontrados.'
+                        : 'Encontre profissionais pela lista.',
+                  ),
                 ),
         ),
       ],
@@ -479,9 +490,15 @@ class _NearbyProfessionals extends StatelessWidget {
 }
 
 class _MapFallback extends StatelessWidget {
-  const _MapFallback({required this.onTap});
+  const _MapFallback({
+    required this.onTap,
+    required this.title,
+    required this.message,
+  });
 
   final VoidCallback onTap;
+  final String title;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
@@ -495,13 +512,10 @@ class _MapFallback extends StatelessWidget {
           children: [
             const Icon(Icons.map_outlined, color: AppColors.verde, size: 28),
             const SizedBox(height: AppSpace.xs),
-            Text(
-              'Mapa indisponível',
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: AppSpace.xs),
             Text(
-              'Encontre profissionais pela lista.',
+              message,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

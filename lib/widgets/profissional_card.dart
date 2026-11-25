@@ -109,7 +109,7 @@ class ProfissionalCard extends StatelessWidget {
                   spacing: AppSpace.sm,
                   runSpacing: AppSpace.sm,
                   children: [
-                    for (final servico in profissional.servicos.take(3))
+                    for (final servico in _servicosVisiveis(profissional))
                       _ServicoTag(
                         servico: servico,
                         textoAmpliado: textoAmpliado,
@@ -166,6 +166,20 @@ class _AtendimentoIndisponivel extends StatelessWidget {
       ),
     ),
   );
+}
+
+List<String> _servicosVisiveis(Profissional profissional) {
+  if (profissional.ofertas.isEmpty) {
+    return profissional.servicos.take(3).toList();
+  }
+  return profissional.ofertas
+      .take(3)
+      .map(
+        (oferta) => oferta.nivelExperienciaPiloto == 'iniciante'
+            ? 'Iniciante: ${oferta.nome}'
+            : oferta.nome,
+      )
+      .toList();
 }
 
 class _InformacoesProfissional extends StatelessWidget {
