@@ -3,6 +3,7 @@ export enum AdminAuditoriaAcao {
   HabilitacaoRevisaoSolicitada = 'habilitacao_revisao_solicitada',
   HabilitacaoVotoRegistrado = 'habilitacao_voto_registrado',
   HabilitacaoDecisaoDupla = 'habilitacao_decisao_dupla',
+  HabilitacaoRevisorImpedido = 'habilitacao_revisor_impedido',
   UsuarioAtivado = 'usuario_ativado',
   UsuarioDesativado = 'usuario_desativado',
   AdministradorCriado = 'administrador_criado',

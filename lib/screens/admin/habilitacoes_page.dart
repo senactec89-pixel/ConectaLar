@@ -54,6 +54,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
         : <String, dynamic>{};
     final revisaoId = int.tryParse('${revisao['id']}');
     final jaVotou = revisao['jaVotou'] == true;
+    String declaracaoConflito = '';
     if (jaVotou) acao = 'suspender';
     if (!jaVotou && dados['estado'] == 'suspenso') acao = 'reabrir';
     var enviando = false;
@@ -74,7 +75,41 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                 children: [
                   HabilitacaoResumo(dados: dados),
                   const SizedBox(height: 16),
-                  if (!jaVotou)
+                  DropdownButtonFormField<String>(
+                    key: const ValueKey('habilitacao-declaracao-conflito'),
+                    initialValue: declaracaoConflito,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Conflito de interesse',
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text('Selecione uma opção'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'sem_conflito',
+                        child: Text('Confirmo que não tenho conflito'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'conflito',
+                        child: Text('Tenho conflito e vou me impedir'),
+                      ),
+                    ],
+                    onChanged: enviando
+                        ? null
+                        : (value) => setDialogState(
+                            () => declaracaoConflito = value ?? '',
+                          ),
+                  ),
+                  if (declaracaoConflito == 'conflito') ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'A declaração encerra a revisão pendente e impede você de atuar neste fluxo de habilitação. Outro administrador poderá iniciar uma nova revisão.',
+                      key: ValueKey('habilitacao-impedimento-aviso'),
+                    ),
+                  ],
+                  if (declaracaoConflito == 'sem_conflito' && !jaVotou)
                     DropdownButtonFormField<String>(
                       key: const ValueKey('habilitacao-acao'),
                       initialValue: acao,
@@ -99,37 +134,39 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                           ? null
                           : (value) => setDialogState(() => acao = value!),
                     ),
-                  if (jaVotou)
+                  if (declaracaoConflito == 'sem_conflito' && jaVotou)
                     const Text(
                       'Você já votou nesta revisão. Para interromper o acesso imediatamente, confirme uma suspensão abaixo.',
                     ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    key: const ValueKey('habilitacao-motivo'),
-                    initialValue: motivo,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Motivo'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'revisao_cadastral',
-                        child: Text('Revisão cadastral'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'suspeita_fraude',
-                        child: Text('Suspeita de fraude'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'solicitacao_titular',
-                        child: Text('Solicitação do titular'),
-                      ),
-                    ],
-                    onChanged: enviando
-                        ? null
-                        : (value) => setDialogState(() => motivo = value!),
-                  ),
+                  if (declaracaoConflito == 'sem_conflito') ...[
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('habilitacao-motivo'),
+                      initialValue: motivo,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Motivo'),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'revisao_cadastral',
+                          child: Text('Revisão cadastral'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'suspeita_fraude',
+                          child: Text('Suspeita de fraude'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'solicitacao_titular',
+                          child: Text('Solicitação do titular'),
+                        ),
+                      ],
+                      onChanged: enviando
+                          ? null
+                          : (value) => setDialogState(() => motivo = value!),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   const Text(
-                    'Iniciar análise e reabrir exigem que dois administradores distintos com MFA escolham a mesma ação. Os motivos podem ser diferentes. A suspensão é imediata e cancela a revisão pendente. Nenhuma dessas ações aprova identidade, antecedentes ou libera atendimentos.',
+                    'Para iniciar análise ou reabrir, dois administradores distintos com MFA devem escolher a mesma ação e declarar que não têm conflito. A suspensão é imediata para proteção. Nenhuma dessas ações aprova identidade, antecedentes ou libera atendimentos.',
                   ),
                   if (revisaoId != null) ...[
                     const SizedBox(height: 12),
@@ -162,7 +199,12 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
               ),
               FilledButton(
                 key: const ValueKey('habilitacao-confirmar'),
-                onPressed: enviando || (jaVotou && acao != 'suspender')
+                onPressed:
+                    enviando ||
+                        declaracaoConflito.isEmpty ||
+                        (declaracaoConflito == 'sem_conflito' &&
+                            jaVotou &&
+                            acao != 'suspender')
                     ? null
                     : () async {
                         setDialogState(() {
@@ -174,9 +216,15 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                           final resposta = await AppServices.instance.admin
                               .analisarHabilitacao(
                                 item['id'] as int,
-                                acao,
-                                motivo,
-                                revisaoId: acao == 'suspender'
+                                declaracaoConflito == 'conflito'
+                                    ? 'recusar_conflito'
+                                    : acao,
+                                declaracaoConflito == 'conflito'
+                                    ? 'conflito_interesse'
+                                    : motivo,
+                                revisaoId: declaracaoConflito == 'conflito'
+                                    ? revisaoId
+                                    : acao == 'suspender'
                                     ? null
                                     : revisaoId,
                               );
@@ -201,6 +249,8 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                 child: Text(
                   enviando
                       ? 'Enviando…'
+                      : declaracaoConflito == 'conflito'
+                      ? 'Registrar impedimento'
                       : jaVotou
                       ? 'Suspender agora'
                       : 'Confirmar',
@@ -227,6 +277,8 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
         'A revisão foi cancelada porque o estado ou as evidências mudaram durante a análise.',
       'suspensao_imediata' =>
         'Habilitação suspensa imediatamente; atendimentos continuam bloqueados.',
+      'revisor_impedido' =>
+        'Impedimento registrado. A revisão passou para outro administrador.',
       _ => 'Análise registrada.',
     };
     ScaffoldMessenger.of(
@@ -351,7 +403,9 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                               item['habilitacao']?['revisaoSolicitadaEm'] !=
                               null;
                           final subtitulo = revisao.isNotEmpty
-                              ? revisao['jaVotou'] == true
+                              ? revisao['impedido'] == true
+                                    ? 'Você declarou impedimento nesta habilitação; outro administrador deverá revisar'
+                                    : revisao['jaVotou'] == true
                                     ? 'Seu voto foi registrado; aguarda outro administrador'
                                     : 'Aguardando seu voto independente'
                               : revisaoSolicitada
@@ -362,7 +416,9 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                               title: Text('${item['nome']}'),
                               subtitle: Text(subtitulo),
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: _salvando ? null : () => _analisar(item),
+                              onTap: _salvando || revisao['impedido'] == true
+                                  ? null
+                                  : () => _analisar(item),
                             ),
                           );
                         },

@@ -8,9 +8,11 @@ import { UsuarioEntity } from '../../dist/database/entities/usuario.entity.js';
 import { ProfissionalPerfilEntity } from '../../dist/database/entities/profissional-perfil.entity.js';
 import { AdminAuditoriaEntity } from '../../dist/database/entities/admin-auditoria.entity.js';
 import { ProfissionalHabilitacaoRevisaoEntity } from '../../dist/database/entities/profissional-habilitacao-revisao.entity.js';
+import { ProfissionalHabilitacaoImpedimentoEntity } from '../../dist/database/entities/profissional-habilitacao-impedimento.entity.js';
 import { HabilitacaoService } from '../../dist/verificacao/habilitacao.service.js';
 import { ProfissionalTelefoneVerificacaoEntity } from '../../dist/database/entities/profissional-telefone-verificacao.entity.js';
 import { DuplaRevisaoHabilitacao1760140000000 } from '../../dist/database/migrations/1760140000000-DuplaRevisaoHabilitacao.js';
+import { ImpedimentoRevisorHabilitacao1760141000000 } from '../../dist/database/migrations/1760141000000-ImpedimentoRevisorHabilitacao.js';
 import { ProfissionalTelefoneZapSign1760134000000 } from '../../dist/database/migrations/1760134000000-ProfissionalTelefoneZapSign.js';
 import { invalidarVerificacoesTelefone } from '../../dist/verificacao/telefone-verificacao.util.js';
 
@@ -39,6 +41,7 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     const perfis = ds.getRepository(ProfissionalPerfilEntity);
     const auditorias = ds.getRepository(AdminAuditoriaEntity);
     const revisoes = ds.getRepository(ProfissionalHabilitacaoRevisaoEntity);
+    const impedimentos = ds.getRepository(ProfissionalHabilitacaoImpedimentoEntity);
     const verificacoesTelefone = ds.getRepository(ProfissionalTelefoneVerificacaoEntity);
     const titular = await usuarios.save(usuarios.create({ nome: 'Titular teste', email: 'titular@example.invalid',
       tipo: 'profissional', emailVerificado: true, ativo: true, senhaHash: 'not-a-login-hash' }));
@@ -48,13 +51,16 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
       tipo: 'administrador', emailVerificado: true, ativo: true, mfaAtivo: true, senhaHash: 'not-a-login-hash' }));
     const terceiroAdministrador = await usuarios.save(usuarios.create({ nome: 'Terceiro admin teste', email: 'admin3@example.invalid',
       tipo: 'administrador', emailVerificado: true, ativo: true, mfaAtivo: true, senhaHash: 'not-a-login-hash' }));
+    const quartoAdministrador = await usuarios.save(usuarios.create({ nome: 'Quarto admin teste', email: 'admin4@example.invalid',
+      tipo: 'administrador', emailVerificado: true, ativo: true, mfaAtivo: true, senhaHash: 'not-a-login-hash' }));
     const perfil = await perfis.save(perfis.create({ usuarioId: titular.id, descricao: 'Perfil de teste', bairro: 'Centro', verificado: true }));
     assert.equal(perfil.habilitacaoEstado, 'pendente');
-    const service = new HabilitacaoService(perfis, usuarios, undefined, undefined, undefined, revisoes);
+    const service = new HabilitacaoService(perfis, usuarios, undefined, undefined, undefined, revisoes, impedimentos);
     const profissional = { id: titular.id, tipo: 'profissional' };
     const admin = { id: administrador.id, tipo: 'administrador' };
     const admin2 = { id: segundoAdministrador.id, tipo: 'administrador' };
     const admin3 = { id: terceiroAdministrador.id, tipo: 'administrador' };
+    const admin4 = { id: quartoAdministrador.id, tipo: 'administrador' };
     await Promise.all([service.solicitarRevisao(profissional, {}), service.solicitarRevisao(profissional, {})]);
     assert.equal(await auditorias.count({ where: { acao: 'habilitacao_revisao_solicitada' } }), 1);
     await service.analisar(admin, perfil.id, { acao: 'suspender', motivo: 'revisao_cadastral' });
@@ -62,12 +68,12 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     assert.equal(await auditorias.count({ where: { acao: 'habilitacao_analisada' } }), 1);
 
     const primeiraDecisao = await service.analisar(admin, perfil.id, {
-      acao: 'reabrir', motivo: 'solicitacao_titular',
+      acao: 'reabrir', motivo: 'solicitacao_titular', semConflito: true,
     });
     assert.equal(primeiraDecisao.decisaoDupla.estado, 'aguardando_segundo_revisor');
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'suspenso');
     const segundaDecisao = await service.analisar(admin2, perfil.id, {
-      acao: 'reabrir', motivo: 'solicitacao_titular',
+      acao: 'reabrir', motivo: 'solicitacao_titular', semConflito: true,
       revisaoId: primeiraDecisao.decisaoDupla.revisaoId,
     });
     assert.equal(segundaDecisao.decisaoDupla.estado, 'concluida');
@@ -77,15 +83,15 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     assert.equal((await service.minha(profissional)).habilitacao.podeAtender, false);
 
     const revisaoConcorrente = await service.analisar(admin, perfil.id, {
-      acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+      acao: 'iniciar_analise', motivo: 'revisao_cadastral', semConflito: true,
     });
     const resultadosConcorrentes = await Promise.allSettled([
       service.analisar(admin2, perfil.id, {
-        acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+        acao: 'iniciar_analise', motivo: 'revisao_cadastral', semConflito: true,
         revisaoId: revisaoConcorrente.decisaoDupla.revisaoId,
       }),
       service.analisar(admin3, perfil.id, {
-        acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+        acao: 'iniciar_analise', motivo: 'revisao_cadastral', semConflito: true,
         revisaoId: revisaoConcorrente.decisaoDupla.revisaoId,
       }),
     ]);
@@ -95,6 +101,33 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'em_analise');
     assert.equal(await auditorias.count({ where: { acao: 'habilitacao_voto_registrado' } }), 4);
     assert.equal(await auditorias.count({ where: { acao: 'habilitacao_decisao_dupla' } }), 2);
+
+    const rodadaComConflito = await service.analisar(admin, perfil.id, {
+      acao: 'iniciar_analise', motivo: 'revisao_cadastral', semConflito: true,
+    });
+    const recusa = await service.analisar(admin2, perfil.id, {
+      acao: 'recusar_conflito', motivo: 'conflito_interesse',
+      revisaoId: rodadaComConflito.decisaoDupla.revisaoId,
+    });
+    assert.equal(recusa.decisaoDupla.estado, 'revisor_impedido');
+    assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'em_analise');
+    assert.equal(await impedimentos.count({ where: { profissionalId: perfil.id, administradorId: admin2.id } }), 1);
+    await assert.rejects(service.analisar(admin2, perfil.id, {
+      acao: 'iniciar_analise', motivo: 'revisao_cadastral', semConflito: true,
+    }), (error) => error?.response?.code === 'HABILITACAO_REVISOR_IMPEDIDO');
+
+    const rodadaSubstituta = await service.analisar(admin3, perfil.id, {
+      acao: 'reabrir', motivo: 'revisao_cadastral', semConflito: true,
+    });
+    const decisaoSubstituta = await service.analisar(admin4, perfil.id, {
+      acao: 'reabrir', motivo: 'solicitacao_titular', semConflito: true,
+      revisaoId: rodadaSubstituta.decisaoDupla.revisaoId,
+    });
+    assert.equal(decisaoSubstituta.decisaoDupla.estado, 'concluida');
+    assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'pendente');
+    assert.equal(await auditorias.count({ where: { acao: 'habilitacao_revisor_impedido' } }), 1);
+    assert.equal(await auditorias.count({ where: { acao: 'habilitacao_voto_registrado' } }), 7);
+    assert.equal(await auditorias.count({ where: { acao: 'habilitacao_decisao_dupla' } }), 3);
 
     const telefone = await verificacoesTelefone.save(verificacoesTelefone.create({
       usuarioId: titular.id,
@@ -127,13 +160,14 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
       return fn(wrapper);
     }) } };
     const failingService = new HabilitacaoService(failingRepository, usuarios,
-      undefined, undefined, undefined, revisoes);
+      undefined, undefined, undefined, revisoes, impedimentos);
     await service.analisar(admin, perfil.id, { acao: 'suspender', motivo: 'revisao_cadastral' });
     const revisaoAuditoriaFalha = await service.analisar(admin, perfil.id, {
-      acao: 'reabrir', motivo: 'solicitacao_titular',
+      acao: 'reabrir', motivo: 'solicitacao_titular', semConflito: true,
     });
     await assert.rejects(failingService.analisar(admin2, perfil.id, {
-      acao: 'reabrir', motivo: 'solicitacao_titular', revisaoId: revisaoAuditoriaFalha.decisaoDupla.revisaoId,
+      acao: 'reabrir', motivo: 'solicitacao_titular', semConflito: true,
+      revisaoId: revisaoAuditoriaFalha.decisaoDupla.revisaoId,
     }), /test-audit-failure/);
     assert.equal((await perfis.findOneByOrFail({ id: perfil.id })).habilitacaoEstado, 'suspenso');
     assert.equal((await revisoes.findOneByOrFail({ id: revisaoAuditoriaFalha.decisaoDupla.revisaoId })).estado,
@@ -141,6 +175,10 @@ test('MySQL: migrations, audit constraint, review concurrency and rollback', {
     assert.equal((await service.minha(profissional)).habilitacao.podeAtender, false);
     const queryRunner = ds.createQueryRunner();
     try {
+      await assert.rejects(
+        new ImpedimentoRevisorHabilitacao1760141000000().down(queryRunner),
+        /preserve reviewer conflict and attestation history/,
+      );
       await assert.rejects(
         new DuplaRevisaoHabilitacao1760140000000().down(queryRunner),
         /preserve the administrative double-review history/,

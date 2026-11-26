@@ -28,6 +28,7 @@ class AdminService {
     body: {
       'acao': acao,
       'motivo': motivo,
+      if (acao == 'iniciar_analise' || acao == 'reabrir') 'semConflito': true,
       if (revisaoId != null && acao != 'suspender') 'revisaoId': revisaoId,
     },
   );

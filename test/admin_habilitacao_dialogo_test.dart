@@ -12,6 +12,18 @@ import 'support/frontend_helpers.dart';
 void main() {
   tearDown(() => AppServices.instance.api.close());
 
+  Future<void> selecionarSemConflito(WidgetTester tester) async {
+    final declaracao = find.byKey(
+      const ValueKey('habilitacao-declaracao-conflito'),
+    );
+    await tester.ensureVisible(declaracao);
+    await tester.pumpAndSettle();
+    await tester.tap(declaracao);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmo que não tenho conflito').last);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets(
     'erro preserva ação e motivo da habilitação para nova tentativa',
     (tester) async {
@@ -48,6 +60,7 @@ void main() {
       await abrirFrontend(tester, AppRoutes.adminHabilitacoes, width: 360);
       await tester.tap(find.text('Profissional de teste'));
       await tester.pumpAndSettle();
+      await selecionarSemConflito(tester);
 
       await tester.ensureVisible(
         find.byKey(const ValueKey('habilitacao-acao')),
@@ -141,6 +154,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(registro);
       await tester.pumpAndSettle();
+      await selecionarSemConflito(tester);
 
       final acao = find.byKey(const ValueKey('habilitacao-acao'));
       final confirmar = find.byKey(const ValueKey('habilitacao-confirmar'));
@@ -150,6 +164,91 @@ void main() {
       expect(confirmar.hitTestable(), findsOneWidget, reason: '$width px');
       expect(tester.takeException(), isNull, reason: '$width px');
     }
+  });
+
+  testWidgets('impedimento envia somente código genérico e desativa o perfil', (
+    tester,
+  ) async {
+    var impedido = false;
+    Map<String, dynamic>? envio;
+    await configurarFrontend(
+      papel: 'administrador',
+      responder: (request) async {
+        if (request.url.path == '/admin/profissionais/habilitacoes') {
+          return jsonResponse({
+            'pagina': 1,
+            'total': 1,
+            'profissionais': [
+              {
+                'id': 10,
+                'nome': 'Profissional de teste',
+                'revisaoAdministrativa': impedido
+                    ? {
+                        'id': null,
+                        'estado': 'revisor_impedido',
+                        'jaVotou': false,
+                        'impedido': true,
+                      }
+                    : {
+                        'id': 77,
+                        'estado': 'aguardando_segundo_revisor',
+                        'jaVotou': false,
+                        'impedido': false,
+                      },
+                'habilitacao': {
+                  'estado': 'pendente',
+                  'podeAtender': false,
+                  'etapas': [],
+                },
+              },
+            ],
+          });
+        }
+        if (request.url.path == '/admin/profissionais/10/habilitacao') {
+          envio = jsonDecode(request.body) as Map<String, dynamic>;
+          impedido = true;
+          return jsonResponse({
+            'habilitacao': {'estado': 'pendente', 'podeAtender': false},
+            'decisaoDupla': {'estado': 'revisor_impedido', 'revisaoId': 77},
+          });
+        }
+        return null;
+      },
+    );
+
+    await abrirFrontend(tester, AppRoutes.adminHabilitacoes, width: 390);
+    await tester.tap(find.text('Profissional de teste'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('habilitacao-declaracao-conflito')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tenho conflito e vou me impedir').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('habilitacao-impedimento-aviso')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('habilitacao-confirmar')));
+    await tester.pumpAndSettle();
+
+    expect(envio, {
+      'acao': 'recusar_conflito',
+      'motivo': 'conflito_interesse',
+      'revisaoId': 77,
+    });
+    expect(
+      find.text(
+        'Você declarou impedimento nesta habilitação; outro administrador deverá revisar',
+      ),
+      findsOneWidget,
+    );
+    final profissional = find.text('Profissional de teste');
+    final tile = tester.widget<ListTile>(
+      find.ancestor(of: profissional, matching: find.byType(ListTile)),
+    );
+    expect(tile.onTap, isNull);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -201,6 +300,7 @@ void main() {
         ),
         findsOneWidget,
       );
+      await selecionarSemConflito(tester);
       expect(find.text('iniciar_analise'), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('habilitacao-confirmar')));
@@ -209,6 +309,7 @@ void main() {
         {
           'acao': 'iniciar_analise',
           'motivo': 'revisao_cadastral',
+          'semConflito': true,
           'revisaoId': 77,
         },
       ]);

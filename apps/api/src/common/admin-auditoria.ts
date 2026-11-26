@@ -38,16 +38,16 @@ const estados = new Set([
   'rejeitado', 'rejeitada', 'resolvida', 'convite_pendente',
   'aguardando_segundo_revisor', 'concluida', 'divergente', 'cancelada',
 ]);
-const resultados = new Set(['concluida', 'divergente', 'cancelada', 'aguardando_segundo_revisor']);
+const resultados = new Set(['concluida', 'divergente', 'cancelada', 'aguardando_segundo_revisor', 'revisor_impedido']);
 const acoesHabilitacao = new Set(['iniciar_analise', 'reabrir', 'suspender']);
-const motivosHabilitacao = new Set(['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular']);
+const motivosHabilitacao = new Set(['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular', 'conflito_interesse']);
 const chavesId = new Set([
   'profissionalUsuarioId', 'solicitacaoId', 'denuncianteId',
   'denunciadoId', 'avaliadorId', 'avaliadoId', 'emailOutboxId',
   'profissionalId', 'tokenVersion', 'revisaoId', 'primeiroRevisorId', 'segundoRevisorId',
 ]);
 const chavesBooleanas = new Set([
-  'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida', 'selo',
+  'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida', 'selo', 'semConflitoConfirmado',
 ]);
 
 function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, unknown> {

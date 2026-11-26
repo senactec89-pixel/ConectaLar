@@ -16,6 +16,7 @@ import {
   type AcaoRevisaoHabilitacao,
   type MotivoRevisaoHabilitacao,
 } from '../database/entities/profissional-habilitacao-revisao.entity.js';
+import { ProfissionalHabilitacaoImpedimentoEntity } from '../database/entities/profissional-habilitacao-impedimento.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { habilitacaoProfissional } from './habilitacao-profissional.js';
@@ -30,6 +31,7 @@ export class HabilitacaoService {
     private readonly identidade: IdZapSignProvider = new IdZapSignProvider(),
     @InjectRepository(ProfissionalTelefoneVerificacaoEntity) private readonly telefones: Repository<ProfissionalTelefoneVerificacaoEntity> | undefined = undefined,
     @InjectRepository(ProfissionalHabilitacaoRevisaoEntity) private readonly revisoes: Repository<ProfissionalHabilitacaoRevisaoEntity> | undefined = undefined,
+    @InjectRepository(ProfissionalHabilitacaoImpedimentoEntity) private readonly impedimentos: Repository<ProfissionalHabilitacaoImpedimentoEntity> | undefined = undefined,
   ) {}
 
   async minha(user: AuthenticatedUser) {
@@ -470,13 +472,17 @@ export class HabilitacaoService {
         where: { profissionalId: p.id, estado: 'aguardando_segundo_revisor' },
         order: { id: 'DESC' },
       });
+      const impedimento = await this.impedimentos?.findOne({
+        where: { profissionalId: p.id, administradorId: user.id },
+      });
       return {
         id: p.id,
         nome: p.usuario.nome,
-        revisaoAdministrativa: revisao ? {
-          id: revisao.id,
-          estado: revisao.estado,
-          jaVotou: revisao.primeiroRevisorId === user.id,
+        revisaoAdministrativa: revisao || impedimento ? {
+          id: revisao?.id ?? null,
+          estado: revisao?.estado ?? 'revisor_impedido',
+          jaVotou: revisao?.primeiroRevisorId === user.id,
+          impedido: impedimento !== null && impedimento !== undefined,
         } : null,
         habilitacao: habilitacaoProfissional(
           p,
@@ -490,18 +496,30 @@ export class HabilitacaoService {
 
   async analisar(user: AuthenticatedUser, id: number, body: unknown) {
     await this.exigirAdminMfa(user);
-    const input = corpo(body, ['acao', 'motivo', 'revisaoId']);
+    const input = corpo(body, ['acao', 'motivo', 'revisaoId', 'semConflito']);
     if (input.acao === 'aprovar') {
       throw new ConflictException({ code: 'HABILITACAO_DEPENDENCIAS_PENDENTES',
         message: 'Aprovacao indisponivel: faltam integracoes de identidade, telefone e politica de antecedentes.' });
     }
-    if (typeof input.acao !== 'string' || !['suspender', 'iniciar_analise', 'reabrir'].includes(input.acao)) throw invalido();
-    if (typeof input.motivo !== 'string' || !['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular'].includes(input.motivo)) throw invalido();
+    if (typeof input.acao !== 'string' || !['suspender', 'iniciar_analise', 'reabrir', 'recusar_conflito'].includes(input.acao)) throw invalido();
+    const acaoRecebida = input.acao;
+    const motivoValido = acaoRecebida === 'recusar_conflito'
+      ? input.motivo === 'conflito_interesse'
+      : typeof input.motivo === 'string' && ['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular'].includes(input.motivo);
+    if (!motivoValido) throw invalido();
+    if (input.semConflito !== undefined && typeof input.semConflito !== 'boolean') throw invalido();
+    if (['iniciar_analise', 'reabrir'].includes(acaoRecebida) && input.semConflito !== true) {
+      throw new ConflictException({
+        code: 'HABILITACAO_DECLARACAO_CONFLITO_OBRIGATORIA',
+        message: 'Confirme que não possui conflito de interesse antes de votar.',
+      });
+    }
+    if (acaoRecebida === 'recusar_conflito' && input.semConflito !== undefined) throw invalido();
     const revisaoId = input.revisaoId;
     if (revisaoId !== undefined && (!Number.isSafeInteger(revisaoId) || (revisaoId as number) < 1)) throw invalido();
-    const acao = input.acao as 'suspender' | AcaoRevisaoHabilitacao;
-    const motivo = input.motivo as MotivoRevisaoHabilitacao;
-    if (!this.revisoes) throw new ConflictException({
+    const acao = input.acao as 'suspender' | 'recusar_conflito' | AcaoRevisaoHabilitacao;
+    const motivo = input.motivo as MotivoRevisaoHabilitacao | 'conflito_interesse';
+    if (!this.revisoes || !this.impedimentos) throw new ConflictException({
       code: 'HABILITACAO_REVISAO_INDISPONIVEL',
       message: 'A revisão administrativa em duas etapas ainda não está disponível.',
     });
@@ -530,11 +548,56 @@ export class HabilitacaoService {
       }
 
       const revisoes = manager.getRepository(ProfissionalHabilitacaoRevisaoEntity);
+      const impedimentos = manager.getRepository(ProfissionalHabilitacaoImpedimentoEntity);
       const aberta = await revisoes.findOne({
         where: { profissionalId: perfil.id, estado: 'aguardando_segundo_revisor' },
         order: { id: 'DESC' },
         lock: { mode: 'pessimistic_write' },
       });
+      const impedimentoExistente = await impedimentos.findOne({
+        where: { profissionalId: perfil.id, administradorId: user.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (acao === 'recusar_conflito') {
+        if (impedimentoExistente) {
+          return { perfil, decisaoDupla: { estado: 'revisor_impedido', revisaoId: aberta?.id ?? null } };
+        }
+        if ((aberta && revisaoId !== aberta.id) || (!aberta && revisaoId !== undefined)) {
+          throw new ConflictException({
+            code: 'HABILITACAO_REVISAO_INDISPONIVEL',
+            message: 'A revisão mudou. Atualize a lista antes de registrar o impedimento.',
+          });
+        }
+        if (aberta) {
+          aberta.estado = 'cancelada';
+          aberta.resolvidaEm = new Date();
+          await revisoes.save(aberta);
+        }
+        await impedimentos.save(impedimentos.create({
+          profissionalId: perfil.id,
+          administradorId: user.id,
+        }));
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoRevisorImpedido,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            ...(aberta ? { revisaoId: aberta.id } : {}),
+            motivo: 'conflito_interesse',
+            resultado: 'revisor_impedido',
+          },
+        });
+        return { perfil, decisaoDupla: { estado: 'revisor_impedido', revisaoId: aberta?.id ?? null } };
+      }
+
+      if (impedimentoExistente) throw new ForbiddenException({
+        code: 'HABILITACAO_REVISOR_IMPEDIDO',
+        message: 'Você declarou impedimento para revisar este perfil.',
+      });
+      const motivoRevisao = motivo as MotivoRevisaoHabilitacao;
 
       if (acao === 'suspender') {
         if (revisaoId !== undefined) throw invalido();
@@ -584,14 +647,16 @@ export class HabilitacaoService {
           profissionalId: perfil.id,
           estadoInicial: perfil.habilitacaoEstado,
           assinaturaDossie,
+          primeiroSemConflito: true,
           acaoPrimeiroVoto: acao,
-          motivoPrimeiroVoto: motivo,
+          motivoPrimeiroVoto: motivoRevisao,
           primeiroRevisorId: user.id,
           primeiroVotoEm: new Date(),
           acaoSegundoVoto: null,
           motivoSegundoVoto: null,
           segundoRevisorId: null,
           segundoVotoEm: null,
+          segundoSemConflito: null,
           estado: 'aguardando_segundo_revisor',
           resolvidaEm: null,
         }));
@@ -600,7 +665,12 @@ export class HabilitacaoService {
           acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
           alvoTipo: 'habilitacao_profissional',
           alvoId: perfil.id,
-          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: nova.id, estado: 'aguardando_segundo_revisor' },
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            revisaoId: nova.id,
+            estado: 'aguardando_segundo_revisor',
+            semConflitoConfirmado: true,
+          },
         });
         return { perfil, decisaoDupla: { estado: 'aguardando_segundo_revisor', revisaoId: nova.id } };
       }
@@ -625,6 +695,19 @@ export class HabilitacaoService {
         });
         return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
       }
+      if (aberta.primeiroSemConflito !== true) {
+        aberta.estado = 'cancelada';
+        aberta.resolvidaEm = new Date();
+        await revisoes.save(aberta);
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, resultado: 'cancelada' },
+        });
+        return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
+      }
       if (aberta.primeiroRevisorId === user.id) {
         if (aberta.acaoPrimeiroVoto === acao && aberta.motivoPrimeiroVoto === motivo) {
           return { perfil, decisaoDupla: { estado: 'aguardando_segundo_revisor', revisaoId: aberta.id } };
@@ -634,9 +717,10 @@ export class HabilitacaoService {
         });
       }
       aberta.acaoSegundoVoto = acao;
-      aberta.motivoSegundoVoto = motivo;
+      aberta.motivoSegundoVoto = motivoRevisao;
       aberta.segundoRevisorId = user.id;
       aberta.segundoVotoEm = new Date();
+      aberta.segundoSemConflito = true;
       if (aberta.estadoInicial !== perfil.habilitacaoEstado) {
         aberta.estado = 'cancelada';
         aberta.resolvidaEm = new Date();
@@ -646,7 +730,12 @@ export class HabilitacaoService {
           acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
           alvoTipo: 'habilitacao_profissional',
           alvoId: perfil.id,
-          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: 'cancelada' },
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            revisaoId: aberta.id,
+            estado: 'cancelada',
+            semConflitoConfirmado: true,
+          },
         });
         await registrarAuditoriaAdmin(manager, {
           atorId: user.id,
@@ -656,7 +745,7 @@ export class HabilitacaoService {
           detalhe: {
             profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id,
             primeiroRevisorId: aberta.primeiroRevisorId, segundoRevisorId: user.id,
-            resultado: 'cancelada',
+            resultado: 'cancelada', semConflitoConfirmado: true,
           },
         });
         return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
@@ -670,7 +759,12 @@ export class HabilitacaoService {
           acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
           alvoTipo: 'habilitacao_profissional',
           alvoId: perfil.id,
-          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: 'cancelada' },
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            revisaoId: aberta.id,
+            estado: 'cancelada',
+            semConflitoConfirmado: true,
+          },
         });
         await registrarAuditoriaAdmin(manager, {
           atorId: user.id,
@@ -682,6 +776,7 @@ export class HabilitacaoService {
             primeiroRevisorId: aberta.primeiroRevisorId, segundoRevisorId: user.id,
             acaoPrimeiroVoto: aberta.acaoPrimeiroVoto, motivoPrimeiroVoto: aberta.motivoPrimeiroVoto,
             acaoSegundoVoto: acao, motivoSegundoVoto: motivo, resultado: 'cancelada',
+            semConflitoConfirmado: true,
           },
         });
         return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
@@ -696,7 +791,12 @@ export class HabilitacaoService {
         acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
         alvoTipo: 'habilitacao_profissional',
         alvoId: perfil.id,
-        detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: aberta.estado },
+        detalhe: {
+          profissionalUsuarioId: perfil.usuarioId,
+          revisaoId: aberta.id,
+          estado: aberta.estado,
+          semConflitoConfirmado: true,
+        },
       });
       if (aberta.estado === 'divergente') {
         await registrarAuditoriaAdmin(manager, {
@@ -713,7 +813,7 @@ export class HabilitacaoService {
             motivoPrimeiroVoto: aberta.motivoPrimeiroVoto,
             acaoSegundoVoto: acao,
             motivoSegundoVoto: motivo,
-            resultado: 'divergente',
+            resultado: 'divergente', semConflitoConfirmado: true,
           },
         });
         return { perfil, decisaoDupla: { estado: 'divergente', revisaoId: aberta.id } };
@@ -742,6 +842,7 @@ export class HabilitacaoService {
           acaoSegundoVoto: acao,
           motivoSegundoVoto: motivo,
           resultado: 'concluida',
+          semConflitoConfirmado: true,
           aprovacaoConcedida: false,
         },
       });

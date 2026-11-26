@@ -41,6 +41,9 @@ export class ProfissionalHabilitacaoRevisaoEntity {
   @Column({ name: 'assinatura_dossie', type: 'char', length: 64 })
   assinaturaDossie!: string;
 
+  @Column({ name: 'primeiro_sem_conflito', type: 'boolean', nullable: true })
+  primeiroSemConflito!: boolean | null;
+
   @Column({ name: 'acao_primeiro_voto', type: 'varchar', length: 32 })
   acaoPrimeiroVoto!: AcaoRevisaoHabilitacao;
 
@@ -72,6 +75,9 @@ export class ProfissionalHabilitacaoRevisaoEntity {
 
   @Column({ name: 'segundo_voto_em', type: 'datetime', precision: 3, nullable: true })
   segundoVotoEm!: Date | null;
+
+  @Column({ name: 'segundo_sem_conflito', type: 'boolean', nullable: true })
+  segundoSemConflito!: boolean | null;
 
   @Column({ type: 'varchar', length: 32, default: 'aguardando_segundo_revisor' })
   estado!: EstadoRevisaoHabilitacao;
