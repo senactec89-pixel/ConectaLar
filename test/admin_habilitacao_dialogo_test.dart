@@ -151,4 +151,74 @@ void main() {
       expect(tester.takeException(), isNull, reason: '$width px');
     }
   });
+
+  testWidgets(
+    'segundo administrador envia voto individual sem receber decisão anterior',
+    (tester) async {
+      final envios = <Map<String, dynamic>>[];
+      await configurarFrontend(
+        papel: 'administrador',
+        responder: (request) async {
+          if (request.url.path == '/admin/profissionais/habilitacoes') {
+            return jsonResponse({
+              'pagina': 1,
+              'total': 1,
+              'profissionais': [
+                {
+                  'id': 10,
+                  'nome': 'Profissional de teste',
+                  'revisaoAdministrativa': {
+                    'id': 77,
+                    'estado': 'aguardando_segundo_revisor',
+                    'jaVotou': false,
+                  },
+                  'habilitacao': {
+                    'estado': 'pendente',
+                    'podeAtender': false,
+                    'etapas': [],
+                  },
+                },
+              ],
+            });
+          }
+          if (request.url.path == '/admin/profissionais/10/habilitacao') {
+            envios.add(jsonDecode(request.body) as Map<String, dynamic>);
+            return jsonResponse({
+              'habilitacao': {'estado': 'em_analise', 'podeAtender': false},
+              'decisaoDupla': {'estado': 'concluida', 'revisaoId': 77},
+            });
+          }
+          return null;
+        },
+      );
+
+      await abrirFrontend(tester, AppRoutes.adminHabilitacoes, width: 390);
+      await tester.tap(find.text('Profissional de teste'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Há uma revisão aguardando seu voto independente. A decisão anterior não será exibida.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('iniciar_analise'), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('habilitacao-confirmar')));
+      await tester.pumpAndSettle();
+      expect(envios, [
+        {
+          'acao': 'iniciar_analise',
+          'motivo': 'revisao_cadastral',
+          'revisaoId': 77,
+        },
+      ]);
+      expect(
+        find.text(
+          'A ação coincidiu nos dois votos. A análise foi atualizada; atendimentos continuam bloqueados.',
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

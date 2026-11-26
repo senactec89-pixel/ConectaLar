@@ -21,10 +21,15 @@ class AdminService {
   Future<Map<String, dynamic>> analisarHabilitacao(
     int id,
     String acao,
-    String motivo,
-  ) => _api.patch(
+    String motivo, {
+    int? revisaoId,
+  }) => _api.patch(
     'admin/profissionais/$id/habilitacao',
-    body: {'acao': acao, 'motivo': motivo},
+    body: {
+      'acao': acao,
+      'motivo': motivo,
+      if (revisaoId != null && acao != 'suspender') 'revisaoId': revisaoId,
+    },
   );
 
   Future<Map<String, dynamic>> painel() => _api.get('admin/painel');

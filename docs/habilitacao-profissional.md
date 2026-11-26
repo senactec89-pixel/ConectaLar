@@ -30,6 +30,16 @@ Em novembro de 2026, foi acrescentada uma excecao **somente para beta tecnica lo
 - Nao aplicar esta versao esperando que a demo anterior continue criando atendimentos.
   O bloqueio e deliberado enquanto as dependencias de seguranca nao forem concluidas.
 
+## Dupla revisao administrativa
+
+Atualizacao de 25/11/2026: o painel e a API passaram a registrar votos independentes de dois administradores ativos com MFA para `iniciar_analise` e `reabrir`. A lista de trabalho mostra ao segundo revisor que existe uma decisão pendente, sem revelar a ação nem o motivo do primeiro voto. O sistema aplica a transição somente quando ambos escolhem a mesma ação. Motivos podem diferir e ficam registrados; ações divergentes encerram a rodada sem alterar o estado.
+
+O primeiro voto não muda o perfil. Uma alteração no estado ou no dossiê entre os votos cancela a rodada. A assinatura do dossiê considera estado e atualização do perfil, estado da conta/contatos e metadados de documentos, identidade e telefone. O envio e a análise de documentos, atualizações de identidade/telefone e mudanças de conta são serializados com a confirmação do voto para evitar validar uma assinatura desatualizada. A auditoria registra os votos e o resultado na mesma transação da alteração de estado.
+
+`suspender` continua sendo uma ação imediata de proteção por um administrador com MFA. Ela cancela uma revisão em aberto. Nenhuma das ações de revisão aprova habilitação: `aprovar` continua recusada, `podeAtender` permanece falso e endereço completo continua protegido até as políticas e critérios de habilitação serem concluídos.
+
+A migration `1760140000000-DuplaRevisaoHabilitacao` cria o histórico das rodadas e amplia as ações aceitas pela auditoria. A sequência completa foi executada no MySQL descartável do teste opt-in, incluindo votos concorrentes e rollback protegido por histórico. A migration ainda não foi aplicada ao banco de desenvolvimento ou produção; planejar o deploy e manter `synchronize` e `migrationsRun` desativados.
+
 ## Banco e implantacao
 
 A migration `1760123000000-HabilitacaoProfissional` adiciona estado e data de pedido

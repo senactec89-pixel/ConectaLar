@@ -983,6 +983,14 @@ class _AdminPageState extends State<AdminPage> {
                       value: 'habilitacao_revisao_solicitada',
                       child: Text('Revisão solicitada'),
                     ),
+                    DropdownMenuItem(
+                      value: 'habilitacao_voto_registrado',
+                      child: Text('Voto de habilitação registrado'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'habilitacao_decisao_dupla',
+                      child: Text('Decisão dupla de habilitação'),
+                    ),
                   ], (value) => _acaoAuditoria = value ?? ''),
             ),
           if (items.isEmpty)
@@ -2013,6 +2021,8 @@ String _rotuloAcaoAuditoria(String? acao) => switch (acao) {
   'documento_analisado' => 'Documento analisado',
   'habilitacao_analisada' => 'Habilitação analisada',
   'habilitacao_revisao_solicitada' => 'Revisão de habilitação solicitada',
+  'habilitacao_voto_registrado' => 'Voto de habilitação registrado',
+  'habilitacao_decisao_dupla' => 'Decisão dupla de habilitação',
   'denuncia_moderada' => 'Denúncia moderada',
   'avaliacao_moderada' => 'Avaliação moderada',
   _ => 'Ação administrativa',

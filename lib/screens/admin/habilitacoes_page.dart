@@ -48,10 +48,17 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
     final dados = raw is Map
         ? Map<String, dynamic>.from(raw)
         : <String, dynamic>{};
-    if (dados['estado'] == 'suspenso') acao = 'reabrir';
+    final rawRevisao = item['revisaoAdministrativa'];
+    final revisao = rawRevisao is Map
+        ? Map<String, dynamic>.from(rawRevisao)
+        : <String, dynamic>{};
+    final revisaoId = int.tryParse('${revisao['id']}');
+    final jaVotou = revisao['jaVotou'] == true;
+    if (jaVotou) acao = 'suspender';
+    if (!jaVotou && dados['estado'] == 'suspenso') acao = 'reabrir';
     var enviando = false;
     String? erro;
-    final confirmar = await showDialog<bool>(
+    final confirmar = await showDialog<Object?>(
       context: context,
       barrierDismissible: false,
       builder: (context) => StatefulBuilder(
@@ -67,30 +74,35 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                 children: [
                   HabilitacaoResumo(dados: dados),
                   const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    key: const ValueKey('habilitacao-acao'),
-                    initialValue: acao,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Ação'),
-                    items: [
-                      if (dados['estado'] != 'suspenso')
+                  if (!jaVotou)
+                    DropdownButtonFormField<String>(
+                      key: const ValueKey('habilitacao-acao'),
+                      initialValue: acao,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Ação'),
+                      items: [
+                        if (dados['estado'] != 'suspenso')
+                          const DropdownMenuItem(
+                            value: 'iniciar_analise',
+                            child: Text('Iniciar análise'),
+                          ),
                         const DropdownMenuItem(
-                          value: 'iniciar_analise',
-                          child: Text('Iniciar análise'),
+                          value: 'suspender',
+                          child: Text('Suspender habilitação'),
                         ),
-                      const DropdownMenuItem(
-                        value: 'suspender',
-                        child: Text('Suspender habilitação'),
-                      ),
-                      const DropdownMenuItem(
-                        value: 'reabrir',
-                        child: Text('Voltar para pendente'),
-                      ),
-                    ],
-                    onChanged: enviando
-                        ? null
-                        : (value) => setDialogState(() => acao = value!),
-                  ),
+                        const DropdownMenuItem(
+                          value: 'reabrir',
+                          child: Text('Voltar para pendente'),
+                        ),
+                      ],
+                      onChanged: enviando
+                          ? null
+                          : (value) => setDialogState(() => acao = value!),
+                    ),
+                  if (jaVotou)
+                    const Text(
+                      'Você já votou nesta revisão. Para interromper o acesso imediatamente, confirme uma suspensão abaixo.',
+                    ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     key: const ValueKey('habilitacao-motivo'),
@@ -117,8 +129,17 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'Esta decisão não aprova identidade ou antecedentes e não libera atendimentos.',
+                    'Iniciar análise e reabrir exigem que dois administradores distintos com MFA escolham a mesma ação. Os motivos podem ser diferentes. A suspensão é imediata e cancela a revisão pendente. Nenhuma dessas ações aprova identidade, antecedentes ou libera atendimentos.',
                   ),
+                  if (revisaoId != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      jaVotou
+                          ? 'Seu voto já foi registrado. Aguarde outro administrador.'
+                          : 'Há uma revisão aguardando seu voto independente. A decisão anterior não será exibida.',
+                      key: const ValueKey('habilitacao-revisao-pendente'),
+                    ),
+                  ],
                   if (erro != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -141,7 +162,7 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
               ),
               FilledButton(
                 key: const ValueKey('habilitacao-confirmar'),
-                onPressed: enviando
+                onPressed: enviando || (jaVotou && acao != 'suspender')
                     ? null
                     : () async {
                         setDialogState(() {
@@ -150,13 +171,17 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                         });
                         setState(() => _salvando = true);
                         try {
-                          await AppServices.instance.admin.analisarHabilitacao(
-                            item['id'] as int,
-                            acao,
-                            motivo,
-                          );
+                          final resposta = await AppServices.instance.admin
+                              .analisarHabilitacao(
+                                item['id'] as int,
+                                acao,
+                                motivo,
+                                revisaoId: acao == 'suspender'
+                                    ? null
+                                    : revisaoId,
+                              );
                           if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext, true);
+                            Navigator.pop(dialogContext, resposta);
                           }
                         } catch (error) {
                           if (dialogContext.mounted) {
@@ -173,18 +198,40 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                           }
                         }
                       },
-                child: Text(enviando ? 'Enviando…' : 'Confirmar'),
+                child: Text(
+                  enviando
+                      ? 'Enviando…'
+                      : jaVotou
+                      ? 'Suspender agora'
+                      : 'Confirmar',
+                ),
               ),
             ],
           ),
         ),
       ),
     );
-    if (confirmar != true || !mounted) return;
+    if (confirmar is! Map || !mounted) return;
     _recarregar();
+    final decisao = confirmar['decisaoDupla'] is Map
+        ? Map<String, dynamic>.from(confirmar['decisaoDupla'] as Map)
+        : const <String, dynamic>{};
+    final mensagem = switch (decisao['estado']) {
+      'aguardando_segundo_revisor' =>
+        'Voto registrado; aguardando outro administrador.',
+      'concluida' =>
+        'A ação coincidiu nos dois votos. A análise foi atualizada; atendimentos continuam bloqueados.',
+      'divergente' =>
+        'Os votos divergiram. O estado foi mantido e uma nova revisão será necessária.',
+      'cancelada' =>
+        'A revisão foi cancelada porque o estado ou as evidências mudaram durante a análise.',
+      'suspensao_imediata' =>
+        'Habilitação suspensa imediatamente; atendimentos continuam bloqueados.',
+      _ => 'Análise registrada.',
+    };
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Análise registrada.')));
+    ).showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override
@@ -294,17 +341,31 @@ class _HabilitacoesPageState extends State<HabilitacoesPage> {
                         icon: Icons.person_outline,
                       ),
                     for (final item in itens)
-                      Card(
-                        child: ListTile(
-                          title: Text('${item['nome']}'),
-                          subtitle: Text(
-                            item['habilitacao']?['revisaoSolicitadaEm'] != null
-                                ? 'Revisão solicitada pelo profissional'
-                                : 'Atendimentos bloqueados',
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: _salvando ? null : () => _analisar(item),
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final rawRevisao = item['revisaoAdministrativa'];
+                          final revisao = rawRevisao is Map
+                              ? Map<String, dynamic>.from(rawRevisao)
+                              : const <String, dynamic>{};
+                          final revisaoSolicitada =
+                              item['habilitacao']?['revisaoSolicitadaEm'] !=
+                              null;
+                          final subtitulo = revisao.isNotEmpty
+                              ? revisao['jaVotou'] == true
+                                    ? 'Seu voto foi registrado; aguarda outro administrador'
+                                    : 'Aguardando seu voto independente'
+                              : revisaoSolicitada
+                              ? 'Revisão solicitada pelo profissional'
+                              : 'Atendimentos bloqueados';
+                          return Card(
+                            child: ListTile(
+                              title: Text('${item['nome']}'),
+                              subtitle: Text(subtitulo),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: _salvando ? null : () => _analisar(item),
+                            ),
+                          );
+                        },
                       ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

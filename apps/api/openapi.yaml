@@ -194,13 +194,17 @@ paths:
                       properties:
                         id: { type: integer }
                         nome: { type: string }
+                        revisaoAdministrativa:
+                          oneOf:
+                            - type: 'null'
+                            - $ref: '#/components/schemas/RevisaoHabilitacaoPendente'
                         habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
         '403':
           description: Administrator role and active MFA required
   /admin/profissionais/{id}/habilitacao:
     patch:
       operationId: patchHabilitacaoAdmin
-      summary: Audits suspension or review; cannot approve identity or antecedents
+      summary: Records independent administrator votes for eligibility review; immediate suspension remains available
       security: [{ bearerAuth: [] }]
       parameters:
         - in: path
@@ -218,9 +222,10 @@ paths:
               properties:
                 acao: { type: string, enum: [iniciar_analise, suspender, reabrir] }
                 motivo: { type: string, enum: [revisao_cadastral, suspeita_fraude, solicitacao_titular] }
+                revisaoId: { type: integer, minimum: 1, description: ID returned for an open review; omitted to start the first vote }
       responses:
         '200':
-          description: Decision and audit committed atomically; still blocked for attendance
+          description: First vote, matching second vote, disagreement, or immediate suspension are committed with their audit records; attendance remains blocked
           content:
             application/json:
               schema:
@@ -228,7 +233,7 @@ paths:
         '403':
           description: Administrator MFA required; self-review forbidden
         '409':
-          description: Approval unavailable while integrations and legal policy are pending, or suspended review not reopened
+          description: Approval unavailable while policy gates remain open; duplicate reviewer, missing/stale review, or unsupported transition
   /health:
     get:
       operationId: getHealth
@@ -3415,6 +3420,23 @@ components:
       required: [habilitacao]
       properties:
         habilitacao: { $ref: '#/components/schemas/HabilitacaoProfissional' }
+        decisaoDupla:
+          $ref: '#/components/schemas/ResultadoRevisaoDupla'
+    RevisaoHabilitacaoPendente:
+      type: object
+      additionalProperties: false
+      required: [id, estado, jaVotou]
+      properties:
+        id: { type: integer, minimum: 1 }
+        estado: { type: string, const: aguardando_segundo_revisor }
+        jaVotou: { type: boolean }
+    ResultadoRevisaoDupla:
+      type: object
+      additionalProperties: false
+      required: [estado, revisaoId]
+      properties:
+        estado: { type: string, enum: [aguardando_segundo_revisor, concluida, divergente, cancelada, suspensao_imediata] }
+        revisaoId: { type: [integer, 'null'], minimum: 1 }
     HabilitacaoProfissional:
       type: object
       required: [estado, podeAtender, documentoAnalisado, etapas, mensagem, revisaoSolicitadaEm]

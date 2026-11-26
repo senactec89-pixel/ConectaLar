@@ -36,11 +36,15 @@ export function detalheAuditoriaSeguro(value: unknown): string {
 const estados = new Set([
   'pendente', 'em_analise', 'suspenso', 'aprovado', 'aprovada',
   'rejeitado', 'rejeitada', 'resolvida', 'convite_pendente',
+  'aguardando_segundo_revisor', 'concluida', 'divergente', 'cancelada',
 ]);
+const resultados = new Set(['concluida', 'divergente', 'cancelada', 'aguardando_segundo_revisor']);
+const acoesHabilitacao = new Set(['iniciar_analise', 'reabrir', 'suspender']);
+const motivosHabilitacao = new Set(['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular']);
 const chavesId = new Set([
   'profissionalUsuarioId', 'solicitacaoId', 'denuncianteId',
   'denunciadoId', 'avaliadorId', 'avaliadoId', 'emailOutboxId',
-  'profissionalId', 'tokenVersion',
+  'profissionalId', 'tokenVersion', 'revisaoId', 'primeiroRevisorId', 'segundoRevisorId',
 ]);
 const chavesBooleanas = new Set([
   'ativo', 'mfaObrigatorio', 'comentarioPresente', 'aprovacaoConcedida', 'selo',
@@ -78,10 +82,18 @@ function filtrarDetalhe(raw: Record<string, unknown>, pai = ''): Record<string, 
     } else if ((chave === 'status' || chave === 'estado') &&
       typeof valor === 'string' && estados.has(valor)) {
       seguro[chave] = valor;
+    } else if (chave === 'resultado' && typeof valor === 'string' && resultados.has(valor)) {
+      seguro[chave] = valor;
     } else if ((chave === 'expiraEm' || chave === 'revisaoSolicitadaEm') &&
       typeof valor === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(valor)) {
       seguro[chave] = valor;
     } else if (chave === 'efeito' && valor === 'nao_altera_estado_de_aprovacao_ou_suspensao') {
+      seguro[chave] = valor;
+    } else if ((chave === 'acao' || chave === 'acaoPrimeiroVoto' || chave === 'acaoSegundoVoto') &&
+      typeof valor === 'string' && acoesHabilitacao.has(valor)) {
+      seguro[chave] = valor;
+    } else if ((chave === 'motivo' || chave === 'motivoPrimeiroVoto' || chave === 'motivoSegundoVoto') &&
+      typeof valor === 'string' && motivosHabilitacao.has(valor)) {
       seguro[chave] = valor;
     }
   }

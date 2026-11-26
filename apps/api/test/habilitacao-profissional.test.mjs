@@ -5,6 +5,8 @@ import { HabilitacaoService } from '../dist/verificacao/habilitacao.service.js';
 import { SolicitacoesService } from '../dist/solicitacoes/solicitacoes.service.js';
 import { ProfissionaisService } from '../dist/profissionais/profissionais.service.js';
 import { ProfissionalPerfilEntity } from '../dist/database/entities/profissional-perfil.entity.js';
+import { ProfissionalHabilitacaoRevisaoEntity } from '../dist/database/entities/profissional-habilitacao-revisao.entity.js';
+import { UsuarioEntity } from '../dist/database/entities/usuario.entity.js';
 import { VerificacaoService } from '../dist/verificacao/verificacao.service.js';
 
 const profissional = { id: 20, tipo: 'profissional' };
@@ -63,11 +65,36 @@ test('provider desabilitado nao simula identidade ou prova de vida', async () =>
   await assert.rejects(provider.consultar('forjada'), codigo('VERIFICACAO_IDENTIDADE_INDISPONIVEL'));
 });
 
-function habilitacaoFixture(mfaAtivo = true) {
+function habilitacaoFixture(mfaAtivo = true, mfaSegundoAtivo = true) {
   const p = perfil();
   const audit = [];
+  const revisoes = [];
+  let proximoId = 1;
+  const revisaoRepo = {
+    async findOne({ where }) {
+      return revisoes.find((item) => item.profissionalId === where.profissionalId &&
+        item.estado === where.estado && (where.id === undefined || item.id === where.id)) ?? null;
+    },
+    create(data) { return { ...data }; },
+    async save(value) {
+      if (value.id === undefined) value.id = proximoId++;
+      const index = revisoes.findIndex((item) => item.id === value.id);
+      if (index < 0) revisoes.push(value);
+      else revisoes[index] = value;
+      return value;
+    },
+  };
   const manager = {
-    async findOne() { return p; },
+    async findOne(entity, options) {
+      if (entity === UsuarioEntity) {
+        const id = options?.where?.id;
+        if (id === p.usuarioId) return p.usuario;
+        return id === 99 || id === 100
+          ? { id, tipo: 'administrador', ativo: true, mfaAtivo: id === 99 ? mfaAtivo : mfaSegundoAtivo }
+          : null;
+      }
+      return p;
+    },
     getRepository(entity) {
       if (entity.name === 'AdminAuditoriaEntity') {
         return {
@@ -75,6 +102,10 @@ function habilitacaoFixture(mfaAtivo = true) {
           async save(data) { audit.push(data); return data; },
         };
       }
+      if (entity === ProfissionalHabilitacaoRevisaoEntity) return revisaoRepo;
+      if (entity.name === 'ProfissionalDocumentoVerificacaoEntity') return { async find() { return []; } };
+      if (entity.name === 'ProfissionalIdentidadeVerificacaoEntity' ||
+        entity.name === 'ProfissionalTelefoneVerificacaoEntity') return { async findOne() { return null; } };
       return {};
     },
     async save(type, data) { if (type === ProfissionalPerfilEntity) return data; return data; },
@@ -92,9 +123,10 @@ function habilitacaoFixture(mfaAtivo = true) {
     manager: { async transaction(fn) { return fn(manager); } },
     async findAndCount() { return [[p], 1]; },
   };
-  const usuarios = { async findOneBy({ id }) { return id === 99
-    ? { ...admin, ativo: true, mfaAtivo } : p.usuario; } };
-  return { p, audit, service: new HabilitacaoService(repo, usuarios) };
+  const usuarios = { async findOneBy({ id }) { return id === 99 || id === 100
+    ? { id, tipo: 'administrador', ativo: true, mfaAtivo: id === 99 ? mfaAtivo : mfaSegundoAtivo } : p.usuario; } };
+  return { p, audit, revisoes, service: new HabilitacaoService(repo, usuarios,
+    undefined, undefined, undefined, revisaoRepo) };
 }
 
 test('identidade recusa resultado declarado pelo app, CPF e selfie sem integracao', async () => {
@@ -138,10 +170,108 @@ test('admin nao aprova sem dependencias nem aceita detalhes criminais arbitrario
   await service.analisar(admin, 10, { acao: 'suspender', motivo: 'suspeita_fraude' });
   assert.equal(p.habilitacaoEstado, 'suspenso');
   await assert.rejects(service.analisar(admin, 10, { acao: 'iniciar_analise', motivo: 'revisao_cadastral' }), codigo('HABILITACAO_SUSPENSA'));
-  await service.analisar(admin, 10, { acao: 'reabrir', motivo: 'solicitacao_titular' });
+  const primeira = await service.analisar(admin, 10, { acao: 'reabrir', motivo: 'solicitacao_titular' });
+  assert.equal(primeira.decisaoDupla.estado, 'aguardando_segundo_revisor');
+  assert.equal(p.habilitacaoEstado, 'suspenso');
+  await service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'reabrir', motivo: 'solicitacao_titular', revisaoId: primeira.decisaoDupla.revisaoId,
+  });
   assert.equal(p.habilitacaoEstado, 'pendente');
   assert.equal(podeAtender(p), false);
-  assert.equal(audit.length, 2);
+  assert.equal(audit.length, 4);
+});
+
+test('dupla revisao oculta o primeiro voto e aplica somente resultado identico de outro admin', async () => {
+  const { service, p } = habilitacaoFixture();
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+  });
+  assert.equal(primeira.decisaoDupla.estado, 'aguardando_segundo_revisor');
+  assert.equal(p.habilitacaoEstado, 'pendente');
+
+  const filaPrimeiro = await service.listar(admin, {});
+  const filaSegundo = await service.listar({ id: 100, tipo: 'administrador' }, {});
+  const revisaoPrimeiro = filaPrimeiro.profissionais[0].revisaoAdministrativa;
+  const revisaoSegundo = filaSegundo.profissionais[0].revisaoAdministrativa;
+  assert.deepEqual(revisaoPrimeiro, {
+    id: primeira.decisaoDupla.revisaoId,
+    estado: 'aguardando_segundo_revisor',
+    jaVotou: true,
+  });
+  assert.deepEqual(revisaoSegundo, {
+    id: primeira.decisaoDupla.revisaoId,
+    estado: 'aguardando_segundo_revisor',
+    jaVotou: false,
+  });
+  assert.equal('acaoPrimeiroVoto' in revisaoSegundo, false);
+
+  const retry = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral', revisaoId: primeira.decisaoDupla.revisaoId,
+  });
+  assert.equal(retry.decisaoDupla.estado, 'aguardando_segundo_revisor');
+  await assert.rejects(service.analisar(admin, 10, {
+    acao: 'reabrir', motivo: 'solicitacao_titular', revisaoId: primeira.decisaoDupla.revisaoId,
+  }), codigo('HABILITACAO_REVISOR_REPETIDO'));
+
+  const segunda = await service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral', revisaoId: primeira.decisaoDupla.revisaoId,
+  });
+  assert.equal(segunda.decisaoDupla.estado, 'concluida');
+  assert.equal(p.habilitacaoEstado, 'em_analise');
+  assert.equal(podeAtender(p), false);
+});
+
+test('segundo administrador também precisa estar ativo com MFA', async () => {
+  const { service, p } = habilitacaoFixture(true, false);
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+  });
+  await assert.rejects(service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral', revisaoId: primeira.decisaoDupla.revisaoId,
+  }), codigo('MFA_ADMIN_OBRIGATORIO'));
+  assert.equal(p.habilitacaoEstado, 'pendente');
+});
+
+test('suspensão imediata cancela revisão aberta e invalida o identificador anterior', async () => {
+  const { service, p } = habilitacaoFixture();
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+  });
+  const suspensao = await service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'suspender', motivo: 'suspeita_fraude',
+  });
+  assert.equal(suspensao.decisaoDupla.estado, 'suspensao_imediata');
+  assert.equal(p.habilitacaoEstado, 'suspenso');
+  await assert.rejects(service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'reabrir', motivo: 'solicitacao_titular', revisaoId: primeira.decisaoDupla.revisaoId,
+  }), codigo('HABILITACAO_REVISAO_INDISPONIVEL'));
+});
+
+test('votos divergentes preservam o estado e encerram a revisão sem liberar atendimento', async () => {
+  const { service, p } = habilitacaoFixture();
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+  });
+  const segunda = await service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'reabrir', motivo: 'solicitacao_titular', revisaoId: primeira.decisaoDupla.revisaoId,
+  });
+  assert.equal(segunda.decisaoDupla.estado, 'divergente');
+  assert.equal(p.habilitacaoEstado, 'pendente');
+  assert.equal(podeAtender(p), false);
+});
+
+test('alteracao do dossie cancela a revisao para impedir decisao sobre evidencias desatualizadas', async () => {
+  const { service, p } = habilitacaoFixture();
+  const primeira = await service.analisar(admin, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral',
+  });
+  p.atualizadoEm = new Date();
+  const segunda = await service.analisar({ id: 100, tipo: 'administrador' }, 10, {
+    acao: 'iniciar_analise', motivo: 'revisao_cadastral', revisaoId: primeira.decisaoDupla.revisaoId,
+  });
+  assert.equal(segunda.decisaoDupla.estado, 'cancelada');
+  assert.equal(p.habilitacaoEstado, 'pendente');
+  assert.equal(podeAtender(p), false);
 });
 
 test('paginacao administrativa valida limites', async () => {

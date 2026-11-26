@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user.js';
@@ -10,6 +10,12 @@ import { ProfissionalPerfilEntity } from '../database/entities/profissional-perf
 import { UsuarioEntity } from '../database/entities/usuario.entity.js';
 import { ProfissionalIdentidadeVerificacaoEntity } from '../database/entities/profissional-identidade-verificacao.entity.js';
 import { ProfissionalTelefoneVerificacaoEntity } from '../database/entities/profissional-telefone-verificacao.entity.js';
+import { ProfissionalDocumentoVerificacaoEntity } from '../database/entities/profissional-documento-verificacao.entity.js';
+import {
+  ProfissionalHabilitacaoRevisaoEntity,
+  type AcaoRevisaoHabilitacao,
+  type MotivoRevisaoHabilitacao,
+} from '../database/entities/profissional-habilitacao-revisao.entity.js';
 import { AdminAuditoriaAcao } from '../domain/admin-auditoria-acao.js';
 import { UsuarioTipo } from '../domain/usuario-tipo.js';
 import { habilitacaoProfissional } from './habilitacao-profissional.js';
@@ -23,6 +29,7 @@ export class HabilitacaoService {
     @InjectRepository(ProfissionalIdentidadeVerificacaoEntity) private readonly identidades: Repository<ProfissionalIdentidadeVerificacaoEntity> | undefined = undefined,
     private readonly identidade: IdZapSignProvider = new IdZapSignProvider(),
     @InjectRepository(ProfissionalTelefoneVerificacaoEntity) private readonly telefones: Repository<ProfissionalTelefoneVerificacaoEntity> | undefined = undefined,
+    @InjectRepository(ProfissionalHabilitacaoRevisaoEntity) private readonly revisoes: Repository<ProfissionalHabilitacaoRevisaoEntity> | undefined = undefined,
   ) {}
 
   async minha(user: AuthenticatedUser) {
@@ -167,28 +174,38 @@ export class HabilitacaoService {
   async consultarTelefone(user: AuthenticatedUser) {
     this.exigirProfissional(user);
     if (!this.telefones) return { telefone: respostaTelefone(null, false) };
-    const usuario = await this.usuarios.findOneBy({ id: user.id, ativo: true });
-    if (!usuario) throw telefoneAusente();
-    const verificacao = await this.telefones.findOne({
-      where: { usuarioId: user.id }, order: { criadoEm: 'DESC' },
+    const resultado = await this.telefones.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!usuario) throw telefoneAusente();
+      const repo = manager.getRepository(ProfissionalTelefoneVerificacaoEntity);
+      const verificacao = await repo.findOne({
+        where: { usuarioId: user.id }, order: { criadoEm: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!verificacao) return { usuario, verificacao: null };
+      if (verificacao.telefoneVinculado !== usuario.telefoneNormalizado &&
+        !['invalidada', 'expirada', 'falha'].includes(verificacao.estado)) {
+        verificacao.estado = 'invalidada';
+        verificacao.resolvidaEm = new Date();
+        verificacao.tentativaEmAndamento = false;
+      } else if (verificacao.estado === 'pendente' && verificacao.expiraEm && verificacao.expiraEm <= new Date()) {
+        verificacao.estado = 'expirada';
+        verificacao.resolvidaEm = new Date();
+        verificacao.tentativaEmAndamento = false;
+      } else {
+        return { usuario, verificacao };
+      }
+      return { usuario, verificacao: await repo.save(verificacao) };
     });
-    if (!verificacao) {
-      return { telefone: respostaTelefone(null, this.identidade.telefoneDisponivel, usuario.telefoneNormalizado) };
-    }
-    if (verificacao.telefoneVinculado !== usuario.telefoneNormalizado &&
-      !['invalidada', 'expirada', 'falha'].includes(verificacao.estado)) {
-      verificacao.estado = 'invalidada';
-      verificacao.resolvidaEm = new Date();
-      verificacao.tentativaEmAndamento = false;
-      await this.telefones.save(verificacao);
-    }
-    if (verificacao.estado === 'pendente' && verificacao.expiraEm && verificacao.expiraEm <= new Date()) {
-      verificacao.estado = 'expirada';
-      verificacao.resolvidaEm = new Date();
-      verificacao.tentativaEmAndamento = false;
-      await this.telefones.save(verificacao);
-    }
-    return { telefone: respostaTelefone(verificacao, this.identidade.telefoneDisponivel, usuario.telefoneNormalizado) };
+    return {
+      telefone: respostaTelefone(
+        resultado.verificacao,
+        this.identidade.telefoneDisponivel,
+        resultado.usuario.telefoneNormalizado,
+      ),
+    };
   }
 
   async confirmarTelefone(user: AuthenticatedUser, body: unknown) {
@@ -351,12 +368,13 @@ export class HabilitacaoService {
       referenciaExterna: verificacao.referenciaExterna,
       chaveIdempotencia: verificacao.chaveIdempotencia,
     });
-    verificacao.referencia = criada.referencia;
-    verificacao.chaveIdempotencia = null;
-    verificacao.estado = 'pendente';
-    verificacao.expiraEm = criada.expiraEm;
-    await this.identidades.save(verificacao);
-    return { identidade: respostaIdentidade(verificacao, criada.url) };
+    const atualizada = await this.salvarIdentidadeAtualizada(verificacao, {
+      referencia: criada.referencia,
+      chaveIdempotencia: null,
+      estado: 'pendente',
+      expiraEm: criada.expiraEm,
+    });
+    return { identidade: respostaIdentidade(atualizada, criada.url) };
   }
 
   async consultarIdentidade(user: AuthenticatedUser) {
@@ -376,12 +394,13 @@ export class HabilitacaoService {
         referenciaExterna: verificacao.referenciaExterna,
         chaveIdempotencia: verificacao.chaveIdempotencia,
       });
-      verificacao.referencia = criada.referencia;
-      verificacao.chaveIdempotencia = null;
-      verificacao.estado = 'pendente';
-      verificacao.expiraEm = criada.expiraEm;
-      await identidades.save(verificacao);
-      return { identidade: respostaIdentidade(verificacao, criada.url) };
+      const atualizada = await this.salvarIdentidadeAtualizada(verificacao, {
+        referencia: criada.referencia,
+        chaveIdempotencia: null,
+        estado: 'pendente',
+        expiraEm: criada.expiraEm,
+      });
+      return { identidade: respostaIdentidade(atualizada, criada.url) };
     }
     if (verificacao.estado === 'pendente' && verificacao.referencia) {
       return this.atualizarIdentidade(verificacao);
@@ -447,9 +466,18 @@ export class HabilitacaoService {
       profissionais: await Promise.all(perfis.map(async (p) => {
       const identidade = await this.identidades?.findOne({ where: { usuarioId: p.usuarioId }, order: { criadoEm: 'DESC' } });
       const telefone = await this.telefones?.findOne({ where: { usuarioId: p.usuarioId }, order: { criadoEm: 'DESC' } });
+      const revisao = await this.revisoes?.findOne({
+        where: { profissionalId: p.id, estado: 'aguardando_segundo_revisor' },
+        order: { id: 'DESC' },
+      });
       return {
         id: p.id,
         nome: p.usuario.nome,
+        revisaoAdministrativa: revisao ? {
+          id: revisao.id,
+          estado: revisao.estado,
+          jaVotou: revisao.primeiroRevisorId === user.id,
+        } : null,
         habilitacao: habilitacaoProfissional(
           p,
           etapaIdentidade(identidade?.estado),
@@ -462,52 +490,326 @@ export class HabilitacaoService {
 
   async analisar(user: AuthenticatedUser, id: number, body: unknown) {
     await this.exigirAdminMfa(user);
-    const input = corpo(body, ['acao', 'motivo']);
+    const input = corpo(body, ['acao', 'motivo', 'revisaoId']);
     if (input.acao === 'aprovar') {
       throw new ConflictException({ code: 'HABILITACAO_DEPENDENCIAS_PENDENTES',
         message: 'Aprovacao indisponivel: faltam integracoes de identidade, telefone e politica de antecedentes.' });
     }
     if (typeof input.acao !== 'string' || !['suspender', 'iniciar_analise', 'reabrir'].includes(input.acao)) throw invalido();
     if (typeof input.motivo !== 'string' || !['revisao_cadastral', 'suspeita_fraude', 'solicitacao_titular'].includes(input.motivo)) throw invalido();
-    const perfil = await this.perfis.manager.transaction(async (manager) => {
+    const revisaoId = input.revisaoId;
+    if (revisaoId !== undefined && (!Number.isSafeInteger(revisaoId) || (revisaoId as number) < 1)) throw invalido();
+    const acao = input.acao as 'suspender' | AcaoRevisaoHabilitacao;
+    const motivo = input.motivo as MotivoRevisaoHabilitacao;
+    if (!this.revisoes) throw new ConflictException({
+      code: 'HABILITACAO_REVISAO_INDISPONIVEL',
+      message: 'A revisão administrativa em duas etapas ainda não está disponível.',
+    });
+    // Resolve the owner before the transaction so its first locking read can
+    // lock the user row, the shared serialization point for contact changes.
+    const perfilReferencia = await this.perfis.findOne({ where: { id } });
+    if (!perfilReferencia) throw naoEncontrado();
+    if (perfilReferencia.usuarioId === user.id) throw new ForbiddenException();
+    const resultado = await this.perfis.manager.transaction(async (manager) => {
+      const titular = await manager.findOne(UsuarioEntity, {
+        where: { id: perfilReferencia.usuarioId },
+        lock: { mode: 'pessimistic_write' },
+      });
       const perfil = await manager.findOne(ProfissionalPerfilEntity, {
         where: { id }, lock: { mode: 'pessimistic_write' },
       });
-      if (!perfil) throw naoEncontrado();
+      if (!titular || !perfil || perfil.usuarioId !== perfilReferencia.usuarioId) throw naoEncontrado();
       if (perfil.usuarioId === user.id) throw new ForbiddenException();
-      if (perfil.habilitacaoEstado === 'suspenso' && input.acao === 'iniciar_analise') {
+
+      const admin = await manager.findOne(UsuarioEntity, {
+        where: { id: user.id, ativo: true, tipo: UsuarioTipo.Administrador },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (!admin?.mfaAtivo) {
+        throw new ForbiddenException({ code: 'MFA_ADMIN_OBRIGATORIO', message: 'Ative a verificacao em duas etapas para gerenciar habilitacoes.' });
+      }
+
+      const revisoes = manager.getRepository(ProfissionalHabilitacaoRevisaoEntity);
+      const aberta = await revisoes.findOne({
+        where: { profissionalId: perfil.id, estado: 'aguardando_segundo_revisor' },
+        order: { id: 'DESC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (acao === 'suspender') {
+        if (revisaoId !== undefined) throw invalido();
+        if (aberta) {
+          aberta.estado = 'cancelada';
+          aberta.resolvidaEm = new Date();
+          await revisoes.save(aberta);
+          await registrarAuditoriaAdmin(manager, {
+            atorId: user.id,
+            acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+            alvoTipo: 'habilitacao_profissional',
+            alvoId: perfil.id,
+            detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, resultado: 'cancelada' },
+          });
+        }
+        const estadoAnterior = perfil.habilitacaoEstado;
+        const revisaoAnterior = perfil.habilitacaoRevisaoEm;
+        perfil.habilitacaoEstado = 'suspenso';
+        perfil.habilitacaoRevisaoEm = null;
+        await manager.save(ProfissionalPerfilEntity, perfil);
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoAnalisada,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            estado: { antes: estadoAnterior, depois: perfil.habilitacaoEstado },
+            revisaoSolicitadaEm: { antes: revisaoAnterior?.toISOString() ?? null, depois: null },
+            acao: 'suspender', motivo, aprovacaoConcedida: false,
+          },
+        });
+        return { perfil, decisaoDupla: { estado: 'suspensao_imediata', revisaoId: aberta?.id ?? null } };
+      }
+
+      if (acao === 'iniciar_analise' && perfil.habilitacaoEstado === 'suspenso') {
         throw new ConflictException({ code: 'HABILITACAO_SUSPENSA', message: 'Reabra a analise antes de continuar.' });
       }
+      const assinaturaDossie = await this.assinaturaDossie(manager, perfil, titular);
+
+      if (revisaoId === undefined) {
+        if (aberta) throw new ConflictException({
+          code: 'HABILITACAO_REVISAO_PENDENTE',
+          message: 'Já existe uma revisão aguardando outro administrador. Atualize a lista e registre seu voto individual.',
+        });
+        const nova = await revisoes.save(revisoes.create({
+          profissionalId: perfil.id,
+          estadoInicial: perfil.habilitacaoEstado,
+          assinaturaDossie,
+          acaoPrimeiroVoto: acao,
+          motivoPrimeiroVoto: motivo,
+          primeiroRevisorId: user.id,
+          primeiroVotoEm: new Date(),
+          acaoSegundoVoto: null,
+          motivoSegundoVoto: null,
+          segundoRevisorId: null,
+          segundoVotoEm: null,
+          estado: 'aguardando_segundo_revisor',
+          resolvidaEm: null,
+        }));
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: nova.id, estado: 'aguardando_segundo_revisor' },
+        });
+        return { perfil, decisaoDupla: { estado: 'aguardando_segundo_revisor', revisaoId: nova.id } };
+      }
+
+      if (!aberta || aberta.id !== (revisaoId as number)) throw new ConflictException({
+        code: 'HABILITACAO_REVISAO_INDISPONIVEL', message: 'Esta revisão não está mais aguardando um segundo administrador.',
+      });
+      const primeiroRevisor = await manager.findOne(UsuarioEntity, {
+        where: { id: aberta.primeiroRevisorId, ativo: true, tipo: UsuarioTipo.Administrador },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (!primeiroRevisor?.mfaAtivo) {
+        aberta.estado = 'cancelada';
+        aberta.resolvidaEm = new Date();
+        await revisoes.save(aberta);
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, resultado: 'cancelada' },
+        });
+        return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
+      }
+      if (aberta.primeiroRevisorId === user.id) {
+        if (aberta.acaoPrimeiroVoto === acao && aberta.motivoPrimeiroVoto === motivo) {
+          return { perfil, decisaoDupla: { estado: 'aguardando_segundo_revisor', revisaoId: aberta.id } };
+        }
+        throw new ConflictException({
+          code: 'HABILITACAO_REVISOR_REPETIDO', message: 'O segundo voto deve ser registrado por outro administrador.',
+        });
+      }
+      aberta.acaoSegundoVoto = acao;
+      aberta.motivoSegundoVoto = motivo;
+      aberta.segundoRevisorId = user.id;
+      aberta.segundoVotoEm = new Date();
+      if (aberta.estadoInicial !== perfil.habilitacaoEstado) {
+        aberta.estado = 'cancelada';
+        aberta.resolvidaEm = new Date();
+        await revisoes.save(aberta);
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: 'cancelada' },
+        });
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id,
+            primeiroRevisorId: aberta.primeiroRevisorId, segundoRevisorId: user.id,
+            resultado: 'cancelada',
+          },
+        });
+        return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
+      }
+      if (aberta.assinaturaDossie !== assinaturaDossie) {
+        aberta.estado = 'cancelada';
+        aberta.resolvidaEm = new Date();
+        await revisoes.save(aberta);
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: 'cancelada' },
+        });
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id,
+            primeiroRevisorId: aberta.primeiroRevisorId, segundoRevisorId: user.id,
+            acaoPrimeiroVoto: aberta.acaoPrimeiroVoto, motivoPrimeiroVoto: aberta.motivoPrimeiroVoto,
+            acaoSegundoVoto: acao, motivoSegundoVoto: motivo, resultado: 'cancelada',
+          },
+        });
+        return { perfil, decisaoDupla: { estado: 'cancelada', revisaoId: aberta.id } };
+      }
+
+      aberta.resolvidaEm = new Date();
+      aberta.estado = aberta.acaoPrimeiroVoto === acao
+        ? 'concluida' : 'divergente';
+      await revisoes.save(aberta);
+      await registrarAuditoriaAdmin(manager, {
+        atorId: user.id,
+        acao: AdminAuditoriaAcao.HabilitacaoVotoRegistrado,
+        alvoTipo: 'habilitacao_profissional',
+        alvoId: perfil.id,
+        detalhe: { profissionalUsuarioId: perfil.usuarioId, revisaoId: aberta.id, estado: aberta.estado },
+      });
+      if (aberta.estado === 'divergente') {
+        await registrarAuditoriaAdmin(manager, {
+          atorId: user.id,
+          acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
+          alvoTipo: 'habilitacao_profissional',
+          alvoId: perfil.id,
+          detalhe: {
+            profissionalUsuarioId: perfil.usuarioId,
+            revisaoId: aberta.id,
+            primeiroRevisorId: aberta.primeiroRevisorId,
+            segundoRevisorId: user.id,
+            acaoPrimeiroVoto: aberta.acaoPrimeiroVoto,
+            motivoPrimeiroVoto: aberta.motivoPrimeiroVoto,
+            acaoSegundoVoto: acao,
+            motivoSegundoVoto: motivo,
+            resultado: 'divergente',
+          },
+        });
+        return { perfil, decisaoDupla: { estado: 'divergente', revisaoId: aberta.id } };
+      }
+
       const estadoAnterior = perfil.habilitacaoEstado;
       const revisaoAnterior = perfil.habilitacaoRevisaoEm;
-      perfil.habilitacaoEstado = input.acao === 'suspender' ? 'suspenso'
-        : input.acao === 'iniciar_analise' ? 'em_analise' : 'pendente';
+      perfil.habilitacaoEstado = acao === 'iniciar_analise' ? 'em_analise' : 'pendente';
       perfil.habilitacaoRevisaoEm = null;
       await manager.save(ProfissionalPerfilEntity, perfil);
       await registrarAuditoriaAdmin(manager, {
         atorId: user.id,
-        acao: AdminAuditoriaAcao.HabilitacaoAnalisada,
+        acao: AdminAuditoriaAcao.HabilitacaoDecisaoDupla,
         alvoTipo: 'habilitacao_profissional',
         alvoId: perfil.id,
         detalhe: {
           profissionalUsuarioId: perfil.usuarioId,
+          revisaoId: aberta.id,
+          primeiroRevisorId: aberta.primeiroRevisorId,
+          segundoRevisorId: user.id,
           estado: { antes: estadoAnterior, depois: perfil.habilitacaoEstado },
-          revisaoSolicitadaEm: {
-            antes: revisaoAnterior?.toISOString() ?? null,
-            depois: null,
-          },
-          acao: input.acao,
-          motivo: input.motivo,
+          acao,
+          motivo,
+          acaoPrimeiroVoto: aberta.acaoPrimeiroVoto,
+          motivoPrimeiroVoto: aberta.motivoPrimeiroVoto,
+          acaoSegundoVoto: acao,
+          motivoSegundoVoto: motivo,
+          resultado: 'concluida',
           aprovacaoConcedida: false,
         },
       });
-      return perfil;
+      return { perfil, decisaoDupla: { estado: 'concluida', revisaoId: aberta.id } };
     });
+    const perfil = resultado.perfil;
     perfil.usuario = (await this.usuarios.findOneBy({ id: perfil.usuarioId }))!;
     const identidade = await this.identidades?.findOne({ where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' } });
     const telefone = await this.telefones?.findOne({ where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' } });
-    return { habilitacao: habilitacaoProfissional(perfil, etapaIdentidade(identidade?.estado),
-      etapaTelefone(telefone, perfil.usuario?.telefoneNormalizado, this.identidade.telefoneDisponivel)) };
+    return {
+      habilitacao: habilitacaoProfissional(perfil, etapaIdentidade(identidade?.estado),
+        etapaTelefone(telefone, perfil.usuario?.telefoneNormalizado, this.identidade.telefoneDisponivel)),
+      decisaoDupla: resultado.decisaoDupla,
+    };
+  }
+
+  private async assinaturaDossie(
+    manager: import('typeorm').EntityManager,
+    perfil: ProfissionalPerfilEntity,
+    usuario: UsuarioEntity,
+  ): Promise<string> {
+    const documentos = await manager.getRepository(ProfissionalDocumentoVerificacaoEntity).find({
+      where: { profissionalId: perfil.id }, order: { id: 'ASC' },
+    });
+    const identidade = await manager.getRepository(ProfissionalIdentidadeVerificacaoEntity).findOne({
+      where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' },
+    });
+    const telefone = await manager.getRepository(ProfissionalTelefoneVerificacaoEntity).findOne({
+      where: { usuarioId: perfil.usuarioId }, order: { criadoEm: 'DESC' },
+    });
+    const data = (value: Date | null | undefined) => value?.toISOString() ?? null;
+    const material = {
+      perfil: {
+        id: perfil.id,
+        atualizadoEm: data(perfil.atualizadoEm),
+        ativo: perfil.ativo,
+        verificado: perfil.verificado,
+      },
+      usuario: {
+        ativo: usuario?.ativo ?? false,
+        emailVerificado: usuario?.emailVerificado ?? false,
+        telefoneNormalizado: usuario?.telefoneNormalizado ?? null,
+      },
+      documentos: documentos.map((documento) => ({
+        id: documento.id,
+        tipo: documento.tipoDocumento,
+        status: documento.status,
+        criadoEm: data(documento.criadoEm),
+        analisadoEm: data(documento.analisadoEm),
+        atualizadoEm: data(documento.atualizadoEm),
+      })),
+      identidade: identidade ? {
+        id: identidade.id,
+        estado: identidade.estado,
+        expiraEm: data(identidade.expiraEm),
+        resolvidaEm: data(identidade.resolvidaEm),
+        atualizadoEm: data(identidade.atualizadoEm),
+      } : null,
+      telefone: telefone ? {
+        id: telefone.id,
+        telefoneVinculado: telefone.telefoneVinculado,
+        estado: telefone.estado,
+        expiraEm: data(telefone.expiraEm),
+        resolvidaEm: data(telefone.resolvidaEm),
+        atualizadoEm: data(telefone.atualizadoEm),
+      } : null,
+    };
+    return createHash('sha256').update(JSON.stringify(material)).digest('hex');
   }
 
   private async atualizarIdentidade(verificacao: ProfissionalIdentidadeVerificacaoEntity) {
@@ -517,14 +819,48 @@ export class HabilitacaoService {
       verificacao.referencia,
       verificacao.referenciaExterna,
     );
-    verificacao.estado = resultado.status === 'pendente' && resultado.expiraEm &&
+    const estado = resultado.status === 'pendente' && resultado.expiraEm &&
         resultado.expiraEm.getTime() <= Date.now()
       ? 'expirada'
       : resultado.status;
-    verificacao.expiraEm = resultado.expiraEm ?? verificacao.expiraEm;
-    verificacao.resolvidaEm = resultado.resolvidaEm;
-    await this.identidades.save(verificacao);
-    return { identidade: respostaIdentidade(verificacao, resultado.url, this.identidade.disponivel) };
+    const atualizada = await this.salvarIdentidadeAtualizada(verificacao, {
+      estado,
+      expiraEm: resultado.expiraEm ?? verificacao.expiraEm,
+      resolvidaEm: resultado.resolvidaEm,
+    });
+    return { identidade: respostaIdentidade(atualizada, resultado.url, this.identidade.disponivel) };
+  }
+
+  private async salvarIdentidadeAtualizada(
+    referencia: ProfissionalIdentidadeVerificacaoEntity,
+    alteracoes: Partial<Pick<ProfissionalIdentidadeVerificacaoEntity,
+      'referencia' | 'chaveIdempotencia' | 'estado' | 'expiraEm' | 'resolvidaEm'>>,
+  ): Promise<ProfissionalIdentidadeVerificacaoEntity> {
+    const identidades = this.identidades;
+    if (!identidades) throw identidadeIndisponivel();
+    return identidades.manager.transaction(async (manager) => {
+      const usuario = await manager.findOne(UsuarioEntity, {
+        where: { id: referencia.usuarioId, ativo: true }, lock: { mode: 'pessimistic_write' },
+      });
+      const perfil = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { usuarioId: referencia.usuarioId }, lock: { mode: 'pessimistic_write' },
+      });
+      if (!usuario || !perfil) throw naoEncontrado();
+      const repo = manager.getRepository(ProfissionalIdentidadeVerificacaoEntity);
+      const atual = await repo.findOne({
+        where: { id: referencia.id, usuarioId: referencia.usuarioId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!atual || atual.referenciaExterna !== referencia.referenciaExterna ||
+        atual.referencia !== referencia.referencia) {
+        throw new ConflictException({
+          code: 'IDENTIDADE_ALTERADA',
+          message: 'A verificação de identidade mudou. Atualize o estado antes de continuar.',
+        });
+      }
+      Object.assign(atual, alteracoes);
+      return repo.save(atual);
+    });
   }
 
   private exigirProfissional(user: AuthenticatedUser) {

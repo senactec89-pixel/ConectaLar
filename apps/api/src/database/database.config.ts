@@ -28,6 +28,7 @@ import { UsuarioSenhaResetEntity } from './entities/usuario-senha-reset.entity.j
 import { UsuarioEntity } from './entities/usuario.entity.js';
 import { ProfissionalIdentidadeVerificacaoEntity } from './entities/profissional-identidade-verificacao.entity.js';
 import { ProfissionalTelefoneVerificacaoEntity } from './entities/profissional-telefone-verificacao.entity.js';
+import { ProfissionalHabilitacaoRevisaoEntity } from './entities/profissional-habilitacao-revisao.entity.js';
 
 export {
   isAuthRuntimeConfigured,
@@ -103,6 +104,7 @@ export function databaseRuntimeOptions(): DataSourceOptions {
       UsuarioEmailVerificacaoEntity,
       ProfissionalIdentidadeVerificacaoEntity,
       ProfissionalTelefoneVerificacaoEntity,
+      ProfissionalHabilitacaoRevisaoEntity,
       PrivacidadeSolicitacaoEntity,
       SolicitacaoReagendamentoEntity,
       SolicitacaoOrcamentoEntity,

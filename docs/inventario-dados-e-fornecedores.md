@@ -37,6 +37,53 @@ Não presumir que toda integração configurável esteja ativa no ambiente de pr
 | Google Geocoding/Maps | Endereço usado na busca de coordenadas, quando configurado | Minimização do endereço enviado, chave, condições de uso e avisos |
 | Servidor de e-mail SMTP | Endereço de e-mail e conteúdo de mensagens transacionais | Provedor real, contrato, logs, retenção e entregabilidade |
 
+## Roteiro para revisão jurídica e de privacidade
+
+Use este roteiro em conjunto com a [proposta de política de habilitação](proposta-politica-habilitacao-profissional.md). Ele organiza informações e perguntas para a revisão; não define base legal, prazo de retenção ou conformidade. Complete uma ficha para cada operação de tratamento relevante, incluindo fornecedores e fluxos de habilitação.
+
+### Ficha por operação
+
+| Campo para análise | Preenchimento da equipe/revisor |
+| --- | --- |
+| Operação, tela, endpoint e versão do app/API |  |
+| Titulares afetados e categorias de dados |  |
+| Finalidade específica e necessidade de cada dado |  |
+| Agentes envolvidos e responsabilidades a confirmar |  |
+| Base legal a avaliar e justificativa do responsável |  |
+| Coleta, uso, compartilhamento, armazenamento e local de tratamento |  |
+| Acessos por papel e controles técnicos a comprovar |  |
+| Prazo de retenção proposto e evento que inicia a contagem |  |
+| Exclusão, anonimização, cópias, logs e tratamento de backups |  |
+| Aviso, consentimento ou outra comunicação apresentada ao titular |  |
+| Canal e procedimento para direitos, correção e contestação |  |
+| Riscos, salvaguardas, alternativa acessível e resposta a incidentes |  |
+| Decisão, condições, responsável e data da revisão |  |
+
+### Conferência específica de fornecedores
+
+Para cada fornecedor que a equipe pretende ativar, reunir e revisar:
+
+- nome do serviço e finalidade da integração;
+- dados enviados, respostas recebidas e dados persistidos pelo ConectaLar;
+- papel e responsabilidades de cada parte a confirmar;
+- contrato, termos de tratamento, subprocessadores e local(is) de tratamento;
+- controles de acesso, criptografia, retenção, eliminação e cópias de segurança;
+- canal e prazos operacionais para incidentes, solicitações de titulares e encerramento do serviço;
+- credenciais, ambiente e resultado da homologação técnica, mantidos separados do material público e sem expor segredos.
+
+Não presumir que a integração está ativa porque há código ou configuração para ela. Registrar `não contratado`, `não configurado`, `em análise`, `homologado em teste` ou `aprovado para operação` com evidência e responsável.
+
+### Evidências a anexar ao pacote de revisão
+
+1. Capturas ou descrição das telas e textos mostrados ao titular, com versão e data.
+2. Diagrama simples do fluxo de dados, incluindo API, banco, storage e fornecedores.
+3. Lista de rotas e papéis autorizados a consultar, alterar, exportar ou eliminar cada informação, com os testes de autorização disponíveis.
+4. Procedimentos propostos para revisão humana, contestação, expiração, revogação, exclusão e incidente.
+5. Contratos e documentação dos fornecedores que serão considerados para o piloto.
+6. Registro de decisões e pendências, apontando quais funcionalidades permanecem bloqueadas.
+
+O retorno jurídico deve identificar os materiais e versões revisados, recomendações ou condições, pontos ainda pendentes e responsável por cada encaminhamento. Guardar o retorno junto ao registro de decisões; não converter recomendação em regra implementada sem decisão da equipe.
+
 ## Direitos, avisos e incidentes
 
 - **Já existe tecnicamente:** exportação autenticada em JSON, exclusão com autenticação e anonimização, descritas em `docs/lgpd-direitos-titular.md`. Isso não resolve todos os pedidos humanos, casos excepcionais ou prazos de resposta.

@@ -77,9 +77,20 @@ export class VerificacaoService {
       this.malwareScanner,
       this.storage,
     );
-    const documento = await this.documentos.save(
-      this.documentos.create({
-        profissionalId: perfil.id,
+    const documento = await this.documentos.manager.transaction(async (manager) => {
+      const perfilAtual = await manager.findOne(ProfissionalPerfilEntity, {
+        where: { id: perfil.id, usuarioId: user.id, ativo: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (perfilAtual === null) {
+        throw new BadRequestException({
+          code: 'PERFIL_PROFISSIONAL_OBRIGATORIO',
+          message: 'Cadastre o perfil profissional antes de enviar documentos.',
+        });
+      }
+      const documentos = manager.getRepository(ProfissionalDocumentoVerificacaoEntity);
+      return documentos.save(documentos.create({
+        profissionalId: perfilAtual.id,
         enviadoPorId: user.id,
         tipoDocumento: input.tipoDocumento,
         referenciaArquivo,
@@ -89,8 +100,8 @@ export class VerificacaoService {
         motivoRejeicao: null,
         analisadoPorId: null,
         analisadoEm: null,
-      }),
-    );
+      }));
+    });
 
     return { documento: documentoResponse(documento) };
   }
